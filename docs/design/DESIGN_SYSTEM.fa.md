@@ -14,7 +14,9 @@
 
 ## پالت رنگ
 
-### <bdi dir="ltr">Light</bdi> (<bdi dir="ltr">`data-theme="light"`</bdi>)
+هویت پالت و حالت روشن/تیره دو بُعد مستقل در زمان اجرا هستند. <bdi dir="ltr">Scriptor</bdi> برای پالت انتخاب‌شده <bdi dir="ltr">`data-palette="<id>"`</bdi>، برای حالت نهایی روشن/تیره <bdi dir="ltr">`data-appearance="light|dark"`</bdi> و برای انتخاب‌گر پالت داخلی <bdi dir="ltr">`data-theme`</bdi> را می‌نویسد. گزینهٔ ذخیره‌شدهٔ <bdi dir="ltr">`system`</bdi> از سیستم‌عامل پیروی می‌کند و در زمان اجرا به <bdi dir="ltr">`data-appearance`</bdi> تبدیل می‌شود. کنترل روز/شب در نوار بالا فقط حالت ظاهر را تغییر می‌دهد و هرگز پالت انتخاب‌شده را عوض یا بین پالت‌ها گردش نمی‌کند.
+
+### پالت پایهٔ روشن (<bdi dir="ltr">`data-theme="light"`</bdi>، معمولاً <bdi dir="ltr">`data-appearance="light"`</bdi>)
 
 | <bdi dir="ltr">Token</bdi> | <bdi dir="ltr">Hex</bdi> | نقش |
 |---|---|---|
@@ -28,7 +30,7 @@
 | <bdi dir="ltr">`--glass-bg`</bdi> | <bdi dir="ltr">`rgba(255,255,255,0.72)`</bdi> | <bdi dir="ltr">panel</bdi> مات |
 | <bdi dir="ltr">`--glass-border`</bdi> | <bdi dir="ltr">`rgba(148,163,184,0.35)`</bdi> | لبه <bdi dir="ltr">glass</bdi> |
 
-### <bdi dir="ltr">Dark</bdi> (<bdi dir="ltr">`data-theme="dark"`</bdi>)
+### پالت پایهٔ تیره (<bdi dir="ltr">`data-theme="dark"`</bdi>، معمولاً <bdi dir="ltr">`data-appearance="dark"`</bdi>)
 
 | <bdi dir="ltr">Token</bdi> | <bdi dir="ltr">Hex</bdi> | نقش |
 |---|---|---|

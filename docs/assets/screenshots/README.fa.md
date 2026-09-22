@@ -42,7 +42,7 @@
 | <bdi dir="ltr">mobile-vault.png</bdi> | <bdi dir="ltr">pane</bdi> موبایل <bdi dir="ltr">vault</bdi> در 390 <bdi dir="ltr">px</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
 | <bdi dir="ltr">workspace-rendered.png</bdi> | حالت پیش‌نمایش رندرشده کامل با سرتیترهای <bdi dir="ltr">Markdown</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
 | <bdi dir="ltr">task-list-preview.png</bdi> | آیتم‌های فهرست وظایف رندرشده با چک‌باکس‌های تعاملی | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
-| <bdi dir="ltr">workspace-switcher.png</bdi> | منوی تغییر <bdi dir="ltr">workspace</bdi> و <bdi dir="ltr">breadcrumbs</bdi> نوار بالا | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">workspace-selector.png</bdi> | انتخابگر <bdi dir="ltr">workspace</bdi> و هویت خزانهٔ فعال در نوار بالا | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
 
 ### تازگی و پذیرش
 
@@ -51,6 +51,8 @@
 این تفکیک عمدی است. <bdi dir="ltr">baseline</bdi> ذخیره‌شده می‌تواند وقتی <bdi dir="ltr">render</bdi> فعلی در محدوده <bdi dir="ltr">visual tolerance</bdi> پیکربندی‌شده تفاوت دارد همچنان پذیرفته شود؛ <bdi dir="ltr">copy</bdi> کردن <bdi dir="ltr">baseline</bdi> روی تصویر تازه مستندات باعث می‌شود <bdi dir="ltr">docs</bdi> با وجود <bdi dir="ltr">pass</bdi> بودن <bdi dir="ltr">regression suite</bdi> قدیمی بمانند.
 
 <bdi dir="ltr">Windows</bdi> <bdi dir="ltr">baseline</bdi>های <bdi dir="ltr">stable</bdi> سطح پذیرش <bdi dir="ltr">visual regression</bdi> هستند. تغییر عمدی <bdi dir="ltr">pixel</bdi> باید بازبینی و صریحاً با `--update-snapshots=all` <bdi dir="ltr">refresh</bdi> شود؛ <bdi dir="ltr">failure</bdi> بصری هرگز با افزایش <bdi dir="ltr">tolerance</bdi> سراسری پنهان نمی‌شود.
+
+<bdi dir="ltr">workflow</bdi> مربوط به <bdi dir="ltr">Pull request</bdi> با نام **<bdi dir="ltr">Visual review</bdi>** تنها مالک <bdi dir="ltr">visual regression gate</bdi> است. ابتدا <bdi dir="ltr">render</bdi> فعلی را بدون تغییر <bdi dir="ltr">baseline</bdi>ها با نسخه <bdi dir="ltr">committed</bdi> مقایسه می‌کند. اجرای تشخیصی `--update-snapshots=all` فقط در صورت شکست آن مقایسه انجام می‌شود تا تصویر فعلی و <bdi dir="ltr">baseline drift evidence</bdi> تولید شود و هیچ تغییر بصری را خودکار نمی‌پذیرد. <bdi dir="ltr">browser E2E</bdi> عملکردی در <bdi dir="ltr">CI</bdi> اصلی می‌ماند، بنابراین <bdi dir="ltr">PR</bdi> سبز <bdi dir="ltr">visual suite</bdi> را دوبار اجرا نمی‌کند.
 
 <bdi dir="ltr">capture</bdi>های <bdi dir="ltr">responsive</bdi> و <bdi dir="ltr">state-review</bdi> (`workspace-mobile`، `workspace-tablet`، <bdi dir="ltr">vault/inspector</bdi> موبایل، <bdi dir="ltr">editor recovery</bdi>، <bdi dir="ltr">MCP sharing inventory</bdi> و <bdi dir="ltr">toolbar popover</bdi>ها) از خروجی <bdi dir="ltr">live</bdi> آزمون ساخته می‌شوند و مگر آن‌که <bdi dir="ltr">test</bdi> صریحاً `toHaveScreenshot` داشته باشد، به <bdi dir="ltr">pixel baseline stable</bdi> تبدیل نمی‌شوند.
 

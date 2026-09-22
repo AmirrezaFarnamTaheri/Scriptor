@@ -11,9 +11,13 @@ on:
   workflow_dispatch:
     inputs:
       size:
-        description: "Fixture size (1k | 5k | 25k)"
+        description: "Fixture size"
         default: "5k"
-        type: string
+        type: choice
+        options:
+          - "1k"
+          - "5k"
+          - "25k"
 
 permissions:
   contents: read
@@ -24,6 +28,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  PERF_SCHEDULE: ${{ github.event.schedule || '' }}
+  REQUESTED_SIZE: ${{ inputs.size || '5k' }}
 
 defaults:
   run:
@@ -65,14 +71,16 @@ jobs:
       - name: Generate synthetic vault fixture
         shell: pwsh
         run: |
-          $size = if ($env:GITHUB_EVENT_NAME -eq 'schedule' -and $env:GITHUB_EVENT_SCHEDULE -eq '0 4 * * 6') { '25k' } elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { '${{ github.event.inputs.size }}' } else { '5k' }
+          $size = if ($env:GITHUB_EVENT_NAME -eq 'schedule' -and $env:PERF_SCHEDULE -eq '0 4 * * 6') { '25k' } elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { $env:REQUESTED_SIZE } else { '5k' }
+          if ($size -notin @('1k', '5k', '25k')) { throw "Unsupported performance fixture size: $size" }
           Write-Host "Generating synthetic-$size fixture"
           pnpm "fixtures:synthetic-$size"
 
       - name: Run benchmark producers and persist evidence
         shell: pwsh
         run: |
-          $size = if ($env:GITHUB_EVENT_NAME -eq 'schedule' -and $env:GITHUB_EVENT_SCHEDULE -eq '0 4 * * 6') { '25k' } elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { '${{ github.event.inputs.size }}' } else { '5k' }
+          $size = if ($env:GITHUB_EVENT_NAME -eq 'schedule' -and $env:PERF_SCHEDULE -eq '0 4 * * 6') { '25k' } elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { $env:REQUESTED_SIZE } else { '5k' }
+          if ($size -notin @('1k', '5k', '25k')) { throw "Unsupported performance fixture size: $size" }
           New-Item -ItemType Directory -Force -Path artifacts/performance | Out-Null
           pwsh -NoProfile -File scripts/benchmarks/bench-large.ps1 -Size $size -Mode scan -Iterations 3 -OutputPath "artifacts/performance/benchmark-report-$size-scan.json"
           pwsh -NoProfile -File scripts/benchmarks/bench-large.ps1 -Size $size -Mode search -Iterations 3 -OutputPath "artifacts/performance/benchmark-report-$size-search.json"

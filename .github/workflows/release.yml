@@ -363,6 +363,7 @@ jobs:
           name: ${{ matrix.artifact }}
           path: release-output/*
           if-no-files-found: error
+          retention-days: 14
 
       - name: Remove transient native-signing credentials
         if: always() && inputs.trust_profile == 'native-signed' && (matrix.platform == 'windows' || matrix.platform == 'macos')

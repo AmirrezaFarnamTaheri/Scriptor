@@ -36,7 +36,7 @@
 | mobile-vault.png | Mobile vault 390 px | VISUAL-REVIEW |
 | workspace-rendered.png | Полный режим рендеринга предпросмотра с заголовками Markdown | VISUAL-REVIEW |
 | task-list-preview.png | Отрендеренные элементы списка задач с интерактивными чекбоксами | VISUAL-REVIEW |
-| workspace-switcher.png | Меню переключения рабочего пространства и навигационные цепочки | VISUAL-REVIEW |
+| workspace-selector.png | Селектор рабочего пространства и идентификатор активного хранилища в верхней панели | VISUAL-REVIEW |
 
 ### Актуальность и принятие
 
@@ -45,6 +45,8 @@ PNG документации — **свежие снимки текущего и
 Разделение намеренное. Сохранённая baseline может оставаться допустимой, если текущий render отличается в пределах visual tolerance; копирование старой baseline поверх свежей docs-картинки сделало бы документацию устаревшей при зелёной visual suite.
 
 Стабильные Windows baselines остаются acceptance surface visual regression. Намеренные pixel changes проверяются и явно обновляются через `--update-snapshots=all`; failures никогда не скрываются повышением глобальной tolerance.
+
+Pull-request workflow **Visual review** является единственным владельцем visual-regression gate. Сначала он сравнивает текущий render с committed baselines. Диагностический `--update-snapshots=all` запускается только при провале сравнения, чтобы получить актуальные изображения и evidence baseline drift; изменения никогда не принимаются автоматически. Функциональный browser E2E остаётся в основном CI, поэтому зелёный PR не выполняет visual suite дважды.
 
 Responsive/state-review captures (`workspace-mobile`, `workspace-tablet`, mobile vault/inspector, editor recovery, MCP inventory, toolbar popovers) создаются из живого test output и не становятся стабильными pixel baselines, если тест явно не использует `toHaveScreenshot`.
 

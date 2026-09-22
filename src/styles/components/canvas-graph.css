@@ -10,6 +10,49 @@
   box-shadow: 0 24px 80px color-mix(in oklch, var(--ink-strong) 18%, transparent);
 }
 
+.graph-overlay.graph-overlay-compact {
+  inset: auto;
+  top: max(calc(var(--topbar-bottom, 0px) + 48px), 12vh);
+  left: 50%;
+  width: min(520px, calc(100vw - 32px));
+  min-height: 0;
+  transform: translateX(-50%);
+  grid-template-rows: auto 1fr;
+}
+
+.graph-disabled-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 24px;
+}
+
+.graph-disabled-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--primary);
+}
+
+.graph-disabled-state h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.graph-disabled-state p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.graph-disabled-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 6px;
+}
+
 .canvas-overlay {
   position: fixed;
   inset: calc(var(--topbar-bottom, 0px) + 16px) 24px 96px;
@@ -61,6 +104,7 @@
 }
 
 .canvas-stage {
+  min-height: 0;
   overflow: auto;
   padding: 12px;
 }
@@ -69,7 +113,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-height: 360px;
+  min-height: max(360px, 100%);
 }
 
 .canvas-viewport-controls {
@@ -104,9 +148,12 @@
   color: var(--muted);
 }
 
-.canvas-stage svg {
+.canvas-stage .canvas-svg {
+  flex: 1 0 360px;
   width: 100%;
   min-height: 360px;
+  border-radius: 10px;
+  background: var(--surface-muted);
 }
 
 .canvas-svg {
@@ -207,9 +254,28 @@
   margin-left: auto;
 }
 
-.graph-canvas {
+.graph-stage {
+  position: relative;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.graph-canvas-accessible-shell {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.graph-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 .graph-edge {
@@ -300,7 +366,9 @@
 }
 
 .graph-loading {
-  min-height: 420px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   font-size: 13px;
 }
 

@@ -1,7 +1,7 @@
 use std::path::Path;
-use std::sync::mpsc;
+use std::sync::{Mutex, MutexGuard, mpsc};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use interprocess::local_socket::prelude::*;
 use interprocess::local_socket::{GenericFilePath, GenericNamespaced, ListenerOptions, Name};
@@ -9,6 +9,14 @@ use scriptor_daemon::transport::{
     connect_authenticated_client_with_retry_observer, remove_endpoint_file, write_endpoint,
 };
 use uuid::Uuid;
+
+static ENDPOINT_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+fn endpoint_test_guard() -> MutexGuard<'static, ()> {
+    ENDPOINT_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 fn test_socket_name() -> (String, Option<tempfile::TempDir>) {
     let unique = Uuid::new_v4().to_string();
@@ -61,6 +69,7 @@ impl Drop for RetryCleanup {
 
 #[test]
 fn authenticated_connect_refreshes_endpoint_after_daemon_restart() {
+    let _serial = endpoint_test_guard();
     let _ = remove_endpoint_file();
     let (old_socket, _old_dir) = test_socket_name();
     let (new_socket, _new_dir) = test_socket_name();
@@ -97,4 +106,31 @@ fn authenticated_connect_refreshes_endpoint_after_daemon_restart() {
     assert_ne!(connected_endpoint.nonce, old_endpoint.nonce);
 
     drop(listener);
+}
+
+#[test]
+fn authenticated_connect_failure_is_bounded() {
+    let _serial = endpoint_test_guard();
+    let _ = remove_endpoint_file();
+    let (socket, _socket_dir) = test_socket_name();
+    let _cleanup = RetryCleanup::new([socket.clone()]);
+    write_endpoint(&socket).expect("write unreachable endpoint");
+
+    let mut retries = 0usize;
+    let started = Instant::now();
+    let result = connect_authenticated_client_with_retry_observer(|endpoint| {
+        retries += 1;
+        assert_eq!(endpoint.socket_name, socket);
+    });
+    let elapsed = started.elapsed();
+
+    assert!(result.is_err(), "unreachable endpoint must fail");
+    assert!(
+        retries > 0,
+        "client should retry a transiently unreachable endpoint"
+    );
+    assert!(
+        elapsed < Duration::from_secs(2),
+        "connect retry budget exceeded bounded failure window: {elapsed:?}"
+    );
 }

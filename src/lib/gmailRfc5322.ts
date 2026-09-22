@@ -21,9 +21,17 @@ export function encodeBase64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
+function assertSingleLineHeader(label: string, value: string): void {
+  if (/[\r\n]/.test(value)) {
+    throw new Error(`Gmail ${label} must not contain a line break`)
+  }
+}
+
 /** Build a plain-text RFC 5322 envelope and encode it for Gmail send. */
 export function buildRfc5322Message(to: string, subject: string, body: string): string {
-  const normalizedBody = body.replace(/\r?\n/g, '\r\n')
+  assertSingleLineHeader('recipient', to)
+  assertSingleLineHeader('subject', subject)
+  const normalizedBody = body.replace(/\r\n|\r|\n/g, '\r\n')
   const email = `To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${normalizedBody}\r\n`
   const encoder = new TextEncoder()
   return encodeBase64Url(encoder.encode(email))

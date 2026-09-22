@@ -36,7 +36,7 @@
 | mobile-vault.png | 390 px mobile vault | VISUAL-REVIEW |
 | workspace-rendered.png | 带 Markdown 标题的完整渲染预览模式 | VISUAL-REVIEW |
 | task-list-preview.png | 带交互式复选框的已渲染任务列表项 | VISUAL-REVIEW |
-| workspace-switcher.png | 工作区切换菜单与顶部面包屑导航 | VISUAL-REVIEW |
+| workspace-selector.png | 顶部栏中的工作区选择器与当前仓库标识 | VISUAL-REVIEW |
 
 ### 新鲜度与接受标准
 
@@ -45,6 +45,8 @@
 这种分离是有意的。若当前渲染差异仍在配置的视觉容差内，旧 baseline 仍可被接受；如果再把旧 baseline 覆盖回新鲜文档图，即使视觉回归测试通过，文档也会过期。
 
 稳定 Windows baseline 仍是视觉回归的接受面。刻意的像素变更必须审查，并使用 `--update-snapshots=all` 明确刷新；绝不能通过提高全局容差隐藏视觉失败。
+
+Pull request 的 **Visual review** workflow 是视觉回归 gate 的唯一 owner。它首先只读比较当前渲染与 committed baseline；只有比较失败时才运行诊断性的 `--update-snapshots=all`，用于生成当前图像与 baseline drift 证据，绝不会自动接受视觉变化。功能性 browser E2E 保留在主 CI 中，因此干净的 PR 不会把 visual suite 重复执行两遍。
 
 响应式与状态审查截图（`workspace-mobile`、`workspace-tablet`、mobile vault/inspector、editor recovery、MCP inventory、toolbar popover）来自实时测试输出；除非测试明确使用 `toHaveScreenshot`，否则不会晋升为稳定像素 baseline。
 

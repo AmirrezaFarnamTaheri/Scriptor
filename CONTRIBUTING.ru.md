@@ -67,6 +67,10 @@ pnpm test:rust
 
 ## Pull requests
 
+Draft PR намеренно остаётся лёгким: тяжёлые CI, desktop compile, Visual review, Starlight lock и Release Binary Review jobs откладываются до готовности PR к ревью. **Ready for review** запускает полный набор проверок для точного head; последующие push отменяют устаревшие PR runs и проверяют только самый новый head.
+
+У browser-проверок один владелец на каждую задачу: основной CI workflow запускает функциональный Playwright E2E, а отдельный **Visual review** владеет стабильной visual-regression проверкой. Диагностический `--update-snapshots=all` запускается только после провала visual comparison; намеренное обновление baseline выполняется через отдельный screenshot-refresh workflow.
+
 Опишите:
 
 - изменённое наблюдаемое поведение;

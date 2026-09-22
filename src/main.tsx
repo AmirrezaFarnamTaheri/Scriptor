@@ -5,16 +5,32 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App.tsx'
 import { I18nProvider } from './lib/i18n/I18nProvider.tsx'
 import { PluginStateProvider } from './context/PluginStateContext.tsx'
+import { HelpRuntime } from './components/help/HelpRuntime'
+import { applyThemeToElement, nativeAppearanceForTheme, resolveAppearance, validateStoredTheme, type AppearanceMode } from './hooks/useAppTheme.ts'
+
+function safeInitialStorageGet(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    // Browsers/webviews can deny storage (privacy policy, sandboxing, corrupt
+    // profiles). Theme bootstrap is cosmetic and must never prevent app mount.
+    return null
+  }
+}
 
 function applyInitialTheme() {
-  const stored = window.localStorage.getItem('scriptor:app-theme')
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  document.documentElement.dataset.theme =
-    stored && typeof stored === 'string'
-      ? stored
-      : prefersDark
-        ? 'dark'
-        : 'light'
+  const rawTheme = safeInitialStorageGet('scriptor:app-theme')
+  const rawAppearance = safeInitialStorageGet('scriptor:appearance-mode')
+  const storedPalette = validateStoredTheme(rawTheme)
+  const palette = storedPalette ?? 'dark'
+  const appearance: AppearanceMode =
+    rawAppearance === 'light' || rawAppearance === 'dark' || rawAppearance === 'system'
+      ? rawAppearance
+      : storedPalette
+        ? nativeAppearanceForTheme(storedPalette)
+        : 'system'
+  const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  applyThemeToElement(document.documentElement, palette, resolveAppearance(appearance, systemDark))
 }
 
 async function mountApp() {
@@ -38,6 +54,9 @@ async function mountApp() {
               <App />
             </StrictMode>
           )}
+          <ErrorBoundary name="help-and-guides">
+            <HelpRuntime />
+          </ErrorBoundary>
         </PluginStateProvider>
       </I18nProvider>
     </ErrorBoundary>

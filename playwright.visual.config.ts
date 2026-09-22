@@ -9,11 +9,9 @@ export default defineConfig({
   timeout: 120_000,
   // A changed visual baseline needs explicit review, never retry masking.
   retries: 0,
-  // The combined Windows CI job runs this suite immediately after 113 browser
-  // tests. A single visual worker avoids exhausting the runner's ephemeral
-  // socket/buffer pool (ERR_NO_BUFFER_SPACE) while preserving fail-fast,
-  // retry-free snapshot validation. The dedicated visual job uses the same
-  // deterministic worker count.
+  // The dedicated visual workflow owns this suite. A single CI worker keeps
+  // browser rendering deterministic and avoids exhausting the Windows runner's
+  // ephemeral socket/buffer pool while preserving retry-free validation.
   workers: process.env.CI ? 1 : undefined,
   expect: {
     timeout: 30_000,
@@ -41,6 +39,9 @@ export default defineConfig({
     colorScheme: 'light',
     locale: 'en-US',
     trace: 'retain-on-failure',
+    // Named evidence captures are explicit in the visual specs. Automatic
+    // screenshots are retained only on failure so the artifact does not contain
+    // a second anonymous copy of every successful screen.
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },

@@ -37,7 +37,7 @@
     let renderTask = null
     let renderGeneration = 0
     let currentPage = 1
-    let scale = 1.5
+    let zoomFactor = 1
     let textLayer = null
     let highlightLayer = null
     let pageText = ''
@@ -78,6 +78,7 @@
         pdfDoc = await loadingTask.promise
         if (pdfDoc.numPages > MAX_PAGES) throw new Error(`PDF has ${pdfDoc.numPages} pages; Reader limit is ${MAX_PAGES}`)
         currentPage = 1
+        zoomFactor = 1
         await renderCurrentPage()
         post({ type: 'LOADED' })
       } catch (error) {
@@ -92,11 +93,18 @@
       const page = await pdfDoc.getPage(currentPage)
       if (generation !== renderGeneration) return
 
-      const requested = page.getViewport({ scale })
+      const baseViewport = page.getViewport({ scale: 1 })
+      const rootStyle = getComputedStyle(root)
+      const horizontalPadding =
+        (Number.parseFloat(rootStyle.paddingLeft) || 0) + (Number.parseFloat(rootStyle.paddingRight) || 0)
+      const availableWidth = Math.max(1, root.clientWidth - horizontalPadding)
+      const fitScale = Math.max(.25, Math.min(2, availableWidth / Math.max(1, baseViewport.width)))
+      const requestedScale = Math.max(.25, Math.min(4, fitScale * zoomFactor))
+      const requested = page.getViewport({ scale: requestedScale })
       const pixels = requested.width * requested.height
       const effectiveScale = pixels > MAX_PAGE_PIXELS
-        ? scale * Math.sqrt(MAX_PAGE_PIXELS / pixels)
-        : scale
+        ? requestedScale * Math.sqrt(MAX_PAGE_PIXELS / pixels)
+        : requestedScale
       const viewport = page.getViewport({ scale: effectiveScale })
 
       root.replaceChildren()
@@ -146,9 +154,20 @@
     }
 
     async function zoomBy(delta) {
-      scale = Math.max(.5, Math.min(4, scale + (Number(delta) || 0)))
+      zoomFactor = Math.max(.5, Math.min(4, zoomFactor + (Number(delta) || 0)))
       if (pdfDoc) await renderCurrentPage()
     }
+
+    let resizeTimer = null
+    const resizeObserver = new ResizeObserver(() => {
+      if (!pdfDoc) return
+      if (resizeTimer !== null) window.clearTimeout(resizeTimer)
+      resizeTimer = window.setTimeout(() => {
+        resizeTimer = null
+        void renderCurrentPage()
+      }, 80)
+    })
+    resizeObserver.observe(root)
 
     async function renderTextLayer(page, viewport) {
       const content = await page.getTextContent()
@@ -310,6 +329,9 @@
       const msg = event.data
       if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') return
       switch (msg.type) {
+        case 'READY_REQUEST':
+          if (pdfjsLib) post({ type: 'READY' })
+          break
         case 'LOAD_BYTES':
           if (!(msg.bytes instanceof ArrayBuffer)) return
           await loadDocument(new Uint8Array(msg.bytes))

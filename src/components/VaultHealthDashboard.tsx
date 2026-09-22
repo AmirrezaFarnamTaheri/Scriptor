@@ -3,6 +3,7 @@ import { Activity, CheckCircle2 } from 'lucide-react'
 
 import { summarizeLintIssues } from '../lib/vaultLintSummary'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
+import '../styles/components/health-dashboard.css'
 import type {
   InspectorWidgetContribution,
   VaultHealthCheckContribution,
@@ -90,6 +91,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
       subtitle="Index, link, metadata, citation, export, and cache diagnostics for the open vault."
       icon={<Activity size={18} />}
       ariaLabel="Vault health dashboard"
+      helpTopic="diagnostics"
       onClose={onClose}
       className="health-dashboard knowledge-filters-panel"
       wide

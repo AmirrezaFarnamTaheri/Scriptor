@@ -138,11 +138,11 @@ function TabButton({
 // MCP Tab
 // ---------------------------------------------------------------------------
 
-const MCP_MODES: Array<{ value: McpMode; label: string; description: string }> = [
-  { value: 'off', label: 'Off', description: 'MCP disabled. No tools exposed.' },
-  { value: 'read-only', label: 'Read-Only', description: 'Search, read, and inspect tools only.' },
-  { value: 'draft', label: 'Draft', description: 'AI may propose patches; you approve.' },
-  { value: 'write-approved', label: 'Write (approved)', description: 'Approved patches apply directly.' },
+const MCP_MODES: Array<{ value: McpMode; labelKey: string; descriptionKey: string }> = [
+  { value: 'off', labelKey: 'store.mcpModes.off.label', descriptionKey: 'store.mcpModes.off.description' },
+  { value: 'read-only', labelKey: 'store.mcpModes.readOnly.label', descriptionKey: 'store.mcpModes.readOnly.description' },
+  { value: 'draft', labelKey: 'store.mcpModes.draft.label', descriptionKey: 'store.mcpModes.draft.description' },
+  { value: 'write-approved', labelKey: 'store.mcpModes.writeApproved.label', descriptionKey: 'store.mcpModes.writeApproved.description' },
 ]
 
 function McpTab({
@@ -151,6 +151,7 @@ function McpTab({
   mcpAuditLog,
   onSetMcpMode,
 }: Required<Pick<StorePanelProps, 'mcpMode' | 'mcpTools' | 'mcpAuditLog' | 'onSetMcpMode'>>) {
+  const { t } = useI18n()
   const [showAudit, setShowAudit] = useState(false)
   const interactive = onSetMcpMode !== noopSetMcpMode
 
@@ -158,7 +159,7 @@ function McpTab({
     <div className="store-stack">
       {!interactive ? (
         <p className="store-hint">
-          MCP controls are unavailable in this surface. Open the dedicated MCP panel to change mode.
+          {t('store.mcpUnavailable')}
         </p>
       ) : null}
       {/* Mode selector */}
@@ -167,7 +168,7 @@ function McpTab({
           id="mcp-mode-label"
           className="store-section-label"
         >
-          MCP Mode
+          {t('store.mcpMode')}
         </h3>
         <div
           role="radiogroup"
@@ -188,8 +189,8 @@ function McpTab({
                 ? <Check size={14} color="var(--accent)" />
                 : <div className="store-check-spacer" />}
               <div>
-                <div className="store-item-title">{m.label}</div>
-                <div className="store-item-desc">{m.description}</div>
+                <div className="store-item-title">{t(m.labelKey)}</div>
+                <div className="store-item-desc">{t(m.descriptionKey)}</div>
               </div>
             </button>
           ))}
@@ -200,7 +201,7 @@ function McpTab({
       {mcpMode !== 'off' && (
         <section>
           <h3 className="store-section-label">
-            Available Tools ({mcpTools.length})
+            {t('store.availableTools', { count: mcpTools.length })}
           </h3>
           <div className="store-scroll-list">
             {mcpTools.map((tool) => (
@@ -228,7 +229,7 @@ function McpTab({
           className="store-audit-toggle"
         >
           <ChevronRight size={12} />
-          Audit Log ({mcpAuditLog.length} entries)
+          {t('store.auditLog', { count: mcpAuditLog.length })}
         </button>
         {showAudit && (
           <div className="store-audit-list">
@@ -238,7 +239,7 @@ function McpTab({
                 className={`store-audit-row${entry.outcome === 'denied' ? ' denied' : entry.outcome === 'failed' ? ' failed' : ''}`}
               >
                 <span className="store-audit-outcome">
-                  {entry.outcome}
+                  {t(`store.auditOutcome.${entry.outcome}`)}
                 </span>
                 <span className="store-mono-dim">{entry.toolName}</span>
               </div>
@@ -258,22 +259,22 @@ function FeaturesTab({
   featureFlags,
   onToggleFeature,
 }: Required<Pick<StorePanelProps, 'featureFlags' | 'onToggleFeature'>>) {
+  const { t } = useI18n()
   const interactive = onToggleFeature !== noopToggleFeature
 
   return (
     <div className="store-stack-sm">
       <p className="store-hint-spaced">
-        Runtime controls let you pause optional background work without uninstalling anything.
-        Changes take effect immediately unless marked <em>requires restart</em>.
+        {t('store.featureHintBefore')} <em>{t('store.requiresRestart')}</em>{t('store.featureHintAfter')}
       </p>
       {!interactive ? (
         <p className="store-hint">
-          Feature toggles are read-only in this surface.
+          {t('store.featuresReadOnly')}
         </p>
       ) : null}
       {featureFlags.length === 0 ? (
         <p className="store-hint">
-          No feature flags are available.
+          {t('store.noFeatureFlags')}
         </p>
       ) : null}
       {featureFlags.map((flag) => (
@@ -285,7 +286,7 @@ function FeaturesTab({
             type="button"
             disabled={!interactive}
             onClick={() => onToggleFeature(flag.key, !flag.enabled)}
-            aria-label={`Toggle ${flag.label}`}
+            aria-label={t('store.toggleFeatureAria', { label: flag.label })}
             aria-pressed={flag.enabled}
             className="store-flag-toggle"
           >
@@ -298,7 +299,7 @@ function FeaturesTab({
               {flag.label}
               {flag.requiresRestart && (
                 <span className="store-chip-warning">
-                  restart
+                  {t('store.restart')}
                 </span>
               )}
             </div>
@@ -320,11 +321,11 @@ function LayoutsTab({
   activeLayoutPresetId,
   onApplyLayoutPreset,
 }: Pick<StorePanelProps, 'activeLayoutPresetId' | 'onApplyLayoutPreset'>) {
+  const { t } = useI18n()
   return (
     <div className="store-stack-sm">
       <p className="store-hint-spaced">
-        Alternate workspace layout templates. Applying one reconfigures the current
-        workspace mode — split preview, stickies, and graph depth — in a single click.
+        {t('store.layoutHint')}
       </p>
       {LAYOUT_PRESETS.map((preset) => {
         const active = preset.id === activeLayoutPresetId
@@ -344,11 +345,11 @@ function LayoutsTab({
               type="button"
               onClick={() => onApplyLayoutPreset?.(preset)}
               disabled={!onApplyLayoutPreset || active}
-              aria-label={`Apply ${preset.name} layout`}
+              aria-label={t('store.applyLayoutAria', { name: preset.name })}
               aria-current={active ? 'true' : undefined}
               className={`store-btn-apply${active ? ' active' : ''}`}
             >
-              {active ? 'Active' : 'Apply'}
+              {active ? t('store.active') : t('store.apply')}
             </button>
           </div>
         )
@@ -451,7 +452,7 @@ function PluginsTab({
           ? <ShieldAlert size={16} color="var(--danger)" />
           : <ShieldCheck size={16} color="var(--success)" />}
         <span className="store-banner-label">
-          {safeMode ? 'Safe mode — all plugins disabled' : 'Plugins active'}
+          {safeMode ? t('store.safeModeDisabled') : t('store.runtimeReady')}
         </span>
         <button
           type="button"
@@ -459,15 +460,18 @@ function PluginsTab({
           aria-pressed={safeMode}
           className={`store-btn-outline${safeMode ? ' danger' : ' success'}`}
         >
-          {safeMode ? 'Disable' : 'Enable'} safe mode
+          {safeMode ? t('store.leaveSafeMode') : t('store.enterSafeMode')}
         </button>
+        {!safeMode ? (
+          <small className="store-banner-detail">{t('store.individualApproval')}</small>
+        ) : null}
       </div>
 
       {/* Installed plugins */}
       {plugins.length > 0 && (
         <section hidden={pluginView !== 'installed'}>
           <h3 className="store-section-label">
-            Installed ({plugins.length})
+            {t('store.installedCount', { count: plugins.length })}
           </h3>
           <div className="store-stack-xs">
             {plugins.map((plugin) => {
@@ -523,14 +527,14 @@ function PluginsTab({
                         aria-describedby={consented ? undefined : consentHintId}
                         title={
                           safeMode
-                            ? 'Disable safe mode before enabling plugins'
+                            ? t('store.disableSafeModeBeforeEnable')
                             : !plugin.enabled && !consented
-                              ? 'Review required permissions before enabling this plugin'
+                              ? t('store.reviewBeforeEnable')
                               : undefined
                         }
                         className={`store-plugin-toggle${plugin.enabled ? ' enabled' : ''}`}
                       >
-                        {plugin.enabled ? 'Enabled' : 'Enable'}
+                        {plugin.enabled ? t('store.enabled') : t('store.enable')}
                       </button>
                     </div>
                   </div>
@@ -544,7 +548,7 @@ function PluginsTab({
                     one aria-pressed control (the Enable toggle) for e2e activation.
                   */}
                   <section
-                    aria-label={`Permissions for ${plugin.manifest.name}`}
+                    aria-label={t('store.permissionsAria', { plugin: plugin.manifest.name })}
                     className="store-permissions"
                   >
                     <div
@@ -556,10 +560,10 @@ function PluginsTab({
                         : <ShieldAlert size={12} aria-hidden="true" />}
                       <span>
                         {consented
-                          ? 'Permissions reviewed for this vault'
+                          ? t('store.permissionsReviewed')
                           : activeVaultId
-                            ? 'Permission review required before enabling'
-                            : 'Open a vault before granting plugin access'}
+                            ? t('store.permissionReviewRequired')
+                            : t('store.openVaultBeforeGranting')}
                       </span>
                     </div>
                     {plugin.manifest.permissions.length > 0 ? (
@@ -571,7 +575,7 @@ function PluginsTab({
                             className="store-chip"
                           >
                             {entry.permission}
-                            {entry.optional ? ' (optional · not granted automatically)' : ' (required)'}
+                            {entry.optional ? t('store.optionalPermission') : t('store.requiredPermission')}
                           </li>
                         ))}
                       </ul>
@@ -583,9 +587,9 @@ function PluginsTab({
                           disabled={!canGrant}
                           onClick={() => setPendingConsentPluginId(plugin.manifest.id)}
                           className="store-btn-accent"
-                          aria-label={`Review and grant required permissions for ${plugin.manifest.name} in this vault`}
+                          aria-label={t('store.reviewGrantAria', { plugin: plugin.manifest.name })}
                         >
-                          Review required access
+                          {t('store.reviewRequiredAccess')}
                         </button>
                       )}
                       {policy ? (
@@ -594,19 +598,30 @@ function PluginsTab({
                           onClick={() => onRevokeConsent(plugin.manifest.id)}
                           className="store-btn-muted"
                         >
-                          {consented ? 'Revoke this vault' : 'Reset permissions'}
+                          {consented ? t('store.revokeVault') : t('store.resetPermissions')}
                         </button>
                       ) : null}
                     </div>
                     {pendingConsentPluginId === plugin.manifest.id ? (
                       <MutationConfirmation
-                        ariaLabel={`Confirm permissions for ${plugin.manifest.name}`}
+                        ariaLabel={t('store.confirmPermissionsAria', { plugin: plugin.manifest.name })}
                         message={
                           required.length > 0
-                            ? `Grant required ${required.join(', ')} access to ${plugin.manifest.name} for this vault and enable the plugin?${optional.length > 0 ? ` Optional permissions (${optional.map((entry) => entry.permission).join(', ')}) are not granted automatically.` : ''}`
-                            : `Enable ${plugin.manifest.name} for this vault?${optional.length > 0 ? ` Optional permissions (${optional.map((entry) => entry.permission).join(', ')}) are not granted automatically.` : ''}`
+                            ? t('store.grantRequiredMessage', {
+                                permissions: required.join(', '),
+                                plugin: plugin.manifest.name,
+                                optional: optional.length > 0
+                                  ? t('store.optionalPermissionsNote', { permissions: optional.map((entry) => entry.permission).join(', ') })
+                                  : '',
+                              })
+                            : t('store.enablePluginMessage', {
+                                plugin: plugin.manifest.name,
+                                optional: optional.length > 0
+                                  ? t('store.optionalPermissionsNote', { permissions: optional.map((entry) => entry.permission).join(', ') })
+                                  : '',
+                              })
                         }
-                        confirmLabel="Grant required access & enable"
+                        confirmLabel={t('store.grantEnable')}
                         onCancel={() => setPendingConsentPluginId(null)}
                         onConfirm={() => {
                           onReviewConsent(
@@ -635,7 +650,7 @@ function PluginsTab({
       {lintSummary && lintSummary.total > 0 && (
         <div className="store-lint-summary" hidden={pluginView !== 'installed'}>
           <TimerReset size={12} />
-          {lintSummary.total} vault health issue{lintSummary.total !== 1 ? 's' : ''}
+          {t('store.healthIssues', { count: lintSummary.total })}
         </div>
       )}
 
@@ -643,7 +658,7 @@ function PluginsTab({
       {marketplaceCatalog.length > 0 && (
         <section hidden={pluginView !== 'marketplace'}>
           <h3 className="store-section-label">
-            Marketplace · {marketplaceCatalog.filter((p) => !installedIds.has(p.id)).length} available
+            {t('store.marketplaceAvailable', { count: marketplaceCatalog.filter((p) => !installedIds.has(p.id)).length })}
           </h3>
           <div className="store-stack-xs">
             {marketplaceCatalog
@@ -661,10 +676,10 @@ function PluginsTab({
                   <button
                     type="button"
                     onClick={() => onInstallMarketplace(catalog.id)}
-                    aria-label={`Install ${catalog.name}`}
+                    aria-label={t('store.installAria', { name: catalog.name })}
                     className="store-btn-accent"
                   >
-                    Install
+                    {t('store.install')}
                   </button>
                 </div>
               ))}
@@ -680,11 +695,11 @@ function PluginsTab({
 // ---------------------------------------------------------------------------
 
 /** Tab order used for both rendering and Arrow-key navigation. */
-const STORE_TABS: Array<{ id: StoreTab; label: string; icon: React.ReactNode }> = [
-  { id: 'plugins', label: 'Plugins', icon: <Box size={13} /> },
-  { id: 'mcp', label: 'MCP', icon: <Cpu size={13} /> },
-  { id: 'features', label: 'Features', icon: <FlaskConical size={13} /> },
-  { id: 'layouts', label: 'Layouts', icon: <LayoutTemplate size={13} /> },
+const STORE_TABS: Array<{ id: StoreTab; labelKey: string; icon: React.ReactNode }> = [
+  { id: 'plugins', labelKey: 'store.tabs.plugins', icon: <Box size={13} /> },
+  { id: 'mcp', labelKey: 'store.tabs.mcp', icon: <Cpu size={13} /> },
+  { id: 'features', labelKey: 'store.tabs.features', icon: <FlaskConical size={13} /> },
+  { id: 'layouts', labelKey: 'store.tabs.layouts', icon: <LayoutTemplate size={13} /> },
 ]
 
 const tabId = (tab: StoreTab) => `store-tab-${tab}`
@@ -699,6 +714,7 @@ const noopSetMcpMode = () => {}
 const noopToggleFeature = () => {}
 
 export const StorePanel = memo(function StorePanel(props: StorePanelProps) {
+  const { t } = useI18n()
   const [activeTab, setActiveTab] = useState<StoreTab>('plugins')
 
   /**
@@ -722,11 +738,11 @@ export const StorePanel = memo(function StorePanel(props: StorePanelProps) {
   }
 
   return (
-    <div className="store-root">
+    <div className="store-root" data-help-topic="plugins">
       {/* Tab bar */}
       <div
         role="tablist"
-        aria-label="Store sections"
+        aria-label={t('store.sectionsAria')}
         onKeyDown={handleTabKeyDown}
         className="store-tablist"
       >
@@ -738,7 +754,7 @@ export const StorePanel = memo(function StorePanel(props: StorePanelProps) {
             active={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
             icon={tab.icon}
-            label={tab.label}
+            label={t(tab.labelKey)}
           />
         ))}
       </div>
@@ -753,7 +769,7 @@ export const StorePanel = memo(function StorePanel(props: StorePanelProps) {
       >
         {activeTab === 'plugins' && (
           <>
-            <h2 className="store-h2">Plugin management</h2>
+            <h2 className="store-h2">{t('store.pluginManagement')}</h2>
             <PluginsTab
               plugins={props.plugins}
               safeMode={props.safeMode}

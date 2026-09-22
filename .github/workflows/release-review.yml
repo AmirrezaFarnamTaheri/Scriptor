@@ -1,15 +1,10 @@
 name: Release Binary Review
 
+# Binary review is an explicit candidate-review operation, not another PR CI
+# owner. Main CI validates source on every ready PR; operators dispatch this
+# workflow only for a frozen candidate that needs non-publishing binary evidence.
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - VERSION
-      - Cargo.toml
-      - Cargo.lock
-      - package.json
-      - scripts/release/**
-      - .github/workflows/release*.yml
 
 permissions:
   contents: read
@@ -34,21 +29,30 @@ jobs:
         with:
           node-version: 22.16.0
 
-      - name: Enable pnpm
+      - name: Configure pinned Rust 1.96.0
         shell: pwsh
-        run: corepack enable; corepack prepare pnpm@10.33.0 --activate
-
-      - name: Install frozen dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run source and release contracts
         run: |
-          pnpm check:governance
-          pnpm check:source
-          pnpm check:release-evidence-contracts
-          pnpm version:check
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+          key: release-review
+
+      - name: Run release-specific contracts
+        shell: pwsh
+        run: |
+          node scripts/release/version.mjs check
+          node --test scripts/release/source-identity.test.mjs scripts/release/release-evidence-utils.test.mjs scripts/release/sbom-utils.test.mjs scripts/release/signing-policy.test.mjs
+          node --test scripts/validation/release-hardening-contracts.test.mjs
+          node --test scripts/packaging/zip-lite.test.mjs
 
       - name: Build release binaries
+        shell: pwsh
         run: cargo build --locked --release -p scriptor-cli -p scriptor-daemon --jobs 2
 
       - name: Create binary review manifest
@@ -61,3 +65,4 @@ jobs:
           name: release-review-binaries-${{ github.run_attempt }}
           path: dist/release-review/binary-review.json
           if-no-files-found: error
+          retention-days: 14

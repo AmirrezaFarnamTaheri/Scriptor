@@ -21,6 +21,7 @@ import { IconButton, PanelHeader } from '../chrome/WorkspaceChrome'
 import type { NoteIndexSummary, VaultDescriptor, VaultSection } from '../../types/vault'
 import type { NoteTypeDefinition } from '../../lib/knowledge/noteTypes'
 import type { TemplateDefinition } from '../../lib/knowledge/templates'
+import { useI18n } from '../../lib/i18n'
 
 interface VaultSidebarProps {
   vault: VaultDescriptor | null
@@ -98,6 +99,7 @@ function VaultSidebarImpl({
   recentNotes = [],
   readerDocumentPaths,
 }: VaultSidebarProps) {
+  const { t } = useI18n()
   const [dropActive, setDropActive] = useState(false)
   const visibleRecentNotes = useMemo(
     () => recentNotes.filter((note) => note.path !== activePath).slice(0, 4),
@@ -106,14 +108,14 @@ function VaultSidebarImpl({
 
   const menuItems = useMemo(
     () => [
-      { label: 'Open vault folder', run: onChooseVault },
-      { label: 'New note', run: onCreateNote },
-      { label: 'Rebuild index', run: onRebuildIndex },
-      { label: 'Browse tags', run: onOpenTags },
-      { label: 'Knowledge filters', run: onOpenFilters },
-      ...(onOpenSavedViews ? [{ label: 'Saved views', run: onOpenSavedViews }] : []),
-      ...(onOpenSnippets ? [{ label: 'Manage snippets', run: onOpenSnippets }] : []),
-      ...(onOpenObsidianImport ? [{ label: 'Import Obsidian vault', run: onOpenObsidianImport }] : []),
+      { label: t('vaultSidebar.openVaultFolder'), run: onChooseVault, group: t('vaultSidebar.menu.files') },
+      { label: t('vaultSidebar.newNote'), run: onCreateNote, group: t('vaultSidebar.menu.files') },
+      ...(onOpenObsidianImport ? [{ label: t('vaultSidebar.importObsidian'), run: onOpenObsidianImport, group: t('vaultSidebar.menu.files') }] : []),
+      { label: t('vaultSidebar.browseTags'), run: onOpenTags, group: t('vaultSidebar.menu.knowledge') },
+      { label: t('vaultSidebar.knowledgeFilters'), run: onOpenFilters, group: t('vaultSidebar.menu.knowledge') },
+      ...(onOpenSavedViews ? [{ label: t('vaultSidebar.savedViews'), run: onOpenSavedViews, group: t('vaultSidebar.menu.knowledge') }] : []),
+      ...(onOpenSnippets ? [{ label: t('vaultSidebar.manageSnippets'), run: onOpenSnippets, group: t('vaultSidebar.menu.knowledge') }] : []),
+      { label: t('vaultSidebar.rebuildIndex'), run: onRebuildIndex, group: t('vaultSidebar.menu.maintenance') },
     ],
     [
       onChooseVault,
@@ -124,13 +126,15 @@ function VaultSidebarImpl({
       onOpenSavedViews,
       onOpenSnippets,
       onOpenObsidianImport,
+      t,
     ],
   )
 
   return (
     <aside
       className={`vault-panel${dropActive ? ' is-drop-target' : ''}`}
-      aria-label="Vault"
+      data-help-topic="vault"
+      aria-label={t('vaultSidebar.ariaLabel')}
       onDragOver={(event) => {
         if (!onImportFiles) return
         event.preventDefault()
@@ -145,9 +149,10 @@ function VaultSidebarImpl({
       }}
     >
       <PanelHeader
-        title={vault?.name ?? 'Vault'}
+        title={vault?.name ?? t('vaultSidebar.vault')}
         icon={<Folder />}
         menuItems={menuItems}
+        menuLabel={t('vaultSidebar.options', { title: vault?.name ?? t('vaultSidebar.vault') })}
       />
 
       <div className="vault-nav-tabs">
@@ -157,7 +162,7 @@ function VaultSidebarImpl({
           onClick={() => onSidebarViewChange('vault')}
         >
           <Folder size={14} />
-          All notes
+          {t('vaultSidebar.allNotes')}
         </button>
         <button
           type="button"
@@ -165,14 +170,14 @@ function VaultSidebarImpl({
           onClick={() => onSidebarViewChange('inbox')}
         >
           <Inbox size={14} />
-          Inbox
+          {t('vaultSidebar.inbox')}
           {inboxNotes.length > 0 ? <span className="inbox-badge">{inboxNotes.length}</span> : null}
         </button>
       </div>
 
       {visibleRecentNotes.length > 0 && sidebarView === 'vault' ? (
-        <section className="vault-recent-notes" aria-label="Recent notes">
-          <h3>Recent notes</h3>
+        <section className="vault-recent-notes" aria-label={t('vaultSidebar.recentNotes')}>
+          <h3>{t('vaultSidebar.recentNotes')}</h3>
           <ul>
             {visibleRecentNotes.map((note) => (
               <li key={note.path}>
@@ -189,12 +194,12 @@ function VaultSidebarImpl({
         <Search />
         <input
           type="search"
-          placeholder="Search notes"
-          aria-label="Search notes"
+          placeholder={t('vaultSidebar.searchNotes')}
+          aria-label={t('vaultSidebar.searchNotes')}
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.target.value)}
         />
-        <kbd className="shortcut" aria-label="Shortcut: F" title="Press F to focus note search">
+        <kbd className="shortcut" aria-label={t('vaultSidebar.shortcutF')} title={t('vaultSidebar.focusSearchHint')}>
           {isSearching ? '…' : 'F'}
         </kbd>
       </label>
@@ -202,19 +207,19 @@ function VaultSidebarImpl({
       {searchQuery.trim() ? (
         <p className="search-hint" role="status">
           {isSearching
-            ? 'Searching index...'
-            : `${searchResultsCount} result${searchResultsCount === 1 ? '' : 's'}`}
+            ? t('vaultSidebar.searchingIndex')
+            : t('vaultSidebar.searchResults', { count: searchResultsCount })}
         </p>
       ) : null}
 
       <button type="button" className="filter-button" onClick={onOpenFilters}>
         <Filter />
-        Knowledge filters
+        {t('vaultSidebar.knowledgeFilters')}
       </button>
 
       {noteTypes.length > 0 ? (
         <div className="note-type-menu">
-          <span className="note-type-label">New by type</span>
+          <span className="note-type-label">{t('vaultSidebar.newByType')}</span>
           <div className="note-type-buttons">
             {noteTypes.map((type) => (
               <button
@@ -233,19 +238,21 @@ function VaultSidebarImpl({
       {onOpenTemplatePicker ? (
         <button type="button" className="filter-button" onClick={onOpenTemplatePicker}>
           <LayoutTemplate aria-hidden />
-          New from template{templatePaths.length > 0 ? ` (${templatePaths.length})` : ''}
+          {templatePaths.length > 0
+            ? t('vaultSidebar.newFromTemplateCount', { count: templatePaths.length })
+            : t('vaultSidebar.newFromTemplate')}
         </button>
       ) : null}
 
       <div className="daily-note-nav">
-        <button type="button" className="toolbar-button" onClick={() => onCreateDailyNoteOffset(-1)} title="Previous day">
+        <button type="button" className="toolbar-button" onClick={() => onCreateDailyNoteOffset(-1)} title={t('vaultSidebar.previousDay')}>
           <ChevronLeft size={14} />
         </button>
         <button type="button" className="toolbar-button daily-note-button" onClick={onCreateDailyNote}>
           <CalendarDays size={14} />
-          {dailyNoteLabel ? `Today · ${dailyNoteLabel}` : 'Today'}
+          {dailyNoteLabel ? t('vaultSidebar.todayWithLabel', { label: dailyNoteLabel }) : t('vaultSidebar.today')}
         </button>
-        <button type="button" className="toolbar-button" onClick={() => onCreateDailyNoteOffset(1)} title="Next day">
+        <button type="button" className="toolbar-button" onClick={() => onCreateDailyNoteOffset(1)} title={t('vaultSidebar.nextDay')}>
           <ChevronRight size={14} />
         </button>
       </div>
@@ -261,7 +268,7 @@ function VaultSidebarImpl({
         ) : vaultStatus === 'opening' || (vaultStatus === 'indexing' && sections.length === 0) ? (
           <VaultTreeSkeleton />
         ) : sections.length === 0 ? (
-          <p className="empty-state">Open a vault to browse notes.</p>
+          <p className="empty-state">{t('vaultSidebar.openVaultToBrowse')}</p>
         ) : (
           sections.map((section) => {
             const collapsed = collapsedFolders[section.name] ?? false
@@ -298,14 +305,14 @@ function VaultSidebarImpl({
         )}
       </div>
 
-      <footer className="vault-sidebar-footer" aria-label="Vault utilities">
-        <IconButton label="Tags" onClick={onOpenTags}>
+      <footer className="vault-sidebar-footer" aria-label={t('vaultSidebar.utilities')}>
+        <IconButton label={t('vaultSidebar.tags')} onClick={onOpenTags}>
           <Tags />
         </IconButton>
-        <IconButton label="Archive views" onClick={onOpenSavedViews ?? onOpenFilters}>
+        <IconButton label={t('vaultSidebar.archiveViews')} onClick={onOpenSavedViews ?? onOpenFilters}>
           <Archive />
         </IconButton>
-        <IconButton label="New note" onClick={onCreateNote}>
+        <IconButton label={t('vaultSidebar.newNote')} onClick={onCreateNote}>
           <Plus />
         </IconButton>
       </footer>

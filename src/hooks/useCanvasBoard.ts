@@ -51,6 +51,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const lifecycleGuardRef = useRef(new OperationGuard())
   const loadGuardRef = useRef(new OperationGuard())
   const saveGuardRef = useRef(new OperationGuard())
+  const templateGuardRef = useRef(new OperationGuard())
   const saveTailRef = useRef<Promise<boolean>>(Promise.resolve(true))
   const latestSaveSequenceRef = useRef(0)
   const mountedRef = useRef(true)
@@ -63,6 +64,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     lifecycleGuardRef.current.invalidate()
     loadGuardRef.current.invalidate()
     saveGuardRef.current.invalidate()
+    templateGuardRef.current.invalidate()
     if (saveTimer.current) {
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
@@ -89,6 +91,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     const sync = new CanvasCrdtSync(crdtEnabled, document.id)
     crdtRef.current = sync
     return sync.subscribe((remote) => {
+      templateGuardRef.current.invalidate()
       setDocument((current) => ({
         ...remote,
         vaultId: current.vaultId,
@@ -152,9 +155,11 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   )
 
   useEffect(() => {
+    const templateGuard = templateGuardRef.current
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      templateGuard.invalidate()
       if (saveTimer.current) {
         window.clearTimeout(saveTimer.current)
         saveTimer.current = null
@@ -173,6 +178,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const loadBoard = useCallback(
     async (boardId: string) => {
       if (!isNativeBridgeAvailable() || !vaultOpen) return
+      templateGuardRef.current.invalidate()
       const lifecycle = lifecycleGuardRef.current.snapshot()
       const request = loadGuardRef.current.issue()
       const json = await canvasLoadDocument(boardId)
@@ -348,6 +354,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const switchBoard = useCallback(
     async (boardId: string) => {
       if (boardId === activeBoardId) return
+      templateGuardRef.current.invalidate()
       if (!(await flushPendingSave())) {
         setStatus('Could not switch boards because the current board has unsaved changes.')
         return
@@ -364,6 +371,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const createBoard = useCallback(
     async (title = 'Untitled board') => {
       if (!vaultId) return
+      templateGuardRef.current.invalidate()
       if (!(await flushPendingSave())) {
         setStatus('Could not create a board because the current board has unsaved changes.')
         return
@@ -404,8 +412,20 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       const templateLabel = template?.name ?? templateId
 
       if (isNativeBridgeAvailable() && vaultOpen) {
+        const lifecycle = lifecycleGuardRef.current.snapshot()
+        const request = templateGuardRef.current.issue()
+        const base = documentRef.current
+        const isCurrent = () =>
+          mountedRef.current &&
+          lifecycleGuardRef.current.isCurrent(lifecycle) &&
+          templateGuardRef.current.isCurrent(request) &&
+          documentRef.current === base
         try {
-          const output = await canvasApplyTemplate(JSON.stringify(document), templateId)
+          // Serialize the live document, not the render-captured state. A late
+          // response cannot take ownership after an edit, board switch, vault
+          // change, newer template request, or unmount.
+          const output = await canvasApplyTemplate(JSON.stringify(base), templateId)
+          if (!isCurrent()) return
           const next = output.document as CanvasDocument
           documentRef.current = next
           setDocument(next)
@@ -413,7 +433,9 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
           setStatus(`Inserted ${output.blocksAdded} blocks from ${templateLabel}.`)
           return
         } catch (error) {
-          setStatus(error instanceof Error ? error.message : `Could not apply ${templateLabel}.`)
+          if (isCurrent()) {
+            setStatus(error instanceof Error ? error.message : `Could not apply ${templateLabel}.`)
+          }
           return
         }
       }
@@ -432,11 +454,12 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       commitDocument(next)
       setStatus(`Inserted ${added.length} blocks from ${templateLabel}.`)
     },
-    [commitDocument, document, vaultOpen],
+    [commitDocument, vaultOpen],
   )
 
   const updateDocument = useCallback(
     (updater: (current: CanvasDocument) => CanvasDocument) => {
+      templateGuardRef.current.invalidate()
       const next = updater(documentRef.current)
       documentRef.current = next
       setDocument(next)
@@ -446,6 +469,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   )
 
   const undo = useCallback(() => {
+    templateGuardRef.current.invalidate()
     const history = historyRef.current
     if (history.past.length <= 1) return
     const current = history.past.pop()!
@@ -461,6 +485,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   }, [syncHistoryFlags])
 
   const redo = useCallback(() => {
+    templateGuardRef.current.invalidate()
     const history = historyRef.current
     if (history.future.length === 0) return
     const next = history.future.shift()!

@@ -17,7 +17,7 @@ export function PreviewQABar({ activePath, isNoteDirty, missingCitations, onOpen
         : 'Ready to export'
 
   return (
-    <div className="preview-qa-bar" role="status" aria-label="Preview quality">
+    <div className="preview-qa-bar" role="status" aria-label="Preview quality" data-help-topic="preview">
       <div>
         <strong>Render</strong>
         <span>{renderStatus}</span>

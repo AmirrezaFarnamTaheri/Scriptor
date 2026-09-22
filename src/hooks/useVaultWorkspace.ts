@@ -496,8 +496,10 @@ export function useVaultWorkspace(options?: {
         setRebuild(summary)
         setHealth(summary.health)
         setHealthDiagnostics(null)
-        setStatus('ready')
 
+        // Do not advertise an interactive workspace until its editor session is
+        // restored. A user action after "ready" must never be overwritten by a
+        // later startup tab restore.
         if (savedSession?.open_tabs?.length) {
           if (requestId !== vaultOpenRequestIdRef.current) return
           onSessionLayoutRestore?.({
@@ -515,6 +517,7 @@ export function useVaultWorkspace(options?: {
           if (firstNote) await openNote(firstNote.path, () => requestId === vaultOpenRequestIdRef.current)
         }
         if (requestId !== vaultOpenRequestIdRef.current) return
+        setStatus('ready')
         void Promise.all([
           refreshHealth(opened.vault),
           refreshGit(opened.vault.id),

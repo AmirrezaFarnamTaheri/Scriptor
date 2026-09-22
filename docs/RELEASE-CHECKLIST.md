@@ -14,7 +14,7 @@ A production release is blocked until every required item is checked against the
 - [ ] stop if a process launch lacks a live per-call inventory entry or its review has expired;
 - [ ] stop if rollback, restore, trust status, or observability cannot be demonstrated on the target platform;
 - [ ] stop if any RustSec exception review is expired or lacks an owner/exit condition;
-- [ ] stop if Playwright E2E or visual regression is skipped or missing from the exact-head CI matrix.
+- [ ] stop if Playwright E2E is missing from exact-head CI or the separate exact-head Visual review regression gate is skipped/missing.
 - [ ] stop if the repository's protected release environment is absent, has no required reviewer, or does not gate the production publish job;
 - [ ] stop if GitHub Pages deployment lacks the separately approved `github-pages` environment when published vault content requires review.
 

@@ -256,15 +256,45 @@ html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
   flex-direction: column;
 }
 
-/* Canvas and Graph are focus-trapped aria-modal workspaces. Give them an opaque
- * dialog surface and an actual visual modality cue; translucent content made
- * the underlying editor look interactive even though focus could not reach it. */
+/* Canvas and Graph are focus-trapped aria-modal workspaces. Their modality
+ * cue is an explicit viewport pseudo-backdrop instead of a 100vmax box shadow.
+ * The old shadow could leave the editor visibly dimmed when dialog geometry
+ * changed during responsive transitions. */
 .canvas-overlay,
 .graph-overlay {
+  isolation: isolate;
+  background: transparent;
+  box-shadow: 0 24px 80px color-mix(in oklch, var(--ink-strong) 18%, transparent);
+}
+
+/* Keep the viewport dimmer behind the panel surface. A lone negative-z
+ * pseudo-element is painted above its stacking-context background, which
+ * tinted the Graph/Canvas workspaces themselves. Two layers make the
+ * ordering explicit: viewport backdrop (-2), opaque dialog surface (-1),
+ * then real panel content. */
+.canvas-overlay::before,
+.graph-overlay::before,
+.canvas-overlay::after,
+.graph-overlay::after {
+  content: '';
+  pointer-events: none;
+}
+
+.canvas-overlay::before,
+.graph-overlay::before {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: var(--overlay);
+}
+
+.canvas-overlay::after,
+.graph-overlay::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
   background: var(--dialog-bg, var(--bg-elevated));
-  box-shadow:
-    0 0 0 100vmax var(--overlay),
-    0 24px 80px color-mix(in oklch, var(--ink-strong) 18%, transparent);
 }
 
 .canvas-overlay {

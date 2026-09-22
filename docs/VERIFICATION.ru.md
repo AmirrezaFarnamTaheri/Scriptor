@@ -149,4 +149,4 @@ Repository screenshots — документационные artifacts и сам�
 
 ## Интерпретация для release
 
-Для production publication текущие gates должны быть зелёными на точном release commit, а созданные artifacts — доказуемо ссылаться на тот же commit. При конфликте исторической evidence с текущей реализацией приоритет имеют текущая воспроизводимая реализация и commit-bound verification.
+Для production publication текущие gates должны быть зелёными на точном release commit, а созданные artifacts — доказуемо ссылаться на тот же commit. Авторитетная проверка объединяет exact-head CI matrix **и exact-head Visual review gate**; draft PR намеренно откладывает тяжёлые gates до `ready_for_review`. При конфликте исторической evidence с текущей реализацией приоритет имеют текущая воспроизводимая реализация и commit-bound verification.

@@ -16,7 +16,7 @@ Un production release queda bloqueado hasta que cada elemento obligatorio se com
 - [ ] detener si process launch no tiene live per-call inventory entry o review expiró;
 - [ ] detener si rollback/restore/trust status/observability no pueden demostrarse en target platform;
 - [ ] detener si una RustSec exception review expiró o carece de owner/exit condition;
-- [ ] detener si Playwright E2E o visual regression se omiten/faltan en exact-head CI matrix;
+- [ ] detener si Playwright E2E falta en el CI exact-head o si el gate separado de Visual review exact-head se omite/falta;
 - [ ] detener si protected release environment no existe, no tiene required reviewer o no gatea production publish job;
 - [ ] detener si GitHub Pages no tiene environment `github-pages` aprobado por separado cuando el vault publicado requiere review.
 

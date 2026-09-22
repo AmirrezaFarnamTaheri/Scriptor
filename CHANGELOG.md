@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Fixed
+
+- Keep newer drafts and active-document identity intact when disk reloads, same-tab activation, navigation, or tab fallback reads complete late. Tab closure now waits for a successful fallback and does not discard edits made during its final save.
+- Prevent repeated native close requests from bypassing an in-progress save. A flush that leaves newer work pending no longer authorizes closure; close failures keep the window recoverable.
+- Scope mirrored Google Tasks to the active vault so one vault cannot complete another vault's tasks in a shared list. Ambiguous legacy markers are left unchanged; exact stable task-ID matches migrate to vault-scoped markers. A failed post-write refresh blocks another mirror until the task list is refreshed successfully.
+- Preserve contextual Help ownership when keyboard focus moves to a widget's help controls, and use two-column health metrics in narrow inspector rails.
+- Repair stale source-test browser stubs and workflow assertions. Extract unchanged startup-vault ownership from the App hotspot without raising its size limit.
+- Centralize Help in one top-bar/command-palette entry while keeping contextual F1; remove injected per-panel question marks and automatic first-use guide invitations.
+- Keep the native close-save window guard out of browser/E2E runs so screenshot evidence no longer logs false `currentWindow` failures.
+- Preserve dense graph geometry by fitting the completed force layout as a whole instead of clamping individual nodes to the viewport border; dense canvases now reveal labels on interaction instead of rendering an unreadable label wall.
+- Deduplicate visual evidence around current-run captures and the tracked gallery; screenshot refreshes no longer carry a stale previous-gallery hero copy.
+
 ## 1.1.1 — 2026-09-18
 
 ### Fixed

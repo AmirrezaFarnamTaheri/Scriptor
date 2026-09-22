@@ -127,11 +127,12 @@ test.describe('workspace flows', () => {
 
     const searchInput = page.getByRole('searchbox', { name: 'Search notes' })
     await searchInput.fill(E2E_SEARCH_MARKER)
-    await expect(page.getByText('1 result', { exact: false })).toBeVisible({ timeout: 10_000 })
 
     const searchPanel = page.locator('#dock-panel-search')
-    await expect(searchPanel.getByRole('button', { name: /Research Plan/ })).toBeVisible()
+    await expect(searchPanel).toBeVisible({ timeout: 10_000 })
+    await expect(searchPanel.getByRole('button', { name: /Research Plan/ })).toBeVisible({ timeout: 10_000 })
     await expect(searchPanel).toContainText(E2E_SEARCH_MARKER)
+    await expect(page.getByRole('tab', { name: /Search results\s+1/i })).toBeVisible()
 
     await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
     const publishDialog = page.getByRole('dialog', { name: 'Export & publish' })
@@ -259,5 +260,76 @@ test.describe('workspace flows', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
     await expect(page.locator('#root')).toBeVisible()
+  })
+
+  test('workspace chrome sanitizes valid-envelope corruption and stale panel widths', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+      window.localStorage.setItem('scriptor:vault-width', '-500')
+      window.localStorage.setItem('scriptor:inspector-width', '9999')
+      window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify({
+        schemaVersion: 1,
+        savedAt: new Date().toISOString(),
+        data: {
+          editorFontSize: -50,
+          editorFontFamily: 'comic-sans',
+          editorLineHeight: 99,
+          editorPaddingPx: 0,
+          previewMaxWidthCh: 999,
+          editorSurfaceMode: 'triple',
+          vaultWidth: -500,
+          inspectorWidth: 9999,
+          uiFontFamily: 'papyrus',
+          uiDensity: 'microscopic',
+          uiBorderRadius: 'chaos',
+          glassBlur: 'infinite',
+          topBarHiddenActions: ['graph', 'graph', '', 42, 'canvas'],
+          topBarGroupOrder: ['actions', 'actions', 'unknown'],
+          topBarHiddenGroups: ['history', 'history', 'unknown'],
+          topBarGroupWidths: { history: 'wide', modes: 'giant', bogus: 'auto' },
+          topBarActionRows: 7,
+        },
+      }))
+    })
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await waitForWorkspace(page)
+
+    const grid = page.locator('.workspace-grid')
+    await expect.poll(() => grid.evaluate((element) =>
+      getComputedStyle(element).getPropertyValue('--vault-width').trim(),
+    )).toBe('200px')
+    await expect.poll(() => grid.evaluate((element) =>
+      getComputedStyle(element).getPropertyValue('--inspector-width').trim(),
+    )).toBe('800px')
+
+    const stored = await expect.poll(() => page.evaluate(() => {
+      const raw = window.localStorage.getItem('scriptor:workspace-chrome')
+      return raw ? JSON.parse(raw).data : null
+    })).not.toBeNull()
+
+    const normalized = await page.evaluate(() =>
+      JSON.parse(window.localStorage.getItem('scriptor:workspace-chrome') ?? '{}').data,
+    )
+    expect(normalized.editorFontSize).toBe(11)
+    expect(normalized.editorLineHeight).toBe(2.4)
+    expect(normalized.editorPaddingPx).toBe(4)
+    expect(normalized.previewMaxWidthCh).toBe(120)
+    expect(normalized.vaultWidth).toBe(200)
+    expect(normalized.inspectorWidth).toBe(800)
+    expect(normalized.editorSurfaceMode).toBe('source')
+    expect(normalized.editorFontFamily).toBe('jetbrains-mono')
+    expect(normalized.uiFontFamily).toBe('system')
+    expect(normalized.uiDensity).toBe('comfortable')
+    expect(normalized.uiBorderRadius).toBe('rounded')
+    expect(normalized.glassBlur).toBe('glass')
+    expect(normalized.topBarHiddenActions).toEqual(['graph', 'canvas'])
+    expect(normalized.topBarGroupOrder).toEqual(['actions', 'history', 'modes', 'command'])
+    expect(normalized.topBarHiddenGroups).toEqual(['history'])
+    expect(normalized.topBarGroupWidths).toEqual({ history: 'wide' })
+    expect(normalized.topBarActionRows).toBe(1)
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem('scriptor:vault-width'))).toBeNull()
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem('scriptor:inspector-width'))).toBeNull()
+    void stored
   })
 })

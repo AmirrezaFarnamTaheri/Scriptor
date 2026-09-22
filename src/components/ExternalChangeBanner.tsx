@@ -10,7 +10,7 @@ interface ExternalChangeBannerProps {
 
 export function ExternalChangeBanner({ conflict, onReload, onKeepEditing }: ExternalChangeBannerProps) {
   return (
-    <div className="external-change-banner" role="alert">
+    <div className="external-change-banner" role="alert" data-help-topic="recovery">
       <AlertTriangle aria-hidden="true" />
       <div className="external-change-banner-copy">
         <strong>This note changed on disk</strong>

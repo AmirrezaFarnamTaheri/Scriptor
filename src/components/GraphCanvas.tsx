@@ -188,11 +188,14 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
         ctx.stroke()
       }
 
-      ctx.fillStyle = inkColor
-      ctx.font = '11px sans-serif'
-      ctx.textAlign = 'center'
-      const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
-      ctx.fillText(label, node.x, node.y + 28)
+      const showLabel = nodes.length < 60 || isFocus || isHovered || isKeyboardFocus
+      if (showLabel) {
+        ctx.fillStyle = inkColor
+        ctx.font = '11px sans-serif'
+        ctx.textAlign = 'center'
+        const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
+        ctx.fillText(label, node.x, node.y + 28)
+      }
     }
 
     ctx.restore()
@@ -351,7 +354,8 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     <div className="graph-canvas-accessible-shell">
       <canvas
         ref={canvasRef}
-        style={{ width, height, cursor: 'grab' }}
+        className="graph-canvas graph-canvas-bitmap"
+        style={{ cursor: 'grab' }}
         role="application"
         tabIndex={0}
         aria-label={`Knowledge graph with ${nodes.length} nodes and ${edges.length} directed edges. Use arrow keys to browse nodes and Enter to open one.`}

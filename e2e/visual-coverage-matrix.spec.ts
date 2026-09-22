@@ -9,26 +9,64 @@ async function expectNoHorizontalOverflow(page: Page) {
     .toBe(width)
 }
 
-async function expectDarkSurface(locator: Locator) {
-  await expect(locator).toBeVisible()
-  const background = await locator.evaluate((element) => getComputedStyle(element).backgroundColor)
-  const match = background.match(
+function cssColorLuminance(color: string): number | null {
+  const rgb = color.match(
     /^rgba?\(\s*(\d+(?:\.\d+)?)\s*[, ]+\s*(\d+(?:\.\d+)?)\s*[, ]+\s*(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d+(?:\.\d+)?))?\s*\)$/,
   )
-  expect(match, `expected an RGB background, got ${background}`).not.toBeNull()
-  const [, red = '255', green = '255', blue = '255', alpha = '1'] = match ?? []
-  expect(Number(alpha)).toBeGreaterThan(0)
-  const linearize = (channel: number) => {
-    const normalized = channel / 255
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
+  if (rgb) {
+    const [, red = '255', green = '255', blue = '255', alpha = '1'] = rgb
+    if (Number(alpha) <= 0) return null
+    const linearize = (channel: number) => {
+      const normalized = channel / 255
+      return normalized <= 0.04045
+        ? normalized / 12.92
+        : ((normalized + 0.055) / 1.055) ** 2.4
+    }
+    return 0.2126 * linearize(Number(red))
+      + 0.7152 * linearize(Number(green))
+      + 0.0722 * linearize(Number(blue))
   }
-  const luminance =
-    0.2126 * linearize(Number(red))
-    + 0.7152 * linearize(Number(green))
-    + 0.0722 * linearize(Number(blue))
-  expect(luminance).toBeLessThan(0.35)
+
+  const oklch = color.match(
+    /^oklch\(\s*(\d+(?:\.\d+)?)(%)?\s+(\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)(?:deg)?(?:\s*\/\s*(\d+(?:\.\d+)?)(%)?)?\s*\)$/,
+  )
+  if (!oklch) return null
+
+  const [, lightnessRaw = '0', lightnessPercent, chromaRaw = '0', hueRaw = '0', alphaRaw = '1', alphaPercent] = oklch
+  const alpha = Number(alphaRaw) / (alphaPercent ? 100 : 1)
+  if (alpha <= 0) return null
+
+  const lightness = Number(lightnessRaw) / (lightnessPercent ? 100 : 1)
+  const chroma = Number(chromaRaw)
+  const hue = Number(hueRaw) * Math.PI / 180
+  const a = chroma * Math.cos(hue)
+  const b = chroma * Math.sin(hue)
+
+  const lPrime = lightness + 0.3963377774 * a + 0.2158037573 * b
+  const mPrime = lightness - 0.1055613458 * a - 0.0638541728 * b
+  const sPrime = lightness - 0.0894841775 * a - 1.291485548 * b
+  const l = lPrime ** 3
+  const m = mPrime ** 3
+  const s = sPrime ** 3
+
+  const red = Math.max(0, Math.min(1, 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s))
+  const green = Math.max(0, Math.min(1, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s))
+  const blue = Math.max(0, Math.min(1, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s))
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+}
+
+async function expectDarkSurface(locator: Locator) {
+  await expect(locator).toBeVisible()
+  const background = await locator.evaluate((element) => {
+    const direct = getComputedStyle(element).backgroundColor
+    const directMatch = direct.match(/^rgba?\([^)]*\)$/)
+    if (directMatch && !/rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/.test(direct)) return direct
+    const layered = getComputedStyle(element, '::after').backgroundColor
+    return layered && layered !== 'rgba(0, 0, 0, 0)' ? layered : direct
+  })
+  const luminance = cssColorLuminance(background)
+  expect(luminance, `expected a supported opaque CSS background, got ${background}`).not.toBeNull()
+  expect(luminance ?? 1).toBeLessThan(0.35)
 }
 
 async function closeSurface(surface: Locator) {
@@ -288,6 +326,57 @@ test.describe('visual coverage matrix', () => {
         name: 'Generated research note 0600 with an intentionally long filename for truncation and virtualization coverage.md',
       }),
     ).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+  })
+
+
+  test('populated knowledge repair rows remain readable and triage stays in the workbench', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+      window.sessionStorage.setItem('e2e:knowledge-repair-notes', '1')
+    })
+    await launchApp(page)
+    await waitForWorkspace(page)
+    await settleLayout(page)
+
+    await openCommandPalette(page)
+    await runCommand(page, 'Open knowledge workbench')
+    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+    await expect(workbench).toBeVisible()
+
+    const orphanTab = workbench.getByRole('tab', { name: /Orphans \(3\)/ })
+    await orphanTab.click()
+    const rows = workbench.locator('.virtual-knowledge-list > li')
+    await expect(rows).toHaveCount(3)
+    // Opening the modal uses a finite scale-in transform. Measure the stable
+    // row geometry after that transition, otherwise getBoundingClientRect()
+    // reports the transiently scaled height rather than the 72px layout row.
+    await settleLayout(page)
+    const geometry = await rows.evaluateAll((items) => items.map((item) => ({
+      // offsetHeight/Width describe the layout box. getBoundingClientRect() is
+      // transiently scaled by the modal's entrance animation and can report
+      // ~62px for a 72px row even though the rendered layout is correct.
+      height: (item as HTMLElement).offsetHeight,
+      width: (item as HTMLElement).offsetWidth,
+      scrollWidth: item.scrollWidth,
+    })))
+    for (const row of geometry) {
+      expect(row.height).toBeGreaterThanOrEqual(68)
+      expect(row.scrollWidth).toBeLessThanOrEqual(row.width + 1)
+    }
+    await expect(
+      workbench.getByText('Field Notes with an intentionally long title for zoom coverage', { exact: true }),
+    ).toBeVisible()
+
+    const startTriage = workbench.getByRole('button', { name: /Start triage/ })
+    await startTriage.click()
+    await expect(workbench).toBeVisible()
+    await expect(workbench.getByText(/Triage 1 of 3/)).toBeVisible()
+    await expect(startTriage).toHaveCount(0)
+    await workbench.getByRole('button', { name: 'Next', exact: true }).click()
+    await expect(workbench).toBeVisible()
+    await expect(workbench.getByText(/Triage 2 of 3/)).toBeVisible()
     await expectNoHorizontalOverflow(page)
   })
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { OverlayEscapeCoordinator } from './overlayEscapeCoordinator.ts'
+import { OverlayEscapeCoordinator, toFocusRestorer } from './overlayEscapeCoordinator.ts'
 
 function escapeEvent() {
   const calls = { prevented: 0, stopped: 0, immediate: 0 }
@@ -35,4 +35,14 @@ test('only the topmost surface owns Escape and focus is restored after close', (
   coordinator.handleEscape(second.event)
   assert.deepEqual(closed, ['top', 'lower'])
   unregisterLower()
+})
+
+test('focus restoration accepts non-HTMLElement focus targets such as SVG surfaces', () => {
+  let focusCount = 0
+  const svgLikeTarget = { isConnected: true, focus: () => focusCount++ }
+  const target = toFocusRestorer(svgLikeTarget)
+  assert.equal(target, svgLikeTarget)
+  target?.focus()
+  assert.equal(focusCount, 1)
+  assert.equal(toFocusRestorer({ isConnected: true }), null)
 })

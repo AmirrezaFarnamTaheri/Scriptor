@@ -39,7 +39,7 @@ export function RenameNoteDialog({
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <form
         ref={dialogRef}
-        className="rename-dialog"
+        className="rename-dialog" data-help-topic="rename"
         role="dialog"
         aria-modal="true"
         aria-label="Rename note"

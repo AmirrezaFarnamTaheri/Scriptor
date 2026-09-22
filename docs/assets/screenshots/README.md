@@ -20,7 +20,7 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 | mcp-tools.png | Read-only note outline invocation and result in the Tools tab | README / docs-only state review |
 | mcp-audit.png | Audit entry after a read-only outline invocation | Docs-only state review |
 | settings.png | General settings, including vault and application configuration | VISUAL-REVIEW, STORE-MIGRATION |
-| settings-appearance.png | Workspace tab scrolled to theme, UI font, and density controls | README / docs-only state review |
+| settings-appearance.png | Appearance tab with palette, day/night, UI font, and density controls | README / docs-only state review |
 | publish-center.png | Reviewed publish-center capture | Docs + stable visual coverage |
 | vault-health.png | Vault health dashboard with lint and health scores | VISUAL-REVIEW, RELEASE-CHECKLIST |
 | knowledge-workbench.png | Knowledge workbench | VISUAL-REVIEW |
@@ -38,8 +38,8 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 | mobile-inspector.png | 390px mobile inspector pane | VISUAL-REVIEW |
 | mobile-vault.png | 390px mobile vault pane | VISUAL-REVIEW |
 | workspace-rendered.png | Full rendered preview mode with markdown headings | VISUAL-REVIEW |
-| task-list-preview.png | Rendered task list items with interactive checkboxes | VISUAL-REVIEW |
-| workspace-switcher.png | Workspace switcher menu and top bar breadcrumbs | VISUAL-REVIEW |
+| task-list-preview.png | Focused rendered task-list crop with interactive checkboxes | VISUAL-REVIEW |
+| workspace-selector.png | Focused recent-vault selector and active vault identity in the top-bar crop | VISUAL-REVIEW |
 
 ### State coverage and evidence boundaries
 
@@ -51,14 +51,34 @@ The screenshot suite includes the following docs-only scenarios in addition to t
 | Enabled installed plugin | Consent is reviewed for the fixture vault; Enabled is pressed and the revoke control is available |
 | MCP Tools | Read-only mode, selected outline tool, fixture input, and a successful note outline result |
 | MCP Audit | One allowed outline invocation with its read-only mode and timestamp |
-| Settings appearance | Workspace tab scrolled to appearance; theme value and visible font/density controls |
+| Settings appearance | Appearance tab with independent palette and day/night controls plus visible font/density controls |
+| Populated Canvas | A real board block linked to the active note with settled canvas geometry |
+| Dense graph | 120-node / 160-edge fixture exercising the canvas-rendered graph path |
+| Knowledge triage | Three populated repair rows with triage active on the first item |
+| Help restraint | Clean workspace chrome with one global Help entry is captured; contextual F1 is separately verified against the owning MCP guide |
+| Workspace selector | Active option and option inventory are asserted; the capture shows the deterministic closed native selector |
+| Persian RTL workspace | Persian RTL workspace at 1240px with page-level overflow asserted absent |
+| German compact workspace | German labels at 1024px with the primary toolbar kept on one row |
+| 125% UI zoom | Stacked application reflow at 125% UI zoom with bounded editor geometry |
+| 200% UI zoom | Exclusive mobile-style editor and inspector panes at 200% app zoom with page overflow asserted absent |
+| 125% device scale | 1440x900 workspace rendered at deviceScaleFactor 1.25 |
+| Slow vault loading | Bounded skeleton state captured before deterministic vault hydration completes |
+| Large vault bottom | Virtualized 600-note fixture at the final long filename without page overflow |
+| Dark Settings | Settings dialog rendered under the dark theme |
+| Dark conflict resolver | Destructive merge-resolution surface rendered under the dark theme before a choice is applied |
+
+The dense Graph, populated Canvas, Knowledge triage, Help-restraint/contextual-F1, RTL/localization, zoom/device-scale, loading, large-vault, and dark-surface states are emitted by `visual-review.spec.ts` into the unified visual-review artifact rather than promoted directly to permanent pixel baselines.
+
+Artifact-only product-surface coverage also includes Reader/PDF, Tasks, Kanban, Bibliography, Snippets, the Markdown cheatsheet, Templates, Obsidian import, Support, Portal, Quick Capture, built-in modules, the performance HUD, Gmail's disconnected state, Google integration setup, a populated Inbox, top-bar customization, Color Palettes, the rename dry-run rewrite preview, and all four non-repair Knowledge Workbench tabs (Views, Collections, Tags, and Discover). The Gmail scenario opts into the bundled Gmail plugin only inside E2E bootstrap; normal application and test defaults are unchanged.
+
+The workspace selector is a native `<select>`: Playwright page screenshots do not reliably include the operating-system dropdown popup, so the suite asserts the selected option and option inventory semantically and captures the owning top bar while the selector has keyboard focus. This keeps the evidence deterministic and visually distinct from the ordinary workspace capture.
 
 These states use the real UI with E2E fixture data. They do not prove an external MCP client connection,
 native authorization, or third-party plugin installation. All bundled catalog manifests are registered
 at startup, so the installed and consent states are captured rather than inventing marketplace listings.
-Appearance controls live under **Workspace**, not in a separate Appearance tab.
+Appearance controls live in the dedicated **Appearance** tab. Palette identity and day/night appearance are independent settings.
 
-The five new filenames (`plugin-permissions`, `plugins-installed`, `mcp-tools`, `mcp-audit`, and
+The five docs-only filenames (`plugin-permissions`, `plugins-installed`, `mcp-tools`, `mcp-audit`, and
 `settings-appearance`) are generated by `screenshots.spec.ts` without `toHaveScreenshot` assertions.
 Their first capture and visual review are required before publishing the updated README; adding the
 scenarios alone does not certify the PNGs or create comparison baselines.
@@ -77,6 +97,20 @@ would therefore make the docs stale even though the visual regression suite pass
 The stable Windows baselines remain the visual-regression acceptance surface. Intentional pixel
 changes must be reviewed and refreshed explicitly with `--update-snapshots=all`; visual failures are
 never hidden by raising the global tolerance.
+
+Pull-request **Visual review** owns the visual-regression gate on the pinned Windows runner. It runs one
+compare-only Playwright pass with `--update-snapshots=none`; PR validation never rewrites baselines.
+Failed comparisons already retain actual/diff screenshots, traces, videos, and the fresh documentation
+captures produced before the failure, so a second diagnostic browser/build pass would be redundant and
+can exhaust Windows runner socket/buffer resources. Intentional baseline changes are produced only by
+the explicit screenshot-refresh workflow or a reviewed local `-UpdateBaselines` run. Functional browser
+E2E remains in the main CI workflow, so the same visual suite is not executed twice on every clean PR. The uploaded artifact is canonicalized as `visual-review.zip`: every
+PNG/JPEG/WebP/GIF/AVIF from current comparison/failure results and documentation captures is flattened
+under **`images/`** with a provenance prefix. Raw
+`test-results/visual` and `e2e/*-snapshots` trees are not uploaded separately, preventing stale
+parallel copies inside the artifact. `image-manifest.json` records each unique image's SHA-256, byte size, and every source path that
+produced the same bytes. Exact duplicate images are stored once rather than copied into parallel
+comparison/baseline/capture entries.
 
 Responsive and state-review documentation captures (`workspace-mobile`, `workspace-tablet`, mobile
 vault/inspector, editor recovery, MCP sharing inventory, and toolbar popovers) are generated from live
@@ -114,7 +148,9 @@ does not mean capture or its push has finished. Check that workflow's result and
 The same workflow can be dispatched manually on a review branch. It uses the pinned `windows-2025`
 runner and Edge channel, runs the capture contract tests, regenerates docs and stable Windows baselines,
 and verifies the complete visual suite without snapshot updates. Only generated PNG changes are
-committed back to the selected branch. The push is not forced; if the branch advances during capture,
+committed back to the selected branch. Its uploaded evidence uses the same manifest-backed canonical
+package as PR Visual review: current captures, failure output, and the explicitly included tracked
+gallery are SHA-256 deduplicated instead of uploaded as parallel directory trees. The push is not forced; if the branch advances during capture,
 the non-fast-forward push fails safely rather than overwriting newer work. Rerun against the updated
 branch after inspecting the separate refresh result.
 

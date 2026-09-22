@@ -98,7 +98,7 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
     >
       <form
         ref={dialogRef}
-        className="rename-dialog obsidian-import-dialog"
+        className="rename-dialog obsidian-import-dialog" data-help-topic="import"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

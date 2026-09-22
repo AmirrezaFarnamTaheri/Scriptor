@@ -1,6 +1,7 @@
 import type { PaletteCommand } from '../components/CommandPalette'
 import type { StatusDockTab } from '../components/StatusDockPanel'
 import { toPaletteCommands, type AppCommandDefinition } from './appCommandRegistry.ts'
+import { requestHelp } from './help/request.ts'
 
 export interface PaletteCommandContext {
   workspace: {
@@ -251,8 +252,9 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     { id: 'open-health', label: 'Open vault health', run: () => setHealthDashboardOpen(true) },
     { id: 'open-mcp', label: 'Open MCP panel', run: () => setMcpPanelOpen(true) },
     { id: 'open-settings', label: 'Open settings', run: () => setSettingsOpen(true) },
+    { id: 'open-help', label: 'Open Help & guides', shortcut: 'F1', keywords: ['guide', 'tour', 'questions', 'faq', 'help'], run: () => requestHelp('help') },
     ...(setPluginManagerOpen
-      ? [{ id: 'open-plugin-manager', label: 'Open Built-in Modules & Color Palettes', keywords: ['theme', 'palette', 'colors', 'modules'], run: () => setPluginManagerOpen(true) } satisfies AppCommandDefinition]
+      ? [{ id: 'open-plugin-manager', label: 'Open built-in modules', keywords: ['plugins', 'extensions', 'modules', 'permissions'], run: () => setPluginManagerOpen(true) } satisfies AppCommandDefinition]
       : []),
     {
       id: 'open-knowledge-workbench',

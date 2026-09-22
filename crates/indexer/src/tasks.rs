@@ -133,12 +133,117 @@ impl FieldStyle {
 ///
 /// A task line begins with optional leading whitespace, then exactly one of the
 /// GFM list markers (`-`, `*`, `+`), then a space, then `[<status>]`.
+#[derive(Debug, Clone, Copy)]
+struct TaskFence {
+    marker: u8,
+    length: usize,
+}
+
+fn task_fence_start(line: &str) -> Option<TaskFence> {
+    let trimmed = line.trim_start_matches([' ', '\t']);
+    let marker = *trimmed.as_bytes().first()?;
+    if marker != b'`' && marker != b'~' {
+        return None;
+    }
+    let length = trimmed.bytes().take_while(|byte| *byte == marker).count();
+    (length >= 3).then_some(TaskFence { marker, length })
+}
+
+fn task_fence_end(line: &str, fence: TaskFence) -> bool {
+    let trimmed = line.trim_start_matches([' ', '\t']);
+    let length = trimmed
+        .bytes()
+        .take_while(|byte| *byte == fence.marker)
+        .count();
+    length >= fence.length && trimmed[length..].trim().is_empty()
+}
+
+fn leading_indent_columns(line: &str) -> usize {
+    let mut columns = 0usize;
+    for byte in line.bytes() {
+        match byte {
+            b' ' => columns += 1,
+            b'\t' => columns += 4 - (columns % 4),
+            _ => break,
+        }
+    }
+    columns
+}
+
+fn starts_markdown_list_item(trimmed: &str) -> bool {
+    if trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ") {
+        return true;
+    }
+
+    let digit_count = trimmed
+        .bytes()
+        .take_while(|byte| byte.is_ascii_digit())
+        .count();
+    if digit_count == 0 {
+        return false;
+    }
+    let rest = &trimmed[digit_count..];
+    rest.starts_with(". ") || rest.starts_with(") ")
+}
+
+/// Parse authored task list items while excluding Markdown examples.
+///
+/// The line parser deliberately remains the single definition for Scriptor's
+/// extended checkbox/status and field syntax. This outer pass only supplies
+/// Markdown block context so examples inside fenced or top-level indented code
+/// do not become indexed tasks. Indented task items remain valid when they are
+/// nested below a real Markdown list item.
 pub fn parse_tasks_from_markdown(markdown: &str) -> Vec<ParsedTask> {
-    markdown
-        .lines()
-        .enumerate()
-        .filter_map(|(line_idx, line)| parse_task_line(line_idx, line))
-        .collect()
+    let mut tasks = Vec::new();
+    let mut fence: Option<TaskFence> = None;
+    let mut list_indents: Vec<usize> = Vec::new();
+
+    for (line_idx, segment) in markdown.split_inclusive('\n').enumerate() {
+        let line = segment.strip_suffix('\n').unwrap_or(segment);
+        let line = line.strip_suffix('\r').unwrap_or(line);
+        let trimmed = line.trim_start();
+        let indent = leading_indent_columns(line);
+
+        if let Some(active) = fence {
+            if task_fence_end(line, active) {
+                fence = None;
+            }
+            continue;
+        }
+        if let Some(opening) = task_fence_start(line) {
+            if indent == 0 {
+                list_indents.clear();
+            }
+            fence = Some(opening);
+            continue;
+        }
+
+        if trimmed.starts_with('>') {
+            if indent == 0 {
+                list_indents.clear();
+            }
+            continue;
+        }
+
+        let list_item = starts_markdown_list_item(trimmed);
+        let nested_below_list = list_indents.iter().any(|parent| *parent < indent);
+        if indent >= 4 && !nested_below_list {
+            continue;
+        }
+
+        if list_item {
+            list_indents.retain(|parent| *parent < indent);
+            list_indents.push(indent);
+        } else if indent == 0 && !trimmed.is_empty() {
+            list_indents.clear();
+        }
+
+        if let Some(task) = parse_task_line(line_idx, line) {
+            tasks.push(task);
+        }
+    }
+
+    tasks
 }
 
 fn parse_task_line(line_idx: usize, line: &str) -> Option<ParsedTask> {
@@ -419,13 +524,36 @@ pub fn sync_note_tasks(
     tasks: &[ParsedTask],
     now: &str,
 ) -> Result<(), IndexerError> {
-    // All existing task ids for this note (used for cleanup at the end).
-    let mut existing_ids: BTreeSet<String> = {
-        let mut stmt =
-            conn.prepare("SELECT id FROM tasks WHERE vault_id = ?1 AND source_note_id = ?2")?;
-        stmt.query_map(params![vault_id, note_id], |row| row.get(0))?
-            .collect::<Result<BTreeSet<_>, _>>()?
+    // Existing rows are also an identity bridge. Semantic identity survives
+    // unrelated line movement; line identity lets an in-place title edit retain
+    // the same task id instead of creating a new external-sync identity.
+    let existing_rows: Vec<(String, i64, String)> = {
+        let mut stmt = conn.prepare(
+            "SELECT id, line, title FROM tasks
+             WHERE vault_id = ?1 AND source_note_id = ?2
+             ORDER BY line, id",
+        )?;
+        stmt.query_map(params![vault_id, note_id], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?
     };
+    let mut existing_ids: BTreeSet<String> =
+        existing_rows.iter().map(|(id, _, _)| id.clone()).collect();
+    let existing_by_line: BTreeMap<i64, String> = existing_rows
+        .iter()
+        .map(|(id, line, _)| (*line, id.clone()))
+        .collect();
+    let mut existing_identity_occurrences: BTreeMap<String, usize> = BTreeMap::new();
+    let mut existing_by_identity: BTreeMap<(String, usize), String> = BTreeMap::new();
+    for (id, _, title) in &existing_rows {
+        let identity = task_identity_key(title);
+        let occurrence = existing_identity_occurrences
+            .entry(identity.clone())
+            .or_default();
+        existing_by_identity.insert((identity, *occurrence), id.clone());
+        *occurrence += 1;
+    }
 
     // Mirrored from the parent row: the path is the navigation key the UI and
     // the DQL projector use, and it stays correct when a note is renamed
@@ -448,7 +576,18 @@ pub fn sync_note_tasks(
         // indistinguishable duplicates is intentionally treated as an identity change.
         let identity = task_identity_key(&task.title);
         let occurrence = identity_occurrences.entry(identity.clone()).or_default();
-        let id = stable_task_id(vault_id, note_id, &identity, *occurrence);
+        let semantic_key = (identity.clone(), *occurrence);
+        let id = existing_by_identity
+            .get(&semantic_key)
+            .filter(|candidate| existing_ids.contains(*candidate))
+            .cloned()
+            .or_else(|| {
+                existing_by_line
+                    .get(&(task.line as i64))
+                    .filter(|candidate| existing_ids.contains(*candidate))
+                    .cloned()
+            })
+            .unwrap_or_else(|| stable_task_id(vault_id, note_id, &identity, *occurrence));
         *occurrence += 1;
         seen_ids.insert(id.clone());
         existing_ids.remove(&id);
@@ -526,7 +665,9 @@ fn stable_task_id(
     title_identity: &str,
     occurrence: usize,
 ) -> String {
-    let ns = uuid::Uuid::parse_str("6ba7b810-9dad-11d1-80b4-00c04fd430c8").unwrap();
+    // UUID namespace for stable task IDs, encoded directly so this hot path
+    // cannot panic on parsing a programmer-authored constant.
+    let ns = Uuid::from_u128(0x6ba7b810_9dad_11d1_80b4_00c04fd430c8);
     let key = format!("{vault_id}:{note_id}:{title_identity}:{occurrence}");
     Uuid::new_v5(&ns, key.as_bytes()).to_string()
 }
@@ -1375,6 +1516,58 @@ mod tests {
     }
 
     #[test]
+    fn task_identity_survives_in_place_title_edit() -> Result<(), IndexerError> {
+        use crate::notes::upsert_note_on;
+        use crate::open_cache_for_session;
+        use scriptor_vault::{RelativeVaultPath, metadata_from_markdown, open_vault};
+        use tempfile::tempdir;
+
+        let dir = tempdir().expect("temp dir");
+        let session = open_vault(dir.path()).expect("open vault");
+        let cache = open_cache_for_session(&session)?;
+        let relative = RelativeVaultPath::parse("notes/tasks.md")?;
+        let original = "- [ ] Draft launch plan\n";
+        let metadata = metadata_from_markdown(
+            &session.descriptor.id,
+            &relative,
+            original,
+            "2026-08-01T00:00:00Z".to_string(),
+        );
+
+        {
+            let mut conn = cache.connection()?;
+            let tx = conn.transaction()?;
+            upsert_note_on(&tx, &metadata, original)?;
+            sync_note_tasks(
+                &tx,
+                &session.descriptor.id,
+                &metadata.id,
+                &parse_tasks_from_markdown(original),
+                "2026-08-01T01:00:00Z",
+            )?;
+            tx.commit()?;
+        }
+        let first = query_tasks(&cache, &session.descriptor.id, &TaskFilter::default(), 20)?;
+        let original_id = first[0].id.clone();
+
+        {
+            let conn = cache.connection()?;
+            sync_note_tasks(
+                &conn,
+                &session.descriptor.id,
+                &metadata.id,
+                &parse_tasks_from_markdown("- [ ] Draft release plan\n"),
+                "2026-08-02T01:00:00Z",
+            )?;
+        }
+        let second = query_tasks(&cache, &session.descriptor.id, &TaskFilter::default(), 20)?;
+        assert_eq!(second.len(), 1);
+        assert_eq!(second[0].id, original_id);
+        assert_eq!(second[0].title, "Draft release plan");
+        Ok(())
+    }
+
+    #[test]
     fn task_identity_survives_unrelated_line_insert_and_preserves_completion_time()
     -> Result<(), IndexerError> {
         use crate::notes::upsert_note_on;
@@ -1432,5 +1625,58 @@ mod tests {
         assert_eq!(second[0].completed_at, completed_at);
         assert_eq!(second[0].line, 2);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod task_context_tests {
+    use super::parse_tasks_from_markdown;
+
+    #[test]
+    fn task_examples_inside_code_blocks_are_not_indexed() {
+        let markdown = [
+            "- [ ] real task",
+            "",
+            "```markdown",
+            "- [ ] fenced example",
+            "- [/] extended fenced example",
+            "```",
+            "",
+            "    - [ ] top-level indented code example",
+            "",
+            "- [x] completed task",
+        ]
+        .join("\n");
+
+        let tasks = parse_tasks_from_markdown(&markdown);
+        assert_eq!(tasks.len(), 2);
+        assert_eq!(tasks[0].title, "real task");
+        assert_eq!(tasks[1].title, "completed task");
+    }
+
+    #[test]
+    fn blockquoted_examples_are_not_indexed() {
+        let markdown = "> - [ ] quoted example\n> * [x] another example\n- [ ] real task";
+        let tasks = parse_tasks_from_markdown(markdown);
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].title, "real task");
+    }
+
+    #[test]
+    fn nested_task_lists_remain_indexed() {
+        let markdown = "- [ ] parent\n    - [/] child\n        + [x] grandchild";
+        let tasks = parse_tasks_from_markdown(markdown);
+        assert_eq!(tasks.len(), 3);
+        assert_eq!(tasks[0].title, "parent");
+        assert_eq!(tasks[1].title, "child");
+        assert_eq!(tasks[2].title, "grandchild");
+    }
+
+    #[test]
+    fn tilde_fences_are_ignored_too() {
+        let markdown = "~~~text\n- [ ] example\n~~~\n- [ ] real";
+        let tasks = parse_tasks_from_markdown(markdown);
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].title, "real");
     }
 }

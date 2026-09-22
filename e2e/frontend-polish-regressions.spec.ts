@@ -186,15 +186,29 @@ test.describe('Frontend polish regressions', () => {
     await settleLayout(page)
 
     await expect(page.locator('html')).toHaveAttribute('data-ui-reflow', 'mobile')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-zoom', 'high')
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav).toBeVisible()
+    await expect(nav.getByRole('button', { name: 'Command' })).toBeVisible()
+    await expect(page.locator('.status-strip')).toBeHidden()
+    await expect(page.locator('.command-search')).toBeHidden()
+    await expect(page.locator('.workspace-mode-select')).toBeVisible()
+    const modeButtons = page.locator('.workspace-mode-strip .workspace-mode')
+    await expect(modeButtons).toHaveCount(5)
+    await expect.poll(() => modeButtons.evaluateAll((buttons) =>
+      buttons.every((button) => button.getClientRects().length === 0 || getComputedStyle(button).display === 'none'),
+    )).toBe(true)
     await expect(page.locator('.editor-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeHidden()
+    await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expect(page.locator('.monaco-editor')).toBeVisible()
+    await expect.poll(() => page.locator('.monaco-editor').evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(96)
 
     await nav.getByRole('button', { name: 'Lens' }).click()
     await expect(page.locator('.editor-panel')).toBeHidden()
     await expect(page.locator('.inspector-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeInViewport()
+    await expect(page.locator('.inspector-panel .metric-grid .metric').first()).toBeInViewport()
   })
 
   test('vault tree opens supported reader documents directly in the reader panel', async ({ page }) => {
@@ -245,8 +259,8 @@ test.describe('Frontend polish regressions', () => {
 
     const tasks = page.getByRole('dialog', { name: 'Tasks', exact: true })
     const task = tasks.getByRole('listitem').filter({ hasText: 'Collect sources' })
-    await task.getByRole('button', { name: 'Status: open. Click to advance.' }).click()
-    await expect(task.getByRole('button', { name: 'Status: in-progress. Click to advance.' })).toBeVisible()
+    await task.getByRole('button', { name: 'Status: Open. Activate to advance.' }).click()
+    await expect(task.getByRole('button', { name: 'Status: In progress. Activate to advance.' })).toBeVisible()
 
     await task.getByRole('button', { name: 'Due date: 2026-06-30' }).click()
     const dueDate = task.getByRole('textbox', { name: 'Edit due date' })
@@ -255,7 +269,7 @@ test.describe('Frontend polish regressions', () => {
     await expect(task.getByRole('button', { name: 'Due date: 2026-07-15' })).toBeVisible()
 
     await tasks.getByRole('button', { name: 'Refresh task list' }).click()
-    await expect(task.getByRole('button', { name: 'Status: in-progress. Click to advance.' })).toBeVisible()
+    await expect(task.getByRole('button', { name: 'Status: In progress. Activate to advance.' })).toBeVisible()
     await expect(task.getByRole('button', { name: 'Due date: 2026-07-15' })).toBeVisible()
   })
 
@@ -268,15 +282,15 @@ test.describe('Frontend polish regressions', () => {
 
     const tasks = page.getByRole('dialog', { name: 'Tasks', exact: true })
     const task = tasks.getByRole('listitem').filter({ hasText: 'Collect sources' })
-    const status = task.getByRole('button', { name: 'Status: open. Click to advance.' })
+    const status = task.getByRole('button', { name: 'Status: Open. Activate to advance.' })
     await status.click()
     await expect(tasks).toContainText('E2E task write unavailable')
 
     await page.evaluate(() => window.sessionStorage.removeItem('e2e:task-update-failure'))
     await status.click()
-    await expect(task.getByRole('button', { name: 'Status: in-progress. Click to advance.' })).toBeVisible()
+    await expect(task.getByRole('button', { name: 'Status: In progress. Activate to advance.' })).toBeVisible()
     await tasks.getByRole('button', { name: 'Refresh task list' }).click()
-    await expect(task.getByRole('button', { name: 'Status: in-progress. Click to advance.' })).toBeVisible()
+    await expect(task.getByRole('button', { name: 'Status: In progress. Activate to advance.' })).toBeVisible()
   })
 
   test('kanban keyboard move reloads the Markdown-derived board in its destination column', async ({ page }) => {

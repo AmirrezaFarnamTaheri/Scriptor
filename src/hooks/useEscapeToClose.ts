@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 
-import { overlayEscapeCoordinator, type FocusRestorer } from '../lib/overlayEscapeCoordinator'
+import { overlayEscapeCoordinator, toFocusRestorer } from '../lib/overlayEscapeCoordinator'
 
 export function useEscapeToClose(active: boolean, onClose: () => void): void {
   const onCloseRef = useRef(onClose)
@@ -11,9 +11,7 @@ export function useEscapeToClose(active: boolean, onClose: () => void): void {
 
   useEffect(() => {
     if (!active) return
-    const activeElement = document.activeElement
-    const restoreFocus: FocusRestorer | null =
-      activeElement instanceof HTMLElement ? activeElement : null
+    const restoreFocus = toFocusRestorer(document.activeElement)
     return overlayEscapeCoordinator.register(() => onCloseRef.current(), restoreFocus)
   }, [active])
 }

@@ -834,6 +834,22 @@
       ]
     },
     {
+      "name": "google_calendar_apply_task_sync",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_task_write",
+      "authorizationVariant": "GoogleTaskWrite",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "invalid",
+        "degraded",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
       "name": "google_calendar_complete_task",
       "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
       "authorizationClass": "brokered-sensitive",
@@ -953,6 +969,36 @@
         "degraded",
         "failed",
         "recovered"
+      ]
+    },
+    {
+      "name": "google_calendar_update_task",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_task_write",
+      "authorizationVariant": "GoogleTaskWrite",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "invalid",
+        "degraded",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "google_gmail_get_authed_email",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
       ]
     },
     {

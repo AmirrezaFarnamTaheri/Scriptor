@@ -28,6 +28,23 @@ test('buildRfc5322Message generates valid base64url encoded MIME envelope', () =
   assert.ok(decoded.includes('Line 1\r\nLine 2\r\n'))
 })
 
+test('buildRfc5322Message rejects CRLF header injection and normalizes body line endings', () => {
+  assert.throws(
+    () => buildRfc5322Message('victim@example.com\r\nBcc: attacker@example.com', 'Subject', 'Body'),
+    /recipient.*line break/i,
+  )
+  assert.throws(
+    () => buildRfc5322Message('victim@example.com', 'Subject\nBcc: attacker@example.com', 'Body'),
+    /subject.*line break/i,
+  )
+
+  const rawBase64 = buildRfc5322Message('test@example.com', 'Safe', 'A\rB\nC\r\nD')
+  const restoredBase64 = rawBase64.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = restoredBase64.padEnd(restoredBase64.length + ((4 - (restoredBase64.length % 4)) % 4), '=')
+  const decoded = Buffer.from(padded, 'base64').toString('utf8')
+  assert.ok(decoded.endsWith('A\r\nB\r\nC\r\nD\r\n'))
+})
+
 test('toYamlScalar safely encodes strings preventing YAML injection and multiline breakout', () => {
   assert.equal(toYamlScalar('Simple Subject'), '"Simple Subject"')
   assert.equal(toYamlScalar('Email: "Urgent" update'), '"Email: \\"Urgent\\" update"')

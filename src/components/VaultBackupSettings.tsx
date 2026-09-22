@@ -30,7 +30,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
     backup
 
   return (
-    <div className="settings-section">
+    <div className="settings-section" data-help-topic="backups">
       <h3>
         <HardDrive size={16} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />
         Backup

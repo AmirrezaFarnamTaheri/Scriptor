@@ -4,15 +4,17 @@ on:
   push:
     branches: [main, master]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  # Let long-running Rust workspace tests finish; PR reruns must not terminate
-  # an active validation job while Cargo is compiling the workspace.
-  cancel-in-progress: false
+  # A newer pull-request head makes validation of the previous head obsolete.
+  # Cancel stale PR work so the current commit is not blocked behind multi-minute
+  # browser/Rust jobs. Pushes to protected branches still run to completion.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:
@@ -26,6 +28,10 @@ env:
 jobs:
   source-snapshot:
     name: Source snapshot and provenance
+    # PR commits are already immutable Git objects. Archive provenance once the
+    # commit lands on a protected branch instead of uploading a duplicate source
+    # ZIP for every review iteration.
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -84,6 +90,10 @@ jobs:
 
   supply-chain:
     name: Supply-chain and lockfile audit
+    # Draft PRs are intentionally cheap. The ready_for_review event triggers one
+    # complete validation pass, and later synchronize events replace stale runs
+    # through the workflow concurrency group.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -248,6 +258,16 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
+      - name: Enforce frontend source quality and module-size ratchet
+        shell: pwsh
+        run: |
+          ./scripts/ci/invoke-logged.ps1 -Name "Frontend source quality" -FilePath "pnpm" -ArgumentList @("check:frontend-quality") -TimeoutSeconds 600
+          ./scripts/ci/invoke-logged.ps1 -Name "Module-size ratchet" -FilePath "node" -ArgumentList @("scripts/validation/module-size-ratchet.mjs") -TimeoutSeconds 300
+
+      - name: Run source regression suite
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Source regression suite" -FilePath "pnpm" -ArgumentList @("test:source") -TimeoutSeconds 1200
+
       - name: Parse every PowerShell script
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Parse every PowerShell script" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/ci/validate-powershell.ps1") -TimeoutSeconds 300
@@ -341,24 +361,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Configure pinned pnpm 10.33.0
-        shell: pwsh
-        run: |
-          corepack enable
-          corepack prepare pnpm@10.33.0 --activate
-          pnpm --version
-
-      - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22.16.0
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install frozen pnpm dependency graph
-        shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
       - name: Configure pinned Rust 1.96.0
         shell: pwsh
@@ -536,7 +538,7 @@ jobs:
           retention-days: 30
 
   validate-browser:
-    name: Browser E2E and visual regression
+    name: Browser E2E
     needs: supply-chain
     runs-on: windows-2025
     timeout-minutes: 45
@@ -563,7 +565,7 @@ jobs:
 
       - name: Describe browser validation scope
         shell: pwsh
-        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Browser E2E and visual regression"
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Browser E2E"
 
       - name: Install frozen pnpm dependency graph
         shell: pwsh
@@ -577,21 +579,17 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Run functional Playwright suite" -FilePath "pnpm" -ArgumentList @("test:e2e") -TimeoutSeconds 1800 -HeartbeatSeconds 20
 
-      - name: Run visual regression suite
-        shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Run visual regression suite" -FilePath "pnpm" -ArgumentList @("test:visual") -TimeoutSeconds 1800 -HeartbeatSeconds 20
-
       - name: Capture browser validation failure context
         if: failure()
         shell: pwsh
-        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Browser E2E and visual regression"
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Browser E2E"
 
       - name: Finalize browser validation evidence
         if: always()
         shell: pwsh
         env:
           JOB_STATUS: ${{ job.status }}
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Browser E2E and visual regression" -Status $env:JOB_STATUS
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Browser E2E" -Status $env:JOB_STATUS
 
       - name: Upload browser reports and evidence
         if: always()

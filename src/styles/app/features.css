@@ -100,6 +100,14 @@
   box-shadow: var(--shadow-lg);
 }
 
+/* Standalone legacy dialogs must be visually opaque. --surface is intentionally
+ * glassy in several palettes and allowed editor text to bleed through the
+ * Bibliography/Cheatsheet surfaces. Embedded workbench panels keep their normal
+ * surface treatment; modal dialogs use the canonical dialog background. */
+.modal-backdrop > .knowledge-filters-panel:not(.unified-panel-shell) {
+  background: var(--dialog-bg, var(--bg-elevated));
+}
+
 .knowledge-filters-panel header {
   display: flex;
   align-items: flex-start;
@@ -181,7 +189,7 @@
   padding: 10px 12px;
 }
 
-.knowledge-note-list button,
+.knowledge-note-open,
 .knowledge-target-refs button {
   display: block;
   width: 100%;
@@ -309,7 +317,9 @@
 }
 
 .frontmatter-inspector {
+  width: min(720px, calc(100vw - 32px));
   max-width: 720px;
+  background: var(--dialog-bg, var(--bg-elevated));
 }
 
 .frontmatter-fields {
@@ -337,10 +347,6 @@
 }
 
 .panel-menu-popover {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 20;
   min-width: 180px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -439,10 +445,54 @@
   width: min(520px, 92vw);
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
-  background: var(--surface);
+  background: var(--dialog-bg, var(--bg-elevated));
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
+  box-shadow: var(--shadow-lg);
+}
+
+.writing-targets-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.writing-targets-panel > header h2 {
+  margin: 0;
+}
+
+.writing-targets-panel > label {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.writing-targets-panel input[type='number'] {
+  box-sizing: border-box;
+  width: min(180px, 100%);
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.writing-targets-panel input[type='number']:hover {
+  border-color: var(--border-strong);
+}
+
+.writing-targets-panel input[type='number']:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-color: var(--primary);
 }
 
 .writing-progress {
@@ -677,8 +727,7 @@
 .scriptor-distraction-free .editor-toolbar,
 .scriptor-distraction-free .editor-status,
 .scriptor-distraction-free .workspace-footer {
-  opacity: 0.15;
-  pointer-events: none;
+  opacity: 0.55;
   transition: opacity 0.2s ease;
 }
 
@@ -689,9 +738,16 @@
 .scriptor-distraction-free .inline-editor-assist:hover,
 .scriptor-distraction-free .editor-toolbar:hover,
 .scriptor-distraction-free .editor-status:hover,
-.scriptor-distraction-free .workspace-footer:hover {
+.scriptor-distraction-free .workspace-footer:hover,
+.scriptor-distraction-free .workspace-header:focus-within,
+.scriptor-distraction-free .vault-sidebar:focus-within,
+.scriptor-distraction-free .inspector-panel:focus-within,
+.scriptor-distraction-free .tabs-row:focus-within,
+.scriptor-distraction-free .inline-editor-assist:focus-within,
+.scriptor-distraction-free .editor-toolbar:focus-within,
+.scriptor-distraction-free .editor-status:focus-within,
+.scriptor-distraction-free .workspace-footer:focus-within {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .cm-wikilink,
@@ -706,7 +762,10 @@
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
   gap: 16px;
   padding: 16px 18px 20px;
-  overflow: auto;
+  /* UnifiedPanelShell owns vertical scrolling. Avoid a second unconstrained
+   * overflow container that makes the companion look clipped while scrollTop
+   * is applied to a child that has no bounded scrollport. */
+  overflow: visible;
 }
 
 .portal-toolbar {
@@ -819,6 +878,33 @@
   border-color: var(--border-strong);
 }
 
+.portal-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.portal-item-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.portal-item-heading strong {
+  min-width: 0;
+}
+
+.portal-item-heading small {
+  flex: none;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.portal-item-content > p {
+  margin: 4px 0 0;
+}
+
 .portal-item-actions {
   display: flex;
   gap: 6px;
@@ -827,6 +913,10 @@
 
 .portal-form h3 {
   margin: 0 0 8px;
+}
+
+.quick-capture-panel {
+  container-type: inline-size;
 }
 
 .quick-capture-body {
@@ -845,9 +935,28 @@
 }
 
 .scratchpad-editor {
+  box-sizing: border-box;
   width: 100%;
+  min-width: 0;
   min-height: 160px;
   resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.45;
+}
+
+.scratchpad-editor:hover {
+  border-color: var(--border-strong);
+}
+
+.scratchpad-editor:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-color: var(--primary);
 }
 
 .quick-todo-list {
@@ -860,9 +969,32 @@
 
 .quick-todo-list li {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+}
+
+.quick-todo-list li > input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.quick-todo-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@container (max-width: 460px) {
+  .quick-todo-list li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .quick-todo-actions {
+    grid-column: 2;
+    justify-self: end;
+  }
 }
 
 .quick-todo-list li.done input {

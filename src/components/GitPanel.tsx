@@ -138,6 +138,7 @@ export const GitPanel = memo(function GitPanel({
         subtitle={t('git.checkingStatus')}
         icon={<GitBranch size={18} />}
         ariaLabel={t('git.title')}
+        helpTopic="git"
         onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
@@ -159,6 +160,7 @@ export const GitPanel = memo(function GitPanel({
         subtitle={t('git.statusUnavailable')}
         icon={<GitBranch size={18} />}
         ariaLabel={t('git.title')}
+        helpTopic="git"
         onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
@@ -182,6 +184,7 @@ export const GitPanel = memo(function GitPanel({
         subtitle={t('git.subtitle')}
         icon={<GitBranch size={18} />}
         ariaLabel={t('git.title')}
+        helpTopic="git"
         onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
@@ -201,6 +204,7 @@ export const GitPanel = memo(function GitPanel({
       subtitle={`${status.branch ?? t('git.detached')}${status.has_upstream ? ` · ${t('git.aheadBehind', { ahead: status.ahead, behind: status.behind })}` : ''}`}
       icon={<GitBranch size={18} />}
       ariaLabel={t('git.title')}
+      helpTopic="git"
       onClose={onClose}
       presentation={presentation}
       className="git-panel knowledge-filters-panel"

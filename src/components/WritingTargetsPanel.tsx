@@ -68,6 +68,7 @@ export const WritingTargetsPanel = memo(function WritingTargetsPanel({
     try {
       const entries = await vaultReadStatsHistory()
       if (requestId !== historyRequestId.current) return
+      if (!Array.isArray(entries)) throw new Error('Writing history response is not a list')
       setHistory(entries)
       setHistoryStatus('ready')
     } catch {
@@ -147,7 +148,7 @@ export const WritingTargetsPanel = memo(function WritingTargetsPanel({
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section ref={dialogRef} className="writing-targets-panel" role="dialog" aria-modal="true" aria-label="Writing targets" onClick={(e) => e.stopPropagation()}>
+      <section ref={dialogRef} className="writing-targets-panel" role="dialog" aria-modal="true" aria-label="Writing targets" data-help-topic="writing-targets" onClick={(e) => e.stopPropagation()}>
         <header>
           <h2>Writing targets</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">

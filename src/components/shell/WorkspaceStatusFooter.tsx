@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { Activity, AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, GitBranch, PanelRight } from 'lucide-react'
+import { Activity, AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, FolderOpen, GitBranch, PanelRight } from 'lucide-react'
 
 import { DiagnosticsPanel } from '../DiagnosticsPanel'
 import { StatusDockPanel, type StatusDockTab } from '../StatusDockPanel'
@@ -118,6 +118,13 @@ function WorkspaceStatusFooterImpl({
     true,
   )
   const { t } = useI18n()
+  const cacheStatusLabel = !health
+    ? t('statusDock.noVaultOpen')
+    : health.cache_status === 'fresh'
+      ? t('inspector.health.cacheFresh')
+      : health.cache_status === 'stale'
+        ? t('inspector.health.cacheStale')
+        : t('inspector.health.cacheRebuilding')
   const previousDockTab = useRef(statusDockTab)
 
   useEffect(() => {
@@ -148,8 +155,10 @@ function WorkspaceStatusFooterImpl({
     : noteCount
 
   return (
-    <footer className={`status-strip${chromeCollapsed ? ' is-dock-collapsed' : ''}`}>
+    <footer className={`status-strip${!vault || chromeCollapsed ? ' is-dock-collapsed' : ''}`} data-help-topic="status">
       <div className="status-summary">
+        {vault ? (
+          <>
         <button
           type="button"
           className={`jobs-button${totalProblemCount > 0 ? ' has-problems' : ''}`}
@@ -234,7 +243,7 @@ function WorkspaceStatusFooterImpl({
             />
             <span>{t('statusDock.diagnostics')}</span>
           </label>
-          <span>{health?.cache_status ?? 'no vault'}</span>
+          <span>{cacheStatusLabel}</span>
           {diagnosticsOptIn && timeToFirstEditMs != null ? <span title="Time to first edit this session">TTFE {timeToFirstEditMs < 1000 ? `${timeToFirstEditMs}ms` : `${(timeToFirstEditMs / 1000).toFixed(1)}s`}</span> : null}
           {diagnosticsOptIn && timeToFirstExportMs != null ? <span title="Time to first export this session">TTFX {(timeToFirstExportMs / 1000).toFixed(1)}s</span> : null}
           <SubsystemToggles
@@ -253,9 +262,16 @@ function WorkspaceStatusFooterImpl({
           <span>{vault?.name ?? t('statusDock.unopened')}</span>
           <CheckCircle2 />
         </div>
+          </>
+        ) : (
+          <div className="status-empty-vault" role="status" aria-label={t('statusDock.noVaultOpen')}>
+            <FolderOpen aria-hidden="true" />
+            <span>{t('statusDock.noVaultOpen')}</span>
+          </div>
+        )}
       </div>
 
-      {!chromeCollapsed ? (
+      {vault && !chromeCollapsed ? (
         <div className="bottom-tabs-wrap" id="status-dock-chrome">
           <StatusDockPanel
             activeTab={statusDockTab}

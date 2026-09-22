@@ -13,6 +13,7 @@ import { GraphCanvas, type CanvasNode } from './GraphCanvas'
 import { useI18n } from '../lib/i18n'
 import { expectArray, expectBoolean, expectNumber, expectRecord, expectString } from '../lib/runtimeSchema'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
+import { seedGraphLayout } from '../lib/graphLayout'
 
 interface GraphPreset {
   id: string
@@ -36,7 +37,7 @@ function validateGraphPresets(value: unknown): GraphPreset[] {
       fullVault: expectBoolean(record, 'fullVault', context),
     }
   })
-  return parsed.length > 0 ? parsed : defaultGraphPresets()
+  return mergeGraphPresets(parsed)
 }
 
 function loadGraphPresets(): GraphPreset[] {
@@ -52,6 +53,17 @@ function defaultGraphPresets(): GraphPreset[] {
   return [
     { id: 'local', label: 'Neighborhood', depth: 2, fullVault: false },
     { id: 'vault', label: 'Full vault', depth: 3, fullVault: true },
+  ]
+}
+
+function mergeGraphPresets(stored: GraphPreset[]): GraphPreset[] {
+  const defaults = defaultGraphPresets()
+  const storedById = new Map(stored.map((preset) => [preset.id, preset]))
+  const builtinIds = new Set(defaults.map((preset) => preset.id))
+
+  return [
+    ...defaults.map((preset) => storedById.get(preset.id) ?? preset),
+    ...stored.filter((preset) => !builtinIds.has(preset.id)),
   ]
 }
 
@@ -85,8 +97,8 @@ interface GraphPanelProps {
   onToggleHibernate?: () => void
 }
 
-const VIEW_WIDTH = 720
-const VIEW_HEIGHT = 420
+const DEFAULT_VIEW_WIDTH = 720
+const DEFAULT_VIEW_HEIGHT = 420
 
 export const GraphPanel = memo(function GraphPanel({
   graph,
@@ -105,15 +117,19 @@ export const GraphPanel = memo(function GraphPanel({
   onToggleHibernate,
 }: GraphPanelProps) {
   const { t } = useI18n()
-  const { isPluginEnabled } = usePluginState()
+  const { enablePlugin, isPluginEnabled, persistenceError } = usePluginState()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
   const dialogRef = useRef<HTMLDivElement>(null)
+  const graphStageRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const liveRegionRef = useRef<HTMLDivElement>(null)
+  const [viewport, setViewport] = useState({ width: DEFAULT_VIEW_WIDTH, height: DEFAULT_VIEW_HEIGHT })
   const [workerState, setWorkerState] = useState<{
     graph: GraphQueryOutput
+    width: number
+    height: number
     layout: CanvasNode[] | null
   } | null>(null)
   const USE_CANVAS_THRESHOLD = 100
@@ -127,7 +143,13 @@ export const GraphPanel = memo(function GraphPanel({
     if (!vaultOpen || !vaultId) return
     let cancelled = false
     void loadVaultPresetJson<GraphPreset[]>(VAULT_GRAPH_PRESETS_PATH).then((stored) => {
-      if (!cancelled && stored && stored.length > 0) setPresets(stored)
+      if (!cancelled && stored) {
+        try {
+          setPresets(validateGraphPresets(stored))
+        } catch {
+          setPresets(defaultGraphPresets())
+        }
+      }
     })
     return () => {
       cancelled = true
@@ -137,48 +159,65 @@ export const GraphPanel = memo(function GraphPanel({
   const useCanvas = (graph?.nodes.length ?? 0) >= USE_CANVAS_THRESHOLD
 
   useEffect(() => {
+    const stage = graphStageRef.current
+    if (!stage || !graph || hibernated || !isGraphEnabled) return
+    const measure = () => {
+      const rect = stage.getBoundingClientRect()
+      const width = Math.max(1, Math.floor(rect.width))
+      const height = Math.max(1, Math.floor(rect.height))
+      setViewport((current) => current.width === width && current.height === height ? current : { width, height })
+    }
+    measure()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    observer?.observe(stage)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [graph, hibernated, isGraphEnabled])
+
+  useEffect(() => {
     if (!graph || hibernated || !isGraphEnabled) return
     const requestedGraph = graph
+    const requestedWidth = viewport.width
+    const requestedHeight = viewport.height
     const worker = new GraphLayoutWorker()
     worker.onmessage = (event: MessageEvent) => {
       if (event.data.type === 'done') {
-        setWorkerState({ graph: requestedGraph, layout: event.data.nodes as CanvasNode[] })
+        setWorkerState({
+          graph: requestedGraph,
+          width: requestedWidth,
+          height: requestedHeight,
+          layout: event.data.nodes as CanvasNode[],
+        })
       } else if (event.data.type === 'error') {
-        setWorkerState({ graph: requestedGraph, layout: null })
+        setWorkerState({ graph: requestedGraph, width: requestedWidth, height: requestedHeight, layout: null })
       }
     }
     worker.onerror = () => {
-      setWorkerState({ graph: requestedGraph, layout: null })
+      setWorkerState({ graph: requestedGraph, width: requestedWidth, height: requestedHeight, layout: null })
     }
     worker.postMessage({
       nodes: graph.nodes,
       edges: graph.edges,
-      width: VIEW_WIDTH,
-      height: VIEW_HEIGHT,
+      width: requestedWidth,
+      height: requestedHeight,
     })
     return () => worker.terminate()
-  }, [graph, hibernated, isGraphEnabled])
+  }, [graph, hibernated, isGraphEnabled, viewport.height, viewport.width])
 
-  const workerLayout = !hibernated && workerState?.graph === graph ? workerState.layout : null
-  const workerLoading = Boolean(graph && !hibernated && workerState?.graph !== graph)
+  const workerMatchesViewport = workerState?.graph === graph
+    && workerState.width === viewport.width
+    && workerState.height === viewport.height
+  const workerLayout = !hibernated && workerMatchesViewport ? workerState.layout : null
+  const workerLoading = Boolean(graph && !hibernated && !workerMatchesViewport)
 
   const layout = useMemo(() => {
     if (!graph || graph.nodes.length === 0) return []
     if (workerLayout) return workerLayout
-    return graph.nodes.map((node, index) => {
-      const angle = (Math.PI * 2 * index) / Math.max(graph.nodes.length, 1)
-      const radius = Math.min(VIEW_WIDTH, VIEW_HEIGHT) * 0.28
-      return {
-        id: node.id,
-        label: node.label,
-        path: node.path,
-        unresolved: node.unresolved,
-        color: node.color,
-        x: VIEW_WIDTH / 2 + Math.cos(angle) * radius,
-        y: VIEW_HEIGHT / 2 + Math.sin(angle) * radius,
-      }
-    })
-  }, [graph, workerLayout])
+    return seedGraphLayout(graph.nodes, viewport.width, viewport.height)
+  }, [graph, viewport.height, viewport.width, workerLayout])
 
   const nodeById = useMemo(() => new Map(layout.map((node) => [node.id, node])), [layout])
 
@@ -265,21 +304,41 @@ export const GraphPanel = memo(function GraphPanel({
 
   if (!isGraphEnabled) {
     return (
-      <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
+      <div ref={dialogRef} className="graph-overlay graph-overlay-compact" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')} data-help-topic="graph">
         <header className="graph-header">
           <h2>{t('graph.title')}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
             <X aria-hidden="true" />
           </button>
         </header>
-        <p className="empty-state" role="alert">Graph is disabled for this vault.</p>
+        <div className="graph-disabled-state" role="alert">
+          <Power className="graph-disabled-icon" aria-hidden="true" />
+          <div>
+            <h3>{t('graph.disabledTitle')}</h3>
+            <p>{t('graph.disabledDescription')}</p>
+          </div>
+          {persistenceError ? <p className="publish-error" role="alert">{persistenceError}</p> : null}
+          <div className="graph-disabled-actions">
+            <button type="button" className="primary-button" onClick={() => {
+              void enablePlugin('scriptor.graph')
+                .then(() => onRefresh(fullVault))
+                .catch(() => {
+                  // PluginStateContext surfaces the persistence failure and
+                  // rolls the optimistic toggle back to the disabled state.
+                })
+            }}>
+              {t('graph.enable')}
+            </button>
+            <button type="button" className="toolbar-button" onClick={onClose}>{t('actions.cancel')}</button>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (hibernated) {
     return (
-      <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
+      <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')} data-help-topic="graph">
         <header className="graph-header">
           <h2>{t('graph.title')}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
@@ -288,10 +347,8 @@ export const GraphPanel = memo(function GraphPanel({
         </header>
         <div className="graph-hibernated-placeholder">
           <MoonStar className="graph-hibernated-icon" aria-hidden="true" />
-          <h3>Graph paused</h3>
-          <p>
-            Background layout simulation is paused to optimize battery life and improve app responsiveness.
-          </p>
+          <h3>{t('graph.pausedTitle')}</h3>
+          <p>{t('graph.pausedDescription')}</p>
           <button
             type="button"
             className="primary-button graph-wake-button"
@@ -299,7 +356,7 @@ export const GraphPanel = memo(function GraphPanel({
             disabled={!onToggleHibernate}
           >
             <Power aria-hidden="true" />
-            Resume graph
+            {t('graph.resume')}
           </button>
         </div>
       </div>
@@ -348,7 +405,13 @@ export const GraphPanel = memo(function GraphPanel({
               }}
             >
               {presets.map((preset) => (
-                <option key={preset.id} value={preset.id}>{preset.label}</option>
+                <option key={preset.id} value={preset.id}>
+                  {preset.id === 'local'
+                    ? t('graph.neighborhood', { depth: preset.depth })
+                    : preset.id === 'vault'
+                      ? t('graph.fullVault')
+                      : preset.label}
+                </option>
               ))}
               {!presets.some((preset) => preset.depth === depth && preset.fullVault === fullVault) ? (
                 <option value="custom">{t('graph.custom')}</option>
@@ -409,26 +472,27 @@ export const GraphPanel = memo(function GraphPanel({
 
       <div ref={liveRegionRef} aria-live="polite" className="sr-only" />
 
-      {useCanvas ? (
-        workerLoading ? (
-          <div className="graph-loading">
-            <span>{t('graph.computingLayout')}</span>
-          </div>
+      <div ref={graphStageRef} className="graph-stage">
+        {useCanvas ? (
+          workerLoading ? (
+            <div className="graph-loading">
+              <span>{t('graph.computingLayout')}</span>
+            </div>
+          ) : (
+            <GraphCanvas
+              nodes={layout as CanvasNode[]}
+              edges={graph.edges}
+              focusPath={focusPath}
+              width={viewport.width}
+              height={viewport.height}
+              onSelectNode={onSelectNode}
+            />
+          )
         ) : (
-          <GraphCanvas
-            nodes={layout as CanvasNode[]}
-            edges={graph.edges}
-            focusPath={focusPath}
-            width={VIEW_WIDTH}
-            height={VIEW_HEIGHT}
-            onSelectNode={onSelectNode}
-          />
-        )
-      ) : (
-        <svg
-          ref={svgRef}
-          className="graph-canvas force"
-          viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+          <svg
+            ref={svgRef}
+            className="graph-canvas force"
+            viewBox={`0 0 ${viewport.width} ${viewport.height}`}
           role="application"
           tabIndex={0}
           aria-label={t('graph.ariaLabel')}
@@ -511,8 +575,9 @@ export const GraphPanel = memo(function GraphPanel({
               </g>
             )
           })}
-        </svg>
-      )}
+          </svg>
+        )}
+      </div>
     </div>
   )
 })

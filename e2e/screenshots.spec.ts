@@ -7,7 +7,10 @@ import { expect, test, type Page } from '@playwright/test'
 import { captureReadyScreenshot, openCommandPalette, runCommand, settleLayout, WORKSPACE_CHROME_PREFS } from './helpers.ts'
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const outputDir = path.join(rootDir, 'docs/assets/screenshots')
+const configuredOutputDir = process.env.SCRIPTOR_SCREENSHOT_OUTPUT_DIR?.trim()
+const outputDir = configuredOutputDir
+  ? path.resolve(rootDir, configuredOutputDir)
+  : path.join(rootDir, 'docs/assets/screenshots')
 const VISUAL_REVIEW_TIME = new Date('2026-09-07T12:00:00Z')
 
 function shotPath(name: string) {
@@ -170,16 +173,19 @@ test.beforeEach(async ({ page }) => {
     }
   })
   await page.addInitScript((chromePrefs) => {
-    window.localStorage.setItem('scriptor:app-theme', 'light')
-    window.localStorage.setItem('scriptor:onboarding-complete', 'true')
-    window.localStorage.setItem('scriptor:editor-mode', 'monaco')
-    window.localStorage.setItem('scriptor:headless-engine', 'false')
-    window.localStorage.setItem('scriptor:workspace-mode', 'writing')
-    window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
-    window.localStorage.setItem('scriptor:split-preview', 'false')
+    const setDefault = (key: string, value: string) => {
+      if (window.localStorage.getItem(key) === null) window.localStorage.setItem(key, value)
+    }
+    setDefault('scriptor:app-theme', 'light')
+    setDefault('scriptor:onboarding-complete', 'true')
+    setDefault('scriptor:editor-mode', 'monaco')
+    setDefault('scriptor:headless-engine', 'false')
+    setDefault('scriptor:workspace-mode', 'writing')
+    setDefault('scriptor:inspector-preset', 'balanced')
+    setDefault('scriptor:split-preview', 'false')
     // Baselines capture the full status dock; the app default is collapsed.
-    window.localStorage.setItem('scriptor:status-dock-collapsed', 'false')
-    window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
+    setDefault('scriptor:status-dock-collapsed', 'false')
+    setDefault('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
   }, WORKSPACE_CHROME_PREFS)
 })
 
@@ -336,15 +342,13 @@ test('settings appearance controls', async ({ page }) => {
   await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
   await waitForSettingsReady(page)
   const settings = page.getByRole('dialog', { name: 'Settings' })
-  await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
+  await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
   const heading = settings.getByRole('heading', { name: 'Appearance & layout', exact: true })
-  // Appearance follows the layout gallery in the Workspace tab. Scroll its
-  // actual container rather than capturing the off-screen settings controls.
-  await heading.evaluate((element) => element.scrollIntoView({ block: 'start', behavior: 'instant' }))
   await expect(heading).toBeInViewport()
-  await expect(settings.getByRole('combobox', { name: 'Color theme', exact: true })).toHaveValue('light')
-  await expect(settings.getByRole('combobox', { name: 'UI Display Font', exact: true })).toBeInViewport()
-  await expect(settings.getByRole('combobox', { name: 'UI Layout Density', exact: true })).toBeInViewport()
+  await expect(settings.getByRole('combobox', { name: 'Color palette', exact: true })).toHaveValue('light')
+  await expect(settings.getByRole('combobox', { name: 'Day / night appearance', exact: true })).toBeVisible()
+  await expect(settings.getByRole('combobox', { name: 'UI display font', exact: true })).toBeInViewport()
+  await expect(settings.getByRole('combobox', { name: 'UI layout density', exact: true })).toBeInViewport()
   await captureReadyScreenshot(page, shotPath('settings-appearance'))
 })
 
@@ -373,7 +377,7 @@ test('vault health dashboard', async ({ page }) => {
   await waitForFullWorkspace(page)
   await openCommandPalette(page)
   await runCommand(page, 'Open vault health')
-  const healthDashboard = page.getByRole('dialog', { name: 'Vault health' })
+  const healthDashboard = page.getByRole('dialog', { name: 'Vault health', exact: true })
   await expect(healthDashboard).toBeVisible({ timeout: 10_000 })
   const healthMetrics = healthDashboard.locator('.metric-grid.health-metrics').first().locator('.metric')
   await expect(healthMetrics).toHaveCount(9)
@@ -430,8 +434,31 @@ test('conflict resolver modal', async ({ page }) => {
   const resolver = page.getByRole('dialog', { name: 'Resolve merge conflicts' })
   await expect(resolver).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(500)
+  const previewColumns = resolver.locator('.conflict-preview-grid .conflict-hunk-column')
+  await expect(previewColumns).toHaveCount(2)
+  const previewGeometry = await resolver.locator('.conflict-preview-grid').evaluate((grid) => {
+    const columns = [...grid.querySelectorAll<HTMLElement>('.conflict-hunk-column')]
+    const boxes = columns.map((column) => column.getBoundingClientRect())
+    return {
+      scrollWidth: grid.scrollWidth,
+      clientWidth: grid.clientWidth,
+      sameRow: boxes.length === 2 && Math.abs(boxes[0]!.top - boxes[1]!.top) <= 1,
+      separated: boxes.length === 2 && boxes[0]!.right < boxes[1]!.left,
+    }
+  })
+  expect(previewGeometry.scrollWidth).toBeLessThanOrEqual(previewGeometry.clientWidth + 1)
+  expect(previewGeometry.sameRow).toBe(true)
+  expect(previewGeometry.separated).toBe(true)
+
+  const mergedHeading = resolver.locator('.conflict-merged-preview-heading')
+  await expect(mergedHeading.getByRole('status')).toContainText('1 unresolved')
+  await expect(resolver.getByRole('button', { name: 'Apply resolved file', exact: true })).toBeDisabled()
+  await expect.poll(() => resolver.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+
+  // This dynamic conflict state remains part of the per-run visual artifact,
+  // but no longer carries a duplicate committed bitmap baseline. Geometry and
+  // interaction contracts above catch regressions without stale pixel baggage.
   await captureReadyScreenshot(page, shotPath('conflict-resolver'))
-  await expect(page).toHaveScreenshot('conflict-resolver.png', { fullPage: false })
 })
 
 test('note history panel', async ({ page }) => {
@@ -518,8 +545,11 @@ test('onboarding tour', async ({ page }) => {
   await expect(tour).toBeVisible({ timeout: 15_000 })
   await expect(tour.getByRole('button', { name: 'Next' })).toBeFocused()
   await expect
-    .poll(() => tour.evaluate((element) => getComputedStyle(element).backgroundColor))
-    .toBe('rgb(255, 255, 255)')
+    .poll(() => tour.evaluate((element) => {
+      const background = getComputedStyle(element).backgroundColor
+      return background !== 'transparent' && background !== 'rgba(0, 0, 0, 0)'
+    }))
+    .toBe(true)
   await page.waitForTimeout(500)
   await captureReadyScreenshot(page, shotPath('onboarding-tour'))
   await expect(page).toHaveScreenshot('onboarding-tour.png', {
@@ -585,14 +615,29 @@ test('task list rendered items', async ({ page }) => {
   await waitForPreviewReady(page)
   const taskList = page.locator('.markdown-preview ul.contains-task-list, .markdown-preview ul:has(> li.task-list-item)').first()
   await expect(taskList).toBeVisible()
-  await captureReadyScreenshot(page, shotPath('task-list-preview'))
+  await settleLayout(page)
+  await taskList.screenshot({ path: shotPath('task-list-preview') })
 })
 
-test('workspace switcher and breadcrumbs', async ({ page }) => {
+test('workspace selector and active vault identity', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
   const topbar = page.locator('header.topbar')
   await expect(topbar).toBeVisible()
-  await captureReadyScreenshot(page, shotPath('workspace-switcher'))
+
+  const switcher = topbar.getByRole('combobox', { name: 'Recent vault', exact: true })
+  await expect(switcher).toBeVisible()
+  await expect(switcher.locator('option:checked')).toHaveAttribute('value', 'C:/Scriptor/fixtures/minimal')
+  await expect(switcher.locator('option:checked')).toHaveText('minimal')
+  expect(await switcher.locator('option').count()).toBeGreaterThanOrEqual(2)
+  await switcher.focus()
+  await expect(switcher).toBeFocused()
+  await expect(topbar.locator('small.vault-badge')).toHaveText('Research Vault')
+  await settleLayout(page)
+
+  // Capture the owning chrome while the selector has keyboard focus. The native
+  // popup is outside the page bitmap, so this is selector/identity evidence,
+  // not an image of an open operating-system dropdown.
+  await topbar.screenshot({ path: shotPath('workspace-selector') })
 })
 

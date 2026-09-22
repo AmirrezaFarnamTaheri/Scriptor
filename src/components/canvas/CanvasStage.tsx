@@ -345,7 +345,6 @@ export function CanvasStage({
           void handleStagePointerUp(event)
         }}
       >
-        <rect x={sceneBounds.x} y={sceneBounds.y} width={sceneBounds.width} height={sceneBounds.height} fill="var(--surface-muted)" />
         {blocks.map((block) => {
           const fill = block.style?.fill ?? 'var(--surface)'
           const stroke = block.style?.stroke ?? 'var(--border-strong)'

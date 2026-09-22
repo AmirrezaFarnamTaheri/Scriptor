@@ -193,10 +193,10 @@ fn import_attachment(
         )));
     }
 
-    fs::create_dir_all(dest.parent().ok_or_else(|| VaultError::InvalidConfig {
+    let parent = dest.parent().ok_or_else(|| VaultError::InvalidConfig {
         message: "Cannot determine parent directory".to_string(),
-    })?)
-    .map_err(|source_err| VaultError::io(dest.parent().unwrap(), source_err))?;
+    })?;
+    fs::create_dir_all(parent).map_err(|source_err| VaultError::io(parent, source_err))?;
 
     fs::copy(&source, &dest).map_err(|source_err| VaultError::io(&source, source_err))?;
     Ok(())
@@ -213,14 +213,39 @@ fn convert_obsidian_syntax(markdown: &str) -> String {
     result
 }
 
+fn embed_target_is_attachment(target: &str) -> bool {
+    let link_target = target
+        .split('|')
+        .next()
+        .unwrap_or(target)
+        .split('#')
+        .next()
+        .unwrap_or(target)
+        .trim();
+    let extension = Path::new(link_target)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_ascii_lowercase);
+    extension.as_deref().is_some_and(is_attachment)
+}
+
 fn convert_embed_wikilinks(markdown: &str) -> String {
     EMBED_WIKILINK_RE
         .replace_all(markdown, |caps: &regex::Captures| {
             let target = &caps[1];
-            if let Some((name, _heading)) = target.split_once('#') {
-                format!("[[{name}]]")
-            } else {
+            if embed_target_is_attachment(target) {
+                // Binary Obsidian embeds are copied into Scriptor's attachment
+                // store but are not note transclusions. Keep the existing
+                // compatibility form until the renderer has an attachment
+                // resolver that can safely rewrite source-relative links.
                 format!("[[{target}]]")
+            } else {
+                // Scriptor natively supports note transclusions, including
+                // heading fragments and aliases. Preserve the authored embed
+                // byte-for-byte instead of flattening it into an ordinary link.
+                caps.get(0)
+                    .map(|matched| matched.as_str().to_string())
+                    .unwrap_or_else(|| format!("![[{target}]]"))
             }
         })
         .into_owned()
@@ -326,13 +351,22 @@ mod tests {
     #[test]
     fn test_convert_embed_wikilinks() {
         let input = "![[My Note]]";
-        assert_eq!(convert_embed_wikilinks(input), "[[My Note]]");
+        assert_eq!(convert_embed_wikilinks(input), "![[My Note]]");
     }
 
     #[test]
     fn test_convert_embed_wikilinks_with_heading() {
         let input = "![[My Note#Section]]";
-        assert_eq!(convert_embed_wikilinks(input), "[[My Note]]");
+        assert_eq!(convert_embed_wikilinks(input), "![[My Note#Section]]");
+    }
+
+    #[test]
+    fn test_convert_embed_wikilinks_with_heading_and_alias() {
+        let input = "![[folder/My Note#Section|Readable label]]";
+        assert_eq!(
+            convert_embed_wikilinks(input),
+            "![[folder/My Note#Section|Readable label]]"
+        );
     }
 
     #[test]
@@ -432,14 +466,20 @@ mod tests {
     fn test_convert_embed_wikilinks_multiple() {
         let input = "Start ![[Note A]] middle ![[Note B#Section]] end";
         let result = convert_embed_wikilinks(input);
-        assert_eq!(result, "Start [[Note A]] middle [[Note B]] end");
+        assert_eq!(result, input);
     }
 
     #[test]
     fn test_convert_wikilinks_file_extension_as_image() {
         let input = "![[diagram.png]]";
         let result = convert_wikilinks(&convert_embed_wikilinks(input));
-        assert!(result.contains("[[diagram.png]]"));
+        assert_eq!(result, "[[diagram.png]]");
+    }
+
+    #[test]
+    fn test_attachment_embed_alias_keeps_compatibility_target() {
+        let input = "![[assets/diagram.png|640]]";
+        assert_eq!(convert_embed_wikilinks(input), "[[assets/diagram.png|640]]");
     }
 
     #[test]
@@ -485,6 +525,71 @@ mod tests {
         let result = import_obsidian_vault("test-vault", &root, tmp.path(), &options).unwrap();
         assert_eq!(result.notes_imported, 1);
         assert!(result.errors.is_empty());
+    }
+
+    #[test]
+    fn test_note_embed_round_trip_preserves_heading_alias_and_folder_target() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join(".obsidian")).unwrap();
+        fs::create_dir_all(tmp.path().join("notes/folder")).unwrap();
+        fs::write(
+            tmp.path().join("notes/topic.md"),
+            "Embed ![[folder/Other Note#Section|Readable label]]\nLink [[folder/Other Note#Section|Jump]]",
+        )
+        .unwrap();
+        fs::write(
+            tmp.path().join("notes/folder/Other Note.md"),
+            "# Other Note\n\n## Section\n\nBody",
+        )
+        .unwrap();
+
+        let vault_tmp = tempfile::tempdir().unwrap();
+        let root = crate::path::VaultRoot::open(vault_tmp.path()).unwrap();
+        let result = import_obsidian_vault(
+            "test-vault",
+            &root,
+            tmp.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(result.notes_imported, 2);
+        assert!(result.errors.is_empty());
+        let imported = fs::read_to_string(vault_tmp.path().join("notes/topic.md")).unwrap();
+        assert!(imported.contains("![[folder/Other Note#Section|Readable label]]"));
+        assert!(imported.contains("[[folder/Other Note#Section|Jump]]"));
+    }
+
+    #[test]
+    fn test_nested_attachment_paths_do_not_collide() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join(".obsidian")).unwrap();
+        fs::create_dir_all(tmp.path().join("assets/a")).unwrap();
+        fs::create_dir_all(tmp.path().join("assets/b")).unwrap();
+        fs::write(tmp.path().join("assets/a/image.png"), [1u8, 2, 3]).unwrap();
+        fs::write(tmp.path().join("assets/b/image.png"), [4u8, 5, 6]).unwrap();
+        fs::write(tmp.path().join("note.md"), "# Attachments").unwrap();
+
+        let vault_tmp = tempfile::tempdir().unwrap();
+        let root = crate::path::VaultRoot::open(vault_tmp.path()).unwrap();
+        let result = import_obsidian_vault(
+            "test-vault",
+            &root,
+            tmp.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(result.attachments_imported, 2);
+        assert!(result.errors.is_empty());
+        assert_eq!(
+            fs::read(vault_tmp.path().join("_attachments/assets/a/image.png")).unwrap(),
+            vec![1u8, 2, 3]
+        );
+        assert_eq!(
+            fs::read(vault_tmp.path().join("_attachments/assets/b/image.png")).unwrap(),
+            vec![4u8, 5, 6]
+        );
     }
 
     #[test]

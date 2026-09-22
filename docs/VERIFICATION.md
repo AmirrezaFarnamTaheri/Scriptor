@@ -10,6 +10,36 @@ This document defines proof for the current source candidate. A release record m
 - **Pending:** required proof depends on unavailable tooling, dependencies, platform, browser, or canonical history.
 - **Failed:** the stated command executed and did not pass.
 
+## Original local PR #135 remediation review - 2026-09-20
+
+This section preserves the original local-review evidence; it is not a claim about the current PR head, merge, or release state. The source ZIP identified `228e69c7dd9b4a0b71a97a0ff896c7fcc43bf885`. Before local changes, it was synchronized to PR head `f633615f8f49001190d288f4757da34388115e9f`; the complete Git tree matched `19485194209e906317a8fd80862928f631e417cc`. The result counts below describe that pinned baseline plus the then-local remediation patch.
+
+During the original review the remote head advanced to `a9e644c1cb3ad62136eee4907d58dd79523d61ac`. Its additional help bindings were inspected for overlap and were not replaced. At that point no remote remediation commit had yet been pushed. The confirmed fixes were subsequently integrated into PR #135 in incremental commits, so current-head CI and visual results—not these historical local counts—are authoritative for merge readiness.
+
+Environment: Linux container, Node with experimental TypeScript stripping, global TypeScript for source-harness transpilation, and system Chromium through Python Playwright. This was not a frozen workspace installation: package links, React, the repository's full frontend dependencies, and Cargo were unavailable. Read the pinned supported toolchains from the manifests rather than treating these inspection tools as replacements.
+
+| Evidence | Result and boundary |
+| --- | --- |
+| Source test discovery and execution | 301 tests reported: 300 passed; one file could not import the uninstalled `@scriptor/portal` workspace package. The normal suite did not pass in full. |
+| Editor persistence and race regression tests | 28/28 passed, including stale reload/navigation, transactional tab fallback, edits during saving, repeated native close requests, and close-error recovery. The native window was a test double, not a Windows runtime. |
+| Vault-scoped Google Tasks tests | 8/8 passed against the actual hook with provider doubles. Covers cross-vault ownership, conservative legacy migration, and post-write refresh failure. |
+| Startup-vault extraction tests | 4/4 passed; existing startup behavior was retained. |
+| Workspace persistence in isolation | All four original framework-free tests passed using the real Portal module and a loader adapter. React hooks were prohibited from executing in this adapter. This does not turn the ordinary source-suite import failure into a pass. |
+| Inspector metrics in Chromium | Six real-CSS DOM cases passed: rail widths 236, 340, and 510 CSS pixels, each in LTR and RTL. The narrow cases failed before the layout fix. These are scoped fixtures, not full application screenshots. |
+| Help ownership in Chromium | Five DOM checks passed: ordinary control, help trigger, invitation control, blocking modal, and hidden widget. The keyboard-help cases failed before the fix. |
+| Repository checks | 18 of 19 directly invoked source/metadata validators passed. The plugin Rust validator could not run `cargo metadata`; this is missing proof, not a pass. |
+| Standalone package validators | Canvas 8/8; Portal 5/5; Export 18/18; Citations 9/9; Safe external URL 14/14; Merge 10/10; Palette score 21/21. MCP, plugin marketplace, Editor, Renderer, and Knowledge runners remained blocked by missing dependencies/workspace links. |
+
+Regression specs were added for the browser fixtures, but the full Node Playwright application suite was not executed. Repository-source structural checks are not Rust compilation, full frontend type-checking, a dependency vulnerability audit, accessibility certification, or native runtime verification. A strict check of the standalone Help context source and syntactic checks of changed TypeScript supplement, but do not replace, the full engineering gate below.
+
+The uploaded visual archive contains 101 image assets representing 72 distinct images. Its own comparison log reports 39 passing visual scenarios, but its source identity is the earlier ZIP commit with `sourceDirty: true`. Those screenshots were visually inspected as historical evidence; they do not validate the patched candidate. No committed screenshot baseline was refreshed during this review.
+
+### Google Tasks migration boundary
+
+New mirror markers include the active vault identity. Exact matches to old stable native task IDs can be migrated because those IDs include vault identity. Old path/line markers and unrelated title matches cannot establish ownership of a task in a shared provider list, so they are not adopted or completed automatically. Such legacy tasks may require deliberate manual reconciliation; preserving a foreign task is preferable to an unsafe merge. After a successful mutation followed by a failed list refresh, perform a successful refresh before another mirror. Real-account OAuth, keychain, provider partial failure, disconnect, and platform-specific checks remain required.
+
+The confirmed local remediation queue is closed with regression evidence. This is not a claim that every file or runtime state is defect-free. Full pinned-toolchain installation, build, lint, Rust checks, application E2E, native close behavior, real Google integration, and current-head CI/visual gates must still pass before merge or release. The review bundle contains the exact changed files, patch, source provenance, raw test logs, visual inventory, and separately classified unverified concerns.
+
 ## Local PR integration review — 2026-09-05
 
 Candidate: uncommitted `codex/unify-prs-repository-review`, based on PR #107 (`1f7770a51fa9b99601f5475a36db347ff42e0d54`), with PR #106 (`364ad717f67b5795e0ce4c7aa79ec613385711ae`) and PR #108 (`95cccbd2aa9780ad64275ee4675e974db261fc42`) applied and conflicts resolved. GitHub heads were rechecked during review. This is local integration evidence, not a release or remote merge record.
@@ -232,4 +262,4 @@ bash scripts/governance/history-audit.sh . .history-audit
 
 Also run an approved full-history secret scanner and capture branch protection, required reviews, environment protection, tag lineage, and release lineage from the hosting platform.
 
-A passing source-level contract is not proof of a public release. The authoritative completion evidence is the exact-head CI matrix plus the production tag workflow and published release assets.
+A passing source-level contract is not proof of a public release. The authoritative completion evidence is the exact-head CI matrix **plus the exact-head Visual review gate**, followed by the production tag workflow and published release assets. Draft PRs intentionally defer heavyweight gates; `ready_for_review` is the synchronization point that triggers the complete exact-head review matrix.

@@ -51,12 +51,12 @@ export function ExportPreflightPreview({
         </div>
       </dl>
 
-      <WidgetCard title="Pandoc command">
+      <WidgetCard title="Pandoc command" helpTopic="export">
         <pre className="publish-command-preview">{commandLine}</pre>
       </WidgetCard>
 
       {showHtmlPreview && activePath ? (
-        <WidgetCard title="HTML snippet preview">
+        <WidgetCard title="HTML snippet preview" helpTopic="export">
           <p className="health-subtitle">
             In-app render of the note body; Pandoc may apply extra filters and styling.
           </p>

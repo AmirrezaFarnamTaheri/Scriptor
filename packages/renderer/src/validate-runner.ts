@@ -9,7 +9,7 @@ import { visit } from 'unist-util-visit'
 import remarkParse from 'remark-parse'
 
 import { escapeAttr, escapeHtml, slugify } from './escape.ts'
-import { preprocessWikilinks } from './preprocess.ts'
+import { preprocessWikilinks, stripFrontmatterPreservingLines } from './preprocess.ts'
 import { sanitizeStyleAttribute } from './rehype-safe-style.ts'
 import { remarkToc } from './remark-toc.ts'
 import { remarkMpeCodeChunks } from './remark-mpe-code-chunks.ts'
@@ -42,6 +42,22 @@ test('preprocessWikilinkEmbeds creates embed placeholders', () => {
   assert.match(out, /data-wikilink-target="Note"/)
   assert.match(out, /data-wikilink-target="Other"/)
   assert.match(out, /data-wikilink-section="Section"/)
+})
+
+test('frontmatter is hidden from preview while source lines stay aligned', () => {
+  const source = ['---', '_organized: true', 'tags: [draft]', '---', '# Visible title'].join('\n')
+  const stripped = stripFrontmatterPreservingLines(source)
+  assert.equal(stripped.split('\n').length, source.split('\n').length)
+  assert.match(stripped, /^\n\n\n\n# Visible title$/)
+
+  const html = renderMarkdownPipeline(source)
+  assert.doesNotMatch(html, /_organized|tags:|draft/)
+  assert.match(html, /<h1[^>]*data-source-line="5"[^>]*>Visible title<\/h1>/)
+})
+
+test('unterminated frontmatter remains visible instead of silently hiding content', () => {
+  const source = ['---', 'title: Broken', '# Still source'].join('\n')
+  assert.equal(stripFrontmatterPreservingLines(source), source)
 })
 
 test('pipeline renders wikilink embed placeholders', () => {

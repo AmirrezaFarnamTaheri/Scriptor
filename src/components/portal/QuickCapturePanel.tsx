@@ -43,6 +43,7 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
       subtitle="Scratchpad, todos, and sticky notes"
       icon={<StickyNote size={18} />}
       ariaLabel="Quick capture"
+      helpTopic="capture"
       onClose={onClose}
       presentation={presentation}
       className="quick-capture-panel knowledge-filters-panel"
@@ -53,12 +54,12 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
             <h3>Scratchpad</h3>
             <div className="quick-capture-actions">
               {onCreateInboxNoteFromScratchpad ? (
-                <button type="button" onClick={onCreateInboxNoteFromScratchpad}>
+                <button type="button" className="toolbar-button" onClick={onCreateInboxNoteFromScratchpad}>
                   New inbox note
                 </button>
               ) : null}
               {onPromoteScratchpadToNote ? (
-                <button type="button" onClick={onPromoteScratchpadToNote}>
+                <button type="button" className="toolbar-button" onClick={onPromoteScratchpadToNote}>
                   Insert in active
                 </button>
               ) : null}
@@ -77,7 +78,7 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
         <section>
           <div className="quick-capture-section-header">
             <h3>Todos</h3>
-            <button type="button" onClick={() => onAddTodo('New task')}>
+            <button type="button" className="toolbar-button" onClick={() => onAddTodo('New task')}>
               <Plus size={14} />
               Add
             </button>
@@ -87,8 +88,13 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
               <li className="empty-state">No todos yet.</li>
             ) : (
               todos.map((todo) => (
-                <li key={todo.id}>
-                  <button type="button" className={todo.done ? 'done' : undefined} onClick={() => onToggleTodo(todo.id)}>
+                <li key={todo.id} className={todo.done ? 'done' : undefined}>
+                  <button
+                    type="button"
+                    className={todo.done ? 'icon-button done' : 'icon-button'}
+                    aria-label={todo.done ? 'Mark todo incomplete' : 'Mark todo complete'}
+                    onClick={() => onToggleTodo(todo.id)}
+                  >
                     <Check size={14} />
                   </button>
                   <input
@@ -96,14 +102,16 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
                     aria-label={`Todo text: ${todo.text.slice(0, 40)}`}
                     onChange={(event) => onUpdateTodo(todo.id, event.target.value)}
                   />
-                  {onCreateNoteFromTodo ? (
-                    <button type="button" onClick={() => onCreateNoteFromTodo(todo.id)}>
-                      To note
+                  <div className="quick-todo-actions">
+                    {onCreateNoteFromTodo ? (
+                      <button type="button" className="toolbar-button" onClick={() => onCreateNoteFromTodo(todo.id)}>
+                        To note
+                      </button>
+                    ) : null}
+                    <button type="button" className="icon-button" onClick={() => onDeleteTodo(todo.id)} aria-label="Delete todo">
+                      <Trash2 size={14} />
                     </button>
-                  ) : null}
-                  <button type="button" onClick={() => onDeleteTodo(todo.id)} aria-label="Delete todo">
-                    <Trash2 size={14} />
-                  </button>
+                  </div>
                 </li>
               ))
             )}

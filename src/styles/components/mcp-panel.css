@@ -1,22 +1,9 @@
-.mcp-panel {
-  box-sizing: border-box;
+/* UnifiedPanelShell owns MCP panel geometry and scrolling. This stylesheet
+ * only owns MCP content so legacy modal sizing cannot leak into docked panels. */
+.mcp-panel,
+.mcp-panel .unified-panel-body {
   min-width: 0;
-  width: min(760px, calc(100vw - 32px));
-  max-height: min(85vh, 760px);
-  overflow: auto;
-  display: grid;
-  gap: 16px;
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--dialog-bg, var(--bg-elevated));
-}
-
-.mcp-panel header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  max-width: 100%;
 }
 
 .mcp-authorization {

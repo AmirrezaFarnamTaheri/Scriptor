@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Palette, Blocks, Plus, X } from 'lucide-react'
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest } from '@scriptor/canvas'
@@ -12,14 +12,15 @@ import {
   getMatchingInstallerProfile,
 } from '../../context/plugin-defaults'
 import { COLOR_PALETTE_SCHEMES, type ColorPaletteScheme } from '../../brand/palettes'
-import { useAppTheme, readStoredCustomThemes, type AppTheme } from '../../hooks/useAppTheme'
+import { applyThemeToElement, readStoredCustomThemes, type AppTheme, type AppearanceMode, type ResolvedAppearance } from '../../hooks/useAppTheme'
 import { PluginCard } from './PluginCard'
+import { MutationConfirmation } from '../chrome/MutationConfirmation'
 import { ThemeCard } from '../themes/ThemeCard'
 import { ThemeCustomizerModal } from '../themes/ThemeCustomizerModal'
 import '../../styles/components/plugin-manager.css'
-import { useTablistKeys } from '../../hooks/useTablistKeys'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useI18n } from '../../lib/i18n'
 
 const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
   canvasPluginManifest,
@@ -31,7 +32,7 @@ const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
     version: '1.0.0',
     description: 'Vault link topology and Cytoscape force-directed layout rendering',
     publisher: 'Scriptor Team',
-    capabilityId: 'graph',
+    capabilityId: 'scriptor.graph',
     rustFeatureGate: 'scriptor-indexer',
     activation: ['on-startup'],
     capabilities: ['renderer-extension'],
@@ -43,7 +44,10 @@ const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
 export interface PluginManagerCenterProps {
   isOpen: boolean
   onClose: () => void
+  scope?: 'palettes' | 'plugins'
   currentTheme?: AppTheme
+  appearance?: AppearanceMode
+  resolvedAppearance?: ResolvedAppearance
   onThemeChange?: (theme: AppTheme) => void
   onOpenPluginMarketplace?: () => void
 }
@@ -51,10 +55,13 @@ export interface PluginManagerCenterProps {
 export function PluginManagerCenter({
   isOpen,
   onClose,
+  scope = 'palettes',
   currentTheme: propTheme,
+  resolvedAppearance = 'dark',
   onThemeChange,
   onOpenPluginMarketplace,
 }: PluginManagerCenterProps) {
+  const { t } = useI18n()
   const {
     enabledPluginIds,
     enablePlugin,
@@ -62,39 +69,26 @@ export function PluginManagerCenter({
     replaceEnabledPlugins,
     persistenceError,
   } = usePluginState()
-  const { theme: hookTheme, setTheme: hookSetTheme } = useAppTheme()
-
-  const activeTheme = propTheme ?? hookTheme
+  const activeTheme = propTheme ?? 'dark'
   const handleSelectTheme = (nextTheme: AppTheme) => {
-    if (onThemeChange) {
-      onThemeChange(nextTheme)
-    } else {
-      hookSetTheme(nextTheme)
-    }
+    onThemeChange?.(nextTheme)
   }
 
-  // Active Tab: 'palettes' is ACTIVE BY DEFAULT per user specification
-  const [activeTab, setActiveTab] = useState<'palettes' | 'plugins'>('palettes')
-  const PMC_TABS: readonly string[] = ['palettes', 'plugins']
-  const handlePmcTabKeys = useTablistKeys(
-    PMC_TABS,
-    activeTab,
-    useCallback((id: string) => setActiveTab(id as 'palettes' | 'plugins'), []),
-  )
   const [searchQuery, setSearchQuery] = useState('')
   const [themeFilterCategory, setThemeFilterCategory] = useState<'all' | 'light' | 'dark' | 'contrast'>('all')
   const [customizerModalOpen, setCustomizerModalOpen] = useState(false)
+  const [pendingProfile, setPendingProfile] = useState<InstallerProfile | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   // The nested ThemeCustomizerModal owns the focus trap while it is open.
   useFocusTrap(overlayRef, { active: isOpen && !customizerModalOpen })
   useEscapeToClose(isOpen && !customizerModalOpen, onClose)
 
   useEffect(() => {
-    if (!isOpen) document.documentElement.dataset.theme = activeTheme
+    if (!isOpen) applyThemeToElement(document.documentElement, activeTheme, resolvedAppearance)
     return () => {
-      document.documentElement.dataset.theme = activeTheme
+      applyThemeToElement(document.documentElement, activeTheme, resolvedAppearance)
     }
-  }, [activeTheme, isOpen])
+  }, [activeTheme, isOpen, resolvedAppearance])
 
   const knownPluginIds = useMemo(
     () => new Set(BUILTIN_PLUGIN_MANIFESTS.map((plugin) => plugin.id)),
@@ -104,19 +98,19 @@ export function PluginManagerCenter({
   if (!isOpen) return null
 
   const handleHoverPreviewStart = (previewId: AppTheme) => {
-    document.documentElement.dataset.theme = previewId
+    applyThemeToElement(document.documentElement, previewId, resolvedAppearance)
   }
 
   const handleHoverPreviewEnd = () => {
-    document.documentElement.dataset.theme = activeTheme
+    applyThemeToElement(document.documentElement, activeTheme, resolvedAppearance)
   }
 
   const customPalettes: ColorPaletteScheme[] = readStoredCustomThemes().map((c) => ({
     id: c.id,
     name: c.name,
     category: c.category,
-    description: 'Custom user-created color palette scheme.',
-    author: 'Custom (You)',
+    description: t('pluginManager.customDescription'),
+    author: t('pluginManager.customAuthor'),
     colors: c.colors,
   }))
 
@@ -140,15 +134,31 @@ export function PluginManagerCenter({
 
   const handleTogglePlugin = (id: string, enable: boolean) => {
     if (enable) {
-      enablePlugin(id)
+      void enablePlugin(id)
     } else {
-      disablePlugin(id)
+      void disablePlugin(id)
     }
   }
 
-  const applyProfile = (profile: InstallerProfile) => {
-    if (profile === 'custom') return
-    replaceEnabledPlugins(applyProfileToEnabledPlugins(enabledPluginIds, knownPluginIds, profile))
+  const profileTarget = pendingProfile && pendingProfile !== 'custom'
+    ? applyProfileToEnabledPlugins(enabledPluginIds, knownPluginIds, pendingProfile)
+    : null
+  const profileDiff = profileTarget
+    ? {
+        enable: [...profileTarget].filter((id) => !enabledPluginIds.has(id)).length,
+        disable: [...enabledPluginIds].filter((id) => knownPluginIds.has(id) && !profileTarget.has(id)).length,
+      }
+    : null
+
+  const requestProfile = (profile: InstallerProfile) => {
+    if (profile === 'custom' || profile === activeProfile) return
+    setPendingProfile(profile)
+  }
+
+  const confirmProfile = () => {
+    if (!profileTarget) return
+    replaceEnabledPlugins(profileTarget)
+    setPendingProfile(null)
   }
 
   return (
@@ -158,79 +168,68 @@ export function PluginManagerCenter({
         className="plugin-manager-overlay"
         role="dialog"
         aria-modal="true"
-        aria-label="Built-in modules and themes"
+        aria-label={scope === 'palettes' ? t('pluginManager.palettesTitle') : t('pluginManager.modulesTitle')}
       >
-        <div className="plugin-manager-modal">
+        <div className="plugin-manager-modal" data-help-topic="modules">
           <div className="plugin-manager-header">
             <h2>
-              <Palette /> Built-in Modules &amp; Color Palettes
+              {scope === 'palettes' ? <Palette /> : <Blocks />}
+              {scope === 'palettes' ? t('pluginManager.palettesTitle') : t('pluginManager.modulesTitle')}
             </h2>
-            <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+            <button type="button" className="icon-button" onClick={onClose} aria-label={t('pluginManager.close')}>
               <X />
             </button>
           </div>
-          {onOpenPluginMarketplace ? (
+          {scope === 'plugins' && onOpenPluginMarketplace ? (
             <button type="button" className="toolbar-button plugin-marketplace-link" onClick={onOpenPluginMarketplace}>
-              Open runtime plugin marketplace
+              {t('pluginManager.marketplace')}
             </button>
           ) : null}
-          {persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
+          {scope === 'plugins' && persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
 
-          {/* Primary Tabs — Color Palette Store active by default */}
-          <div className="plugin-manager-tabs" role="tablist" onKeyDown={handlePmcTabKeys} aria-label="Plugin manager sections">
-            <button
-              type="button"
-              role="tab"
-              tabIndex={activeTab === 'palettes' ? 0 : -1}
-              aria-selected={activeTab === 'palettes'}
-              className={`tab-btn ${activeTab === 'palettes' ? 'active' : ''}`}
-              onClick={() => setActiveTab('palettes')}
-            >
-              <Palette /> Color Palette Schemes ({allPalettes.length})
-            </button>
-            <button
-              type="button"
-              role="tab"
-              tabIndex={activeTab === 'plugins' ? 0 : -1}
-              aria-selected={activeTab === 'plugins'}
-              className={`tab-btn ${activeTab === 'plugins' ? 'active' : ''}`}
-              onClick={() => setActiveTab('plugins')}
-            >
-              <Blocks /> Feature Plugins &amp; Profiles
-            </button>
-          </div>
-
-          {activeTab === 'plugins' && (
+          {scope === 'plugins' && (
             <div className="plugin-manager-profiles">
-              <span className="profiles-label">Installer Profile Preset:</span>
+              <span className="profiles-label">{t('pluginManager.installerProfile')}</span>
               {(['focused', 'minimal', 'writer', 'scientific', 'researcher', 'developer', 'complete'] as const).map(
                 (profile) => (
                   <button
                     key={profile}
                     type="button"
                     className={`profile-btn ${activeProfile === profile ? 'active' : ''}`}
-                    onClick={() => applyProfile(profile)}
+                    aria-pressed={activeProfile === profile}
+                    onClick={() => requestProfile(profile)}
                   >
-                    {profile.charAt(0).toUpperCase() + profile.slice(1)}
+                    {t(`pluginManager.profiles.${profile}`)}
                   </button>
                 ),
               )}
-              {activeProfile === 'custom' ? <span className="profile-custom-badge">Custom</span> : null}
+              {activeProfile === 'custom' ? <span className="profile-custom-badge">{t('pluginManager.custom')}</span> : null}
+              {pendingProfile && profileDiff ? (
+                <MutationConfirmation
+                  ariaLabel={t('pluginManager.applyProfileAria', { profile: pendingProfile })}
+                  message={t('pluginManager.applyProfileMessage', { profile: pendingProfile, enable: profileDiff.enable, disable: profileDiff.disable })}
+                  confirmLabel={t('pluginManager.applyProfile')}
+                  onCancel={() => setPendingProfile(null)}
+                  onConfirm={confirmProfile}
+                  className="plugin-profile-confirmation"
+                />
+              ) : null}
             </div>
           )}
 
-          {activeTab === 'palettes' && (
+          {scope === 'palettes' && (
             <div className="plugin-manager-profiles palette-filter-row">
               <div className="palette-filter-options">
-                <span className="profiles-label">Category Filter:</span>
+                <span className="profiles-label">{t('pluginManager.categoryFilter')}</span>
                 {(['all', 'dark', 'light', 'contrast'] as const).map((cat) => (
                   <button
                     key={cat}
                     type="button"
                     className={`profile-btn ${themeFilterCategory === cat ? 'active' : ''}`}
+                    aria-pressed={themeFilterCategory === cat}
                     onClick={() => setThemeFilterCategory(cat)}
                   >
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    {t(`pluginManager.categories.${cat}`)}
                   </button>
                 ))}
               </div>
@@ -239,7 +238,7 @@ export function PluginManagerCenter({
                 className="profile-btn create-palette-button"
                 onClick={() => setCustomizerModalOpen(true)}
               >
-                <Plus size={14} /> Create Custom Palette
+                <Plus size={14} /> {t('pluginManager.createPalette')}
               </button>
             </div>
           )}
@@ -247,21 +246,21 @@ export function PluginManagerCenter({
           <div className="plugin-manager-search">
             <input
               type="search"
-              aria-label="Search plugins by name or capability"
+              aria-label={scope === 'palettes' ? t('pluginManager.searchPalette') : t('pluginManager.searchAria')}
               placeholder={
-                activeTab === 'palettes'
-                  ? 'Search color palette schemes by name or theme style...'
-                  : 'Search plugins by name or capability...'
+                scope === 'palettes'
+                  ? t('pluginManager.searchPalette')
+                  : t('pluginManager.searchPlugins')
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          {activeTab === 'palettes' ? (
+          {scope === 'palettes' ? (
             <div className="theme-palette-grid">
               {filteredPalettes.length === 0 ? (
-                <p className="plugin-manager-empty" role="status">No color schemes match this search.</p>
+                <p className="plugin-manager-empty" role="status">{t('pluginManager.noPalettes')}</p>
               ) : filteredPalettes.map((scheme) => (
                 <ThemeCard
                   key={scheme.id}
@@ -276,7 +275,7 @@ export function PluginManagerCenter({
           ) : (
             <div className="plugin-manager-list">
               {filteredPlugins.length === 0 ? (
-                <p className="plugin-manager-empty" role="status">No plugins match this search.</p>
+                <p className="plugin-manager-empty" role="status">{t('pluginManager.noPlugins')}</p>
               ) : filteredPlugins.map((plugin) => (
                 <PluginCard
                   key={plugin.id}

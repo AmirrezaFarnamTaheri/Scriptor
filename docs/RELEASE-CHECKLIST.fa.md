@@ -24,7 +24,7 @@
 - [ ] اگر <bdi dir="ltr">process launch</bdi> فاقد <bdi dir="ltr">live per-call inventory entry</bdi> باشد یا <bdi dir="ltr">review</bdi> آن <bdi dir="ltr">expire</bdi> شده باشد، توقف؛
 - [ ] اگر <bdi dir="ltr">rollback</bdi>، <bdi dir="ltr">restore</bdi>، <bdi dir="ltr">trust status</bdi> یا <bdi dir="ltr">observability</bdi> روی <bdi dir="ltr">target platform</bdi> قابل اثبات نباشد، توقف؛
 - [ ] اگر <bdi dir="ltr">RustSec exception review</bdi> منقضی یا فاقد <bdi dir="ltr">owner/exit condition</bdi> باشد، توقف؛
-- [ ] اگر <bdi dir="ltr">Playwright E2E</bdi> یا <bdi dir="ltr">visual regression</bdi> در <bdi dir="ltr">exact-head CI matrix skip</bdi> یا <bdi dir="ltr">missing</bdi> باشد، توقف؛
+- [ ] اگر <bdi dir="ltr">Playwright E2E</bdi> در <bdi dir="ltr">exact-head CI</bdi> موجود نباشد یا <bdi dir="ltr">Visual review regression gate</bdi> جداگانه برای همان <bdi dir="ltr">exact head</bdi> اجرا نشده/مفقود باشد، توقف؛
 - [ ] اگر <bdi dir="ltr">protected release environment</bdi> وجود نداشته باشد، <bdi dir="ltr">required reviewer</bdi> نداشته باشد یا <bdi dir="ltr">production publish job</bdi> را <bdi dir="ltr">gate</bdi> نکند، توقف؛
 - [ ] اگر <bdi dir="ltr">vault content</bdi> منتشرشده نیاز به <bdi dir="ltr">review</bdi> دارد ولی <bdi dir="ltr">GitHub Pages</bdi> فاقد <bdi dir="ltr">environment</bdi> جداگانه تأییدشده <bdi dir="ltr">`github-pages`</bdi> باشد، توقف.
 

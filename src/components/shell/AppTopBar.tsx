@@ -4,7 +4,7 @@ import {
   Box,
   ChevronDown,
   ChevronRight,
-  Contrast,
+  CircleHelp,
   FolderOpen,
   GitBranch,
   Globe,
@@ -28,13 +28,14 @@ import { IconButton } from '../chrome/WorkspaceChrome'
 import { getDefaultShortcut } from '../../lib/commandShortcutRegistry'
 import { formatShortcut } from '../../lib/keyboardShortcuts'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { WorkspaceSwitcher } from '../app/WorkspaceSwitcher'
-import type { AppTheme } from '../../hooks/useAppTheme'
-import { getNextTheme, THEME_DISPLAY_NAMES } from '../../hooks/useAppTheme'
+import type { AppTheme, AppearanceMode, ResolvedAppearance } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
 import { useI18n } from '../../lib/i18n'
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
 import { DEFAULT_WORKSPACE_CHROME, type WorkspaceChromePrefs } from '../../hooks/useWorkspaceChrome'
+import { requestHelp } from '../../lib/help/request'
 
 interface AppTopBarProps {
   vault: VaultDescriptor | null
@@ -65,6 +66,8 @@ interface AppTopBarProps {
   onOpenSettings: () => void
   onOpenPluginManager?: () => void
   theme: AppTheme
+  appearance: AppearanceMode
+  resolvedAppearance: ResolvedAppearance
   onToggleTheme: () => void
   vaultSidebarCollapsed: boolean
   onToggleVaultSidebar: () => void
@@ -112,6 +115,8 @@ function AppTopBarImpl({
   onOpenSettings,
   onOpenPluginManager,
   theme,
+  appearance,
+  resolvedAppearance,
   onToggleTheme,
   vaultSidebarCollapsed,
   onToggleVaultSidebar,
@@ -131,18 +136,11 @@ function AppTopBarImpl({
     getShortcut('toggle-inspector', getDefaultShortcut('toggle-inspector')),
   )
 
-  // The theme control advertises the theme its next click will apply, so the
-  // accessible name has to be derived from the real cycle rather than a fixed
-  // light/dark/high-contrast ternary.
-  const nextTheme = getNextTheme(theme)
-  const themeToggleLabel =
-    nextTheme === 'light'
-      ? t('topBar.switchToLight')
-      : nextTheme === 'dark'
-        ? t('topBar.switchToDark')
-        : nextTheme === 'high-contrast'
-          ? t('topBar.switchToHighContrast')
-          : t('topBar.switchToTheme', { theme: THEME_DISPLAY_NAMES[nextTheme] ?? nextTheme })
+  // Palette identity and day/night appearance are separate. The top-bar
+  // control only flips appearance and never changes the selected palette.
+  const themeToggleLabel = resolvedAppearance === 'dark'
+    ? t('topBar.switchToLight')
+    : t('topBar.switchToDark')
 
   const hiddenTopBarActions = useMemo(
     () =>
@@ -157,6 +155,7 @@ function AppTopBarImpl({
   const [customizePos, setCustomizePos] = useState<{ x: number; y: number } | null>(null)
   const customizeAnchorRef = useRef<HTMLButtonElement | null>(null)
   const customizePopupRef = useRef<HTMLDivElement | null>(null)
+  useFocusTrap(customizePopupRef, { active: customizeOpen })
 
   const quickActions = [
     { id: 'workbench', label: t('topBar.workbench'), icon: <BookOpenText />, onClick: onOpenKnowledgeWorkbench, emphasized: workspaceMode === 'knowledge', className: 'topbar-secondary-action' },
@@ -212,7 +211,7 @@ function AppTopBarImpl({
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null
       if (target?.closest?.('.topbar-customize')) return
-      if (target?.closest?.('.topbar')) return
+      if (customizeAnchorRef.current?.contains(target)) return
       setCustomizeOpen(false)
     }
     const onKeyDown = (event: KeyboardEvent) => {
@@ -271,7 +270,7 @@ function AppTopBarImpl({
         </div>
 
         {showHistory ? (
-          <div className="history-controls" aria-label="History controls">
+          <div className="history-controls" aria-label={t('topBar.historyControls')}>
             <IconButton label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
               <ChevronRight className="flip" />
             </IconButton>
@@ -292,10 +291,10 @@ function AppTopBarImpl({
         ) : null}
 
         {showModeStrip ? (
-          <div className="workspace-mode-strip" aria-label="Workspace mode">
+          <div className="workspace-mode-strip" aria-label={t('topBar.workspaceMode')}>
             <select
               className="workspace-mode-select"
-              aria-label="Workspace mode"
+              aria-label={t('topBar.workspaceMode')}
               value={workspaceMode}
               onChange={(event) => onWorkspaceModeChange(event.target.value as WorkspaceMode)}
             >
@@ -323,7 +322,7 @@ function AppTopBarImpl({
           type="button"
           className="command-search"
           onClick={onOpenCommandPalette}
-          aria-label={`Open command palette (${commandShortcut})`}
+          aria-label={t('topBar.openCommandPalette', { shortcut: commandShortcut })}
         >
           <Search aria-hidden="true" />
           <span className="command-search-placeholder">{t('topBar.typeCommandOrSearch')}</span>
@@ -377,8 +376,14 @@ function AppTopBarImpl({
             </button>
           ) : null}
 
-          <IconButton label={themeToggleLabel} onClick={onToggleTheme}>
-            {theme === 'high-contrast' ? <Contrast /> : theme === 'dark' ? <Sun /> : <Moon />}
+          <IconButton
+            label={t(appearance === 'system' ? 'topBar.appearanceControlSystem' : 'topBar.appearanceControl', {
+              action: themeToggleLabel,
+              palette: theme,
+            })}
+            onClick={onToggleTheme}
+          >
+            {resolvedAppearance === 'dark' ? <Sun /> : <Moon />}
           </IconButton>
           <IconButton
             label={inspectorCollapsed ? t('topBar.expandInspector') : t('topBar.collapseInspector')}
@@ -399,6 +404,9 @@ function AppTopBarImpl({
           ) : null}
           <IconButton label={t('topBar.settings')} onClick={onOpenSettings}>
             <Settings />
+          </IconButton>
+          <IconButton label={t('topBar.help')} onClick={() => requestHelp('workspace')}>
+            <CircleHelp />
           </IconButton>
           <button
             type="button"
@@ -434,9 +442,9 @@ function AppTopBarImpl({
           <button
             type="button"
             className="customize-reset"
-            onClick={() => onPatchChrome?.({ topBarHiddenActions: [] })}
+            onClick={() => onPatchChrome?.({ topBarHiddenActions: [...DEFAULT_WORKSPACE_CHROME.topBarHiddenActions] })}
           >
-            {t('topBar.customizeShowAll')}
+            {t('topBar.customizeRestoreDefaults')}
           </button>
         </div>
       ) : null}

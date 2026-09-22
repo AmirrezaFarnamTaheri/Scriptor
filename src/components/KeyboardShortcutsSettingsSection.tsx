@@ -42,6 +42,19 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
       }))
       return
     }
+    const normalized = formatShortcut(raw) ?? raw
+    const conflict = COMMAND_SHORTCUT_REGISTRY.find((entry) => {
+      if (entry.id === commandId) return false
+      const other = effectiveValue(entry.id, entry.defaultShortcut).trim()
+      return other.length > 0 && (formatShortcut(other) ?? other) === normalized
+    })
+    if (conflict) {
+      setDrafts((current) => ({
+        ...current,
+        [commandId]: { value: raw, error: `Already assigned to “${conflict.label}”. Choose another shortcut.` },
+      }))
+      return
+    }
     shortcuts.setShortcut(commandId, raw)
     setDrafts((current) => ({ ...current, [commandId]: { value: raw, error: null } }))
   }
@@ -52,7 +65,7 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
   }
 
   return (
-    <section className="settings-section keyboard-shortcuts-settings" aria-labelledby="keyboard-shortcuts-heading">
+    <section className="settings-section keyboard-shortcuts-settings" aria-labelledby="keyboard-shortcuts-heading" data-help-topic="shortcuts">
       <div className="settings-section-heading-row">
         <div>
           <h3 id="keyboard-shortcuts-heading">Keyboard shortcuts</h3>
@@ -149,4 +162,4 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
       {visibleEntries.length === 0 ? <p className="empty-state">No commands match this search.</p> : null}
     </section>
   )
-})
+})

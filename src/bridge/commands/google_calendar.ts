@@ -38,6 +38,17 @@ export interface GoogleTask {
   sourcePath: string | null
 }
 
+export type GoogleTaskSyncMutation =
+  | { kind: 'create'; title: string; notes?: string | null; due?: string | null }
+  | { kind: 'update'; taskId: string; title: string; notes: string; due?: string | null; status?: 'needsAction' | 'completed' }
+  | { kind: 'complete'; taskId: string }
+
+export interface GoogleTaskSyncMutationResult {
+  kind: GoogleTaskSyncMutation['kind']
+  success: boolean
+  error: string | null
+}
+
 /** Begin the OAuth2 PKCE flow. Returns the authenticated account email. */
 export async function googleCalendarStartAuth(args: {
   clientId: string
@@ -45,7 +56,7 @@ export async function googleCalendarStartAuth(args: {
   taskListId: string
 }): Promise<string> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_calendar_auth', args.clientId)
+  const authorizationToken = await authorizeSensitiveOperation('google_calendar_auth', 'google-calendar-auth')
   return invoke<string>('google_calendar_start_auth', {
     clientId: args.clientId,
     calendarId: args.calendarId,
@@ -82,6 +93,26 @@ export async function googleCalendarGetAuthedEmail(): Promise<string> {
   return invoke<string>('google_calendar_get_authed_email')
 }
 
+export async function googleCalendarApplyTaskSync(
+  taskListId: string,
+  mutations: GoogleTaskSyncMutation[],
+): Promise<GoogleTaskSyncMutationResult[]> {
+  requireNative()
+  if (mutations.length === 0) return []
+  if (mutations.length > 1000) {
+    throw new Error('Google Task sync exceeds the supported 1000-mutation bound')
+  }
+  const authorizationToken = await authorizeSensitiveOperation(
+    'google_task_write',
+    `Sync ${mutations.length} vault task changes`,
+  )
+  return invoke<GoogleTaskSyncMutationResult[]>('google_calendar_apply_task_sync', {
+    taskListId,
+    mutations,
+    authorizationToken,
+  })
+}
+
 export async function googleCalendarCreateTask(args: {
   taskListId: string
   title: string
@@ -89,7 +120,7 @@ export async function googleCalendarCreateTask(args: {
   due?: string | null
 }): Promise<GoogleTask> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_task_write', args.title)
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
   return invoke<GoogleTask>('google_calendar_create_task', {
     taskListId: args.taskListId,
     title: args.title,
@@ -99,17 +130,38 @@ export async function googleCalendarCreateTask(args: {
   })
 }
 
+export async function googleCalendarUpdateTask(args: {
+  taskListId: string
+  taskId: string
+  title: string
+  notes: string
+  due?: string | null
+  status?: 'needsAction' | 'completed'
+}): Promise<GoogleTask> {
+  requireNative()
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
+  return invoke<GoogleTask>('google_calendar_update_task', {
+    taskListId: args.taskListId,
+    taskId: args.taskId,
+    title: args.title,
+    notes: args.notes,
+    due: args.due ?? null,
+    status: args.status ?? null,
+    authorizationToken,
+  })
+}
+
 export async function googleCalendarCompleteTask(
   taskListId: string,
   taskId: string,
 ): Promise<void> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_task_write', taskId)
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
   await invoke('google_calendar_complete_task', { taskListId, taskId, authorizationToken })
 }
 
 export async function googleCalendarDeleteTask(taskListId: string, taskId: string): Promise<void> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_task_write', taskId)
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
   await invoke('google_calendar_delete_task', { taskListId, taskId, authorizationToken })
 }

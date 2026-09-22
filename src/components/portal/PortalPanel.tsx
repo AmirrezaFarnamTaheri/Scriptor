@@ -101,6 +101,7 @@ export const PortalPanel = memo(function PortalPanel({
       subtitle="Categorized clipboard — copy, insert, or open with optional shortcuts"
       icon={<Layers size={18} />}
       ariaLabel="Portal"
+      helpTopic="portal"
       onClose={onClose}
       presentation={presentation}
       className="portal-panel knowledge-filters-panel"
@@ -137,9 +138,11 @@ export const PortalPanel = memo(function PortalPanel({
             <ul className="portal-item-list portal-pinned-list">
               {pinnedItems.map((item) => (
                 <li key={`pinned-${item.id}`} className="portal-item-row is-pinned">
-                  <div>
-                    <strong>{item.title}</strong>
-                    {item.shortcut ? <small>{formatShortcutLabel(item.shortcut)}</small> : null}
+                  <div className="portal-item-content">
+                    <div className="portal-item-heading">
+                      <strong>{item.title}</strong>
+                      {item.shortcut ? <small>{formatShortcutLabel(item.shortcut)}</small> : null}
+                    </div>
                   </div>
                   <button type="button" onClick={() => void invokeItem(item)} title="Invoke pinned item">
                     <ClipboardCopy size={14} />
@@ -158,12 +161,14 @@ export const PortalPanel = memo(function PortalPanel({
           ) : (
             visibleItems.map((item) => (
               <li key={item.id} className={`portal-item-row${item.pinned ? ' is-pinned' : ''}`}>
-                <div>
-                  <strong>
-                    {item.pinned ? <Pin size={12} /> : null}
-                    {item.title}
-                  </strong>
-                  {item.shortcut ? <small>{formatShortcutLabel(item.shortcut)}</small> : null}
+                <div className="portal-item-content">
+                  <div className="portal-item-heading">
+                    <strong>
+                      {item.pinned ? <Pin size={12} /> : null}
+                      {item.title}
+                    </strong>
+                    {item.shortcut ? <small>{formatShortcutLabel(item.shortcut)}</small> : null}
+                  </div>
                   <p>
                     {item.body.slice(0, 120)}
                     {item.body.length > 120 ? '…' : ''}

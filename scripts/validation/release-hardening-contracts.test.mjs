@@ -52,6 +52,23 @@ test('unsigned release remains the secret-free default while native signing is e
   assert.equal(fs.existsSync(path.join(root, 'scripts/release/sign-installers.ps1')), false)
 })
 
+test('release workflow artifacts use explicit bounded retention', () => {
+  for (const relative of ['.github/workflows/release.yml', '.github/workflows/release-review.yml']) {
+    const workflow = read(relative)
+    const lines = workflow.split(/\r?\n/)
+    for (let index = 0; index < lines.length; index += 1) {
+      if (!lines[index]?.includes('uses: actions/upload-artifact@')) continue
+      const block = []
+      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+        const line = lines[cursor] ?? ''
+        if (/^ {6}- (?:name:|uses:)/.test(line) || /^ {2}[A-Za-z0-9_-]+:\s*$/.test(line)) break
+        block.push(line)
+      }
+      assert.match(block.join('\n'), /retention-days:\s*\d+/, `${relative} upload-artifact at line ${index + 1} needs bounded retention`)
+    }
+  }
+})
+
 test('manual release dispatch builds canonical VERSION and production requires an immutable v* tag', () => {
   const workflow = read('.github/workflows/release.yml')
   const kickoff = read('.github/workflows/release-kickoff.yml')
@@ -83,6 +100,18 @@ test('manual release dispatch builds canonical VERSION and production requires a
   assert.match(kickoff, /refusing to move or reuse it/)
   assert.match(versionScript, /const versionTag = \/\^v/)
   assert.match(versionScript, /versionTag\.test\(refName\)/)
+})
+
+test('release kickoff keeps write permissions out of validation', () => {
+  const kickoff = read('.github/workflows/release-kickoff.yml')
+  const validate = kickoff.split('\n  validate-release:\n')[1]?.split('\n  tag-and-dispatch:\n')[0]
+  const publish = kickoff.split('\n  tag-and-dispatch:\n')[1]
+  assert.ok(validate, 'release validation job missing')
+  assert.ok(publish, 'release publish job missing')
+  assert.match(kickoff, /^permissions:\n {2}contents: read$/m)
+  assert.match(validate, /permissions:\n {6}contents: read\n {6}actions: read/)
+  assert.doesNotMatch(validate, /contents: write|actions: write/)
+  assert.match(publish, /permissions:\n {6}contents: write\n {6}actions: write/)
 })
 
 test('release kickoff only tags the default-branch commit after CI succeeds for that exact SHA', () => {
@@ -160,16 +189,20 @@ test('toolbar popovers escape scroll clipping without a React positioning loop',
   }
 })
 
-test('functional and visual Playwright suites are enforced by release and CI', () => {
+test('functional and visual Playwright suites have one canonical PR owner each', () => {
   const packageJson = JSON.parse(read('package.json'))
   const releaseCommand = packageJson.scripts['check:release']
   assert.match(releaseCommand, /test:e2e/)
   assert.match(releaseCommand, /test:visual/)
 
   const ci = read('.github/workflows/ci.yml')
-  assert.match(ci, /name: Browser E2E and visual regression/)
+  const visualReview = read('.github/workflows/visual-review.yml')
+  assert.match(ci, /name: Browser E2E/)
+  assert.doesNotMatch(ci, /name: Browser E2E and visual regression/)
   assert.match(ci, /test:e2e/)
-  assert.match(ci, /test:visual/)
+  assert.doesNotMatch(ci, /test:visual/)
+  assert.match(visualReview, /playwright\.visual\.config\.ts/)
+  assert.match(visualReview, /--update-snapshots=none/)
 })
 
 test('browser integration suites contain no permanent skips', () => {

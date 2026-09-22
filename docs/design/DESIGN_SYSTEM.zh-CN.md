@@ -6,7 +6,9 @@
 
 ## 色彩
 
-### Light (`data-theme="light"`)
+调色板身份与明/暗外观是彼此独立的运行时维度。Scriptor 使用 `data-palette="<id>"` 记录所选调色板，使用 `data-appearance="light|dark"` 记录解析后的外观，并使用 `data-theme` 作为内置调色板选择器。保存为 `system` 的外观设置会跟随操作系统，并在运行时解析为 `data-appearance`。顶部栏的日/夜切换只改变外观，不会轮换或替换当前调色板。
+
+### 浅色基础调色板（`data-theme="light"`，通常为 `data-appearance="light"`）
 
 | Token | Hex 等价值 | 角色 |
 |---|---|---|
@@ -20,7 +22,7 @@
 | `--glass-bg` | `rgba(255,255,255,0.72)` | Frosted panel |
 | `--glass-border` | `rgba(148,163,184,0.35)` | Glass edge |
 
-### Dark (`data-theme="dark"`)
+### 深色基础调色板（`data-theme="dark"`，通常为 `data-appearance="dark"`）
 
 | Token | Hex 等价值 | 角色 |
 |---|---|---|

@@ -229,7 +229,7 @@ export async function captureReadyScreenshot(page: Page, path: string) {
   await page.screenshot({ path, fullPage: false, animations: 'disabled', caret: 'hide' })
 }
 
-export async function waitForWorkspace(page: Page) {
+export async function waitForWorkspace(page: Page, options: { allowHiddenVaultList?: boolean } = {}) {
   await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible()
   // The top-bar vault badge yields (stays mounted, hidden) at tight widths by
   // design — the workspace switcher and status footer repeat it — so "loaded"
@@ -243,8 +243,13 @@ export async function waitForWorkspace(page: Page) {
   // A large virtualized vault may legitimately place the active note outside
   // the mounted window. The selected tab and editor model below prove that the
   // active note loaded; here we only require the hydrated list itself.
-  await expect(vaultList).toBeVisible({ timeout: 45_000 })
-  await expect(vaultList.locator(':scope > li').first()).toBeVisible({ timeout: 45_000 })
+  if (options.allowHiddenVaultList) {
+    await expect(vaultList).toBeAttached({ timeout: 45_000 })
+    await expect(vaultList.locator(':scope > li').first()).toBeAttached({ timeout: 45_000 })
+  } else {
+    await expect(vaultList).toBeVisible({ timeout: 45_000 })
+    await expect(vaultList.locator(':scope > li').first()).toBeVisible({ timeout: 45_000 })
+  }
   await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible({
     timeout: 30_000,
   })

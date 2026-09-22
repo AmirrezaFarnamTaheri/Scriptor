@@ -12,6 +12,9 @@ permissions:
   contents: read
 
 concurrency:
+  # This workflow creates a commit and performs a non-force write-back. Let an
+  # active run finish; a newer dispatch queues behind it, and the final
+  # non-fast-forward push rejects stale source safely if the branch advanced.
   group: refresh-screenshots-${{ github.ref }}
   cancel-in-progress: false
 
@@ -45,10 +48,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Verify screenshot capture contracts
-        shell: pwsh
-        run: node --test scripts/validation/screenshot-capture-contracts.test.mjs scripts/validation/playwright-isolation-contracts.test.mjs
-
       - name: Install frozen dependencies
         shell: pwsh
         run: pnpm install --frozen-lockfile
@@ -57,11 +56,10 @@ jobs:
         shell: pwsh
         run: pnpm exec playwright install ffmpeg
 
-      - name: Preserve previous gallery hero
+      - name: Record screenshot source identity
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force artifacts/screenshots-before | Out-Null
-          Copy-Item docs/assets/screenshots/workspace-light.png artifacts/screenshots-before/workspace-light.png
+          New-Item -ItemType Directory -Force artifacts | Out-Null
           git rev-parse HEAD | Set-Content artifacts/screenshot-source.txt
           pnpm exec playwright --version | Add-Content artifacts/screenshot-source.txt
 
@@ -69,9 +67,13 @@ jobs:
         shell: pwsh
         run: ./scripts/screenshots/capture.ps1 -SkipDesktopBuild -UpdateBaselines
 
+      - name: Verify screenshot capture contracts
+        shell: pwsh
+        run: node --test scripts/validation/screenshot-capture-contracts.test.mjs scripts/validation/playwright-isolation-contracts.test.mjs
+
       - name: Verify refreshed stable baselines
         shell: pwsh
-        run: pnpm exec playwright test --config playwright.visual.config.ts --update-snapshots=none --workers=1
+        run: pnpm exec playwright test e2e/screenshots.spec.ts --config playwright.visual.config.ts --update-snapshots=none --workers=1
 
       - name: Commit generated screenshot updates
         shell: pwsh
@@ -93,17 +95,21 @@ jobs:
           git push origin "HEAD:refs/heads/$env:CAPTURE_BRANCH"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Upload before-after and capture evidence
+      - name: Prepare canonical screenshot evidence
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/screenshot-evidence | Out-Null
+          if (Test-Path artifacts/screenshot-source.txt) {
+            Copy-Item artifacts/screenshot-source.txt artifacts/screenshot-evidence/source.txt -Force
+          }
+          ./scripts/ci/prepare-visual-review-package.ps1 -PackageRoot "artifacts/visual-review-package" -EvidenceRoot "artifacts/screenshot-evidence" -IncludeTrackedGallery
+
+      - name: Upload canonical screenshot evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: documentation-screenshots-${{ github.run_attempt }}
-          path: |
-            artifacts/screenshots-before
-            artifacts/screenshot-source.txt
-            docs/assets/screenshots
-            e2e/screenshots.spec.ts-snapshots
-            playwright-report
-            test-results
+          path: artifacts/visual-review-package
           if-no-files-found: error
           retention-days: 14

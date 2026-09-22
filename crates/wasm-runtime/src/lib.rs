@@ -148,7 +148,7 @@ impl WasmPluginRuntime {
         // Host imports resolve the guest memory from the caller exports, so
         // the linker needs no memory up front; the guest must export one
         // named "memory" and it is verified after instantiation.
-        let linker = crate::executor::link_plugin_imports(&engine, &mut store);
+        let linker = crate::executor::link_plugin_imports(&engine, &mut store)?;
         let instance = linker.instantiate(&mut store, &module).map_err(|error| {
             WasmRuntimeError::Runtime(format!("plugin instantiate failed: {error}"))
         })?;

@@ -25,7 +25,7 @@ export const ReleaseQualityPanel = memo(function ReleaseQualityPanel({
   const categories = ['startup', 'index', 'editor', 'canvas', 'release'] as const
 
   return (
-    <div className="release-quality-panel">
+    <div className="release-quality-panel" data-help-topic="quality">
       <h3>Release quality dashboard</h3>
       <p className="health-subtitle">
         Run benchmarks from a terminal in the repo root. Journey metrics below are captured locally in this workspace.

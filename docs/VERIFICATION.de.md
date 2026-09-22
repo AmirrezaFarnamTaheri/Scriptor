@@ -151,4 +151,4 @@ Die Screenshot-Galerie, ihre Capture-Regeln und die Reviewer-Disziplin sind in [
 
 ## Release-Interpretation
 
-Für eine Produktionsfreigabe müssen die aktuellen Gates auf dem exakten Release-Commit grün sein und die erzeugten Artefakte denselben Commit nachweisbar referenzieren. Bei Widerspruch zwischen historischer Evidenz und aktueller Implementierung gewinnt die aktuelle, reproduzierbare Implementierung plus commitgebundene Verifikation.
+Für eine Produktionsfreigabe müssen die aktuellen Gates auf dem exakten Release-Commit grün sein und die erzeugten Artefakte denselben Commit nachweisbar referenzieren. Die maßgebliche Prüfung besteht aus der exact-head CI-Matrix **plus dem exact-head Visual-Review-Gate**; Draft-PRs verschieben die schweren Gates absichtlich bis `ready_for_review`. Bei Widerspruch zwischen historischer Evidenz und aktueller Implementierung gewinnt die aktuelle, reproduzierbare Implementierung plus commitgebundene Verifikation.

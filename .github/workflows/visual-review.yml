@@ -2,13 +2,16 @@ name: Visual review
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main, master]
 
 permissions:
   contents: read
 
 concurrency:
-  group: visual-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: visual-v2-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:
@@ -20,16 +23,20 @@ env:
 jobs:
   visual-review:
     name: Windows visual regression
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: windows-2025
     timeout-minutes: 40
     env:
       CI_LOG_DIR: artifacts/ci-logs/visual-review
       PLAYWRIGHT_CHANNEL: msedge
+      # PR comparison is read-only. The explicit refresh workflow is the sole
+      # writer of tracked documentation screenshots.
+      SCRIPTOR_SCREENSHOT_OUTPUT_DIR: test-results/visual/documentation-screenshots
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Configure pinned pnpm 10.33.0
         shell: pwsh
@@ -57,41 +64,57 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install Playwright FFmpeg runtime" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "install", "ffmpeg") -TimeoutSeconds 900
 
-      - name: Run visual regression suite
+      - name: Compare against committed visual baselines
+        id: visual_compare
+        continue-on-error: true
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Run visual regression suite" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "test", "--config", "playwright.visual.config.ts", "--update-snapshots=missing") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Compare against committed visual baselines" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "test", "--config", "playwright.visual.config.ts", "--update-snapshots=none") -TimeoutSeconds 1800 -HeartbeatSeconds 20
 
-      - name: Require committed visual baselines
+      - name: Enforce visual review result and read-only baselines
+        if: ${{ always() && !cancelled() }}
         shell: pwsh
+        env:
+          VISUAL_COMPARE_OUTCOME: ${{ steps.visual_compare.outcome }}
         run: |
-          $changes = git status --porcelain -- e2e/visual-review.spec.ts-snapshots e2e/screenshots.spec.ts-snapshots
-          if ($changes) {
-            Write-Host $changes
-            throw "Visual baselines were generated. Review and commit them before merging."
+          $baselineChanges = git status --porcelain -- e2e/screenshots.spec.ts-snapshots
+          if ($baselineChanges) {
+            Write-Host $baselineChanges
+            Write-Host "::error title=Visual baselines were mutated::PR visual review is compare-only and must never rewrite committed baseline files."
+            throw "Visual review mutated committed baselines."
           }
 
+          if ($env:VISUAL_COMPARE_OUTCOME -eq 'success') {
+            Write-Host "Committed visual baselines match the current UI."
+            Write-Host "Documentation captures were written to disposable test output; refresh-screenshots.yml remains the sole tracked-gallery writer."
+            exit 0
+          }
+
+          Write-Host "::error title=Visual comparison failed::The compare-only pass failed. No tracked screenshot or baseline was rewritten; inspect visual-review/images/ and the Playwright trace/diff evidence."
+          throw "Visual review failed without mutating tracked visual assets."
+
       - name: Capture visual review failure context
-        if: failure()
+        if: ${{ failure() && !cancelled() }}
         shell: pwsh
         run: ./scripts/ci/collect-failure-context.ps1 -Scope "Visual regression review"
 
       - name: Finalize visual review evidence
-        if: always()
+        if: ${{ always() && !cancelled() }}
         shell: pwsh
         env:
           JOB_STATUS: ${{ job.status }}
         run: ./scripts/ci/finalize-job.ps1 -Scope "Visual regression review" -Status $env:JOB_STATUS
 
-      - name: Upload visual reports and evidence
-        if: always()
+      - name: Prepare unified visual review artifact
+        if: ${{ always() && !cancelled() }}
+        shell: pwsh
+        run: ./scripts/ci/prepare-visual-review-package.ps1 -PackageRoot "artifacts/visual-review-package" -EvidenceRoot "${{ env.CI_LOG_DIR }}"
+
+      - name: Upload unified visual review artifact
+        if: ${{ always() && !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: visual-review-${{ github.run_attempt }}
-          path: |
-            ${{ env.CI_LOG_DIR }}
-            playwright-report/visual
-            test-results/visual
-            e2e/visual-review.spec.ts-snapshots
-            e2e/screenshots.spec.ts-snapshots
-          if-no-files-found: warn
+          name: visual-review
+          path: artifacts/visual-review-package
+          if-no-files-found: error
+          overwrite: true
           retention-days: 14

@@ -257,7 +257,7 @@
 }
 
 /* --- Inspector ----------------------------------------------------------- */
-/* Eight note-health metrics form a stable 4x2 matrix at rail width. */
+/* Keep four columns only when the inspector itself has room for the labels. */
 .inspector-panel > .widget-card .metric-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
@@ -283,6 +283,22 @@
   font-size: 11px;
   line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+/* A desktop viewport can still contain a narrow inspector. Viewport-only
+ * mobile rules run earlier and cannot override the matrix contract above. */
+@container inspector-rail (max-width: 450px) {
+  .inspector-panel > .widget-card .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inspector-panel > .widget-card .metric-grid .metric:nth-child(2n + 1) {
+    border-left: 0;
+  }
+
+  .inspector-panel > .widget-card .metric-grid .metric:nth-child(n + 3) {
+    border-top: 1px solid var(--border);
+  }
 }
 
 /* Preview QA is status information, not a three-column toolbar. Explicit
@@ -416,4 +432,24 @@
 .job-progress.is-done .progress-track,
 .job-progress.is-done > span:not(.job-progress-text) {
   display: none;
+}
+
+/* An unopened workspace has no vault-scoped indexing or subsystem state to
+ * report. Keep the footer quiet until a vault exists instead of presenting
+ * 0%-progress and inactive subsystem chrome as real work. */
+.status-empty-vault {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding-inline: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.status-empty-vault > svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
 }

@@ -209,6 +209,8 @@ function WorkspacePanelLaunchersImpl({
         >
           <Suspense fallback={<PanelFallback />}>
             <TaskPanel
+              key={workspace.vault.id}
+              vaultId={workspace.vault.id}
               vaultOpen={Boolean(workspace.vault)}
               onClose={onCloseTasks}
               onOpenNote={(path) => void workspace.openNote(path)}
@@ -291,6 +293,7 @@ function WorkspacePanelLaunchersImpl({
         >
           <Suspense fallback={<PanelFallback />}>
             <GmailManagerPanel
+              defaultClientId={workspace.vaultConfig.calendar_sync?.google_client_id ?? ''}
               onClose={() => setGmailManagerOpen(false)}
               onImportNote={async (subject, markdown, messageId) => {
                 const title = gmailImportedNoteTitle(subject, messageId)

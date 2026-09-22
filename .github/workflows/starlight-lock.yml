@@ -2,6 +2,7 @@ name: Starlight lock template
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'crates/publish-runner/src/local_site.rs'
       - 'crates/publish-runner/src/starlight-lock/**'
@@ -20,11 +21,12 @@ permissions:
 
 concurrency:
   group: starlight-lock-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
     name: Verify generated Starlight lock
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

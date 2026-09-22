@@ -1,25 +1,13 @@
-/* Legacy MCP rules in inspector.css predate UnifiedPanelShell and target the
-   shell element itself. Neutralize those structural overrides here, after the
-   inspector stylesheet, so the shared shell owns sizing, scrolling, padding,
-   border, and surface treatment consistently. */
-.mcp-panel.unified-panel-shell {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 0;
-  overflow: hidden;
-  max-height: calc(100vh - 48px);
-  border-radius: var(--radius-xl);
-  background: var(--surface-elevated);
-}
-
-.mcp-panel.unified-panel-docked {
-  max-height: none;
-  border-radius: 16px 0 0 16px;
-}
-
 .workspace-mode-select {
   display: none;
+  min-height: 42px;
+  min-width: 0;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
 }
 
 @media (max-width: 1320px) {
@@ -257,15 +245,11 @@
   }
 }
 
-/* Below ~1600px every section is compressing; the two lowest-priority icon
-   actions (support heart, palette store — both reachable via command palette
-   and the customize menu) step aside so the core controls stay visible, and
-   "Open Vault" collapses to its icon (label remains for assistive tech). */
+/* Below ~1600px every section is compressing. Respect explicit user pinning:
+   Support and Color palettes must remain visible when the customizer enables
+   them. Only MCP yields automatically because it has an equivalent footer /
+   settings surface and is not a user-pinned quick action. */
 @media (max-width: 1600px) {
-  .topbar .support-heart-action,
-  .topbar .palette-store-action,
-  /* MCP status also lives in the footer subsystem toggles and the settings
-     store; it yields at tight widths so Settings/Customize never clip. */
   .topbar .topbar-status-mcp {
     display: none;
   }
@@ -427,6 +411,89 @@
    three-column workspace as the base layout, so no extra grid overrides are
    needed — the side rails dock beside the editor at any effective width. */
 
+html[data-ui-reflow='mobile'] .app-shell {
+  min-height: 0;
+  height: var(--app-viewport-height, 100dvh);
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+html[data-ui-reflow='mobile'] .topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+html[data-ui-reflow='mobile'] .brand {
+  grid-column: 1;
+  min-width: 0;
+  gap: 6px;
+}
+
+html[data-ui-reflow='mobile'] .brand-wordmark,
+html[data-ui-reflow='mobile'] .vault-badge,
+html[data-ui-reflow='mobile'] .topbar .topbar-secondary-action,
+html[data-ui-reflow='mobile'] .topbar .topbar-secondary-status {
+  display: none;
+}
+
+html[data-ui-reflow='mobile'] .history-controls {
+  grid-column: 1 / -1;
+  order: 2;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+html[data-ui-reflow='mobile'] .workspace-switcher {
+  min-width: 0;
+  flex: 1;
+}
+
+html[data-ui-reflow='mobile'] .workspace-switcher select {
+  min-width: 0;
+  width: 100%;
+}
+
+html[data-ui-reflow='mobile'] .top-actions {
+  grid-column: 2;
+  order: 1;
+  justify-self: end;
+  max-width: min(52vw, 320px);
+  overflow-x: auto;
+}
+
+html[data-ui-reflow='mobile'] .workspace-mode-strip {
+  grid-column: 1 / -1;
+  order: 3;
+  width: 100%;
+}
+
+html[data-ui-reflow='mobile'] .workspace-mode-strip .workspace-mode {
+  display: none;
+}
+
+html[data-ui-reflow='mobile'] .workspace-mode-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+html[data-ui-reflow='mobile'] .command-search {
+  grid-column: 1 / -1;
+  order: 4;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  height: 42px;
+}
+
+html[data-ui-reflow='mobile'] .status-strip {
+  display: none !important;
+}
+
 html[data-ui-reflow='mobile'] .workspace-grid > .split-pane-handle,
 html[data-ui-reflow='mobile'] .workspace-grid > .resizer-placeholder {
   display: none;
@@ -479,4 +546,39 @@ html[data-ui-reflow='mobile'] .status-summary .repo-state {
   grid-column: auto;
   justify-content: flex-start;
   margin-left: 0;
+}
+
+/* 175%+ app zoom maps a desktop window onto a mobile-sized effective viewport.
+   Keep the global actions, vault switcher, and workspace-mode selector, but put
+   the latter two on one row and rely on the persistent mobile Command action
+   instead of spending another full row on the duplicate command-search button. */
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls {
+  grid-column: 1;
+  order: 2;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-strip {
+  grid-column: 2;
+  order: 2;
+  width: auto;
+  min-width: 132px;
+}
+
+/* At 175%+ zoom both controls share one grid row. Stretch the two owners to
+   the row box so their visible chrome starts on the same baseline instead of
+   being vertically centered at different intrinsic heights. */
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls,
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-strip {
+  align-self: stretch;
+}
+
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-select {
+  height: 100%;
+}
+
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
+  display: none;
 }

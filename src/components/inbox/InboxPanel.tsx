@@ -15,7 +15,7 @@ export function InboxPanel({ notes, activePath, onOpenNote, onOrganize }: InboxP
   }
 
   return (
-    <section className="inbox-panel" aria-label="Inbox">
+    <section className="inbox-panel" aria-label="Inbox" data-help-topic="inbox">
       <header className="inbox-panel-header">
         <Inbox size={16} />
         <strong>Inbox ({notes.length})</strong>
@@ -34,6 +34,7 @@ export function InboxPanel({ notes, activePath, onOpenNote, onOrganize }: InboxP
               type="button"
               className="toolbar-button inbox-organize-button"
               title="Mark organized"
+              aria-label={`Mark ${note.title} organized`}
               onClick={() => onOrganize(note.path)}
             >
               <CheckCircle2 size={14} />

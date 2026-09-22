@@ -196,7 +196,9 @@
   padding: 18px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--surface-raised);
+  /* This is a standalone modal, not an in-workspace glass surface. Keep editor
+   * text from bleeding through the catalog in translucent palettes. */
+  background: var(--dialog-bg, var(--bg-elevated));
 }
 
 .snippets-panel header {

@@ -44,7 +44,10 @@ function harness() {
 
   let nextTimerId = 1
   const timers = new Map()
+  const listeners = new Map()
   const windowMock = {
+    addEventListener: (type, handler) => listeners.set(type, handler),
+    removeEventListener: (type, handler) => { if (listeners.get(type) === handler) listeners.delete(type) },
     setTimeout: (fn, delay = 0) => {
       const id = nextTimerId++
       timers.set(id, { fn, delay })
@@ -110,7 +113,7 @@ function harness() {
           : id.includes('vaultErrors')
             ? { isContentHashMismatchError: (msg) => typeof msg === 'string' && (msg.includes('conflict') || msg.includes('mismatch')) }
             : id.endsWith('/platform')
-              ? { isNativeBridgeAvailable: () => false }
+              ? { isNativeBridgeAvailable: () => false, isDesktopWindowRuntime: () => false }
               : id.endsWith('/helpers')
                 ? { extractOutline: () => [], extractWikilinks: () => [] }
                 : {},

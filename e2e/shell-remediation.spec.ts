@@ -29,6 +29,28 @@ test.describe('workspace shell remediation contracts', () => {
     await expect(page.locator('header.topbar').getByRole('button', { name: 'Settings' })).toBeVisible()
   })
 
+  test('settings protects explicit vault-config drafts from accidental close', async ({ page }) => {
+    await launchApp(page)
+    await waitForWorkspace(page)
+    await settleLayout(page)
+
+    await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    const dailyDirectory = settings.getByLabel('Daily note directory')
+    await expect(dailyDirectory).toBeVisible()
+    await dailyDirectory.fill('daily-draft')
+
+    await settings.getByRole('button', { name: 'Close Settings' }).click()
+    const confirmation = settings.getByRole('group', { name: 'Unsaved vault configuration changes' })
+    await expect(confirmation).toBeVisible()
+    await confirmation.getByRole('button', { name: 'Cancel' }).click()
+    await expect(settings).toBeVisible()
+
+    await settings.getByRole('button', { name: 'Close Settings' }).click()
+    await settings.getByRole('button', { name: 'Discard changes' }).click()
+    await expect(settings).toBeHidden()
+  })
+
   test('completed indexing is compact and the status summary does not duplicate the Jobs tab label', async ({ page }) => {
     await launchApp(page)
     await waitForWorkspace(page)

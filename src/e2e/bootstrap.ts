@@ -3,6 +3,7 @@ import { mockIPC } from '@tauri-apps/api/mocks'
 import {
   SCREENSHOT_SCAN,
   SCREENSHOT_VAULT,
+  screenshotDenseGraph,
   screenshotGraph,
   screenshotHealthDiagnostics,
   screenshotRebuildSummary,
@@ -98,15 +99,40 @@ function activeScanFixture() {
   return [...SCREENSHOT_SCAN, ...generated]
 }
 
+function knowledgeRepairFixture() {
+  if (window.sessionStorage.getItem('e2e:knowledge-repair-notes') !== '1') return []
+  return [
+    {
+      path: 'Research Plan.md',
+      title: 'Research Plan',
+      inbound_links: 12,
+      outbound_links: 4,
+    },
+    {
+      path: 'Field Notes.md',
+      title: 'Field Notes with an intentionally long title for zoom coverage',
+      inbound_links: 0,
+      outbound_links: 9,
+    },
+    {
+      path: 'daily/2026-08-26.md',
+      title: '2026-08-26',
+      inbound_links: 0,
+      outbound_links: 0,
+    },
+  ]
+}
+
 function activeNoteSummaries() {
-  return activeScanFixture().filter((entry) => entry.kind === 'note').map((entry) => {
+  const inboxFixture = window.sessionStorage.getItem('e2e:inbox-notes') === '1'
+  return activeScanFixture().filter((entry) => entry.kind === 'note').map((entry, index) => {
     const doc = e2eNoteDocument(entry.path)
     return {
       path: entry.path,
       title: doc.metadata.title,
       modified_at: entry.modified_at ?? '',
       note_type: null,
-      organized: true,
+      organized: inboxFixture ? index >= 2 : true,
       archived: false,
       tags: doc.metadata.tags,
     }
@@ -126,14 +152,32 @@ export function installE2eBridge(): void {
     'scriptor.canvas',
     'scriptor.mcp',
   ])
+  const disabledPluginIds = new Set<string>()
+  if (typeof window !== 'undefined' && window.sessionStorage.getItem('e2e:disable-graph-plugin') === '1') {
+    enabledPluginIds.delete('scriptor.graph')
+    disabledPluginIds.add('scriptor.graph')
+  }
+  if (typeof window !== 'undefined' && window.sessionStorage.getItem('e2e:enable-gmail-plugin') === '1') {
+    enabledPluginIds.add('scriptor.gmail-manager')
+  }
+  const populatedCanvasFixture =
+    typeof window !== 'undefined' && window.sessionStorage.getItem('e2e:canvas-populated') === '1'
   let canvasDocumentJson = JSON.stringify({
     id: 'canvas-board-default',
     vaultId: 'screenshot-vault',
     title: 'Research board',
     mode: 'edgeless',
     layers: [{ id: 'layer-main', name: 'Main', visible: true, locked: false, order: 0 }],
-    blocks: [],
-    updatedAt: new Date().toISOString(),
+    blocks: populatedCanvasFixture
+      ? [
+          { id: 'e2e-question', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: -260, y: -120, width: 180, height: 110 }, zIndex: 1, contentRef: 'Research question', style: { fill: '#fef3c7', stroke: '#334155', strokeWidth: 1 } },
+          { id: 'e2e-evidence', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: -30, y: -120, width: 180, height: 110 }, zIndex: 2, contentRef: 'Evidence', style: { fill: '#dbeafe', stroke: '#334155', strokeWidth: 1 } },
+          { id: 'e2e-synthesis', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: 200, y: -120, width: 180, height: 110 }, zIndex: 3, contentRef: 'Synthesis', style: { fill: '#dcfce7', stroke: '#334155', strokeWidth: 1 } },
+          { id: 'e2e-method', kind: 'markdown', layerId: 'layer-main', bounds: { x: -145, y: 80, width: 220, height: 140 }, zIndex: 4, contentRef: 'Methodology.md', sourceNoteId: 'Methodology.md', style: { fill: '#ffffff', stroke: '#94a3b8', strokeWidth: 1, textStyle: 'heading' } },
+          { id: 'e2e-plan', kind: 'markdown', layerId: 'layer-main', bounds: { x: 115, y: 80, width: 220, height: 140 }, zIndex: 5, contentRef: 'Research Plan.md', sourceNoteId: 'Research Plan.md', style: { fill: '#ffffff', stroke: '#0f766e', strokeWidth: 2, textStyle: 'heading' } },
+        ]
+      : [],
+    updatedAt: '2026-09-21T12:00:00.000Z',
   })
   // Mock Tauri internals so `isTauriRuntime` returns true
   if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) {
@@ -151,13 +195,23 @@ export function installE2eBridge(): void {
           })
         }
         return { vault: SCREENSHOT_VAULT, scan_job_id: 'e2e-scan' }
+      case 'google_gmail_get_authed_email':
+        if (window.sessionStorage.getItem('e2e:enable-gmail-plugin') === '1') {
+          throw new Error('GOOGLE_AUTH_REQUIRED: Gmail is not connected')
+        }
+        return undefined
       case 'plugin_state_get':
-        return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [] }
+        return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [...disabledPluginIds] }
       case 'plugin_state_set_enabled': {
         const body = payload as { capabilityId?: string; enabled?: boolean }
         const capabilityId = String(body.capabilityId ?? '')
-        if (body.enabled) enabledPluginIds.add(capabilityId)
-        else enabledPluginIds.delete(capabilityId)
+        if (body.enabled) {
+          enabledPluginIds.add(capabilityId)
+          disabledPluginIds.delete(capabilityId)
+        } else {
+          enabledPluginIds.delete(capabilityId)
+          disabledPluginIds.add(capabilityId)
+        }
         return undefined
       }
       case 'vault_read_note': {
@@ -190,7 +244,24 @@ export function installE2eBridge(): void {
             markdown: `${document.markdown}\n\nExternal disk edit.`,
           }
         }
-        return e2eNoteDocument(readPath)
+        const document = e2eNoteDocument(readPath)
+        if (
+          readPath === 'Research Plan.md'
+          && window.sessionStorage.getItem('e2e:frontmatter-populated') === '1'
+          && !document.markdown.startsWith('---\n')
+        ) {
+          const markdown = `---\nproject: Scriptor research\nstatus: active\ntags: research, methods\n---\n\n${document.markdown}`
+          return {
+            ...document,
+            metadata: {
+              ...document.metadata,
+              content_hash: 'hash-frontmatter-visual-fixture',
+              word_count: markdown.split(/\\s+/).filter(Boolean).length,
+            },
+            markdown,
+          }
+        }
+        return document
       }
       case 'vault_save_note': {
         const body = payload as {
@@ -237,11 +308,35 @@ export function installE2eBridge(): void {
       case 'vault_load_config':
         return DEFAULT_CONFIG
       case 'vault_load_snippets':
+        if (window.sessionStorage.getItem('e2e:snippets-populated') === '1') {
+          return [
+            {
+              name: 'literature-note',
+              description: 'Structure a literature finding with its source.',
+              content: '## ${1:Finding}\\n\\nSource: ${2:citation}\\n\\n${3:Notes}',
+            },
+            {
+              name: 'method-check',
+              description: 'Record a methodology check before synthesis.',
+              content: '- Method: ${1:name}\\n- Evidence: ${2:result}',
+            },
+          ]
+        }
         return []
       case 'vault_list_recent_notes':
         return [{ path: 'Research Plan.md', opened_at: '2026-06-23T12:00:00.000Z' }]
       case 'vault_record_recent_note':
         return [{ path: String((payload as { path?: string }).path ?? ''), opened_at: new Date().toISOString() }]
+      case 'vault_read_stats_history':
+        return [
+          { date: '2026-09-15', words: 280 },
+          { date: '2026-09-16', words: 460 },
+          { date: '2026-09-17', words: 510 },
+          { date: '2026-09-18', words: 390 },
+          { date: '2026-09-19', words: 620 },
+          { date: '2026-09-20', words: 540 },
+          { date: '2026-09-21', words: 198 },
+        ]
       case 'vault_read_activity_log':
         return []
       case 'vault_append_activity_log':
@@ -278,6 +373,9 @@ export function installE2eBridge(): void {
       case 'indexer_backlinks':
         return []
       case 'indexer_graph': {
+        if (window.sessionStorage.getItem('e2e:dense-graph') === '1') {
+          return screenshotDenseGraph()
+        }
         const focusPath = (payload as { focusPath?: string | null }).focusPath ?? null
         return screenshotGraph(focusPath)
       }
@@ -311,7 +409,7 @@ export function installE2eBridge(): void {
             window.setTimeout(() => {
               move()
               resolve()
-            }, 500)
+            }, 1500)
           })
         }
         move()
@@ -344,10 +442,13 @@ export function installE2eBridge(): void {
       case 'indexer_list_tags':
         return [{ tag: 'research', note_count: 1 }]
       case 'indexer_list_inbox':
+        return activeNoteSummaries().filter((note) => !note.organized)
       case 'indexer_list_orphans':
       case 'indexer_list_dead_ends':
+        return knowledgeRepairFixture()
       case 'indexer_list_unresolved_targets':
       case 'indexer_list_recent_files':
+      case 'indexer_execute_dql':
       case 'vault_list_view_notes':
         return []
       case 'git_status_cmd': {
@@ -486,8 +587,10 @@ export function installE2eBridge(): void {
       }
       case 'vault_read_note_history_revision':
         return '# Previous revision\n'
-      case 'reader_read_document':
-        return Array.from(createMinimalReaderPdf())
+      case 'reader_read_document': {
+        const relPath = String((payload as { relPath?: string }).relPath ?? '')
+        return Array.from(relPath.toLowerCase().endsWith('.epub') ? createMinimalReaderEpub() : createMinimalReaderPdf())
+      }
       case 'reader_viewer_location': {
         const documentType = String((payload as { documentType?: string }).documentType ?? 'pdf')
         const filename = documentType === 'epub' ? 'epub-viewer.html' : 'pdf-viewer.html'
@@ -552,7 +655,7 @@ export function installE2eBridge(): void {
               updatedAt: string
               blocks: unknown[]
             }
-            return (window.__scriptorE2eCanvasSaves?.length ?? 0) > 0
+            return populatedCanvasFixture || (window.__scriptorE2eCanvasSaves?.length ?? 0) > 0
               ? [
                   {
                     id: document.id,
@@ -575,6 +678,30 @@ export function installE2eBridge(): void {
             ]
             const document = JSON.parse(canvasDocumentJson) as { id: string }
             return `.scriptor/canvas/${document.id}.json`
+          }
+          if (cmd === 'canvas_apply_template') {
+            const request = payload as { sceneJson?: string; templateId?: string }
+            const document = JSON.parse(request.sceneJson ?? canvasDocumentJson) as {
+              id: string
+              title: string
+              blocks: Array<Record<string, unknown>>
+              updatedAt: string
+            }
+            const templateId = request.templateId ?? 'storyboard'
+            const added = [
+              { id: 'e2e-question', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: 40, y: 40, width: 100, height: 80 }, zIndex: 2, contentRef: 'Question', style: { fill: '#fef3c7', stroke: '#334155', strokeWidth: 1 } },
+              { id: 'e2e-evidence', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: 220, y: 40, width: 100, height: 80 }, zIndex: 2, contentRef: 'Evidence', style: { fill: '#dbeafe', stroke: '#334155', strokeWidth: 1 } },
+              { id: 'e2e-synthesis', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: 400, y: 40, width: 100, height: 80 }, zIndex: 2, contentRef: 'Synthesis', style: { fill: '#dcfce7', stroke: '#334155', strokeWidth: 1 } },
+              { id: 'e2e-summary', kind: 'markdown', layerId: 'layer-main', bounds: { x: 140, y: 220, width: 280, height: 160 }, zIndex: 3, contentRef: 'Summary note', style: { fill: '#ffffff', stroke: '#94a3b8', strokeWidth: 1, textStyle: 'heading' } },
+            ]
+            const next = { ...document, title: templateId, blocks: [...document.blocks, ...added], updatedAt: new Date().toISOString() }
+            return {
+              document: next,
+              templateId,
+              patchId: 'e2e-template-patch',
+              checkpointPath: '.scriptor/checkpoints/e2e-template.json',
+              blocksAdded: added.length,
+            }
           }
           if (cmd === 'canvas_query_blocks') return []
           if (cmd === 'canvas_hit_test') return null
@@ -608,11 +735,17 @@ export function installE2eBridge(): void {
 
 function createMinimalReaderPdf(): Uint8Array {
   const encoder = new TextEncoder()
-  const stream = 'BT /F1 18 Tf 50 80 Td (Scriptor Reader) Tj ET\n'
+  const stream = [
+    'BT /F1 24 Tf 54 724 Td (Scriptor Reader) Tj ET',
+    'BT /F1 14 Tf 54 684 Td (Deterministic portrait PDF fixture for visual review.) Tj ET',
+    'BT /F1 14 Tf 54 656 Td (The reader must preserve the full page and support vertical inspection.) Tj ET',
+    'BT /F1 14 Tf 54 72 Td (End of reader fixture.) Tj ET',
+    '',
+  ].join('\n')
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
     `<< /Length ${encoder.encode(stream).length} >>\nstream\n${stream}endstream`,
   ]
@@ -630,4 +763,107 @@ function createMinimalReaderPdf(): Uint8Array {
   }
   source += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`
   return encoder.encode(source)
+}
+
+function appendZipU16(target: number[], value: number) {
+  target.push(value & 0xff, (value >>> 8) & 0xff)
+}
+
+function appendZipU32(target: number[], value: number) {
+  target.push(value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff)
+}
+
+function appendZipBytes(target: number[], bytes: Uint8Array) {
+  for (const byte of bytes) target.push(byte)
+}
+
+function crc32(bytes: Uint8Array): number {
+  let crc = 0xffffffff
+  for (const byte of bytes) {
+    crc ^= byte
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0)
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+function createStoredZip(entries: readonly { name: string; body: string }[]): Uint8Array {
+  const encoder = new TextEncoder()
+  const local: number[] = []
+  const central: number[] = []
+
+  for (const entry of entries) {
+    const name = encoder.encode(entry.name)
+    const body = encoder.encode(entry.body)
+    const checksum = crc32(body)
+    const localOffset = local.length
+
+    appendZipU32(local, 0x04034b50)
+    appendZipU16(local, 20)
+    appendZipU16(local, 0)
+    appendZipU16(local, 0)
+    appendZipU16(local, 0)
+    appendZipU16(local, 0)
+    appendZipU32(local, checksum)
+    appendZipU32(local, body.length)
+    appendZipU32(local, body.length)
+    appendZipU16(local, name.length)
+    appendZipU16(local, 0)
+    appendZipBytes(local, name)
+    appendZipBytes(local, body)
+
+    appendZipU32(central, 0x02014b50)
+    appendZipU16(central, 20)
+    appendZipU16(central, 20)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU32(central, checksum)
+    appendZipU32(central, body.length)
+    appendZipU32(central, body.length)
+    appendZipU16(central, name.length)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU32(central, 0)
+    appendZipU32(central, localOffset)
+    appendZipBytes(central, name)
+  }
+
+  const centralOffset = local.length
+  const output = [...local, ...central]
+  appendZipU32(output, 0x06054b50)
+  appendZipU16(output, 0)
+  appendZipU16(output, 0)
+  appendZipU16(output, entries.length)
+  appendZipU16(output, entries.length)
+  appendZipU32(output, central.length)
+  appendZipU32(output, centralOffset)
+  appendZipU16(output, 0)
+  return Uint8Array.from(output)
+}
+
+function createMinimalReaderEpub(): Uint8Array {
+  return createStoredZip([
+    { name: 'mimetype', body: 'application/epub+zip' },
+    {
+      name: 'META-INF/container.xml',
+      body: '<?xml version="1.0" encoding="UTF-8"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>',
+    },
+    {
+      name: 'OEBPS/content.opf',
+      body: '<?xml version="1.0" encoding="UTF-8"?><package version="3.0" unique-identifier="bookid" xmlns="http://www.idpf.org/2007/opf"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">scriptor-e2e</dc:identifier><dc:title>Scriptor Reader EPUB</dc:title><dc:language>en</dc:language><meta property="dcterms:modified">2026-09-20T00:00:00Z</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>',
+    },
+    {
+      name: 'OEBPS/nav.xhtml',
+      body: '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Contents</title></head><body><nav xmlns:epub="http://www.idpf.org/2007/ops" epub:type="toc"><ol><li><a href="chapter.xhtml">Reader fixture</a></li></ol></nav></body></html>',
+    },
+    {
+      name: 'OEBPS/chapter.xhtml',
+      body: '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Scriptor Reader EPUB</title></head><body><h1>Scriptor Reader EPUB</h1><p>Deterministic EPUB fixture for visual review.</p><p>This chapter verifies that the bundled EPUB reader renders real publication content instead of PDF bytes.</p></body></html>',
+    },
+  ])
 }

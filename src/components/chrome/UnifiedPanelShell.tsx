@@ -15,6 +15,7 @@ import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { FOCUSABLE_SELECTORS, useFocusTrap } from '../../hooks/useFocusTrap'
 import type { PanelPresentation } from '../../hooks/usePanelPresentation'
 import { IconButton } from './WorkspaceChrome'
+import { useI18n } from '../../lib/i18n'
 
 export interface PanelTab {
   id: string
@@ -43,6 +44,8 @@ interface UnifiedPanelShellProps {
   wide?: boolean
   presentation?: PanelPresentation
   footer?: ReactNode
+  /** Stable contextual Help guide id owned by this panel surface. */
+  helpTopic?: string
 }
 
 const DOCK_MEDIA_QUERY = '(min-width: 1321px)'
@@ -104,7 +107,9 @@ function UnifiedPanelShellImpl({
   wide = false,
   presentation = 'modal',
   footer,
+  helpTopic,
 }: UnifiedPanelShellProps) {
+  const { t } = useI18n()
   const shellRef = useRef<HTMLElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -176,6 +181,7 @@ function UnifiedPanelShellImpl({
         aria-labelledby={!docked && !modalAriaLabel ? titleId : undefined}
         aria-describedby={!docked && subtitle ? descriptionId : undefined}
         tabIndex={-1}
+        data-help-topic={helpTopic}
       >
         <header className="unified-panel-header">
           <div>
@@ -190,7 +196,7 @@ function UnifiedPanelShellImpl({
             <div className="unified-panel-header-actions">
               {headerActions}
               {showClose ? (
-                <IconButton label={`Close ${title}`} onClick={onClose}>
+                <IconButton label={`${t('actions.close')} ${title}`} onClick={onClose}>
                   <X aria-hidden="true" />
                 </IconButton>
               ) : null}

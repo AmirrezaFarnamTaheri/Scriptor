@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct OllamaClient {
     endpoint: String,
     model: String,
-    client: reqwest::blocking::Client,
+    client: Result<reqwest::blocking::Client, String>,
 }
 
 #[derive(Serialize)]
@@ -20,20 +20,30 @@ struct EmbedResponse {
 }
 
 impl OllamaClient {
+    fn build_http_client() -> Result<reqwest::blocking::Client, reqwest::Error> {
+        reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(120))
+            .build()
+    }
+
     pub fn try_new(base_url: &str, model: &str) -> Result<Self, crate::error::EmbeddingError> {
         let base = base_url.trim_end_matches('/');
-        let client = reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(120))
-            .build()?;
         Ok(Self {
             endpoint: format!("{base}/api/embed"),
             model: model.to_string(),
-            client,
+            client: Ok(Self::build_http_client()?),
         })
     }
 
+    /// Compatibility constructor. HTTP-client initialization failures are
+    /// retained and returned by embed instead of aborting the process.
     pub fn new(base_url: &str, model: &str) -> Self {
-        Self::try_new(base_url, model).expect("failed to build HTTP client")
+        let base = base_url.trim_end_matches('/');
+        Self {
+            endpoint: format!("{base}/api/embed"),
+            model: model.to_string(),
+            client: Self::build_http_client().map_err(|error| error.to_string()),
+        }
     }
 
     pub fn embed(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, crate::error::EmbeddingError> {
@@ -43,8 +53,12 @@ impl OllamaClient {
         };
 
         self.retry(|| {
-            let resp = self
-                .client
+            let client = self.client.as_ref().map_err(|error| {
+                crate::error::EmbeddingError::Ollama(format!(
+                    "failed to initialize HTTP client: {error}"
+                ))
+            })?;
+            let resp = client
                 .post(&self.endpoint)
                 .json(&body)
                 .send()?

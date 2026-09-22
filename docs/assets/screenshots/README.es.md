@@ -36,7 +36,7 @@ Capturas para documentación y marketing, generadas con Playwright en modo E2E.
 | mobile-vault.png | Panel vault móvil a 390 px | VISUAL-REVIEW |
 | workspace-rendered.png | Modo de vista previa renderizada completa con encabezados markdown | VISUAL-REVIEW |
 | task-list-preview.png | Elementos de lista de tareas renderizados con casillas interactivas | VISUAL-REVIEW |
-| workspace-switcher.png | Menú de cambio de espacio de trabajo y migas de pan superiores | VISUAL-REVIEW |
+| workspace-selector.png | Selector de espacio de trabajo e identidad de la bóveda activa en la barra superior | VISUAL-REVIEW |
 
 ### Actualidad y aceptación
 
@@ -45,6 +45,8 @@ Los PNG de documentación son **capturas frescas del código fuente actual**, no
 La separación es intencional. Una línea base almacenada puede seguir aceptándose si el render actual difiere dentro de la tolerancia visual configurada; copiar después esa línea base sobre la imagen fresca dejaría la documentación obsoleta aunque la suite visual pasara.
 
 Las líneas base estables de Windows siguen siendo la superficie de aceptación de regresión visual. Los cambios intencionados de píxeles deben revisarse y actualizarse explícitamente con `--update-snapshots=all`; nunca se ocultan fallos aumentando la tolerancia global.
+
+El workflow de pull request **Visual review** es el único dueño del gate de regresión visual. Primero compara contra los baselines committed. Solo si esa comparación falla ejecuta un pase diagnóstico `--update-snapshots=all` para producir imágenes actuales y evidencia de drift; nunca acepta cambios automáticamente. El E2E funcional de navegador permanece en el CI principal, de modo que un PR limpio no ejecuta la suite visual dos veces.
 
 Las capturas responsive y de estados (`workspace-mobile`, `workspace-tablet`, vault/inspector móvil, recuperación del editor, inventario MCP y popovers) se generan desde salida de prueba en vivo y no se convierten en baseline estable salvo que la prueba use expresamente `toHaveScreenshot`.
 

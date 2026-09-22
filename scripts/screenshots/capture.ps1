@@ -19,12 +19,24 @@ if (-not $env:CI) {
 Write-Host "==> Browser channel: $env:PLAYWRIGHT_CHANNEL"
 
 Write-Host "==> Capture documentation screenshots via playwright.e2e.config"
+$docsDir = "docs/assets/screenshots"
+$stagingDocsDir = "test-results/documentation-gallery"
+if (Test-Path -LiteralPath $stagingDocsDir) {
+    Remove-Item -LiteralPath $stagingDocsDir -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $stagingDocsDir | Out-Null
+
 $previousScreenshotMode = $env:VITE_SCREENSHOT_MODE
 $previousCaptureScreenshots = $env:SCRIPTOR_CAPTURE_SCREENSHOTS
+$previousScreenshotOutput = $env:SCRIPTOR_SCREENSHOT_OUTPUT_DIR
 $captureExitCode = 0
 try {
     $env:VITE_SCREENSHOT_MODE = 'true'
     $env:SCRIPTOR_CAPTURE_SCREENSHOTS = 'true'
+    # Build the complete managed gallery away from the tracked directory. Only
+    # publish it after every capture succeeds, so failed refreshes cannot leave
+    # half-updated docs or preserve screenshots removed from the suite.
+    $env:SCRIPTOR_SCREENSHOT_OUTPUT_DIR = $stagingDocsDir
     # Capture serially so a documentation run has the same deterministic
     # resource profile as the dedicated Windows visual job.
     $screenshotArgs = @("exec", "playwright", "test", "--config", "playwright.e2e.config.ts", "e2e/screenshots.spec.ts", "--workers=1")
@@ -34,7 +46,11 @@ try {
 
     if ($captureExitCode -eq 0) {
         Write-Host "==> Capture docs-only visual-review states"
-        pnpm exec playwright test --config playwright.visual.config.ts e2e/visual-review.spec.ts --workers=1
+        # Only four visual-review scenarios feed the tracked documentation gallery.
+        # The dedicated Visual review workflow owns the complete evidence matrix;
+        # re-running all of it here is redundant and makes gallery refresh needlessly slow.
+        $docsOnlyVisualPattern = 'editor recovery fallback|MCP sharing and sync inventory|toolbar popover'
+        pnpm exec playwright test --config playwright.visual.config.ts e2e/visual-review.spec.ts --workers=1 --grep $docsOnlyVisualPattern
         $captureExitCode = $LASTEXITCODE
 
         if ($captureExitCode -eq 0) {
@@ -54,7 +70,7 @@ try {
                 if (-not $source) {
                     throw "Expected visual-review capture was not produced: $($entry.Key)"
                 }
-                $destination = Join-Path "docs/assets/screenshots" $entry.Value
+                $destination = Join-Path $stagingDocsDir $entry.Value
                 Copy-Item $source.FullName $destination -Force
                 Write-Host "  captured: $($entry.Value)"
             }
@@ -72,13 +88,26 @@ finally {
     } else {
         Remove-Item Env:VITE_SCREENSHOT_MODE -ErrorAction SilentlyContinue
     }
+    if ($null -ne $previousScreenshotOutput) {
+        $env:SCRIPTOR_SCREENSHOT_OUTPUT_DIR = $previousScreenshotOutput
+    } else {
+        Remove-Item Env:SCRIPTOR_SCREENSHOT_OUTPUT_DIR -ErrorAction SilentlyContinue
+    }
 }
 if ($captureExitCode -ne 0) { exit $captureExitCode }
 
-# screenshots.spec.ts writes ready, current-source captures directly here.
-# Keep those pixels. The stable Playwright snapshots are a separate comparison
-# surface and must never overwrite the documentation output after capture.
-$docsDir = "docs/assets/screenshots"
+$stagedScreenshots = @(Get-ChildItem -LiteralPath $stagingDocsDir -Filter *.png -File)
+if ($stagedScreenshots.Count -eq 0) {
+    throw 'Screenshot capture produced an empty documentation gallery.'
+}
+
+# Replace only the managed PNG gallery after the full capture succeeds. This
+# removes screenshots whose generating scenario was deleted or renamed instead
+# of silently carrying stale pixels forward forever. Markdown gallery indexes
+# and other documentation files are untouched.
+Get-ChildItem -LiteralPath $docsDir -Filter *.png -File | Remove-Item -Force
+Copy-Item -Path (Join-Path $stagingDocsDir '*.png') -Destination $docsDir -Force
+
 Write-Host "==> Screenshot capture complete"
 Get-ChildItem $docsDir -Filter *.png | ForEach-Object { Write-Host "  $($_.Name)" }
 

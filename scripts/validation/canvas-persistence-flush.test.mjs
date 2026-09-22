@@ -72,9 +72,13 @@ function deferred() {
 }
 
 /** Lets queued promise continuations settle without advancing mock timers. */
-async function flushMicrotasks() {
-  await Promise.resolve()
-  await Promise.resolve()
+async function flushMicrotasks(turns = 8) {
+  // Hook mount hydration crosses multiple nested async continuations
+  // (board-list command -> refresh helper -> mount effect). Drain enough
+  // microtask turns to make the harness deterministic before race assertions.
+  for (let turn = 0; turn < turns; turn++) {
+    await Promise.resolve()
+  }
 }
 
 /** Builds an isolated hook harness with controllable persistence and timers. */
@@ -311,4 +315,87 @@ test('CRDT edits mark local edit, flush CRDT, and save on unmount', async () => 
   assert.equal(h.saveCalls.length, 1)
   const saved = JSON.parse(h.saveCalls[0].json)
   assert.equal(saved.crdtSnapshot, true)
+})
+
+
+test('late native template response cannot overwrite an edit made after submission', async () => {
+  const template = deferred()
+  const h = harness({
+    commandOverrides: {
+      canvasApplyTemplate: async () => template.promise,
+    },
+  })
+  const board = h.render()
+  const applying = board.applyTemplate('native-template')
+  board.updateDocument((current) => ({ ...current, title: 'Local edit after request' }))
+
+  template.resolve({ document: { ...board.document, title: 'Template result' }, blocksAdded: 1 })
+  await applying
+
+  assert.equal(await board.flushPendingSave(), true)
+  assert.equal(JSON.parse(h.saveCalls.at(-1).json).title, 'Local edit after request')
+})
+
+test('vault lifecycle change invalidates an outstanding native template response', async () => {
+  const template = deferred()
+  const h = harness({
+    commandOverrides: {
+      canvasApplyTemplate: async () => template.promise,
+    },
+  })
+  const board = h.render('vault-a')
+  const applying = board.applyTemplate('native-template')
+
+  h.render('vault-b')
+  template.resolve({ document: { ...board.document, title: 'Wrong vault result' }, blocksAdded: 1 })
+  await applying
+  h.fireTimers()
+  await flushMicrotasks()
+
+  assert.equal(h.saveCalls.length, 0)
+})
+
+test('newer native template request supersedes an older response', async () => {
+  const first = deferred()
+  const second = deferred()
+  let call = 0
+  const h = harness({
+    commandOverrides: {
+      canvasApplyTemplate: async () => (++call === 1 ? first.promise : second.promise),
+    },
+  })
+  const board = h.render()
+  // Let the mount-time board-list hydration settle before exercising request
+  // supersession; otherwise the harness can invalidate both requests for an
+  // unrelated lifecycle transition that a user cannot race in the mounted UI.
+  await flushMicrotasks()
+  const firstApply = board.applyTemplate('first-template')
+  const secondApply = board.applyTemplate('second-template')
+
+  second.resolve({ document: { ...board.document, title: 'Second wins' }, blocksAdded: 2 })
+  await secondApply
+  first.resolve({ document: { ...board.document, title: 'First is stale' }, blocksAdded: 1 })
+  await firstApply
+
+  assert.equal(await board.flushPendingSave(), true)
+  assert.equal(JSON.parse(h.saveCalls.at(-1).json).title, 'Second wins')
+})
+
+test('unmount rejects a late native template response without scheduling persistence', async () => {
+  const template = deferred()
+  const h = harness({
+    commandOverrides: {
+      canvasApplyTemplate: async () => template.promise,
+    },
+  })
+  const board = h.render()
+  const applying = board.applyTemplate('native-template')
+
+  h.unmount()
+  template.resolve({ document: { ...board.document, title: 'Unmounted result' }, blocksAdded: 1 })
+  await applying
+  h.fireTimers()
+  await flushMicrotasks()
+
+  assert.equal(h.saveCalls.length, 0)
 })

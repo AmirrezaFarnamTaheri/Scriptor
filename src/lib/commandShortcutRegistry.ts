@@ -21,6 +21,7 @@ export const COMMAND_SHORTCUT_REGISTRY: CommandShortcutEntry[] = [
   { id: 'open-note-history', label: 'Note history timeline', defaultShortcut: 'Ctrl+Alt+H' },
   { id: 'focus-search', label: 'Focus vault search', defaultShortcut: 'F' },
   { id: 'open-settings', label: 'Open settings' },
+  { id: 'open-help', label: 'Open Help & guides', defaultShortcut: 'F1' },
   { id: 'open-git', label: 'Open Git panel', defaultShortcut: 'Mod+Alt+G' },
   { id: 'open-health', label: 'Open vault health' },
   { id: 'open-mcp', label: 'Open MCP panel' },
@@ -52,11 +53,6 @@ export const COMMAND_SHORTCUT_REGISTRY: CommandShortcutEntry[] = [
   { id: 'toggle-typewriter-mode', label: 'Toggle typewriter / focus mode', defaultShortcut: 'Mod+Shift+Y' },
   { id: 'open-templates', label: 'New note from template', defaultShortcut: 'Alt+T' },
   { id: 'import-obsidian-vault', label: 'Import Obsidian vault' },
-  { id: 'toggle-breadcrumbs', label: 'Toggle document breadcrumbs', defaultShortcut: 'Alt+B' },
-  { id: 'open-quick-capture-window', label: 'Open quick capture window' },
-  { id: 'resolve-doi', label: 'Resolve DOI / arXiv / ISBN metadata' },
-  { id: 'summarize-section', label: 'Summarize current section (AI)' },
-  { id: 'export-audit-log', label: 'Export audit log' },
 ]
 
 /** Returns the canonical default shortcut for a registered command, when assigned. */

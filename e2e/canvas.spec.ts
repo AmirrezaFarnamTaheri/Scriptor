@@ -152,6 +152,22 @@ test.describe('Canvas panel', () => {
     await expect(panel.getByRole('button', { name: /^Export/ })).toBeDisabled()
   })
 
+  test('empty-state icon does not inherit the board minimum height', async ({ page }) => {
+    const panel = await openCanvas(page)
+    const icon = panel.locator('.canvas-empty-state svg')
+    const board = panel.locator('.canvas-svg')
+    await expect(icon).toBeVisible()
+    await expect(board).toBeVisible()
+
+    const [iconBox, boardMinHeight] = await Promise.all([
+      icon.boundingBox(),
+      board.evaluate((element) => getComputedStyle(element).minHeight),
+    ])
+    expect(iconBox).not.toBeNull()
+    expect(iconBox?.height ?? 999).toBeLessThanOrEqual(48)
+    expect(boardMinHeight).toBe('360px')
+  })
+
   test('first-action card works without a plugin drawing tool', async ({ page }) => {
     const panel = await openCanvas(page)
     await panel.getByRole('button', { name: 'Add first card' }).click()
@@ -187,7 +203,7 @@ test.describe('Canvas panel', () => {
         { timeout: 5000 },
       )
       .toBe(1)
-    await expect(panel.getByRole('status')).toContainText('Saved to .scriptor/canvas/')
+    await expect(panel.locator('.canvas-footer')).toContainText('Saved to .scriptor/canvas/')
   })
 
   test('canvas undo reverts last action and redo restores it', async ({ page }) => {
@@ -210,6 +226,6 @@ test.describe('Canvas panel', () => {
     await page.keyboard.press('Space')
     await expect(block).toHaveClass(/selected/)
     await expect(block).toHaveAttribute('aria-pressed', 'true')
-    await expect(panel.getByRole('status')).toContainText('Selected 1 block')
+    await expect(panel.locator('.canvas-footer')).toContainText('Selected 1 block')
   })
 })

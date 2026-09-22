@@ -60,8 +60,22 @@ export function TemplatePicker({ templates, onSelect, onClose }: TemplatePickerP
     filtered.length > 0 && activeIdx < filtered.length ? optionId(activeIdx) : undefined
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Choose template">
-      <div ref={containerRef} className="template-picker-modal" onKeyDown={handleKeyDown}>
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.currentTarget === event.target) onClose()
+      }}
+    >
+      <div
+        ref={containerRef}
+        className="template-picker-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Choose template"
+        data-help-topic="templates"
+        onKeyDown={handleKeyDown}
+      >
         <header className="template-picker__header">
           <h2 className="template-picker__title">New note from template</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">

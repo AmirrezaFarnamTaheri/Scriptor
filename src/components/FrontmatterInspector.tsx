@@ -41,7 +41,7 @@ export function FrontmatterInspector({ path, fields, onClose, onSaved }: Frontma
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section ref={dialogRef} className="frontmatter-inspector" role="dialog" aria-modal="true" aria-label="Frontmatter" onClick={(e) => e.stopPropagation()}>
+      <section ref={dialogRef} className="rename-dialog frontmatter-inspector" data-help-topic="frontmatter" role="dialog" aria-modal="true" aria-label="Frontmatter" onClick={(e) => e.stopPropagation()}>
         <header>
           <h2>Frontmatter</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">

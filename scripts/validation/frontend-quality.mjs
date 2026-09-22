@@ -103,13 +103,23 @@ rejectPattern('src/App.tsx', /as any/, 'application integration must not bypass 
     failures.push('src/App.tsx: retired useAppOverlayState must not be referenced')
   }
 }
-requirePattern('src/App.tsx', /useEditorPreferences\(theme(?:,\s*initialWorkspaceLayout)?\)/, 'editor defaults must follow the application theme')
-requirePattern('src/hooks/useEditorPreferences.ts', /editorThemeOverride \?\? defaultEditorTheme\(appTheme\)/, 'editor theme must use an app-theme fallback until explicitly overridden')
+requirePattern('src/App.tsx', /useEditorPreferences\(resolvedAppearance(?:,\s*initialWorkspaceLayout)?\)/, 'editor defaults must follow the resolved day/night appearance')
+requirePattern('src/hooks/useEditorPreferences.ts', /editorThemeOverride \?\? defaultEditorTheme\(appearance\)/, 'editor theme must follow the resolved appearance until explicitly overridden')
 requirePattern('src/styles/components/editor-workspace.css', /@media\s*\(max-width:/, 'editor workspace needs an explicit compact layout')
 requirePattern('src/styles/components/canvas-graph.css', /@media\s*\(max-width:\s*720px\)/, 'graph needs an explicit compact layout')
 requirePattern('src/styles/components/modals.css', /100dvh/, 'modal layout must account for dynamic mobile viewport height')
 requirePattern('src/styles/components/error-boundary.css', /\.error-boundary/, 'error surfaces must use design-system CSS')
 requirePattern('src/styles/app/foundation.css', /error-boundary\.css/, 'error-boundary CSS must be included in the application bundle')
+rejectPattern(
+  'src/components/help/HelpRuntime.tsx',
+  /createPortal|useHelpSurfaces|help-affordance|help-trigger|help-invitation/,
+  'Help must remain centralized; do not inject persistent Help chrome into product surfaces',
+)
+requirePattern(
+  'src/components/shell/AppTopBar.tsx',
+  /requestHelp\('workspace'\)/,
+  'the workspace must keep exactly one explicit global Help entry in the top bar',
+)
 
 if (failures.length > 0) {
   console.error('Frontend quality validation failed:')

@@ -87,6 +87,36 @@
   margin-top: 12px;
 }
 
+.conflict-merged-preview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.conflict-merged-preview-heading h3 {
+  margin: 0;
+}
+
+.conflict-unresolved-status,
+.conflict-resolved-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.conflict-unresolved-status {
+  color: var(--warning-strong, var(--ink));
+}
+
+.conflict-resolved-status {
+  color: var(--success-strong, var(--primary-strong));
+}
+
 .conflict-merged-body {
   max-height: 200px;
 }

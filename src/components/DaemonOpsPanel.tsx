@@ -51,7 +51,7 @@ function DaemonOpsPanelImpl({
   }, [])
 
   return (
-    <div className="daemon-ops-panel settings-subsection">
+    <div className="daemon-ops-panel settings-subsection" data-help-topic="daemon">
       <h4 className="settings-subheading">
         <Server size={16} />
         Daemon operations

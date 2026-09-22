@@ -7,13 +7,14 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #111827; color: #e2e8f0; font-family: system-ui, sans-serif; overflow: hidden; }
-    #epub-area { width: 100%; height: 100%; }
+    #epub-area { width: 100%; height: 100%; overflow: hidden; }
     #status { color: #94a3b8; font-size: .85rem; padding: 2rem; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
   </style>
 </head>
 <body>
   <div id="epub-area"></div>
   <p id="status">Waiting for document…</p>
+  <script src="./vendor/jszip.min.js"></script>
   <script src="./vendor/epub.min.js"></script>
   <script>
     const params = new URLSearchParams(location.search)
@@ -37,10 +38,31 @@
     }
 
     function hardenContents(contents) {
-      const frame = contents?.document?.defaultView?.frameElement
+      const document = contents?.document
+      const frame = document?.defaultView?.frameElement
       if (frame instanceof HTMLIFrameElement) frame.setAttribute('sandbox', 'allow-same-origin')
-      contents?.document?.addEventListener('keydown', handleReaderKeydown)
-      contents?.document?.addEventListener('click', (event) => {
+
+      // epub.js renders publication chapters in nested documents. Unstyled EPUB
+      // content otherwise keeps the browser's black default text while the
+      // reader canvas is dark, producing unreadable black-on-navy pages.
+      // Establish a deterministic reader canvas at the document boundary while
+      // leaving authored typography/layout rules intact.
+      if (document?.head && !document.head.querySelector('style[data-scriptor-reader-theme]')) {
+        const style = document.createElement('style')
+        style.dataset.scriptorReaderTheme = 'true'
+        style.textContent = `
+          :root { color-scheme: dark; }
+          html, body {
+            background: #111827 !important;
+            color: #e2e8f0 !important;
+          }
+          a { color: #67e8f9; }
+        `
+        document.head.appendChild(style)
+      }
+
+      document?.addEventListener('keydown', handleReaderKeydown)
+      document?.addEventListener('click', (event) => {
         const link = event.target?.closest?.('a[href]')
         if (!link) return
         const href = link.getAttribute('href') || ''
@@ -152,6 +174,9 @@
       const msg = event.data
       if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') return
       switch (msg.type) {
+        case 'READY_REQUEST':
+          if (typeof window.ePub === 'function') post({ type: 'READY' })
+          break
         case 'LOAD_BYTES':
           if (!(msg.bytes instanceof ArrayBuffer)) return
           await loadDocument(new Uint8Array(msg.bytes))

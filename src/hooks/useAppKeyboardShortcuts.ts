@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 
+import type { PaletteCommand } from '../components/CommandPalette'
 import { getDefaultShortcut } from '../lib/commandShortcutRegistry'
 import { matchesShortcut } from '../lib/keyboardShortcuts'
 import { useKeyboardShortcuts } from './useKeyboardShortcuts'
@@ -23,6 +24,9 @@ interface UseAppKeyboardShortcutsOptions {
   openTemplates?: () => void
   toggleVaultSidebar: () => void
   toggleInspector: () => void
+  toggleDistractionFree: () => void
+  toggleTypewriter: () => void
+  commands?: PaletteCommand[]
 }
 
 function isEditingTarget(target: EventTarget | null): boolean {
@@ -54,6 +58,9 @@ export function useAppKeyboardShortcuts({
   openTemplates,
   toggleVaultSidebar,
   toggleInspector,
+  toggleDistractionFree,
+  toggleTypewriter,
+  commands = [],
 }: UseAppKeyboardShortcutsOptions): void {
   const { getShortcut } = useKeyboardShortcuts()
 
@@ -86,8 +93,22 @@ export function useAppKeyboardShortcuts({
       if (openReader && run('open-reader', openReader)) return
       if (openTasks && run('open-tasks', openTasks)) return
       if (openKanban && run('open-kanban', openKanban)) return
+      if (run('toggle-distraction-free', toggleDistractionFree)) return
+      if (run('toggle-typewriter-mode', toggleTypewriter)) return
       if (run('toggle-vault-sidebar', toggleVaultSidebar)) return
-      run('toggle-inspector', toggleInspector)
+      if (run('toggle-inspector', toggleInspector)) return
+
+      // Command-palette actions and shortcut settings share the same command
+      // IDs. This fallback makes a user-assigned shortcut execute any
+      // currently reachable palette command instead of presenting inert
+      // settings for actions that are not in the small hard-coded global set.
+      for (const command of commands) {
+        const shortcut = getShortcut(command.id, getDefaultShortcut(command.id))
+        if (!matchesShortcut(event, shortcut)) continue
+        event.preventDefault()
+        command.run()
+        return
+      }
     }
 
     window.addEventListener('keydown', onKeyDown)
@@ -95,6 +116,7 @@ export function useAppKeyboardShortcuts({
   }, [
     activePath,
     chooseVaultFolder,
+    commands,
     createDailyNote,
     getShortcut,
     loadGraph,
@@ -111,6 +133,8 @@ export function useAppKeyboardShortcuts({
     reopenClosedTab,
     setSidebarView,
     toggleInspector,
+    toggleDistractionFree,
+    toggleTypewriter,
     toggleVaultSidebar,
   ])
 }

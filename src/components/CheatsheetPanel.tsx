@@ -25,7 +25,7 @@ export const CheatsheetPanel = memo(function CheatsheetPanel({ onClose }: Cheats
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
-        className="cheatsheet-panel knowledge-filters-panel"
+        className="cheatsheet-panel knowledge-filters-panel" data-help-topic="cheatsheet"
         role="dialog"
         aria-label="Markdown cheatsheet"
         onClick={(event) => event.stopPropagation()}
