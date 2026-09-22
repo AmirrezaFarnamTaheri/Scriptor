@@ -67,7 +67,7 @@ export function searchQuestionAnswers(query: string, category = ''): HelpAnswerR
     for (const [question, answer] of guide.questions) {
       const q = words(question).join(' ')
       const a = words(answer).join(' ')
-      const score = terms.reduce((total, term) => total + (q.includes(term) ? 10 : a.includes(term) ? 3 : guide.title.toLocaleLowerCase('en').includes(term) ? 1 : 0), 0)
+      const score = terms.reduce((total, term) => total + (q.includes(term) ? 10 : a.includes(term) ? 3 : words(guide.title).join(' ').includes(term) ? 1 : 0), 0)
       if (score > 0) results.push({ guide, question, answer, score })
     }
   }
