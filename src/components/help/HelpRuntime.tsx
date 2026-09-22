@@ -58,7 +58,7 @@ export function HelpRuntime() {
     const observer = new MutationObserver(() => {
       if (!findGuideTarget(invitation)) setInvitation(null)
     })
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden', 'style', 'class'] })
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden'] })
     return () => observer.disconnect()
   }, [invitation, store])
 
@@ -78,6 +78,11 @@ export function HelpRuntime() {
       event.preventDefault()
       event.stopImmediatePropagation()
       if (document.querySelector('.help-center[open]')) return
+      if (invitation && document.activeElement instanceof Element && document.activeElement.closest('.help-invitation')) {
+        const progress = getProgress(store.getSnapshot().preferences, invitation.id)
+        open({ id: invitation.id, view: progress.step > 0 && !progress.completed ? 'tour' : 'guide' })
+        return
+      }
       const focused = document.activeElement instanceof Element && document.activeElement !== document.body ? document.activeElement : null
       const previous = lastInteraction.current?.isConnected ? lastInteraction.current : null
       const guide = contextGuide(focused ?? previous)
@@ -109,7 +114,7 @@ export function HelpRuntime() {
       observer.disconnect()
       highlightCleanup.current?.()
     }
-  }, [maybeOffer, open, store])
+  }, [invitation, maybeOffer, open, store])
 
   const reveal = useCallback((guide: HelpGuide, selector?: string): boolean => {
     const target = findGuideTarget(guide, selector)
