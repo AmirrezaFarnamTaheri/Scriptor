@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import { X } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import { browseGuides, getGuide, HELP_CATEGORIES } from '../../lib/help/catalog'
+import { browseGuides, getGuide, HELP_CATEGORIES, searchQuestionAnswers } from '../../lib/help/catalog'
 import type { HelpGuide, HelpRequest, HelpView } from '../../lib/help/types'
 import type { HelpProgressStore } from '../../lib/help/progress'
 import { helpLabels } from '../../lib/help/labels'
@@ -32,6 +32,7 @@ export function HelpCenter({ request, store, onClose, onReveal, returnFocus = nu
   const { storageWarning } = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
   const guide = getGuide(id)
   const results = browseGuides(id, query, category)
+  const answers = searchQuestionAnswers(query, category)
   useEscapeToClose(true, onClose)
 
   useEffect(() => {
@@ -79,6 +80,21 @@ export function HelpCenter({ request, store, onClose, onReveal, returnFocus = nu
           <label>{labels.search}<input ref={searchRef} type="search" maxLength={256} value={query} onChange={(event) => setQuery(event.target.value)} /></label>
           <label>{labels.category}<select value={category} onChange={(event) => setCategory(event.target.value)}><option value="">{labels.all}</option>{HELP_CATEGORIES.map((name) => <option value={name} key={name} lang="en">{name}</option>)}</select></label>
           <p className="help-result-count" role="status">{labels.results}: {results.length}</p>
+          {answers.length > 0 ? (
+            <section className="help-answer-results" aria-label={labels.answerResults}>
+              <h2>{labels.answerResults}</h2>
+              <ul>
+                {answers.map((match) => (
+                  <li key={`${match.guide.id}:${match.question}`}>
+                    <button type="button" onClick={() => { setId(match.guide.id); setView('questions') }} lang="en" dir="ltr">
+                      <strong>{match.question}</strong>
+                      <small>{match.guide.title}</small>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           <nav aria-label={labels.results}><ul>{results.map((item) => <li key={item.id}><button type="button" aria-current={id === item.id ? 'page' : undefined} onClick={() => selectGuide(item.id)} lang="en" dir="ltr">{item.title}</button></li>)}</ul></nav>
           {results.length === 0 ? <p role="status">{labels.noResults}</p> : null}
         </aside>
