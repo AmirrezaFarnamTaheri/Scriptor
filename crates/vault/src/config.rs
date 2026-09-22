@@ -221,7 +221,7 @@ fn default_true() -> bool {
 }
 
 fn default_autosuggest_min_chars() -> u32 {
-    2
+    4
 }
 
 fn default_autosuggest_max_results() -> u32 {
