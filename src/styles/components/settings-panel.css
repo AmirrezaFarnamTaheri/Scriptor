@@ -4,6 +4,43 @@
   margin-bottom: 12px;
 }
 
+.settings-toggle-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.settings-toggle-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-muted);
+  color: var(--ink);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.settings-toggle-card:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+}
+
+.settings-toggle-card input {
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+}
+
+.settings-toggle-card span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 /* Shell styling is delegated to unified-panel.css */
 
 .settings-section {
