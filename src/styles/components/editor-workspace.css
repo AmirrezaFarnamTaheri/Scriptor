@@ -92,7 +92,7 @@ body.is-split-resizing .editor-preview-pane {
 
 .editable-preview-editor .cm-content {
   box-sizing: border-box;
-  width: min(100%, calc(var(--preview-max-ch, 72) * 1ch + 48px));
+  width: min(100%, calc(var(--preview-max-ch, 72ch) + 48px));
   max-width: 100%;
   min-height: 100%;
   margin-inline: auto;
