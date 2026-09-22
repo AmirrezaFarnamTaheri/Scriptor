@@ -134,9 +134,8 @@ export function ToolbarPopover({
     const handleViewportScroll = (event: Event) => {
       const target = event.target
       // Scroll events do not bubble, so this capture listener also observes the
-      // popover's own scrolling. Repositioning during that scroll temporarily
-      // removes max-height for measurement and can reset/clamp scrollTop,
-      // making long Tools menus feel impossible to scroll.
+      // popover's own scrolling. The menu is fixed to the viewport; its own
+      // scroll must not trigger geometry work that can clamp or disturb scrollTop.
       if (target instanceof Node && panelRef.current?.contains(target)) return
       updatePosition()
     }
