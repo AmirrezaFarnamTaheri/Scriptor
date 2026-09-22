@@ -27,7 +27,7 @@ export function ReferencesPreviewPanel({
   const { formatInline, formatBibliography, usingCiteproc } = useCiteprocPreview(bibliography, citationKeys)
 
   return (
-    <section className="references-preview-panel" aria-label="References in note" data-help-topic="bibliography">
+    <section className="references-preview-panel" aria-label="References in note" data-help-topic="references-preview">
       <header>
         <h3>
           <BookMarked size={16} />
