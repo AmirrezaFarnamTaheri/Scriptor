@@ -181,6 +181,27 @@ test.describe('workspace flows', () => {
     expect(Math.abs((settled?.y ?? 0) - (first?.y ?? 0))).toBeLessThanOrEqual(1)
   })
 
+  test('top-bar command entry stays stable while the editor draft changes', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await waitForWorkspace(page)
+
+    const commandEntry = page.locator('.command-search')
+    const baseline = await commandEntry.boundingBox()
+    expect(baseline).not.toBeNull()
+    const background = await commandEntry.evaluate((element) => getComputedStyle(element).backgroundColor)
+    expect(background).not.toBe('rgba(0, 0, 0, 0)')
+
+    await appendEditorLine(page, 'command-search-flicker-regression')
+    await page.waitForTimeout(900)
+
+    const next = await commandEntry.boundingBox()
+    expect(next).not.toBeNull()
+    expect(Math.abs((next?.x ?? 0) - (baseline?.x ?? 0))).toBeLessThanOrEqual(1)
+    expect(Math.abs((next?.y ?? 0) - (baseline?.y ?? 0))).toBeLessThanOrEqual(1)
+    expect(Math.abs((next?.width ?? 0) - (baseline?.width ?? 0))).toBeLessThanOrEqual(1)
+    expect(Math.abs((next?.height ?? 0) - (baseline?.height ?? 0))).toBeLessThanOrEqual(1)
+  })
+
   test('performance HUD toggle shows metrics overlay', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
