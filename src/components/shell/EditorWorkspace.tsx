@@ -3,6 +3,8 @@ import {
   memo,
   Suspense,
   useCallback,
+  useEffect,
+  useRef,
   type CSSProperties,
   type PointerEventHandler,
   type RefObject,
@@ -248,19 +250,41 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
     onEditorSurfaceModeChange,
   } = props
   const { t } = useI18n()
+  const lastActiveSplitSurfaceRef = useRef<'source' | 'preview'>('source')
+
+  useEffect(() => {
+    // Split opens with Source as the command target. Moving the caret in the
+    // visual pane promotes Preview until Source receives the next caret move.
+    lastActiveSplitSurfaceRef.current = 'source'
+  }, [activePath, showSplitPreview])
+
+  const handleSourceLineChange = useCallback((line: number) => {
+    lastActiveSplitSurfaceRef.current = 'source'
+    handleEditorLine(line)
+  }, [handleEditorLine])
+
+  const handleVisualPreviewLineChange = useCallback((line: number) => {
+    lastActiveSplitSurfaceRef.current = 'preview'
+    handlePreviewLine(line)
+  }, [handlePreviewLine])
+
+  const activeEditorHandle = useCallback(() => {
+    if (showSplitPreview && lastActiveSplitSurfaceRef.current === 'preview') {
+      return previewEditorRef.current ?? editorRef.current
+    }
+    return editorRef.current
+  }, [editorRef, previewEditorRef, showSplitPreview])
+
   const handleApplyEditorTransform = useCallback(
     (action: EditorTransformAction) => {
-      const previewEditor = previewEditorRef.current
-      const activeElement = typeof document === 'undefined' ? null : document.activeElement
-      const activePreview = previewEditor?.getScrollElement()?.contains(activeElement) ? previewEditor : null
-      const target = activePreview ?? editorRef.current
+      const target = activeEditorHandle()
       if (target && 'applyTransform' in target) {
         target.applyTransform(action)
         return
       }
       applyEditorTransform(action)
     },
-    [applyEditorTransform, editorRef, previewEditorRef],
+    [activeEditorHandle, applyEditorTransform],
   )
 
   const handleApplyEditorTypography = useCallback(
@@ -275,7 +299,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
       }
       applyEditorTypography(action)
     },
-    [applyEditorTypography, editorRef, previewEditorRef],
+    [activeEditorHandle, applyEditorTypography],
   )
 
   const handleInsertSnippet = useCallback(
@@ -290,7 +314,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
       }
       insertSnippet(content)
     },
-    [editorRef, insertSnippet, previewEditorRef],
+    [activeEditorHandle, insertSnippet],
   )
 
   return (
@@ -405,7 +429,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                       onChange={updateDraft}
                       scrollToLine={scrollToEditorLine}
                       scrollSyncEnabled={scrollSyncEnabled}
-                      onVisibleLineChange={scrollSyncEnabled ? handleEditorLine : undefined}
+                      onVisibleLineChange={scrollSyncEnabled ? handleSourceLineChange : undefined}
                       insertRequest={editorInsertRequest}
                       transformRequest={editorTransformRequest}
                       typographyRequest={editorTypographyRequest}
@@ -465,7 +489,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                   distractionFree={distractionFree}
                   showLineNumbers={showLineNumbers}
                   completionContext={monacoCompletionContext}
-                  onVisibleLineChange={scrollSyncEnabled ? handleEditorLine : undefined}
+                  onVisibleLineChange={scrollSyncEnabled ? handleSourceLineChange : undefined}
                   className="markdown-editor monaco-editor-host"
                 />
               ) : (
@@ -479,7 +503,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                 transformRequest={editorTransformRequest}
                 typographyRequest={editorTypographyRequest}
                 scrollSyncEnabled={scrollSyncEnabled}
-                onVisibleLineChange={handleEditorLine}
+                onVisibleLineChange={handleSourceLineChange}
                 snippetContext={snippetContext}
                 snippetCatalog={snippetCatalog}
                 autocompleteContext={editorAutocompleteContext}
@@ -574,7 +598,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                     value={draftMarkdown}
                     onChange={updateDraft}
                     scrollSyncEnabled={scrollSyncEnabled}
-                    onVisibleLineChange={handlePreviewLine}
+                    onVisibleLineChange={handleVisualPreviewLineChange}
                     snippetContext={snippetContext}
                     snippetCatalog={snippetCatalog}
                     autocompleteContext={editorAutocompleteContext}
