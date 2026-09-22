@@ -130,3 +130,37 @@ test('Help stays readable at 375px and explicitly marks English guide content in
   await page.keyboard.press('Escape')
   await expect(dialog).toBeHidden()
 })
+
+
+test('complex features offer a guide once on first open and remain manually replayable', async ({ page }) => {
+  await launchApp(page)
+  await page.evaluate(() => localStorage.removeItem('scriptor:help-guides:v1'))
+  await openCommandPalette(page)
+  await runCommand(page, 'Open graph')
+  const invitation = page.locator('.help-invitation')
+  await expect(invitation).toBeVisible()
+  await expect(invitation).toContainText('Knowledge graph navigation')
+  await invitation.getByRole('button', { name: 'Open guide', exact: true }).click()
+  await expect(help(page).getByRole('heading', { name: 'Knowledge graph navigation', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('Escape')
+
+  await openCommandPalette(page)
+  await runCommand(page, 'Open graph')
+  await expect(page.getByRole('dialog', { name: 'Knowledge graph', exact: true })).toBeVisible()
+  await expect(page.locator('.help-invitation')).toHaveCount(0)
+
+  await page.keyboard.press('F1')
+  await expect(help(page).getByRole('heading', { name: 'Knowledge graph navigation', exact: true })).toBeVisible()
+})
+
+test('manual reference surfaces do not interrupt first use with an invitation', async ({ page }) => {
+  await launchApp(page)
+  await page.evaluate(() => localStorage.removeItem('scriptor:help-guides:v1'))
+  await openCommandPalette(page)
+  await runCommand(page, 'Browse tags')
+  await expect(page.getByRole('dialog', { name: 'Tag browser', exact: true })).toBeVisible()
+  await expect(page.locator('.help-invitation')).toHaveCount(0)
+  await page.keyboard.press('F1')
+  await expect(help(page).getByRole('heading', { name: 'Tags and tag browser', exact: true })).toBeVisible()
+})
