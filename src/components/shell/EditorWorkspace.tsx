@@ -210,8 +210,8 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
     onSplitHandlePointerUp,
     onSplitHandlePointerCancel,
     onSplitHandleDoubleClick,
-  splitRatioPct,
-  onSplitHandleNudge,
+    splitRatioPct,
+    onSplitHandleNudge,
     editorWorkspaceRef,
     previewEditorRef,
     editorRef,
@@ -289,10 +289,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
 
   const handleApplyEditorTypography = useCallback(
     (action: TypographyAction) => {
-      const previewEditor = previewEditorRef.current
-      const activeElement = typeof document === 'undefined' ? null : document.activeElement
-      const activePreview = previewEditor?.getScrollElement()?.contains(activeElement) ? previewEditor : null
-      const target = activePreview ?? editorRef.current
+      const target = activeEditorHandle()
       if (target && 'applyTypography' in target) {
         target.applyTypography(action)
         return
@@ -304,10 +301,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
 
   const handleInsertSnippet = useCallback(
     (content: string) => {
-      const previewEditor = previewEditorRef.current
-      const activeElement = typeof document === 'undefined' ? null : document.activeElement
-      const activePreview = previewEditor?.getScrollElement()?.contains(activeElement) ? previewEditor : null
-      const target = activePreview ?? editorRef.current
+      const target = activeEditorHandle()
       if (target && 'insertSnippet' in target) {
         target.insertSnippet(content)
         return
