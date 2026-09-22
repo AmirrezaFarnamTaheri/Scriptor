@@ -411,6 +411,8 @@ export interface MarkdownEditorProps {
   typewriter?: boolean
   focusDim?: boolean
   distractionFree?: boolean
+  /** Secondary synchronized editors must not own the document-wide focus class. */
+  manageDistractionFreeClass?: boolean
   showLineNumbers?: boolean
   editorTheme?: EditorThemeId
   onVimSave?: () => void | Promise<void>
@@ -439,6 +441,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     typewriter = false,
     focusDim = false,
     distractionFree = false,
+    manageDistractionFreeClass = true,
     showLineNumbers = true,
     editorTheme = 'light',
     onVimSave,
@@ -597,9 +600,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   }, [showLineNumbers])
 
   useEffect(() => {
+    if (!manageDistractionFreeClass) return
     setDistractionFreeClass(distractionFree)
     return () => setDistractionFreeClass(false)
-  }, [distractionFree])
+  }, [distractionFree, manageDistractionFreeClass])
 
   useEffect(() => {
     adapterRef.current?.setEditorTheme(editorTheme)
