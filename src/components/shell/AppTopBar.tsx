@@ -255,7 +255,7 @@ function AppTopBarImpl({
 
   return (
     <>
-      <header className="topbar surface-glass" onContextMenu={onHeaderContextMenu}>
+      <header className="topbar surface-glass" data-help-topic="workspace" onContextMenu={onHeaderContextMenu}>
         <div className="brand">
           <IconButton
             label={vaultSidebarCollapsed ? t('topBar.expandSidebar') : t('topBar.collapseSidebar')}
