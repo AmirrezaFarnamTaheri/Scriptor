@@ -108,3 +108,14 @@
   .help-invitation { inset-inline: 8px; inset-block-end: 8px; width: auto; align-items: stretch; flex-direction: column; }
   .help-invitation-actions { justify-content: flex-start; }
 }
+
+.help-answer-results { min-height: 0; max-height: 180px; overflow-y: auto; border-block: 1px solid var(--border); padding-block: 8px; }
+.help-answer-results h2 { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+.help-answer-results ul { list-style: none; margin: 0; padding: 0; }
+.help-answer-results li + li { margin-top: 4px; }
+.help-answer-results button { width: 100%; text-align: start; padding: 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--ink); }
+.help-answer-results button:hover,
+.help-answer-results button:focus-visible { background: var(--primary-soft); border-color: var(--border-strong); }
+.help-answer-results strong,
+.help-answer-results small { display: block; overflow-wrap: anywhere; }
+.help-answer-results small { margin-top: 3px; color: var(--muted); font-size: 11px; }
