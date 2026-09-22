@@ -59,13 +59,31 @@
 }
 
 .command-palette-scope-hint {
+  min-height: 30px;
   margin: 0;
   padding: 7px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   border-bottom: 1px solid var(--border-soft, var(--border));
   background: var(--surface-muted);
   color: var(--muted);
   font-size: 11px;
   line-height: 1.4;
+}
+
+.command-palette-search-status {
+  flex: 0 0 auto;
+  min-width: 92px;
+  text-align: end;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 100ms var(--ease-soft);
+}
+
+.command-palette-search-status[data-active='true'] {
+  opacity: 1;
 }
 
 .command-palette ul {
