@@ -545,11 +545,12 @@ function App() {
   const {
     editorRef,
     previewRef,
+    previewEditorRef,
     inspectorPanelRef,
-    splitPreviewScrollRef,
     scrollSyncEnabled,
     visibleEditorLine,
     handleEditorLine,
+    handlePreviewLine,
     tocEntries,
     editorAutocompleteContext,
     monacoCompletionContext,
@@ -1518,11 +1519,11 @@ function App() {
           splitRatioPct={splitRatioPct}
           onSplitHandleNudge={onSplitHandleNudge}
           editorWorkspaceRef={editorWorkspaceRef}
-          splitPreviewScrollRef={splitPreviewScrollRef}
-          previewRef={previewRef}
+          previewEditorRef={previewEditorRef}
           editorRef={editorRef}
           scrollSyncEnabled={scrollSyncEnabled}
           handleEditorLine={handleEditorLine}
+          handlePreviewLine={handlePreviewLine}
           snippetContext={snippetContext}
           snippetCatalog={workspace.snippetCatalog}
           editorAutocompleteContext={editorAutocompleteContext}
@@ -1532,7 +1533,6 @@ function App() {
           editorTypographyRequest={workspace.editorTypographyRequest}
           scrollToEditorLine={workspace.scrollToEditorLine}
           saveImageFromClipboard={nativeReady ? workspace.saveVaultImage : undefined}
-          previewProps={previewBridge}
           insertSnippet={handleInsertSnippet}
           applyEditorTransform={workspace.applyEditorTransform}
           applyEditorTypography={workspace.applyEditorTypography}
