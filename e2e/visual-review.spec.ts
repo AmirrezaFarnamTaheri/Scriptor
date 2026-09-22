@@ -974,7 +974,10 @@ test.describe('visual review states', () => {
     const releaseQuality = settings.locator('.release-quality-panel')
     await expect(releaseQuality).toBeVisible()
     await releaseQuality.scrollIntoViewIfNeeded()
-    await captureElement(page, releaseQuality, 'visual-settings-release-quality.png')
+    await expect(releaseQuality.getByRole('heading', { name: 'Release quality dashboard', exact: true })).toBeInViewport()
+    // Capture the bounded Settings viewport, not the panel's full offscreen
+    // scroll height. Review evidence should match what a user can actually see.
+    await captureElement(page, settings, 'visual-settings-release-quality.png')
   })
 
   test('workspace layout presets evidence', async ({ page }) => {
@@ -1032,21 +1035,88 @@ test.describe('visual review states', () => {
     await expect(frame).toBeVisible()
     const viewer = frame.contentFrame().locator('#viewer-root')
     await expect(viewer.locator('#text-layer')).toContainText('Scriptor Reader')
-    const geometry = await viewer.evaluate((root) => {
+    await expect(viewer.locator('#text-layer')).toContainText('End of reader fixture.')
+
+    const initialGeometry = await viewer.evaluate((root) => {
       const shell = root.querySelector<HTMLElement>('#page-shell')
       const style = getComputedStyle(root)
       const padding = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0)
       return {
         availableWidth: root.clientWidth - padding,
+        viewportHeight: root.clientHeight,
+        contentHeight: root.scrollHeight,
         pageWidth: shell?.getBoundingClientRect().width ?? 0,
+        pageHeight: shell?.getBoundingClientRect().height ?? 0,
         horizontalOverflow: root.scrollWidth - root.clientWidth,
       }
     })
-    expect(geometry.pageWidth).toBeGreaterThan(0)
-    expect(geometry.pageWidth).toBeLessThanOrEqual(geometry.availableWidth + 1)
-    expect(geometry.pageWidth).toBeGreaterThanOrEqual(geometry.availableWidth * 0.9)
-    expect(geometry.horizontalOverflow).toBeLessThanOrEqual(1)
+    expect(initialGeometry.pageWidth).toBeGreaterThan(0)
+    expect(initialGeometry.pageWidth).toBeLessThanOrEqual(initialGeometry.availableWidth + 1)
+    expect(initialGeometry.pageWidth).toBeGreaterThanOrEqual(initialGeometry.availableWidth * 0.9)
+    expect(initialGeometry.pageHeight).toBeGreaterThan(initialGeometry.pageWidth * 1.2)
+    expect(initialGeometry.contentHeight).toBeGreaterThanOrEqual(initialGeometry.pageHeight)
+    expect(initialGeometry.horizontalOverflow).toBeLessThanOrEqual(1)
+
+    // Exercise vertical inspection on a realistically proportioned document.
+    // The previous 300x144 fixture could pass while never proving that a full
+    // portrait page remained reachable below the fold.
+    for (let index = 0; index < 3; index += 1) {
+      await reader.getByRole('button', { name: 'Zoom in' }).click()
+    }
+    await expect.poll(() => viewer.evaluate((root) => root.scrollHeight > root.clientHeight + 20)).toBe(true)
+    await viewer.evaluate((root) => { root.scrollTop = root.scrollHeight })
+    await expect.poll(() => viewer.locator('#text-layer').getByText('End of reader fixture.', { exact: true }).evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      const rootRect = document.querySelector('#viewer-root')!.getBoundingClientRect()
+      return rect.top >= rootRect.top - 2 && rect.bottom <= rootRect.bottom + 2
+    })).toBe(true)
+
+    for (let index = 0; index < 3; index += 1) {
+      await reader.getByRole('button', { name: 'Zoom out' }).click()
+    }
+    await viewer.evaluate((root) => { root.scrollTop = 0 })
+    await expect.poll(() => viewer.evaluate((root) => {
+      const shell = root.querySelector<HTMLElement>('#page-shell')
+      if (!shell) return false
+      const style = getComputedStyle(root)
+      const horizontalPadding =
+        (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0)
+      return shell.getBoundingClientRect().width <= root.clientWidth - horizontalPadding + 1
+    })).toBe(true)
     await captureElement(page, reader, 'visual-reader-pdf.png')
+  })
+
+  test('Reader EPUB surface evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.getByRole('button', { name: 'Book Draft.epub' }).click()
+
+    const reader = page.locator('.reader-panel')
+    await expect(reader).toBeVisible()
+    await expect(reader).toContainText('Book Draft.epub')
+    const frame = reader.locator('iframe[title*="Book Draft.epub"]')
+    await expect(frame).toBeVisible()
+
+    const viewer = frame.contentFrame()
+    const area = viewer.locator('#epub-area')
+    await expect(area).toBeVisible()
+    await expect(viewer.locator('#status')).toHaveCount(0, { timeout: 30_000 })
+    const chapterFrame = area.locator('iframe').first()
+    await expect(chapterFrame).toBeVisible({ timeout: 30_000 })
+    await expect(chapterFrame.contentFrame().getByRole('heading', { name: 'Scriptor Reader EPUB' })).toBeVisible()
+    await expect(chapterFrame.contentFrame().getByText('Deterministic EPUB fixture for visual review.')).toBeVisible()
+    await expect.poll(() => area.evaluate((element) => {
+      const frame = element.querySelector('iframe')
+      if (!frame) return false
+      const areaRect = element.getBoundingClientRect()
+      const frameRect = frame.getBoundingClientRect()
+      return element.scrollWidth <= element.clientWidth + 1
+        && frameRect.width > 0
+        && frameRect.height > 0
+        && frameRect.left >= areaRect.left - 1
+        && frameRect.right <= areaRect.right + 1
+    })).toBe(true)
+
+    await captureElement(page, reader, 'visual-reader-epub.png')
   })
 
   test('Reader annotation popover evidence', async ({ page }) => {
