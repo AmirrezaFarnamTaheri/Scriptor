@@ -37,7 +37,7 @@ export function LinkRewriteDialog({
         ref={dialogRef}
         className="rename-dialog"
         role="dialog"
-        data-help-topic="rename"
+        data-help-topic="link-rewrite"
         aria-modal="true"
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
