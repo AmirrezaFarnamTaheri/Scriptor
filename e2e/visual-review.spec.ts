@@ -1299,7 +1299,7 @@ test.describe('visual review states', () => {
     await expect(snippets.getByRole('button', { name: 'method-check', exact: true })).toBeVisible()
     await expect(snippets.getByLabel('Name', { exact: true })).toHaveValue('literature-note')
     await expect(snippets.getByLabel('Description', { exact: true })).toHaveValue('Structure a literature finding with its source.')
-    await expect(snippets.getByLabel('Content', { exact: true })).toContainText('Source:')
+    await expect(snippets.getByLabel('Content', { exact: true })).toHaveValue(/Source:/)
     await expect.poll(() => snippets.evaluate((element) => {
       const background = getComputedStyle(element).backgroundColor
       const rgba = background.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
