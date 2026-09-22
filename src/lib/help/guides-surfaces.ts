@@ -163,7 +163,7 @@ export const surfaceGuides: readonly HelpGuide[] = [
     id: 'status-dock', title: 'Status dock and operational tabs', category: 'Workspace', policy: 'manual',
     entry: 'Bottom status dock: Problems, Output, and Jobs.', prerequisite: 'Open a vault for workspace-specific operational status.',
     safety: 'The dock reports diagnostics and background work. Opening a tab does not retry, cancel, or mutate a job unless you invoke an explicit action inside it.',
-    source: 'src/components/StatusDockPanel.tsx', roots: ['.status-dock-panel', '#dock-panel-problems', '#dock-panel-output', '#dock-panel-jobs'],
+    source: 'src/components/StatusDockPanel.tsx', roots: ['.bottom-tabs', '#dock-panel-problems', '#dock-panel-output', '#dock-panel-search', '#dock-panel-jobs'],
     steps: [
       ['Start from the summary', 'Use the status footer and dock badges to decide whether Problems, Output, or Jobs contains the evidence you need.'],
       ['Open the matching tab', 'Problems is for actionable diagnostics, Output for operation messages, and Jobs for long-running export or background work.'],
