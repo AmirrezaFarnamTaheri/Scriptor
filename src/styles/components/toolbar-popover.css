@@ -6,6 +6,8 @@
   padding: 6px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  touch-action: pan-y;
   list-style: none;
   border: 1px solid var(--border);
   border-radius: 12px;
