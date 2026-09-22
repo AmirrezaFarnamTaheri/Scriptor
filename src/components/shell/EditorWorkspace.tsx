@@ -404,6 +404,8 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                       value={draftMarkdown}
                       onChange={updateDraft}
                       scrollToLine={scrollToEditorLine}
+                      scrollSyncEnabled={scrollSyncEnabled}
+                      onVisibleLineChange={scrollSyncEnabled ? handleEditorLine : undefined}
                       insertRequest={editorInsertRequest}
                       transformRequest={editorTransformRequest}
                       typographyRequest={editorTypographyRequest}
