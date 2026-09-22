@@ -78,8 +78,6 @@ export function ToolbarPopover({
 
     panel.style.minWidth = `${minimumWidth}px`
     panel.style.maxWidth = `${maximumWidth}px`
-    panel.style.maxHeight = 'none'
-
     const naturalWidth = Math.min(
       Math.max(panel.scrollWidth, minimumWidth),
       maximumWidth,
