@@ -152,7 +152,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
                 type="button"
                 className="primary-button"
                 onClick={() => void connectGoogle()}
-                disabled={!clientId.trim() || savingConnection}
+                disabled={savingConnection}
               >
                 <ExternalLink size={14} aria-hidden="true" />
                 {t('integrations.google.connect')}
