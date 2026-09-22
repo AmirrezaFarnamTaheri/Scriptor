@@ -19,7 +19,7 @@ The authored registry is `src/lib/help/catalog.ts`. Each entry records its openi
 
 **One-time first-open invitation:** Knowledge Workbench, Graph, Canvas, Tasks, Kanban, Reader, Export & publish, Runtime plugins, Built-in modules, Google integration, Gmail, MCP automation, Sharing/resource sync, and Git.
 
-**Manual only:** editor/toolbar reference and toolbar customization, search, tags, saved views, collections, frontmatter, citations/bibliography, preview QA, status dock tabs, vault workflow configuration, diagnostics, appearance, shortcuts, backups, restore, conflicts, note/block/section/tag rename and link-rewrite previews, external links, code chunks, mutation confirmations, permission prompts, advanced/daemon/performance tooling, and support. Dangerous operations are never promoted into automatic or one-click tours.
+**Manual only:** editor/toolbar reference, Typography transforms, Insert structures, toolbar customization, workspace modes, top-bar customization, mobile/narrow navigation, search, tags, saved views, collections, frontmatter, citations/bibliography, preview QA, status dock tabs, vault workflow configuration, diagnostics, appearance, shortcuts, backups, restore, conflicts, note/block/section/tag rename and link-rewrite previews, external links, code chunks, mutation confirmations, permission prompts, advanced/daemon/performance tooling, and support. Dangerous operations are never promoted into automatic or one-click tours.
 
 This split is intentional: first-open invitations are reserved for surfaces with a substantial mental model, non-obvious state, or experimental capability. Reference widgets and risky operations remain discoverable through contextual F1 and search without interrupting the user.
 
