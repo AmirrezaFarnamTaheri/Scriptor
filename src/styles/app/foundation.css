@@ -424,8 +424,13 @@ svg {
   padding: 0 14px;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--glass-bg) 70%, transparent);
+  /* Keep the command entry on its own opaque paint layer. The surrounding
+     top bar remains glass, but the high-frequency editor repaint underneath
+     must not invalidate this control while the user is typing. */
+  background: color-mix(in srgb, var(--surface) 92%, var(--bg));
   box-shadow: inset 0 1px 0 var(--glass-highlight);
+  contain: paint;
+  isolation: isolate;
   cursor: pointer;
   transition: box-shadow 150ms var(--ease-soft), border-color 150ms var(--ease-soft);
 }
