@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import { X } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import { browseGuides, getGuide, HELP_CATEGORIES } from '../../lib/help/catalog'
+import { browseGuides, getGuide, HELP_CATEGORIES, searchAnswers } from '../../lib/help/catalog'
 import type { HelpGuide, HelpRequest, HelpView } from '../../lib/help/types'
 import type { HelpProgressStore } from '../../lib/help/progress'
 import { helpLabels } from '../../lib/help/labels'
@@ -32,6 +32,7 @@ export function HelpCenter({ request, store, onClose, onReveal, returnFocus = nu
   const { storageWarning } = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
   const guide = getGuide(id)
   const results = browseGuides(id, query, category)
+  const answers = searchAnswers(query, category).slice(0, 6)
   useEscapeToClose(true, onClose)
 
   useEffect(() => {
@@ -83,7 +84,22 @@ export function HelpCenter({ request, store, onClose, onReveal, returnFocus = nu
           {results.length === 0 ? <p role="status">{labels.noResults}</p> : null}
         </aside>
         <div className="help-reading-pane">
-          <HelpTopic key={id} guide={guide} view={view} labels={labels} store={store} onView={setView} onGuide={selectGuide} onReveal={onReveal} />
+          {answers.length > 0 ? (
+            <section className="help-answer-results" aria-labelledby="help-answer-results-title">
+              <h2 id="help-answer-results-title">{labels.quickAnswers}</h2>
+              <p className="help-note">{labels.offline}</p>
+              {answers.map((hit) => (
+                <article className="help-answer-card" key={`${hit.guide.id}:${hit.question}`} lang="en" dir="ltr">
+                  <p className="help-eyebrow">{hit.guide.title}</p>
+                  <h3>{hit.question}</h3>
+                  <p>{hit.answer}</p>
+                  <button type="button" className="toolbar-button" onClick={() => { setId(hit.guide.id); setView('questions'); setQuery('') }}>{labels.openGuide}</button>
+                </article>
+              ))}
+            </section>
+          ) : (
+            <HelpTopic key={id} guide={guide} view={view} labels={labels} store={store} onView={setView} onGuide={selectGuide} onReveal={onReveal} />
+          )}
         </div>
       </div>
       <footer className="help-center-footer">
