@@ -1181,8 +1181,18 @@ test.describe('visual review states', () => {
     await expect(viewer.locator('#status')).toHaveCount(0, { timeout: 30_000 })
     const chapterFrame = area.locator('iframe').first()
     await expect(chapterFrame).toBeVisible({ timeout: 30_000 })
-    await expect(chapterFrame.contentFrame().getByRole('heading', { name: 'Scriptor Reader EPUB' })).toBeVisible()
-    await expect(chapterFrame.contentFrame().getByText('Deterministic EPUB fixture for visual review.')).toBeVisible()
+    const chapter = chapterFrame.contentFrame()
+    const chapterHeading = chapter.getByRole('heading', { name: 'Scriptor Reader EPUB' })
+    await expect(chapterHeading).toBeVisible()
+    await expect(chapter.getByText('Deterministic EPUB fixture for visual review.')).toBeVisible()
+    await expect.poll(() => chapter.locator('body').evaluate((body) => {
+      const bodyStyle = getComputedStyle(body)
+      const heading = body.querySelector('h1')
+      if (!(heading instanceof HTMLElement)) return false
+      const headingStyle = getComputedStyle(heading)
+      return bodyStyle.backgroundColor === 'rgb(17, 24, 39)'
+        && headingStyle.color === 'rgb(226, 232, 240)'
+    })).toBe(true)
     // epub.js may oversize/translate its chapter iframe while paginating.
     // The stable visual boundary is the generated .epub-container, which the
     // viewer host clips. Assert that owner instead of an internal iframe.
