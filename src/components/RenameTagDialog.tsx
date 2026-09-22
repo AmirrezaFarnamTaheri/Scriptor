@@ -21,6 +21,7 @@ export function RenameTagDialog({
   return (
     <LinkRewriteDialog
       title="Rename tag"
+      helpTopic="rename-tag"
       subtitle={`Current tag #${oldTag}`}
       preview={preview}
       isApplying={isApplying}
