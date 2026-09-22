@@ -754,16 +754,19 @@
   "integrations": {
     "google": {
       "title": "Google",
-      "description": "Verbinden Sie einmalig eine Google-OAuth-Client-ID vom Typ Desktop-App. Kalender und Aufgaben verwenden diese Verbindung; der Gmail-Manager kann dieselbe Client-ID mit eigenen, minimalen Berechtigungen verwenden.",
+      "description": "Verbinden Sie Ihr Google-Konto im Systembrowser. Kalender und Aufgaben verwenden diese Verbindung; der Gmail-Manager fordert beim Aktivieren eigene, minimale Berechtigungen an.",
+    "signInHelp": "Wählen Sie „Mit Google fortfahren“. In einer normalen Scriptor-Installation müssen Sie keine OAuth-Anmeldedaten erstellen oder einfügen.",
       "experimental": "Experimentelle Integration.",
       "security": "Aktualisierungstoken werden im Schlüsselbund des Betriebssystems gespeichert. Scriptor verwendet PKCE und einen lokalen Loopback-Rückruf; ein Client-Secret ist nicht erforderlich.",
       "enableCalendarTasks": "Google Kalender & Aufgaben aktivieren",
       "clientId": "Google-OAuth-Client-ID (Desktop-App)",
-      "clientHelp": "Erstellen Sie in Google Cloud eine OAuth-2.0-Anmeldedaten vom Typ Desktop-App. Fügen Sie kein Client-Secret ein. Web-App-Anmeldedaten sind mit Scriptors Loopback-Rückruf nicht kompatibel.",
+      "clientHelp": "Optionaler Entwickler-Override für Quell- oder private Builds. Verwenden Sie eine OAuth-2.0-Client-ID vom Typ Desktop-App; fügen Sie niemals ein Client-Secret ein.",
+    "developerOverride": "OAuth-Override für Entwickler",
+    "developerOverrideHelp": "In normalen Installationen leer lassen. Paketierte Releases verwenden Scriptors eigene Google-OAuth-Client-ID.",
       "lookahead": "Vorschaufenster (Tage)",
       "showEvents": "Kalendertermine in Aufgaben anzeigen",
       "mirrorTasks": "Vault → Google Tasks-Spiegelung aktivieren (Änderungen werden erst nach Ihrer Bestätigung übertragen)",
-      "connect": "Mit Google verbinden",
+      "connect": "Mit Google fortfahren",
       "syncNow": "Jetzt synchronisieren",
       "disconnect": "Trennen",
       "status": {
@@ -773,7 +776,7 @@
         "synced": "Verbunden",
         "error": "Aktion erforderlich"
       },
-      "gmailNote": "Der Gmail-Manager wird separat unter Plugins aktiviert und fordert eigene Gmail-Berechtigungen an. Er kann dieselbe Client-ID verwenden."
+      "gmailNote": "Der Gmail-Manager wird separat unter Plugins aktiviert und fordert eigene Gmail-Berechtigungen mit derselben Scriptor-Google-Anwendungsidentität an."
     },
     "gmail": {
       "title": "Gmail",
