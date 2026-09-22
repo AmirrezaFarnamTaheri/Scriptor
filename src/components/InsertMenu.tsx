@@ -17,7 +17,7 @@ export function InsertMenu({ disabled, onInsert }: InsertMenuProps) {
 
 
   return (
-    <div className="insert-menu">
+    <div className="insert-menu" data-help-topic="toolbar">
       <button
         ref={triggerRef}
         id={triggerId}
