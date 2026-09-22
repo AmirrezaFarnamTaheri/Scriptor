@@ -103,3 +103,14 @@
   .help-invitation { inset-inline: 8px; inset-block-end: 8px; width: auto; }
   .help-invitation-actions > button { flex: 1 1 auto; }
 }
+
+.help-answer-results { display: grid; gap: 12px; }
+.help-answer-results > h2 { margin-block-end: 0; }
+.help-answer-card {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-muted);
+}
+.help-answer-card h3 { margin-block-start: 2px; }
+.help-answer-card > p:last-of-type { margin-block-end: 12px; }
