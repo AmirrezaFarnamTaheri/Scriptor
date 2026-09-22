@@ -48,3 +48,28 @@ export function browseGuides(currentId: string, query: string, category = ''): H
     .map((id) => byId.get(id))
     .filter((guide): guide is HelpGuide => Boolean(guide))
 }
+
+
+export interface HelpAnswerResult {
+  guide: HelpGuide
+  question: string
+  answer: string
+  score: number
+}
+
+/** Direct Q&A lookup over bundled content. It never reads vault text or calls a provider. */
+export function searchQuestionAnswers(query: string, category = ''): HelpAnswerResult[] {
+  const terms = words(query.slice(0, 256)).slice(0, 12)
+  if (terms.length === 0) return []
+  const results: HelpAnswerResult[] = []
+  for (const guide of HELP_GUIDES) {
+    if (category && guide.category !== category) continue
+    for (const [question, answer] of guide.questions) {
+      const q = words(question).join(' ')
+      const a = words(answer).join(' ')
+      const score = terms.reduce((total, term) => total + (q.includes(term) ? 10 : a.includes(term) ? 3 : guide.title.toLocaleLowerCase('en').includes(term) ? 1 : 0), 0)
+      if (score > 0) results.push({ guide, question, answer, score })
+    }
+  }
+  return results.sort((left, right) => right.score - left.score || left.question.localeCompare(right.question)).slice(0, 20)
+}
