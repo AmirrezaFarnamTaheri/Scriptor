@@ -58,6 +58,27 @@ test.describe('Markdown preview resilience', () => {
     await expect(page.getByText(/could not be displayed/i)).toHaveCount(0)
   })
 
+  test('Preview mode is writable by default and preserves edits when returning to Source', async ({ page }) => {
+    const editorToolbar = page.locator('.editor-toolbar')
+    await editorToolbar.getByRole('button', { name: 'Preview', exact: true }).click()
+
+    const visualPreview = page.locator('.editor-rendered-view .editable-preview-editor')
+    const previewLines = visualPreview.locator('.cm-line')
+    await expect(previewLines.first()).toBeVisible({ timeout: 10_000 })
+
+    const marker = 'Written directly in Preview mode.'
+    await previewLines.last().click()
+    await page.keyboard.press('End')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type(marker)
+    await expect(visualPreview.locator('.cm-content')).toContainText(marker)
+
+    await editorToolbar.getByRole('button', { name: 'Source', exact: true }).click()
+    await expect(page.locator('.monaco-editor .view-lines')).toContainText(marker, {
+      timeout: 10_000,
+    })
+  })
+
   test('split preview is writable and stays synchronized with source edits', async ({ page }) => {
     const editorToolbar = page.locator('.editor-toolbar')
     await editorToolbar.getByRole('button', { name: 'Split', exact: true }).click()
