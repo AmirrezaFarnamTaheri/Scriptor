@@ -136,10 +136,12 @@ function sourceFiles(root: string): string[] {
 test('source-owned help topics resolve to authored guides and major panels/dialogs keep a contextual owner', () => {
   const files = sourceFiles('src/components')
   const literalTopic = /(?:data-help-topic|helpTopic)=["']([a-z][a-z0-9-]+)["']/g
+  const reachableTopics = new Set<string>()
 
   for (const path of files) {
     const source = readFileSync(path, 'utf8')
     for (const match of source.matchAll(literalTopic)) {
+      reachableTopics.add(match[1]!)
       assert.ok(HELP_BY_ID.has(match[1]!), `${path} references unknown help topic ${match[1]}`)
     }
 
@@ -150,5 +152,9 @@ test('source-owned help topics resolve to authored guides and major panels/dialo
     if (/role=["'](?:dialog|alertdialog)["']/.test(source)) {
       assert.match(source, /(?:data-help-topic|helpTopic)=/, `${path} dialog must expose contextual help ownership`)
     }
+  }
+
+  for (const id of FIRST_OPEN_GUIDE_IDS) {
+    assert.ok(reachableTopics.has(id), `first-open guide ${id} has no reachable source-owned help topic`)
   }
 })
