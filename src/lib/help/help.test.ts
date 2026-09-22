@@ -7,7 +7,7 @@ import { parseHelpRequest } from './request.ts'
 import { HELP_STORAGE_KEY } from './types.ts'
 
 test('all guides have unique ids, authored steps, questions, entry paths, safety, and valid related guides', () => {
-  assert.ok(HELP_GUIDES.length >= 98)
+  assert.ok(HELP_GUIDES.length >= 103)
   assert.equal(HELP_BY_ID.size, HELP_GUIDES.length)
   for (const guide of HELP_GUIDES) {
     assert.match(guide.id, /^[a-z][a-z0-9-]+$/)
