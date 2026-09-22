@@ -991,8 +991,9 @@ test.describe('visual review states', () => {
 
     const releaseQuality = settings.locator('.release-quality-panel')
     await expect(releaseQuality).toBeVisible()
-    await releaseQuality.scrollIntoViewIfNeeded()
-    await expect(releaseQuality.getByRole('heading', { name: 'Release quality dashboard', exact: true })).toBeInViewport()
+    const releaseQualityHeading = releaseQuality.getByRole('heading', { name: 'Release quality dashboard', exact: true })
+    await releaseQualityHeading.scrollIntoViewIfNeeded()
+    await expect(releaseQualityHeading).toBeInViewport()
     // Capture the bounded Settings viewport, not the panel's full offscreen
     // scroll height. Review evidence should match what a user can actually see.
     await captureElement(page, settings, 'visual-settings-release-quality.png')
@@ -1007,7 +1008,13 @@ test.describe('visual review states', () => {
     await expect(store.getByRole('button', { name: 'Apply Zen layout' })).toBeVisible()
     await settleLayout(page)
     await expectNoHorizontalOverflow(page)
-    await captureElement(page, store, 'visual-layout-presets.png')
+    const inspector = page.locator('.inspector-panel')
+    await captureElement(page, inspector, 'visual-layout-presets.png')
+
+    const storeBody = store.locator('.store-panel-body')
+    await storeBody.evaluate((element) => { element.scrollTop = element.scrollHeight })
+    await expect.poll(() => storeBody.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+    await captureElement(page, inspector, 'visual-layout-presets-bottom.png')
   })
 
   test('dark conflict resolver evidence', async ({ page }) => {
@@ -1391,11 +1398,11 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Open portal clipboard')
     const portal = page.locator('.portal-panel')
     await expect(portal).toBeVisible()
-    const body = portal.locator('.portal-body')
-    await expect.poll(() => body.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+    const scrollOwner = portal.locator('.unified-panel-body')
+    await expect.poll(() => scrollOwner.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
     await captureElement(page, portal, 'visual-portal.png')
 
-    await body.evaluate((element) => { element.scrollTop = element.scrollHeight })
+    await scrollOwner.evaluate((element) => { element.scrollTop = element.scrollHeight })
     const pinOption = portal.getByText('Pin for quick invoke bar and shortcut palette', { exact: true })
     const addItem = portal.getByRole('button', { name: 'Add item', exact: true })
     await expect(pinOption).toBeInViewport()
