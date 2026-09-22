@@ -54,7 +54,7 @@ export const WorkspaceChromeSettingsSection = memo(function WorkspaceChromeSetti
   ]
 
   return (
-    <section className="settings-section" aria-labelledby="workspace-chrome-heading" data-help-topic="docks">
+    <section className="settings-section" aria-labelledby="workspace-chrome-heading" data-help-topic="workspace-chrome">
       <h3 id="workspace-chrome-heading">{t('settingsPanel.workspaceChrome')}</h3>
       <p className="health-subtitle">{t('settingsPanel.workspaceChromeHelp')}</p>
       <div className="settings-grid settings-toggles">
