@@ -105,6 +105,7 @@ function TabButton({
   label,
   id,
   controls,
+  helpTopic,
 }: {
   active: boolean
   onClick: () => void
@@ -114,6 +115,7 @@ function TabButton({
   id: string
   /** DOM id of the panel this tab reveals. */
   controls: string
+  helpTopic: string
 }) {
   return (
     <button
@@ -122,6 +124,7 @@ function TabButton({
       role="tab"
       aria-selected={active}
       aria-controls={controls}
+      data-help-topic={helpTopic}
       // Roving tabindex: only the selected tab is in the tab order, so Tab
       // enters and leaves the tablist once and arrows move between tabs.
       tabIndex={active ? 0 : -1}
@@ -751,6 +754,7 @@ export const StorePanel = memo(function StorePanel(props: StorePanelProps) {
             key={tab.id}
             id={tabId(tab.id)}
             controls={panelId(tab.id)}
+            helpTopic={tab.helpTopic}
             active={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
             icon={tab.icon}
@@ -766,6 +770,7 @@ export const StorePanel = memo(function StorePanel(props: StorePanelProps) {
         aria-labelledby={tabId(activeTab)}
         tabIndex={-1}
         className="store-panel-body"
+        data-help-topic={STORE_TABS.find((tab) => tab.id === activeTab)?.helpTopic}
       >
         {activeTab === 'plugins' && (
           <>
