@@ -45,7 +45,7 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
   {
     id: 'reviewer',
     name: 'Reviewer',
-    description: 'Split preview for comparing rendered output against source, no stickies.',
+    description: 'Source beside the writable visual preview, no stickies.',
     layout: { splitPreview: true, showStickies: false, graphDepth: 2, distractionFree: false },
   },
   {
