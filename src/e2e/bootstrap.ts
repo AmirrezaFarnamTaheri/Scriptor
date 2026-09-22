@@ -546,8 +546,10 @@ export function installE2eBridge(): void {
       }
       case 'vault_read_note_history_revision':
         return '# Previous revision\n'
-      case 'reader_read_document':
-        return Array.from(createMinimalReaderPdf())
+      case 'reader_read_document': {
+        const relPath = String((payload as { relPath?: string }).relPath ?? '')
+        return Array.from(relPath.toLowerCase().endsWith('.epub') ? createMinimalReaderEpub() : createMinimalReaderPdf())
+      }
       case 'reader_viewer_location': {
         const documentType = String((payload as { documentType?: string }).documentType ?? 'pdf')
         const filename = documentType === 'epub' ? 'epub-viewer.html' : 'pdf-viewer.html'
@@ -692,11 +694,17 @@ export function installE2eBridge(): void {
 
 function createMinimalReaderPdf(): Uint8Array {
   const encoder = new TextEncoder()
-  const stream = 'BT /F1 18 Tf 50 80 Td (Scriptor Reader) Tj ET\n'
+  const stream = [
+    'BT /F1 24 Tf 54 724 Td (Scriptor Reader) Tj ET',
+    'BT /F1 14 Tf 54 684 Td (Deterministic portrait PDF fixture for visual review.) Tj ET',
+    'BT /F1 14 Tf 54 656 Td (The reader must preserve the full page and support vertical inspection.) Tj ET',
+    'BT /F1 14 Tf 54 72 Td (End of reader fixture.) Tj ET',
+    '',
+  ].join('\\n')
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
     `<< /Length ${encoder.encode(stream).length} >>\nstream\n${stream}endstream`,
   ]
@@ -714,4 +722,107 @@ function createMinimalReaderPdf(): Uint8Array {
   }
   source += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`
   return encoder.encode(source)
+}
+
+function appendZipU16(target: number[], value: number) {
+  target.push(value & 0xff, (value >>> 8) & 0xff)
+}
+
+function appendZipU32(target: number[], value: number) {
+  target.push(value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff)
+}
+
+function appendZipBytes(target: number[], bytes: Uint8Array) {
+  for (const byte of bytes) target.push(byte)
+}
+
+function crc32(bytes: Uint8Array): number {
+  let crc = 0xffffffff
+  for (const byte of bytes) {
+    crc ^= byte
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0)
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+function createStoredZip(entries: readonly { name: string; body: string }[]): Uint8Array {
+  const encoder = new TextEncoder()
+  const local: number[] = []
+  const central: number[] = []
+
+  for (const entry of entries) {
+    const name = encoder.encode(entry.name)
+    const body = encoder.encode(entry.body)
+    const checksum = crc32(body)
+    const localOffset = local.length
+
+    appendZipU32(local, 0x04034b50)
+    appendZipU16(local, 20)
+    appendZipU16(local, 0)
+    appendZipU16(local, 0)
+    appendZipU16(local, 0)
+    appendZipU16(local, 0)
+    appendZipU32(local, checksum)
+    appendZipU32(local, body.length)
+    appendZipU32(local, body.length)
+    appendZipU16(local, name.length)
+    appendZipU16(local, 0)
+    appendZipBytes(local, name)
+    appendZipBytes(local, body)
+
+    appendZipU32(central, 0x02014b50)
+    appendZipU16(central, 20)
+    appendZipU16(central, 20)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU32(central, checksum)
+    appendZipU32(central, body.length)
+    appendZipU32(central, body.length)
+    appendZipU16(central, name.length)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU16(central, 0)
+    appendZipU32(central, 0)
+    appendZipU32(central, localOffset)
+    appendZipBytes(central, name)
+  }
+
+  const centralOffset = local.length
+  const output = [...local, ...central]
+  appendZipU32(output, 0x06054b50)
+  appendZipU16(output, 0)
+  appendZipU16(output, 0)
+  appendZipU16(output, entries.length)
+  appendZipU16(output, entries.length)
+  appendZipU32(output, central.length)
+  appendZipU32(output, centralOffset)
+  appendZipU16(output, 0)
+  return Uint8Array.from(output)
+}
+
+function createMinimalReaderEpub(): Uint8Array {
+  return createStoredZip([
+    { name: 'mimetype', body: 'application/epub+zip' },
+    {
+      name: 'META-INF/container.xml',
+      body: '<?xml version="1.0" encoding="UTF-8"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>',
+    },
+    {
+      name: 'OEBPS/content.opf',
+      body: '<?xml version="1.0" encoding="UTF-8"?><package version="3.0" unique-identifier="bookid" xmlns="http://www.idpf.org/2007/opf"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">scriptor-e2e</dc:identifier><dc:title>Scriptor Reader EPUB</dc:title><dc:language>en</dc:language><meta property="dcterms:modified">2026-09-20T00:00:00Z</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>',
+    },
+    {
+      name: 'OEBPS/nav.xhtml',
+      body: '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Contents</title></head><body><nav xmlns:epub="http://www.idpf.org/2007/ops" epub:type="toc"><ol><li><a href="chapter.xhtml">Reader fixture</a></li></ol></nav></body></html>',
+    },
+    {
+      name: 'OEBPS/chapter.xhtml',
+      body: '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Scriptor Reader EPUB</title></head><body><h1>Scriptor Reader EPUB</h1><p>Deterministic EPUB fixture for visual review.</p><p>This chapter verifies that the bundled EPUB reader renders real publication content instead of PDF bytes.</p></body></html>',
+    },
+  ])
 }
