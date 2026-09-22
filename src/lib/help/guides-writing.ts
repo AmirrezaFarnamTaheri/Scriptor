@@ -12,7 +12,7 @@ export const writingGuides: readonly HelpGuide[] = [
       ['Inspector rail', 'The right rail contains structure, links, references, rendered output, and plugin tools. Collapse it to give the document more room.', '.inspector-panel'],
       ['Editor tools', 'Source edits Markdown; Split shows source beside preview; Preview reads the rendered document. Typography, Insert, and Tools group less-frequent commands.', '.editor-toolbar'],
       ['Saving and recovery', 'Watch save/error status before closing or switching work. Note history, conflicts, snapshots, and external backups solve different recovery problems; do not treat an index as a backup.', '.status-strip'],
-      ['Help without extra chrome', 'Press F1 inside a feature for contextual guidance, or use the single global Help entry. Guides, tours, and answered questions remain replayable without adding Help buttons throughout the workspace.', 'header.topbar'],
+      ['Help without extra chrome', 'Press F1 inside a feature for contextual guidance, or Shift+F1 to start its walkthrough directly. Complex optional surfaces can offer one dismissible first-open orientation after onboarding; every tour still starts only when you choose it.', 'header.topbar'],
     ],
     questions: [['Does a tour operate the app for me?', 'No. Next acknowledges a reading step, not a successful operation. Show this control only reveals or focuses an already-visible control.'], ['Can I skip and return?', 'Yes. Skip the initial introduction; use F1 or Help & guides later. Individual tour progress is stored locally and is independent of your notes.']], related: ['vault', 'editor', 'recovery', 'docks'],
   },
