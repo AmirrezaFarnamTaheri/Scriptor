@@ -189,10 +189,6 @@ export function useGoogleCalendarSync({
   const lookaheadDays = config?.lookahead_days ?? DEFAULT_LOOKAHEAD_DAYS
 
   const startAuth = useCallback(async (): Promise<boolean> => {
-    if (!clientId) {
-      setError('Google OAuth client ID not configured. Set it in Settings → Integrations.')
-      return false
-    }
     const currentLifecycle = lifecycleGenerationRef.current
     const currentRefreshGen = ++refreshGenerationRef.current
     setStatus('authorizing')
