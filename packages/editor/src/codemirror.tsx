@@ -460,8 +460,8 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   }, [onChange])
 
   useEffect(() => {
-    onVisibleLineChangeRef.current = onVisibleLineChange
-  }, [onVisibleLineChange])
+    onVisibleLineChangeRef.current = scrollSyncEnabled ? onVisibleLineChange : undefined
+  }, [onVisibleLineChange, scrollSyncEnabled])
 
   useEffect(() => {
     onVimSaveRef.current = onVimSave
@@ -502,9 +502,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         onChangeRef.current(markdown)
       },
       readOnly,
-      onVisibleLineChange: scrollSyncEnabled
-        ? (line) => onVisibleLineChangeRef.current?.(line)
-        : undefined,
+      // Install the lightweight listener once. Whether synchronization is
+      // active is owned by the mutable callback ref above, so entering/leaving
+      // Split never destroys the editor (and therefore never drops caret/undo).
+      onVisibleLineChange: (line) => onVisibleLineChangeRef.current?.(line),
       snippetContext,
       snippetCatalog,
       autocompleteContext,
@@ -528,7 +529,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       adapterRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readOnly, scrollSyncEnabled])
+  }, [readOnly])
 
   useEffect(() => {
     setPasteImageHandler(saveImageFromClipboard ?? null)
