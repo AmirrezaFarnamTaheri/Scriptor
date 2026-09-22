@@ -32,6 +32,7 @@ const AUTH_SCOPE: &str = "google-calendar-auth";
 /// Broker scope for the Gmail Manager OAuth grant.
 const GMAIL_AUTH_SCOPE: &str = "google-gmail-auth";
 const GOOGLE_AUTH_REQUIRED_PREFIX: &str = "GOOGLE_AUTH_REQUIRED:";
+const GOOGLE_OAUTH_NOT_CONFIGURED: &str = "Google Sign-In is not configured in this build. Set SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID when packaging Scriptor, or provide a developer override.";
 
 const AUTH_ENDPOINT: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
@@ -803,15 +804,30 @@ fn map_task(task: GTask) -> GoogleTask {
 // Commands
 // ---------------------------------------------------------------------------
 
+fn bundled_google_oauth_client_id() -> Option<&'static str> {
+    option_env!("SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn resolve_google_oauth_client_id(client_id_override: Option<String>) -> Result<String, String> {
+    if let Some(value) = client_id_override {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+    bundled_google_oauth_client_id()
+        .map(str::to_owned)
+        .ok_or_else(|| GOOGLE_OAUTH_NOT_CONFIGURED.to_string())
+}
+
 fn start_google_auth(
-    client_id: String,
+    client_id_override: Option<String>,
     scopes: &str,
     keychain_account: &str,
 ) -> Result<String, String> {
-    let client_id = client_id.trim().to_owned();
-    if client_id.is_empty() {
-        return Err("Google OAuth client ID is required".into());
-    }
+    let client_id = resolve_google_oauth_client_id(client_id_override)?;
 
     let listener = TcpListener::bind("127.0.0.1:0")
         .map_err(|error| format!("failed to bind loopback listener: {error}"))?;
@@ -1073,7 +1089,7 @@ fn gmail_preview(message: GmailMessage) -> GmailMessagePreview {
 #[tauri::command]
 pub fn google_calendar_start_auth(
     state: tauri::State<AppState>,
-    client_id: String,
+    client_id: Option<String>,
     calendar_id: String,
     task_list_id: String,
     authorization_token: String,
@@ -1097,7 +1113,7 @@ pub fn google_calendar_start_auth(
 #[tauri::command]
 pub fn google_gmail_start_auth(
     state: tauri::State<AppState>,
-    client_id: String,
+    client_id: Option<String>,
     authorization_token: String,
 ) -> Result<String, String> {
     require_gmail_capability(&state)?;
