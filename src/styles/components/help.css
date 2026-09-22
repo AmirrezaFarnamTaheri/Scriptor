@@ -79,3 +79,32 @@
   .help-ui select { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .help-ui * { scroll-behavior: auto; transition: none; animation: none; } }
+
+
+/* One-time first-open guidance invitation. It never steals focus or starts a
+ * tour automatically; complex surfaces remain usable underneath it. */
+.help-invitation {
+  position: fixed;
+  inset-inline-end: 18px;
+  inset-block-end: 18px;
+  z-index: var(--z-toast, 1200);
+  width: min(420px, calc(100vw - 24px));
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-lg, 12px);
+  background: var(--dialog-bg, var(--bg-elevated));
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+}
+.help-invitation > div:first-child { flex: 1; min-width: 0; }
+.help-invitation strong { display: block; color: var(--ink-strong); }
+.help-invitation p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.help-invitation-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 520px) {
+  .help-invitation { inset-inline: 8px; inset-block-end: 8px; width: auto; align-items: stretch; flex-direction: column; }
+  .help-invitation-actions { justify-content: flex-start; }
+}
