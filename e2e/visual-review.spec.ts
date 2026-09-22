@@ -205,6 +205,14 @@ test.describe('visual review states', () => {
       }
       setDefault('scriptor:app-theme', 'light')
       setDefault('scriptor:onboarding-complete', 'true')
+      setDefault('scriptor:help-guides:v1', JSON.stringify({
+        version: 1,
+        progress: Object.fromEntries([
+          'workbench', 'graph', 'canvas', 'tasks', 'kanban', 'reader',
+          'export', 'publish', 'plugins', 'modules', 'google', 'gmail', 'ai', 'mcp',
+          'custom-theme', 'backups', 'resource-sync',
+        ].map((id) => [id, { step: 0, completed: false, introduced: true }])),
+      }))
       setDefault('scriptor:editor-mode', 'monaco')
       setDefault('scriptor:headless-engine', 'false')
       setDefault('scriptor:workspace-mode', 'writing')
