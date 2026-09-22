@@ -177,10 +177,12 @@ class CodeMirrorAdapter implements EditorAdapter {
       extensions.push(placeholder('Start writing Markdown...'))
     }
 
-    setVimModeCallbacks({
-      onSave: options.onVimSave,
-      onQuit: options.onVimQuit,
-    })
+    if (options.vimMode || options.onVimSave || options.onVimQuit) {
+      setVimModeCallbacks({
+        onSave: options.onVimSave,
+        onQuit: options.onVimQuit,
+      })
+    }
 
     this.view = new EditorView({
       parent: host,
@@ -441,11 +443,12 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   useEffect(() => {
     onVimSaveRef.current = onVimSave
     onVimQuitRef.current = onVimQuit
+    if (!vimMode && !onVimSave && !onVimQuit) return
     setVimModeCallbacks({
       onSave: () => onVimSaveRef.current?.(),
       onQuit: () => onVimQuitRef.current?.(),
     })
-  }, [onVimSave, onVimQuit])
+  }, [onVimSave, onVimQuit, vimMode])
 
   const lastEmittedValueRef = useRef<string | null>(null)
 
