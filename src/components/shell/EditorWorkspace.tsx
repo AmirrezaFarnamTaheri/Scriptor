@@ -3,7 +3,6 @@ import {
   memo,
   Suspense,
   useCallback,
-  useDeferredValue,
   type CSSProperties,
   type PointerEventHandler,
   type RefObject,
@@ -31,11 +30,6 @@ import { TocSidebar } from '../TocSidebar'
 import { SplitPaneHandle } from '../SplitPaneHandle'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
-import {
-  MarkdownPreview,
-  type MarkdownPreviewHandle,
-  type MarkdownPreviewProps,
-} from '@scriptor/renderer'
 import type { ExternalChangeConflict } from '../../types/vault'
 
 const LazyMonacoMarkdownEditor = lazy(() =>
@@ -118,11 +112,11 @@ interface EditorWorkspaceProps {
   splitRatioPct: number
   onSplitHandleNudge: (delta: number) => void
   editorWorkspaceRef: RefObject<HTMLDivElement | null>
-  splitPreviewScrollRef: RefObject<HTMLElement | null>
-  previewRef: RefObject<MarkdownPreviewHandle | null>
+  previewEditorRef: RefObject<MarkdownEditorHandle | null>
   editorRef: RefObject<MarkdownEditorHandle | null>
   scrollSyncEnabled: boolean
   handleEditorLine: (line: number) => void
+  handlePreviewLine: (line: number) => void
   snippetContext: SnippetVariableContext | undefined
   snippetCatalog: SnippetCatalogEntry[]
   editorAutocompleteContext: EditorAutocompleteContext
@@ -132,15 +126,6 @@ interface EditorWorkspaceProps {
   editorTypographyRequest: MarkdownEditorProps['typographyRequest']
   scrollToEditorLine: number | null
   saveImageFromClipboard?: (file: File) => Promise<string | null>
-  previewProps: Pick<
-    MarkdownPreviewProps,
-    | 'fetchNote'
-    | 'readVaultText'
-    | 'executeDql'
-    | 'runCodeChunk'
-    | 'postProcessHtml'
-    | 'renderPlantUmlLocal'
-  >
   insertSnippet: (content: string) => void
   applyEditorTransform: (action: EditorTransformAction) => void
   applyEditorTypography: (action: TypographyAction) => void
@@ -226,11 +211,11 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
   splitRatioPct,
   onSplitHandleNudge,
     editorWorkspaceRef,
-    splitPreviewScrollRef,
-    previewRef,
+    previewEditorRef,
     editorRef,
     scrollSyncEnabled,
     handleEditorLine,
+    handlePreviewLine,
     snippetContext,
     snippetCatalog,
     editorAutocompleteContext,
@@ -240,7 +225,6 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
     editorTypographyRequest,
     scrollToEditorLine,
     saveImageFromClipboard,
-    previewProps,
     insertSnippet,
     applyEditorTransform,
     applyEditorTypography,
@@ -264,39 +248,49 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
     onEditorSurfaceModeChange,
   } = props
   const { t } = useI18n()
-  const deferredDraftMarkdown = useDeferredValue(draftMarkdown)
-
   const handleApplyEditorTransform = useCallback(
     (action: EditorTransformAction) => {
-      if (editorRef?.current && 'applyTransform' in editorRef.current) {
-        editorRef.current.applyTransform(action)
+      const previewEditor = previewEditorRef.current
+      const activeElement = typeof document === 'undefined' ? null : document.activeElement
+      const activePreview = previewEditor?.getScrollElement()?.contains(activeElement) ? previewEditor : null
+      const target = activePreview ?? editorRef.current
+      if (target && 'applyTransform' in target) {
+        target.applyTransform(action)
         return
       }
       applyEditorTransform(action)
     },
-    [applyEditorTransform, editorRef],
+    [applyEditorTransform, editorRef, previewEditorRef],
   )
 
   const handleApplyEditorTypography = useCallback(
     (action: TypographyAction) => {
-      if (editorRef?.current && 'applyTypography' in editorRef.current) {
-        editorRef.current.applyTypography(action)
+      const previewEditor = previewEditorRef.current
+      const activeElement = typeof document === 'undefined' ? null : document.activeElement
+      const activePreview = previewEditor?.getScrollElement()?.contains(activeElement) ? previewEditor : null
+      const target = activePreview ?? editorRef.current
+      if (target && 'applyTypography' in target) {
+        target.applyTypography(action)
         return
       }
       applyEditorTypography(action)
     },
-    [applyEditorTypography, editorRef],
+    [applyEditorTypography, editorRef, previewEditorRef],
   )
 
   const handleInsertSnippet = useCallback(
     (content: string) => {
-      if (editorRef?.current && 'insertSnippet' in editorRef.current) {
-        editorRef.current.insertSnippet(content)
+      const previewEditor = previewEditorRef.current
+      const activeElement = typeof document === 'undefined' ? null : document.activeElement
+      const activePreview = previewEditor?.getScrollElement()?.contains(activeElement) ? previewEditor : null
+      const target = activePreview ?? editorRef.current
+      if (target && 'insertSnippet' in target) {
+        target.insertSnippet(content)
         return
       }
       insertSnippet(content)
     },
-    [editorRef, insertSnippet],
+    [editorRef, insertSnippet, previewEditorRef],
   )
 
   return (
@@ -384,9 +378,9 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
           ) : null}
           {activePath ? (
             editorSurfaceMode === 'rendered' ? (
-              <div className="editor-rendered-view">
+              <div className="editor-rendered-view editable-preview-surface">
                 <ErrorBoundary
-                  name="rendered-markdown-preview"
+                  name="editable-markdown-preview"
                   resetKeys={[activePath]}
                   fallback={
                     <PanelErrorFallback
@@ -396,18 +390,39 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                     />
                   }
                 >
-                  <MarkdownPreview
-                    ref={previewRef}
-                    markdown={deferredDraftMarkdown}
-                    className="markdown-preview"
-                    basePath={activePath}
-                    fetchNote={previewProps.fetchNote}
-                    readVaultText={previewProps.readVaultText}
-                    executeDql={previewProps.executeDql}
-                    runCodeChunk={previewProps.runCodeChunk}
-                    postProcessHtml={previewProps.postProcessHtml}
-                    renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
-                  />
+                  <Suspense
+                    fallback={
+                      <div className="editor-loading-state" role="status" aria-live="polite">
+                        <span className="editor-loading-shimmer" aria-hidden="true" />
+                        <span>{t('editor.loading')}</span>
+                      </div>
+                    }
+                  >
+                    <LazyCodeMirrorMarkdownEditor
+                      ref={editorRef}
+                      key={`visual:${activePath}`}
+                      value={draftMarkdown}
+                      onChange={updateDraft}
+                      scrollToLine={scrollToEditorLine}
+                      insertRequest={editorInsertRequest}
+                      transformRequest={editorTransformRequest}
+                      typographyRequest={editorTypographyRequest}
+                      snippetContext={snippetContext}
+                      snippetCatalog={snippetCatalog}
+                      autocompleteContext={editorAutocompleteContext}
+                      vimMode={vimMode}
+                      spellcheck={spellcheck}
+                      wysiwyg
+                      typewriter={typewriter}
+                      distractionFree={distractionFree}
+                      languageTool={languageTool}
+                      editorTheme={editorTheme}
+                      onVimSave={saveActiveNoteNow}
+                      saveImageFromClipboard={saveImageFromClipboard}
+                      showLineNumbers={false}
+                      className="markdown-editor editable-preview-editor"
+                    />
+                  </Suspense>
                 </ErrorBoundary>
               </div>
             ) : (
@@ -448,6 +463,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                   distractionFree={distractionFree}
                   showLineNumbers={showLineNumbers}
                   completionContext={monacoCompletionContext}
+                  onVisibleLineChange={scrollSyncEnabled ? handleEditorLine : undefined}
                   className="markdown-editor monaco-editor-host"
                 />
               ) : (
@@ -528,13 +544,11 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
               onNudge={onSplitHandleNudge}
             />
             <aside
-              className="editor-preview-pane"
+              className="editor-preview-pane editable-preview-pane"
               aria-label={t('editor.previewAria')}
-              ref={splitPreviewScrollRef}
-              tabIndex={0}
             >
               <ErrorBoundary
-                name="split-markdown-preview"
+                name="split-editable-preview"
                 resetKeys={[activePath]}
                 fallback={
                   <PanelErrorFallback
@@ -544,18 +558,35 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                   />
                 }
               >
-              <MarkdownPreview
-                ref={previewRef}
-                markdown={deferredDraftMarkdown}
-                className="markdown-preview"
-                basePath={activePath}
-                fetchNote={previewProps.fetchNote}
-                readVaultText={previewProps.readVaultText}
-                executeDql={previewProps.executeDql}
-                runCodeChunk={previewProps.runCodeChunk}
-                postProcessHtml={previewProps.postProcessHtml}
-                renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
-              />
+                <Suspense
+                  fallback={
+                    <div className="editor-loading-state" role="status" aria-live="polite">
+                      <span className="editor-loading-shimmer" aria-hidden="true" />
+                      <span>{t('editor.loading')}</span>
+                    </div>
+                  }
+                >
+                  <LazyCodeMirrorMarkdownEditor
+                    ref={previewEditorRef}
+                    key={`split-visual:${activePath}`}
+                    value={draftMarkdown}
+                    onChange={updateDraft}
+                    scrollSyncEnabled={scrollSyncEnabled}
+                    onVisibleLineChange={handlePreviewLine}
+                    snippetContext={snippetContext}
+                    snippetCatalog={snippetCatalog}
+                    autocompleteContext={editorAutocompleteContext}
+                    spellcheck={spellcheck}
+                    wysiwyg
+                    typewriter={false}
+                    distractionFree={false}
+                    languageTool={languageTool}
+                    editorTheme={editorTheme}
+                    saveImageFromClipboard={saveImageFromClipboard}
+                    showLineNumbers={false}
+                    className="markdown-editor editable-preview-editor"
+                  />
+                </Suspense>
               </ErrorBoundary>
             </aside>
           </>
