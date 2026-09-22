@@ -29,6 +29,7 @@ export function TextPromptDialog({ request, onSubmit, onCancel }: TextPromptDial
         ref={dialogRef}
         className="rename-dialog"
         role="dialog"
+        data-help-topic={request.helpTopic}
         aria-modal="true"
         aria-labelledby={`${inputId}-title`}
         onClick={(event) => event.stopPropagation()}
