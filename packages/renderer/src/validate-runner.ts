@@ -192,6 +192,11 @@ test('pipeline enableBreaks renders soft line breaks', () => {
   assert.match(html, /<br\s*\/?>/i)
 })
 
+test('live preview renders authoring soft line breaks by default', () => {
+  const html = renderMarkdownPreview('Line one\nLine two')
+  assert.match(html, /<br\s*\/?>/i)
+})
+
 test('pipeline renders GFM tables and strikethrough', () => {
   const html = renderMarkdownPipeline('| A | B |\n| --- | --- |\n| 1 | 2 |\n\n~~gone~~')
   assert.match(html, /<table[\s>]/)
