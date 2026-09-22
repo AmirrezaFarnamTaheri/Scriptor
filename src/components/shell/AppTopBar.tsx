@@ -291,7 +291,7 @@ function AppTopBarImpl({
         ) : null}
 
         {showModeStrip ? (
-          <div className="workspace-mode-strip" aria-label={t('topBar.workspaceMode')}>
+          <div className="workspace-mode-strip" data-help-topic="workspace-modes" aria-label={t('topBar.workspaceMode')}>
             <select
               className="workspace-mode-select"
               aria-label={t('topBar.workspaceMode')}
@@ -423,6 +423,7 @@ function AppTopBarImpl({
       {customizeOpen && customizePos ? (
         <div
           className="topbar-customize"
+          data-help-topic="topbar-customize"
           ref={customizePopupRef}
           role="dialog"
           aria-label={t('topBar.customizeAria')}
