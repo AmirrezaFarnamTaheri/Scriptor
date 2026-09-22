@@ -12,8 +12,10 @@ Die maßgebliche Sammlung liegt in `src/lib/help/catalog.ts`. Jeder Eintrag besc
 
 - **Beim ersten App-Start:** Nur die kurze Einführung in den Arbeitsbereich erscheint. Sie kann übersprungen und später über den bestehenden Einführungsweg oder die Hilfe wiederholt werden.
 - **Globale Hilfe:** Genau ein sichtbarer Einstieg **Hilfe & Anleitungen** befindet sich in der Kopfzeile; derselbe Einstieg ist über die Befehlspalette verfügbar. Panels, Karten, Docks, Editor-Werkzeugleisten und Modalfenster erhalten keine zusätzlichen Fragezeichen.
-- **Kontextbezogene Hilfe:** **F1** verwendet zuerst die fokussierte Funktion, dann den zuletzt verwendeten Bereich und schließlich die Arbeitsplatzübersicht.
-- **Ausführliche Touren:** Jede Tour wird ausdrücklich vom Benutzer gestartet. Funktionsanleitungen sind nur auf Anfrage verfügbar; das bloße Öffnen oder erstmalige Verwenden einer Funktion startet nichts automatisch.
+- **Kontextbezogene Hilfe:** **F1** verwendet zuerst die fokussierte Funktion, dann den zuletzt verwendeten Bereich und schließlich die Arbeitsplatzübersicht. **Umschalt+F1** startet bzw. setzt die kontextbezogene Tour direkt fort.
+- **Orientierung beim ersten Öffnen:** Komplexe, optionale, experimentelle oder folgenreichere Bereiche zeigen nach dem Onboarding einmalig eine nichtmodale Einladung. Sie bietet **Anleitung öffnen**, **Tour starten** oder **Nicht jetzt** und startet niemals automatisch eine Tour.
+- **Nur manuell:** Einfache Bedienelemente sowie dringende Wiederherstellungs-/Sicherheitsabläufe bleiben ausschließlich über F1, Suche oder Befehlspalette abrufbar.
+- **Ausführliche Touren:** Jede Tour wird weiterhin ausdrücklich vom Benutzer gestartet; eine Einladung erteilt keine Berechtigung und führt nichts aus.
 
 Das Schließen einer Tour bewahrt den aktuellen Schritt. Nur ein ausdrücklicher Abschluss markiert sie als gelesen. Neustart betrifft nur diese Tour. Das Zurücksetzen des Hilfefortschritts erfordert eine Bestätigung und verändert weder Tresor noch Editor-Einstellungen, Konten oder Zugangsdaten.
 
