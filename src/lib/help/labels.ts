@@ -11,6 +11,8 @@ reset: 'Reset guide progress', resetAsk: 'Reset all guide progress? Notes, accou
   offline: 'Offline product guidance. Searches stay here; no notes or credentials are read or sent.',
   language: 'Detailed guides are currently authored in English. Help controls follow your language preference.',
 step: 'Step', of: 'of',
+  firstOpen: 'First time here', firstOpenBody: 'This is a deeper workspace. Read the guide or start the walkthrough now; you can dismiss this and return any time.',
+  openGuide: 'Open guide', dismiss: 'Not now', contextShortcut: 'F1 opens contextual help · Shift+F1 starts the contextual tour.',
 
 }
 export type HelpLabels = { [Key in keyof typeof en]: string }
@@ -27,6 +29,8 @@ reset: 'Anleitungsfortschritt zurücksetzen', resetAsk: 'Gesamten Anleitungsfort
   offline: 'Offline-Produkthilfe. Suchanfragen bleiben hier; Notizen und Zugangsdaten werden weder gelesen noch gesendet.',
   language: 'Ausführliche Anleitungen sind derzeit auf Englisch. Die Bedienelemente folgen Ihrer Spracheinstellung.',
 step: 'Schritt', of: 'von',
+  firstOpen: 'Zum ersten Mal hier', firstOpenBody: 'Dies ist ein umfangreicher Arbeitsbereich. Lesen Sie die Anleitung oder starten Sie die Tour; Sie können dies schließen und jederzeit zurückkehren.',
+  openGuide: 'Anleitung öffnen', dismiss: 'Nicht jetzt', contextShortcut: 'F1 öffnet die kontextbezogene Hilfe · Umschalt+F1 startet die kontextbezogene Tour.',
 
 }
 const fa: HelpLabels = {
@@ -42,6 +46,8 @@ reset: 'بازنشانی پیشرفت راهنماها', resetAsk: 'پیشرفت
   offline: 'راهنمای آفلاین برنامه؛ جست‌وجوها همین‌جا می‌مانند و هیچ یادداشت یا اطلاعات ورود خوانده یا ارسال نمی‌شود.',
   language: 'متن تفصیلی راهنماها فعلاً انگلیسی است. کنترل‌های راهنما از زبان انتخابی شما پیروی می‌کنند.',
 step: 'گام', of: 'از',
+  firstOpen: 'اولین بار در این بخش', firstOpenBody: 'این بخش امکانات بیشتری دارد. می‌توانید راهنما را بخوانید یا آموزش گام‌به‌گام را شروع کنید؛ بستن این پیام مانع بازگشت بعدی نیست.',
+  openGuide: 'باز کردن راهنما', dismiss: 'فعلاً نه', contextShortcut: 'F1 راهنمای همین بخش را باز می‌کند · Shift+F1 آموزش گام‌به‌گام همین بخش را شروع می‌کند.',
 
 }
 export function helpLabels(locale: string): HelpLabels { return locale === 'fa' ? fa : locale === 'de' ? de : en }
