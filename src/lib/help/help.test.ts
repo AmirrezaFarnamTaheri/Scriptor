@@ -73,7 +73,7 @@ test('reading, progress, completion, and reset are independent', () => {
   assert.equal(reduceHelpPreferences(empty, { type: 'step', id: 'unknown', step: 1 }), empty)
 })
 
-test('untrusted persisted state is bounded, filters unknown ids, and ignores retired invitation fields', () => {
+test('untrusted persisted state is bounded, filters unknown ids, and migrates first-open state', () => {
   const prefs = parseHelpPreferences(JSON.stringify({ version: 1, hints: false, progress: { graph: { step: -4, completed: 'yes', offered: true }, unknown: { step: 5 } } }))
   assert.deepEqual(Object.keys(prefs.progress), ['graph'])
   assert.deepEqual(prefs.progress.graph, { step: 0, completed: false, offered: true })
