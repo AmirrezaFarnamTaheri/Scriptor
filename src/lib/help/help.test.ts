@@ -30,7 +30,7 @@ test('only the overview is automatic first-run; dangerous operations are manual'
 test('complex feature guides invite once on first open while risky mutations stay manual', () => {
   const firstOpen = HELP_GUIDES.filter((guide) => guide.policy === 'first-open').map((guide) => guide.id).sort()
   assert.deepEqual(firstOpen, ['canvas', 'export', 'git', 'gmail', 'google', 'graph', 'kanban', 'mcp', 'modules', 'plugins', 'reader', 'resource-sync', 'tasks', 'workbench'])
-  for (const id of ['restore', 'conflicts', 'rename', 'permissions', 'code-chunks', 'mcp-drafts', 'external-links', 'mutation-confirmation']) {
+  for (const id of ['restore', 'conflicts', 'rename', 'rename-block', 'rename-section', 'rename-tag', 'link-rewrite', 'permissions', 'code-chunks', 'mcp-drafts', 'external-links', 'mutation-confirmation']) {
     assert.equal(HELP_BY_ID.get(id)?.policy, 'manual', id)
   }
 })
