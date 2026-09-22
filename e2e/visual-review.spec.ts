@@ -1021,6 +1021,37 @@ test.describe('visual review states', () => {
     await captureElement(page, reader, 'visual-reader-pdf.png')
   })
 
+  test('Reader annotation popover evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.getByRole('button', { name: 'Research Paper.pdf' }).click()
+
+    const reader = page.locator('.reader-panel')
+    await expect(reader).toBeVisible()
+    const frame = reader.locator('iframe[title*="Research Paper.pdf"]')
+    await expect(frame).toBeVisible()
+    await expect(frame.contentFrame().locator('#text-layer')).toContainText('Scriptor Reader')
+
+    // Drive the same origin-checked message contract used by the bundled PDF
+    // viewer; no test-only product hook is required.
+    await page.evaluate(() => {
+      const iframe = document.querySelector<HTMLIFrameElement>('.reader-panel iframe')
+      const source = iframe?.contentWindow
+      if (!source) throw new Error('reader iframe unavailable')
+      window.dispatchEvent(new MessageEvent('message', {
+        data: { type: 'SELECTION', anchor: 'page:1:text:0-15', quote: 'Scriptor Reader' },
+        origin: window.location.origin,
+        source,
+      }))
+    })
+
+    const annotation = reader.getByRole('dialog', { name: 'Annotate selection', exact: true })
+    await expect(annotation).toBeVisible()
+    await annotation.getByRole('button', { name: 'Comment (c)', exact: true }).click()
+    await expect(annotation.getByPlaceholder('Add a comment…')).toBeVisible()
+    await expect.poll(() => annotation.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await captureElement(page, annotation, 'visual-reader-annotation.png')
+  })
+
   test('Tasks panel evidence', async ({ page }) => {
     await openVisualWorkspace(page)
     await openCommandPalette(page)
@@ -1535,6 +1566,25 @@ test.describe('visual review states', () => {
       await expect.poll(() => body.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
       await captureElement(page, settings, state.image)
     }
+  })
+
+  test('Backup and recovery settings evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.locator('header.topbar').getByRole('button', { name: 'Settings', exact: true }).click()
+
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await expect(settings).toBeVisible()
+    const generalTab = settings.getByRole('tab', { name: 'General', exact: true })
+    await generalTab.click()
+    await expect(generalTab).toHaveAttribute('aria-selected', 'true')
+
+    const backup = settings.locator('[data-help-topic="backups"]')
+    await backup.scrollIntoViewIfNeeded()
+    await expect(backup.getByRole('heading', { name: 'Backup', exact: true })).toBeVisible()
+    await expect(backup.getByText('Enable scheduled backups', { exact: true })).toBeVisible()
+    await expect(backup.getByText(/Disaster-recovery backup path/)).toBeVisible()
+    await expect.poll(() => backup.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await captureElement(page, backup, 'visual-settings-backups.png')
   })
 
   test('Vault health dashboard evidence', async ({ page }) => {

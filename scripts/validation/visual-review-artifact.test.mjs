@@ -221,6 +221,8 @@ test('major product surfaces keep visual evidence', () => {
   for (const image of [
     "visual-empty-workspace.png",
     "visual-reader-pdf.png",
+    "visual-reader-annotation.png",
+    "visual-settings-backups.png",
     "visual-tasks-populated.png",
     "visual-git-confirmation.png",
     "visual-history-restore-confirmation.png",
