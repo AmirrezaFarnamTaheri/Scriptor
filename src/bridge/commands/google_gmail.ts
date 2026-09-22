@@ -16,10 +16,10 @@ export interface GmailMessageContent extends GmailMessagePreview {
   plainText: string
 }
 
-export async function googleGmailStartAuth(clientId: string): Promise<string> {
+export async function googleGmailStartAuth(clientId?: string | null): Promise<string> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('google_gmail_auth', 'google-gmail-auth')
-  return invoke<string>('google_gmail_start_auth', { clientId, authorizationToken })
+  return invoke<string>('google_gmail_start_auth', { clientId: clientId?.trim() || null, authorizationToken })
 }
 
 export async function googleGmailGetAuthedEmail(): Promise<string> {
