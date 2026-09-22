@@ -5,7 +5,7 @@ import { getProgress, HelpProgressStore } from '../../lib/help/progress'
 import { parseHelpRequest } from '../../lib/help/request'
 import { helpLabels } from '../../lib/help/labels'
 import { useI18n } from '../../lib/i18n'
-import { contextGuide, findGuideTarget } from '../../lib/help/context'
+import { contextGuide, findGuideTarget, isVisibleHelpTarget } from '../../lib/help/context'
 import { getGuide } from '../../lib/help/catalog'
 import { HELP_EVENT, HELP_STORAGE_KEY, type HelpGuide, type HelpRequest } from '../../lib/help/types'
 import { toFocusRestorer, type FocusRestorer } from '../../lib/overlayEscapeCoordinator'
@@ -43,6 +43,7 @@ export function HelpRuntime() {
   const close = useCallback(() => setSession(null), [])
   const maybeOffer = useCallback((element: Element | null) => {
     if (!element || document.querySelector('.help-center[open]')) return
+    if (element instanceof HTMLElement && !isVisibleHelpTarget(element)) return
     const guide = contextGuide(element)
     if (guide.policy !== 'first-open') return
     const progress = getProgress(store.getSnapshot().preferences, guide.id)
