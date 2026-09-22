@@ -754,16 +754,19 @@
   "integrations": {
     "google": {
       "title": "Google",
-      "description": "Connect once with a Google OAuth Desktop-app client ID. Calendar and Tasks use this connection; Gmail Manager can reuse the same client ID while requesting its own least-privilege scopes.",
+      "description": "Connect your Google account in the system browser. Calendar and Tasks use this connection; Gmail Manager requests its own least-privilege scopes when you enable it.",
+    "signInHelp": "Choose Continue with Google to use Scriptor’s packaged Google identity. You do not need to create or paste OAuth credentials in a normal installation.",
       "experimental": "Experimental integration.",
       "security": "Refresh tokens are stored in the operating-system keychain. Scriptor uses PKCE and a localhost loopback callback; no client secret is required.",
       "enableCalendarTasks": "Enable Google Calendar & Tasks integration",
       "clientId": "Google OAuth client ID (Desktop app)",
-      "clientHelp": "Create an OAuth 2.0 Desktop app credential in Google Cloud. Do not paste a client secret. Web-app credentials are not compatible with Scriptor’s loopback callback.",
+      "clientHelp": "Optional developer override for source or private builds. Use a Google OAuth 2.0 Desktop-app client ID; never paste a client secret.",
+    "developerOverride": "Developer OAuth override",
+    "developerOverrideHelp": "Leave this empty in normal installations. Packaged releases use Scriptor’s application-owned Google OAuth client ID.",
       "lookahead": "Lookahead window (days)",
       "showEvents": "Show Calendar events in Tasks",
       "mirrorTasks": "Enable vault → Google Tasks mirroring (changes are sent only after your approval)",
-      "connect": "Connect Google",
+      "connect": "Continue with Google",
       "syncNow": "Sync now",
       "disconnect": "Disconnect",
       "status": {
@@ -773,7 +776,7 @@
         "synced": "Connected",
         "error": "Needs attention"
       },
-      "gmailNote": "Gmail Manager is enabled separately under Plugins and requests Gmail-specific permission. It can reuse this client ID."
+      "gmailNote": "Gmail Manager is enabled separately under Plugins and requests Gmail-specific permission using the same Scriptor Google application identity."
     },
     "gmail": {
       "title": "Gmail",
