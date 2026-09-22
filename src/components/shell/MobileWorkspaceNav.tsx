@@ -45,7 +45,7 @@ function MobileWorkspaceNavImpl({
             : null
 
   return (
-    <div className="mobile-workspace-chrome" data-help-topic="workspace">
+    <div className="mobile-workspace-chrome" data-help-topic="mobile-navigation">
       {modeAction ? (
         <div className="mobile-mode-actions" role="region" aria-label={`${WORKSPACE_MODE_LABELS[workspaceMode]} actions`}>
           <span className="mobile-mode-label">{WORKSPACE_MODE_LABELS[workspaceMode]} mode</span>
