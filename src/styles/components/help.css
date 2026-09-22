@@ -79,3 +79,27 @@
   .help-ui select { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .help-ui * { scroll-behavior: auto; transition: none; animation: none; } }
+
+
+.help-invitation {
+  position: fixed;
+  z-index: 1350;
+  inset-inline-end: 18px;
+  inset-block-end: 18px;
+  width: min(390px, calc(var(--app-viewport-width, 100vw) - 24px));
+  padding: 16px;
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-lg, 12px);
+  background: var(--dialog-bg, var(--bg-elevated));
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+}
+.help-invitation h2 { margin: 0; font-size: 17px; color: var(--ink-strong); }
+.help-invitation-copy > p { margin: 4px 0 0; }
+.help-invitation-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-block-start: 14px; }
+.help-invitation-actions .primary-button { width: auto; margin: 0; }
+.help-invitation-shortcut { margin: 10px 0 0; color: var(--muted); font-size: 11px; }
+@media (max-width: 520px) {
+  .help-invitation { inset-inline: 8px; inset-block-end: 8px; width: auto; }
+  .help-invitation-actions > button { flex: 1 1 auto; }
+}
