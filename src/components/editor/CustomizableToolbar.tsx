@@ -343,6 +343,7 @@ function CustomizableToolbarImpl({ children, extras = [] }: CustomizableToolbarP
             id={customizerId}
             ref={customizerRef}
             className="toolbar-customizer"
+            data-help-topic="toolbar-customize"
             role="dialog"
             aria-modal="true"
             aria-labelledby={`${customizerId}-title`}
