@@ -47,9 +47,19 @@ export function HelpRuntime() {
     if (guide.policy !== 'first-open') return
     const progress = getProgress(store.getSnapshot().preferences, guide.id)
     if (progress.offered || progress.completed) return
-    store.dispatch({ type: 'offer', id: guide.id })
     setInvitation(guide)
   }, [store])
+
+  useEffect(() => {
+    if (!invitation) return
+    const progress = getProgress(store.getSnapshot().preferences, invitation.id)
+    if (!progress.offered) store.dispatch({ type: 'offer', id: invitation.id })
+    const observer = new MutationObserver(() => {
+      if (!findGuideTarget(invitation)) setInvitation(null)
+    })
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden', 'style', 'class'] })
+    return () => observer.disconnect()
+  }, [invitation, store])
 
   useEffect(() => {
     const remember = (event: Event) => {
