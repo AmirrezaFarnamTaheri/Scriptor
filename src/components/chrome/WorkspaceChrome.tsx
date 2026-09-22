@@ -35,7 +35,7 @@ export const PanelHeader = memo(function PanelHeader({
             ref={triggerRef}
             id={triggerId}
             type="button"
-            className="icon-button has-custom-tooltip"
+            className={`icon-button has-custom-tooltip${menuOpen ? ' tooltip-suppressed' : ''}`}
             aria-label={menuLabel ?? `${title} options`}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
@@ -48,7 +48,7 @@ export const PanelHeader = memo(function PanelHeader({
             }}
           >
             <MoreHorizontal aria-hidden="true" />
-            <span className="custom-tooltip" aria-hidden="true">{menuLabel ?? `${title} options`}</span>
+            {!menuOpen ? <span className="custom-tooltip" aria-hidden="true">{menuLabel ?? `${title} options`}</span> : null}
           </button>
           <ToolbarPopover
             open={menuOpen}
