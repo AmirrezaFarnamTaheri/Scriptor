@@ -92,23 +92,6 @@ export const surfaceGuides: readonly HelpGuide[] = [
     related: ['rename', 'backlinks', 'recovery'],
   },
   {
-    id: 'release-quality', title: 'Release quality dashboard', category: 'Recovery', policy: 'manual',
-    entry: 'Advanced settings → Release quality dashboard.', prerequisite: 'Use comparable builds, data, and device conditions when interpreting metrics.',
-    safety: 'Metrics are evidence from particular runs, not proof that every feature is correct, accessible, secure, or performant for all vaults.',
-    source: 'src/components/ReleaseQualityPanel.tsx', roots: ['.release-quality-panel'],
-    steps: [
-      ['Choose the metric family', 'Separate startup, indexing, editor, canvas, and release measurements instead of treating one number as overall quality.'],
-      ['Compare like with like', 'Keep workload, vault size, build type, and device conditions stable before calling a change a regression or improvement.'],
-      ['Inspect failures beside timing', 'A fast failed operation is not a success; pair performance measurements with correctness and error evidence.'],
-      ['Record a reproducible baseline', 'Capture the exact scenario and version so later measurements can be compared meaningfully.'],
-    ],
-    questions: [
-      ['Is this a production readiness certificate?', 'No. It is one evidence surface among tests, accessibility checks, visual review, security review, and real workflows.'],
-      ['Why do metrics move between runs?', 'Caches, background work, device state, vault contents, and cold/warm startup conditions can all change results.'],
-    ],
-    related: ['quality', 'diagnostics', 'performance'],
-  },
-  {
     id: 'performance', title: 'Performance HUD', category: 'Workspace', policy: 'manual',
     entry: 'Enable the performance HUD from diagnostics/advanced workspace controls.', prerequisite: 'The HUD is useful when diagnosing interaction or rendering cost, not as permanent writing chrome.',
     safety: 'The HUD reads local performance measurements. It does not optimize or hibernate subsystems by itself.',
@@ -123,7 +106,7 @@ export const surfaceGuides: readonly HelpGuide[] = [
       ['Does a high instantaneous value prove a bug?', 'No. Look for repeatable regressions and correlate them with a specific user-visible delay.'],
       ['Does the HUD send telemetry?', 'This guide covers the local workspace HUD; review telemetry settings separately for any external reporting policy.'],
     ],
-    related: ['hibernation', 'release-quality', 'diagnostics'],
+    related: ['hibernation', 'quality', 'diagnostics'],
   },
   {
     id: 'subsystems', title: 'Subsystem hibernation controls', category: 'Workspace', policy: 'manual',
