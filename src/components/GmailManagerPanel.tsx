@@ -334,7 +334,7 @@ ${message.plainText || message.snippet}
         ) : null}
 
         {activeTab === 'messages' ? (
-          <div className="gmail-manager-tab gmail-manager-tab--messages">
+          <div className="gmail-manager-tab gmail-manager-tab--messages" data-help-topic="gmail-messages">
             <div>
               <label htmlFor="gmail-search-input" className="gmail-manager-search-label">
                 {t('integrations.gmail.searchLabel')}
@@ -472,7 +472,7 @@ ${message.plainText || message.snippet}
         ) : null}
 
         {activeTab === 'compose' ? (
-          <form onSubmit={handleSend} className="gmail-manager-compose">
+          <form onSubmit={handleSend} className="gmail-manager-compose" data-help-topic="gmail-compose">
             <label className="settings-field">
               {t('integrations.gmail.recipient')}
               <input
@@ -519,7 +519,7 @@ ${message.plainText || message.snippet}
         ) : null}
 
         {activeTab === 'account' ? (
-          <div className="gmail-manager-account">
+          <div className="gmail-manager-account" data-help-topic="gmail-account">
             <div className="gmail-manager-account-card">
               <h4>{t('integrations.gmail.connectionStatus')}</h4>
               <p>
