@@ -124,7 +124,12 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
           <Search className="command-palette-search-icon" aria-hidden="true" />
           <input
             type="search" value={query}
-            onChange={(event) => { isKeyboardNav.current = false; setQuery(event.target.value); setSelectedIndex(0) }}
+            onChange={(event) => {
+              isKeyboardNav.current = false
+              setSearchingQuery(null)
+              setQuery(event.target.value)
+              setSelectedIndex(0)
+            }}
             onKeyDown={(event) => {
               if (event.key === 'ArrowDown') {
                 event.preventDefault()
