@@ -259,6 +259,7 @@ test('major product surfaces keep visual evidence', () => {
     "visual-insert-popover.png",
     "visual-mobile-editor-390.png",
     "visual-portal.png",
+    "visual-portal-form.png",
     "visual-quick-capture.png",
     "visual-sticky-note-overlay.png",
     "visual-external-change-conflict.png",

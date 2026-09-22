@@ -1391,7 +1391,16 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Open portal clipboard')
     const portal = page.locator('.portal-panel')
     await expect(portal).toBeVisible()
+    const body = portal.locator('.portal-body')
+    await expect.poll(() => body.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
     await captureElement(page, portal, 'visual-portal.png')
+
+    await body.evaluate((element) => { element.scrollTop = element.scrollHeight })
+    const pinOption = portal.getByText('Pin for quick invoke bar and shortcut palette', { exact: true })
+    const addItem = portal.getByRole('button', { name: 'Add item', exact: true })
+    await expect(pinOption).toBeInViewport()
+    await expect(addItem).toBeInViewport()
+    await captureElement(page, portal, 'visual-portal-form.png')
   })
 
   test('Quick capture panel evidence', async ({ page }) => {
@@ -1421,6 +1430,12 @@ test.describe('visual review states', () => {
     const todo = capture.getByRole('textbox', { name: /Todo text:/ }).first()
     await expect(todo).toBeVisible()
     await todo.fill('Review visual evidence before release')
+    await todo.evaluate((element) => {
+      const input = element as HTMLInputElement
+      input.blur()
+      input.scrollLeft = 0
+    })
+    await expect.poll(() => todo.evaluate((element) => (element as HTMLInputElement).scrollLeft)).toBe(0)
     await expect(capture).toContainText('Todos')
     await captureElement(page, capture, 'visual-quick-capture.png')
   })
