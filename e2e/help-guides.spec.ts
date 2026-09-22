@@ -133,8 +133,8 @@ test('Help stays readable at 375px and explicitly marks English guide content in
 
 
 test('complex features offer a guide once on first open and remain manually replayable', async ({ page }) => {
+  await page.addInitScript(() => localStorage.removeItem('scriptor:help-guides:v1'))
   await launchApp(page)
-  await page.evaluate(() => localStorage.removeItem('scriptor:help-guides:v1'))
   await openCommandPalette(page)
   await runCommand(page, 'Open graph')
   const invitation = page.locator('.help-invitation')
@@ -155,12 +155,12 @@ test('complex features offer a guide once on first open and remain manually repl
 })
 
 test('manual reference surfaces do not interrupt first use with an invitation', async ({ page }) => {
+  await page.addInitScript(() => localStorage.removeItem('scriptor:help-guides:v1'))
   await launchApp(page)
-  await page.evaluate(() => localStorage.removeItem('scriptor:help-guides:v1'))
   await openCommandPalette(page)
-  await runCommand(page, 'Browse tags')
-  await expect(page.getByRole('dialog', { name: 'Tag browser', exact: true })).toBeVisible()
+  await runCommand(page, 'Markdown cheatsheet')
+  await expect(page.getByRole('dialog', { name: 'Markdown cheatsheet', exact: true })).toBeVisible()
   await expect(page.locator('.help-invitation')).toHaveCount(0)
   await page.keyboard.press('F1')
-  await expect(help(page).getByRole('heading', { name: 'Tags and tag browser', exact: true })).toBeVisible()
+  await expect(help(page).getByRole('heading', { name: 'Markdown and query cheatsheet', exact: true })).toBeVisible()
 })
