@@ -1547,12 +1547,18 @@ test.describe('visual review states', () => {
     await expect(health).toContainText('Vault health')
     await expect(health).toContainText(/Vault looks healthy|issue/)
     await expect.poll(() => health.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expect.poll(() => health.locator('.unified-panel-body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await captureElement(page, health, 'visual-vault-health-dashboard.png')
   })
 
   test('Vault health dashboard stays bounded at compact width', async ({ page }) => {
     await page.setViewportSize({ width: 720, height: 800 })
-    await openVisualWorkspace(page)
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    // At the mobile breakpoint the editor is the active pane and the vault list
+    // is intentionally mounted but hidden. Hydration must not require a hidden
+    // sibling pane to be visible before opening a modal from the palette.
+    await waitForWorkspace(page, { allowHiddenVaultList: true })
+    await settleLayout(page)
     await openCommandPalette(page)
     await runCommand(page, 'Open vault health')
 

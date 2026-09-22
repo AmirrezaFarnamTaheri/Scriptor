@@ -3,6 +3,7 @@ import { Activity, CheckCircle2 } from 'lucide-react'
 
 import { summarizeLintIssues } from '../lib/vaultLintSummary'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
+import '../styles/components/health-dashboard.css'
 import type {
   InspectorWidgetContribution,
   VaultHealthCheckContribution,

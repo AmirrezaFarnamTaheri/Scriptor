@@ -1,8 +1,10 @@
 .resource-sync-panel {
   display: grid;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
   gap: 1rem;
+  overflow-x: hidden;
 }
 
 .resource-sync-panel > *,
@@ -22,6 +24,13 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.resource-sync-heading > div,
+.resource-sync-section-heading > div,
+.resource-plan-builder > div,
+.resource-target-title > div {
+  min-width: 0;
 }
 
 .resource-sync-heading h3,
@@ -86,8 +95,11 @@
 
 .resource-sync-section {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   gap: 0.8rem;
   padding: 1rem;
+  overflow-x: hidden;
 }
 
 .resource-target-grid {
@@ -178,7 +190,9 @@
 }
 
 .resource-table-wrap {
+  box-sizing: border-box;
   width: 100%;
+  min-inline-size: 0;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-inline: contain;
