@@ -112,8 +112,21 @@ requirePattern('src/styles/components/error-boundary.css', /\.error-boundary/, '
 requirePattern('src/styles/app/foundation.css', /error-boundary\.css/, 'error-boundary CSS must be included in the application bundle')
 rejectPattern(
   'src/components/help/HelpRuntime.tsx',
-  /createPortal|useHelpSurfaces|help-affordance|help-trigger|help-invitation/,
-  'Help must remain centralized; do not inject persistent Help chrome into product surfaces',
+  /useHelpSurfaces|help-affordance|help-trigger/,
+  'Help runtime must remain centralized and must not inject per-surface Help buttons',
+)
+for (const { rel } of productionFiles) {
+  if (!rel.startsWith('src/components/') || rel.startsWith('src/components/help/')) continue
+  rejectPattern(
+    rel,
+    /help-affordance|help-trigger|help-invitation/,
+    'product surfaces must not own persistent Help chrome; use data-help-topic and the centralized Help runtime',
+  )
+}
+requirePattern(
+  'src/components/help/HelpRuntime.tsx',
+  /className="help-invitation help-ui"/,
+  'first-open guidance must use the one centralized, non-modal Help invitation surface',
 )
 requirePattern(
   'src/components/shell/AppTopBar.tsx',
