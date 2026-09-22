@@ -145,14 +145,17 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
             autoFocus
           />
         </div>
-        <p className="command-palette-scope-hint">{t('commandPalette.scopeHint')}</p>
-        {searchNotes ? (
-          <p className="command-palette-search-status" aria-live="polite">
-            <span className={isSearchingNotes ? undefined : 'command-palette-search-status-idle'}>
-              {isSearchingNotes ? t('commandPalette.searchingNotes') : ' '}
+        <p className="command-palette-scope-hint">
+          <span>{t('commandPalette.scopeHint')}</span>
+          {searchNotes ? (
+            <span
+              className={`command-palette-search-status${isSearchingNotes ? ' is-active' : ''}`}
+              aria-live="polite"
+            >
+              {t('commandPalette.searchingNotes')}
             </span>
-          </p>
-        ) : null}
+          ) : null}
+        </p>
         <ul id="command-palette-list" ref={listRef} role="listbox">
           {mergedCommands.map((command, index) => {
             const previousGroup = mergedCommands[index - 1]?.group
