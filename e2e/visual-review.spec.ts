@@ -383,6 +383,31 @@ test.describe('visual review states', () => {
     await captureVisual(page, 'visual-mobile-editor-390.png')
   })
 
+  test('graph-disabled recovery evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:disable-graph-plugin', '1')
+    })
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open graph')
+
+    const graph = page.getByRole('dialog', { name: 'Knowledge graph', exact: true })
+    await expect(graph).toBeVisible()
+    const disabled = graph.locator('.graph-disabled-state')
+    await expect(disabled).toBeVisible()
+    await expect(disabled.getByRole('button', { name: /Enable graph/i })).toBeVisible()
+    await expect(disabled.getByRole('button', { name: /Cancel/i })).toBeVisible()
+    await expect.poll(() => graph.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return rect.left >= 0
+        && rect.top >= 0
+        && rect.right <= window.innerWidth
+        && rect.bottom <= window.innerHeight
+        && element.scrollWidth <= element.clientWidth + 1
+    })).toBe(true)
+    await captureElement(page, graph, 'visual-graph-disabled-recovery.png')
+  })
+
   test('dense graph canvas evidence', async ({ page }) => {
     await page.addInitScript(() => {
       window.sessionStorage.setItem('e2e:dense-graph', '1')
