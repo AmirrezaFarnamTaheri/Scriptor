@@ -1154,16 +1154,22 @@ test.describe('visual review states', () => {
     await expect(chapterFrame).toBeVisible({ timeout: 30_000 })
     await expect(chapterFrame.contentFrame().getByRole('heading', { name: 'Scriptor Reader EPUB' })).toBeVisible()
     await expect(chapterFrame.contentFrame().getByText('Deterministic EPUB fixture for visual review.')).toBeVisible()
+    // epub.js may oversize/translate its chapter iframe while paginating.
+    // The stable visual boundary is the generated .epub-container, which the
+    // viewer host clips. Assert that owner instead of an internal iframe.
     await expect.poll(() => area.evaluate((element) => {
-      const frame = element.querySelector('iframe')
-      if (!frame) return false
+      const container = element.querySelector<HTMLElement>('.epub-container')
+      if (!container) return false
       const areaRect = element.getBoundingClientRect()
-      const frameRect = frame.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+      const style = getComputedStyle(element)
       return element.scrollWidth <= element.clientWidth + 1
-        && frameRect.width > 0
-        && frameRect.height > 0
-        && frameRect.left >= areaRect.left - 1
-        && frameRect.right <= areaRect.right + 1
+        && containerRect.width > 0
+        && containerRect.height > 0
+        && containerRect.left >= areaRect.left - 1
+        && containerRect.right <= areaRect.right + 1
+        && style.overflowX === 'hidden'
+        && style.overflowY === 'hidden'
     })).toBe(true)
 
     await captureElement(page, reader, 'visual-reader-epub.png')
