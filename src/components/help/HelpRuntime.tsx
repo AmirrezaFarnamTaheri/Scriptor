@@ -128,7 +128,7 @@ export function HelpRuntime() {
   }
   if (!invitation) return null
   return createPortal(
-    <aside className="help-invitation help-ui" role="status" aria-label={`${labels.newHere} ${invitation.title}`}>
+    <aside className="help-invitation help-ui" role="region" aria-live="polite" aria-label={`${labels.newHere} ${invitation.title}`}>
       <div>
         <strong>{labels.newHere} {invitation.title}</strong>
         <p>{labels.firstOpen}</p>
