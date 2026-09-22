@@ -66,6 +66,7 @@
   .help-center-header { padding: 12px; }
   .help-center-body { display: flex; flex-direction: column; }
   .help-browser { padding: 10px 12px; flex: 0 0 auto; border-inline-end: 0; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .help-answer-results,
   .help-browser nav { grid-column: 1 / -1; max-height: 120px; }
   .help-browser .help-result-count { display: none; }
   .help-reading-pane { padding: 14px; flex: 1; }
