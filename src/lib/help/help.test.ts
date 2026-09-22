@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { test } from 'node:test'
 import { browseGuides, FIRST_OPEN_GUIDE_IDS, HELP_GUIDES, HELP_BY_ID, searchAnswers, searchGuides } from './catalog.ts'
 import { emptyHelpPreferences, getProgress, HelpProgressStore, parseHelpPreferences, reduceHelpPreferences } from './progress.ts'
@@ -121,4 +122,33 @@ test('help requests accept only authored ids and views, never commands or HTML',
   assert.equal(parseHelpRequest({ id: '<script>', view: 'tour' }), null)
   assert.equal(parseHelpRequest({ id: 'restore', view: 'execute' }), null)
   assert.equal(parseHelpRequest(null), null)
+})
+
+
+function sourceFiles(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(root, entry.name)
+    if (entry.isDirectory()) return sourceFiles(path)
+    return /\.tsx?$/.test(entry.name) ? [path] : []
+  })
+}
+
+test('source-owned help topics resolve to authored guides and major panels/dialogs keep a contextual owner', () => {
+  const files = sourceFiles('src/components')
+  const literalTopic = /(?:data-help-topic|helpTopic)=["']([a-z][a-z0-9-]+)["']/g
+
+  for (const path of files) {
+    const source = readFileSync(path, 'utf8')
+    for (const match of source.matchAll(literalTopic)) {
+      assert.ok(HELP_BY_ID.has(match[1]!), `${path} references unknown help topic ${match[1]}`)
+    }
+
+    if (source.includes('<UnifiedPanelShell')) {
+      assert.match(source, /helpTopic=["'][a-z][a-z0-9-]+["']/, `${path} must identify its UnifiedPanelShell help owner`)
+    }
+
+    if (/role=["'](?:dialog|alertdialog)["']/.test(source)) {
+      assert.match(source, /(?:data-help-topic|helpTopic)=/, `${path} dialog must expose contextual help ownership`)
+    }
+  }
 })
