@@ -33,6 +33,7 @@ export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourP
       title={step[0]}
       subtitle={step[1]}
       ariaLabel="Product tour"
+      helpTopic="workspace"
       modalAriaLabel="Product tour"
       onClose={onComplete}
       className="onboarding-tour"
