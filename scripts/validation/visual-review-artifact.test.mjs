@@ -184,7 +184,7 @@ test('expanded visual evidence matrix remains captured', () => {
     'visual-layout-presets.png',
     'visual-layout-presets-bottom.png',
     'visual-conflict-resolver-dark.png',
-    'visual-help-restraint.png',
+    'visual-workspace-default.png',
     'visual-help-mcp-guide.png',
     'visual-help-mobile-390.png',
     'visual-help-rtl-fa.png',
@@ -207,9 +207,25 @@ test('every visual capture passes through the shared Help-restraint wrapper', ()
   assert.match(elementHelper, /await expectNoAmbientHelp\(page\)/)
 })
 
+test('status-dock review evidence includes tabs and active panel context', () => {
+  assert.match(visualReview, /const dockChrome = page\.locator\('#status-dock-chrome'\)/)
+  for (const image of ['visual-dock-problems.png', 'visual-dock-output.png', 'visual-dock-jobs.png']) {
+    assert.ok(
+      visualReview.includes(`captureElement(page, dockChrome, '${image}')`),
+      `status-dock capture must include surrounding chrome: ${image}`,
+    )
+  }
+})
+
+test('compact Quick Capture evidence proves todo text and actions do not compete for one row', () => {
+  assert.match(visualReview, /\.quick-todo-actions/)
+  assert.match(visualReview, /inputRect\.width >= 220/)
+  assert.match(visualReview, /actionRect\.top >= inputRect\.bottom - 1/)
+})
+
 test('Help visual evidence proves centralized, non-injected guidance', () => {
   for (const image of [
-    'visual-help-restraint.png',
+    'visual-workspace-default.png',
     'visual-help-mcp-guide.png',
     'visual-help-mobile-390.png',
     'visual-help-rtl-fa.png',

@@ -915,6 +915,10 @@
   margin: 0 0 8px;
 }
 
+.quick-capture-panel {
+  container-type: inline-size;
+}
+
 .quick-capture-body {
   display: grid;
   gap: 18px;
@@ -965,9 +969,32 @@
 
 .quick-todo-list li {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+}
+
+.quick-todo-list li > input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.quick-todo-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@container (max-width: 460px) {
+  .quick-todo-list li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .quick-todo-actions {
+    grid-column: 2;
+    justify-self: end;
+  }
 }
 
 .quick-todo-list li.done input {

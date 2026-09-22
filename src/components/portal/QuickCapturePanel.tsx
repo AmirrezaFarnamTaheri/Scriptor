@@ -102,14 +102,16 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
                     aria-label={`Todo text: ${todo.text.slice(0, 40)}`}
                     onChange={(event) => onUpdateTodo(todo.id, event.target.value)}
                   />
-                  {onCreateNoteFromTodo ? (
-                    <button type="button" className="toolbar-button" onClick={() => onCreateNoteFromTodo(todo.id)}>
-                      To note
+                  <div className="quick-todo-actions">
+                    {onCreateNoteFromTodo ? (
+                      <button type="button" className="toolbar-button" onClick={() => onCreateNoteFromTodo(todo.id)}>
+                        To note
+                      </button>
+                    ) : null}
+                    <button type="button" className="icon-button" onClick={() => onDeleteTodo(todo.id)} aria-label="Delete todo">
+                      <Trash2 size={14} />
                     </button>
-                  ) : null}
-                  <button type="button" className="icon-button" onClick={() => onDeleteTodo(todo.id)} aria-label="Delete todo">
-                    <Trash2 size={14} />
-                  </button>
+                  </div>
                 </li>
               ))
             )}

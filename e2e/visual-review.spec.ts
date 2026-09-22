@@ -476,7 +476,7 @@ test.describe('visual review states', () => {
     await openVisualWorkspace(page)
     await expect(page.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
     await expect(page.locator('header.topbar').getByRole('button', { name: 'Help & guides', exact: true })).toBeVisible()
-    await captureVisual(page, 'visual-help-restraint.png')
+    await captureVisual(page, 'visual-workspace-default.png')
 
     await openCommandPalette(page)
     await runCommand(page, 'Open MCP panel')
@@ -921,7 +921,9 @@ test.describe('visual review states', () => {
     expect(diagnosticsGeometry?.gap ?? -1).toBeGreaterThanOrEqual(8)
     expect(diagnosticsGeometry?.headingHeight ?? Infinity).toBeLessThanOrEqual(32)
     await expectNoHorizontalOverflow(page)
-    await captureElement(page, problems, 'visual-dock-problems.png')
+    const dockChrome = page.locator('#status-dock-chrome')
+    await expect(dockChrome).toBeVisible()
+    await captureElement(page, dockChrome, 'visual-dock-problems.png')
 
     const outputTab = page.getByRole('tab', { name: /^Output/ }).first()
     await outputTab.click()
@@ -930,7 +932,7 @@ test.describe('visual review states', () => {
     await expect(output).not.toContainText('Could not install close-save guard')
     await expect(output).not.toContainText('currentWindow')
     await expectNoHorizontalOverflow(page)
-    await captureElement(page, output, 'visual-dock-output.png')
+    await captureElement(page, dockChrome, 'visual-dock-output.png')
 
     const jobsTab = page.getByRole('tab', { name: /^Jobs/ }).first()
     await jobsTab.click()
@@ -938,7 +940,7 @@ test.describe('visual review states', () => {
     await expect(jobs).toBeVisible()
     await expect(jobs).toContainText('Index rebuild')
     await expectNoHorizontalOverflow(page)
-    await captureElement(page, jobs, 'visual-dock-jobs.png')
+    await captureElement(page, dockChrome, 'visual-dock-jobs.png')
   })
 
 
@@ -1480,6 +1482,19 @@ test.describe('visual review states', () => {
       input.scrollLeft = 0
     })
     await expect.poll(() => todo.evaluate((element) => (element as HTMLInputElement).scrollLeft)).toBe(0)
+    const todoRow = capture.locator('.quick-todo-list li').first()
+    const todoActions = todoRow.locator('.quick-todo-actions')
+    await expect(todoActions).toBeVisible()
+    await expect.poll(() => todoRow.evaluate((element) => {
+      const input = element.querySelector('input')
+      const actions = element.querySelector('.quick-todo-actions')
+      if (!(input instanceof HTMLElement) || !(actions instanceof HTMLElement)) return false
+      const inputRect = input.getBoundingClientRect()
+      const actionRect = actions.getBoundingClientRect()
+      return inputRect.width >= 220
+        && actionRect.top >= inputRect.bottom - 1
+        && element.scrollWidth <= element.clientWidth + 1
+    })).toBe(true)
     await expect(capture).toContainText('Todos')
     await captureElement(page, capture, 'visual-quick-capture.png')
   })
