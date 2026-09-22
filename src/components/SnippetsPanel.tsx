@@ -117,6 +117,7 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
               <label>
                 <span>Name</span>
                 <input
+                  aria-label="Name"
                   value={active.name}
                   onChange={(event) => {
                     const nextName = event.target.value
@@ -132,6 +133,7 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
               <label>
                 <span>Description</span>
                 <input
+                  aria-label="Description"
                   value={active.description ?? ''}
                   onChange={(event) => updateActive({ description: event.target.value })}
                 />
@@ -139,6 +141,7 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
               <label>
                 <span>Content</span>
                 <textarea
+                  aria-label="Content"
                   rows={12}
                   value={active.content}
                   onChange={(event) => updateActive({ content: event.target.value })}
