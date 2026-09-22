@@ -55,7 +55,7 @@ function StatusDockPanelImpl({
 
   return (
     <>
-      <div className="bottom-tabs" role="tablist" aria-label="Status dock" onKeyDown={handleTablistKeys}>
+      <div className="bottom-tabs" role="tablist" aria-label="Status dock" data-help-topic="status-dock" onKeyDown={handleTablistKeys}>
         <button
           type="button"
           role="tab"
