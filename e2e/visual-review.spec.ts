@@ -987,7 +987,9 @@ test.describe('visual review states', () => {
     await expect(page.getByRole('tab', { name: /Search results/i })).toHaveAttribute('aria-selected', 'true')
     await settleLayout(page)
     await expectNoHorizontalOverflow(page)
-    await captureElement(page, searchPanel, 'visual-search-results.png')
+    const dockChrome = page.locator('#status-dock-chrome')
+    await expect(dockChrome).toBeVisible()
+    await captureElement(page, dockChrome, 'visual-dock-search-results.png')
   })
 
 

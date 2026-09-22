@@ -210,7 +210,7 @@ test('every visual capture passes through the shared Help-restraint wrapper', ()
 
 test('status-dock review evidence includes tabs and active panel context', () => {
   assert.match(visualReview, /const dockChrome = page\.locator\('#status-dock-chrome'\)/)
-  for (const image of ['visual-dock-problems.png', 'visual-dock-output.png', 'visual-dock-jobs.png']) {
+  for (const image of ['visual-dock-problems.png', 'visual-dock-output.png', 'visual-dock-search-results.png', 'visual-dock-jobs.png']) {
     assert.ok(
       visualReview.includes(`captureElement(page, dockChrome, '${image}')`),
       `status-dock capture must include surrounding chrome: ${image}`,
