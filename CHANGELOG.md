@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Changed
+
+- Make editor Preview and the right side of Split directly writable visual Markdown surfaces backed by the same canonical draft as Source. The Inspector's Rendered output remains the read-only fidelity/reference view.
+- Preserve ordinary authoring newlines in live rendered preview by default and synchronize Source/Preview by the active cursor line as well as scrolling.
+
+
 ## 1.2.0 — 2026-09-22
 
 ### Fixed
