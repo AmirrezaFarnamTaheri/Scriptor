@@ -20,7 +20,7 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
 }: VaultConfigSettingsSectionProps) {
   const { t } = useI18n()
   return (
-    <div className="settings-section">
+    <div className="settings-section" data-help-topic="vault-config">
       <h3>{t('settings.vaultConfig')}</h3>
       <p className="health-subtitle">{t('settings.vaultConfigStored')}</p>
       <label className="settings-field">
