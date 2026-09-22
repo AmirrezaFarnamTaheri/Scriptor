@@ -12,8 +12,8 @@ import { referenceGuides } from './guides-reference.ts'
  */
 export const FIRST_OPEN_GUIDE_IDS = new Set([
   'workbench', 'graph', 'canvas', 'tasks', 'kanban', 'reader',
-  'export', 'publish', 'plugins', 'modules', 'google', 'gmail', 'ai', 'mcp',
-  'custom-theme', 'backups', 'resource-sync',
+  'export', 'plugins', 'modules', 'integrations', 'gmail', 'mcp',
+  'custom-theme', 'resource-sync',
 ])
 
 export const HELP_GUIDES: readonly HelpGuide[] = [...writingGuides, ...knowledgeGuides, ...workflowGuides, ...settingsGuides, ...referenceGuides].map((guide) => {
