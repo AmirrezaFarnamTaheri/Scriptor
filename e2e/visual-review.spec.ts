@@ -124,6 +124,25 @@ async function expectNoHorizontalOverflow(page: Page) {
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
 }
 
+async function expectDirectChildrenBounded(locator: Locator) {
+  await expect.poll(
+    () => locator.evaluate((root) => {
+      const rootRect = root.getBoundingClientRect()
+      return Array.from(root.children)
+        .filter((child) => {
+          const rect = child.getBoundingClientRect()
+          const style = getComputedStyle(child)
+          return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden'
+        })
+        .every((child) => {
+          const rect = child.getBoundingClientRect()
+          return rect.left >= rootRect.left - 1 && rect.right <= rootRect.right + 1
+        })
+    }),
+    { timeout: 10_000 },
+  ).toBe(true)
+}
+
 async function openVisualWorkspace(page: Page) {
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await waitForVisualWorkspace(page)
@@ -295,7 +314,7 @@ test.describe('visual review states', () => {
     await expect(sharing).toContainText('visual-review')
     await settleLayout(page)
     await expectFullyInViewport(page, '.mcp-panel')
-    await expect.poll(() => mcpPanel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expectDirectChildrenBounded(mcpPanel.locator('.unified-panel-body'))
     await expectNoHorizontalOverflow(page)
 
     // Capture the whole viewport for docked companions. Locator screenshots can
@@ -310,8 +329,17 @@ test.describe('visual review states', () => {
     await expect(installedSection).toBeVisible()
     await tableWrap.scrollIntoViewIfNeeded()
     await expect(tableWrap).toBeVisible()
-    await expect.poll(() => installedSection.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-    await expect.poll(() => mcpPanel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expectDirectChildrenBounded(installedSection)
+    await expect.poll(() => tableWrap.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      const panel = element.closest('.mcp-panel')?.getBoundingClientRect()
+      return Boolean(panel) && rect.left >= panel.left - 1 && rect.right <= panel.right + 1
+    })).toBe(true)
+    // The 620px inventory table deliberately owns horizontal scrolling inside
+    // this wrapper. Its intrinsic width must never be promoted to panel/page
+    // overflow, but the wrapper itself remains a valid local scroller.
+    await expect.poll(() => tableWrap.evaluate((element) => element.scrollWidth >= element.clientWidth)).toBe(true)
+    await expectNoHorizontalOverflow(page)
     await captureElement(page, installedSection, 'visual-mcp-sharing-table.png')
   })
 
@@ -1596,8 +1624,9 @@ test.describe('visual review states', () => {
     await expect(health).toBeVisible()
     await expect(health).toContainText('Vault health')
     await expect(health).toContainText(/Vault looks healthy|issue/)
-    await expect.poll(() => health.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-    await expect.poll(() => health.locator('.unified-panel-body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expectFullyInViewport(page, '.health-dashboard')
+    await expectDirectChildrenBounded(health.locator('.unified-panel-body'))
+    await expectNoHorizontalOverflow(page)
     await captureElement(page, health, 'visual-vault-health-dashboard.png')
   })
 
@@ -1614,8 +1643,9 @@ test.describe('visual review states', () => {
 
     const health = page.getByRole('dialog', { name: 'Vault health', exact: true })
     await expect(health).toBeVisible()
-    await expect.poll(() => health.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-    await expect.poll(() => health.locator('.unified-panel-body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expectFullyInViewport(page, '.health-dashboard')
+    await expectDirectChildrenBounded(health.locator('.unified-panel-body'))
+    await expectNoHorizontalOverflow(page)
     await captureElement(page, health, 'visual-vault-health-dashboard-720.png')
   })
 
