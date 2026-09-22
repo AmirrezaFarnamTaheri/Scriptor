@@ -1,4 +1,4 @@
-import { Fragment, memo, useEffect, useMemo, useRef, useState, useDeferredValue } from 'react'
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -39,10 +39,10 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
   const listRef = useRef<HTMLUListElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const searchTimer = useRef<number | null>(null)
+  const searchGeneration = useRef(0)
   const isKeyboardNav = useRef(false)
 
   const normalizedQuery = query.trim()
-  const deferredQuery = useDeferredValue(normalizedQuery)
   const isSearchingNotes = searchingQuery === normalizedQuery
   const helpCommand = useMemo<PaletteCommand>(() => ({
     id: 'open-help-guides', label: helpLabels(locale).title,
@@ -53,7 +53,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
 
   const noteCommands = useMemo<PaletteCommand[]>(
     () =>
-      (noteSearch.query === deferredQuery ? noteSearch.hits : []).map((hit) => ({
+      (noteSearch.query === normalizedQuery ? noteSearch.hits : []).map((hit) => ({
         id: `note:${hit.path}`,
         label: hit.title,
         category: t('commandPalette.noteCategory'),
@@ -61,29 +61,45 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
         tone: 'default' as const,
         run: () => { onOpenNote?.(hit.path) },
       })),
-    [deferredQuery, noteSearch, onOpenNote, t],
+    [normalizedQuery, noteSearch, onOpenNote, t],
   )
 
   const mergedCommands = useMemo(() => {
     const scored = [...commands, helpCommand]
-      .map((cmd) => ({ cmd, score: scoreCommand(deferredQuery, cmd) }))
+      .map((cmd) => ({ cmd, score: scoreCommand(normalizedQuery, cmd) }))
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
       .map(({ cmd }) => ({ ...cmd, group: 'command' as const }))
     if (!searchNotes || deferredQuery.length < 2) return scored
     return [...scored, ...noteCommands]
-  }, [commands, helpCommand, noteCommands, deferredQuery, searchNotes])
+  }, [commands, helpCommand, noteCommands, normalizedQuery, searchNotes])
 
   useEffect(() => {
-    if (!searchNotes || normalizedQuery.length < 2) return
+    const generation = ++searchGeneration.current
+    if (searchTimer.current) {
+      window.clearTimeout(searchTimer.current)
+      searchTimer.current = null
+    }
+    if (!searchNotes || normalizedQuery.length < 2) {
+      return
+    }
     const requestQuery = normalizedQuery
     searchTimer.current = window.setTimeout(() => {
       setSearchingQuery(requestQuery)
       void searchNotes(requestQuery)
-        .then((hits) => setNoteSearch({ query: requestQuery, hits: hits.slice(0, 12) }))
-        .catch(() => setNoteSearch({ query: requestQuery, hits: [] }))
-        .finally(() => { setSearchingQuery((current) => (current === requestQuery ? null : current)) })
-    }, 200)
+        .then((hits) => {
+          if (generation !== searchGeneration.current) return
+          setNoteSearch({ query: requestQuery, hits: hits.slice(0, 12) })
+        })
+        .catch(() => {
+          if (generation !== searchGeneration.current) return
+          setNoteSearch({ query: requestQuery, hits: [] })
+        })
+        .finally(() => {
+          if (generation !== searchGeneration.current) return
+          setSearchingQuery(null)
+        })
+    }, 180)
     return () => {
       if (searchTimer.current) {
         window.clearTimeout(searchTimer.current)
@@ -103,6 +119,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
 
   const runSelected = (command: PaletteCommand) => { command.run(); onClose() }
   const hasNoteResults = mergedCommands.some((command) => command.group === 'note')
+  const activeIndex = Math.min(selectedIndex, Math.max(mergedCommands.length - 1, 0))
 
   return (
     <div className="command-palette-overlay" role="dialog" aria-modal="true" aria-label={t('commandPalette.ariaLabel')}>
@@ -121,14 +138,14 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
                 event.preventDefault()
                 isKeyboardNav.current = true
                 setSelectedIndex((current) => Math.max(current - 1, 0))
-              } else if (event.key === 'Enter' && mergedCommands[selectedIndex]) {
+              } else if (event.key === 'Enter' && mergedCommands[activeIndex]) {
                 event.preventDefault()
-                runSelected(mergedCommands[selectedIndex])
+                runSelected(mergedCommands[activeIndex])
               }
             }}
             placeholder={t('commandPalette.placeholder')} aria-label={t('commandPalette.ariaLabel')}
             aria-controls="command-palette-list"
-            aria-activedescendant={mergedCommands[selectedIndex] ? `command-palette-item-${mergedCommands[selectedIndex].id}` : undefined}
+            aria-activedescendant={mergedCommands[activeIndex] ? `command-palette-item-${mergedCommands[activeIndex].id}` : undefined}
             autoFocus
           />
         </div>
@@ -143,8 +160,8 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
                 {showHeading ? <li role="presentation" className="command-palette-group-label">{command.group === 'note' ? t('commandPalette.notesHeading') : t('commandPalette.commandsHeading')}</li> : null}
                 <li role="presentation">
                   <button
-                    type="button" id={`command-palette-item-${command.id}`} role="option" aria-selected={index === selectedIndex}
-                    data-active={index === selectedIndex ? 'true' : undefined} data-tone={command.tone ?? 'default'}
+                    type="button" id={`command-palette-item-${command.id}`} role="option" aria-selected={index === activeIndex}
+                    data-active={index === activeIndex ? 'true' : undefined} data-tone={command.tone ?? 'default'}
                     className={command.group === 'note' ? 'command-palette-note-hit' : undefined}
                     onClick={() => runSelected(command)}
                     onMouseEnter={() => { isKeyboardNav.current = false; setSelectedIndex(index) }}
