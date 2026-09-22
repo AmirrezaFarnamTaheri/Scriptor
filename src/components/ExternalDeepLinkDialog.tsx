@@ -28,7 +28,7 @@ export function ExternalDeepLinkDialog({ target, onCancel, onConfirm }: External
         ref={dialogRef}
         className="rename-dialog external-deep-link-dialog"
         role="alertdialog"
-        data-help-topic="permissions"
+        data-help-topic="external-links"
         aria-modal="true"
         aria-labelledby="external-deep-link-title"
         aria-describedby="external-deep-link-description"
