@@ -1,4 +1,4 @@
-import { Fragment, memo, useEffect, useMemo, useRef, useState, useDeferredValue } from 'react'
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -39,10 +39,10 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
   const listRef = useRef<HTMLUListElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const searchTimer = useRef<number | null>(null)
+  const searchGeneration = useRef(0)
   const isKeyboardNav = useRef(false)
 
   const normalizedQuery = query.trim()
-  const deferredQuery = useDeferredValue(normalizedQuery)
   const isSearchingNotes = searchingQuery === normalizedQuery
   const helpCommand = useMemo<PaletteCommand>(() => ({
     id: 'open-help-guides', label: helpLabels(locale).title,
@@ -53,7 +53,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
 
   const noteCommands = useMemo<PaletteCommand[]>(
     () =>
-      (noteSearch.query === deferredQuery ? noteSearch.hits : []).map((hit) => ({
+      (noteSearch.query === normalizedQuery ? noteSearch.hits : []).map((hit) => ({
         id: `note:${hit.path}`,
         label: hit.title,
         category: t('commandPalette.noteCategory'),
@@ -66,29 +66,41 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
 
   const mergedCommands = useMemo(() => {
     const scored = [...commands, helpCommand]
-      .map((cmd) => ({ cmd, score: scoreCommand(deferredQuery, cmd) }))
+      .map((cmd) => ({ cmd, score: scoreCommand(normalizedQuery, cmd) }))
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
       .map(({ cmd }) => ({ ...cmd, group: 'command' as const }))
     if (!searchNotes || deferredQuery.length < 2) return scored
     return [...scored, ...noteCommands]
-  }, [commands, helpCommand, noteCommands, deferredQuery, searchNotes])
+  }, [commands, helpCommand, noteCommands, normalizedQuery, searchNotes])
 
   useEffect(() => {
     if (!searchNotes || normalizedQuery.length < 2) return
     const requestQuery = normalizedQuery
+    const generation = searchGeneration.current + 1
+    searchGeneration.current = generation
     searchTimer.current = window.setTimeout(() => {
       setSearchingQuery(requestQuery)
       void searchNotes(requestQuery)
-        .then((hits) => setNoteSearch({ query: requestQuery, hits: hits.slice(0, 12) }))
-        .catch(() => setNoteSearch({ query: requestQuery, hits: [] }))
-        .finally(() => { setSearchingQuery((current) => (current === requestQuery ? null : current)) })
+        .then((hits) => {
+          if (searchGeneration.current !== generation) return
+          setNoteSearch({ query: requestQuery, hits: hits.slice(0, 12) })
+        })
+        .catch(() => {
+          if (searchGeneration.current !== generation) return
+          setNoteSearch({ query: requestQuery, hits: [] })
+        })
+        .finally(() => {
+          if (searchGeneration.current !== generation) return
+          setSearchingQuery(null)
+        })
     }, 200)
     return () => {
       if (searchTimer.current) {
         window.clearTimeout(searchTimer.current)
         searchTimer.current = null
       }
+      if (searchGeneration.current === generation) searchGeneration.current += 1
     }
   }, [normalizedQuery, searchNotes])
 
@@ -132,8 +144,17 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
             autoFocus
           />
         </div>
-        <p className="command-palette-scope-hint">{t('commandPalette.scopeHint')}</p>
-        {isSearchingNotes ? <p className="command-palette-hint">{t('commandPalette.searchingNotes')}</p> : null}
+        <p className="command-palette-scope-hint">
+          <span>{t('commandPalette.scopeHint')}</span>
+          <span
+            className="command-palette-search-status"
+            aria-live="polite"
+            aria-atomic="true"
+            data-active={isSearchingNotes ? 'true' : 'false'}
+          >
+            {isSearchingNotes ? t('commandPalette.searchingNotes') : '\u00A0'}
+          </span>
+        </p>
         <ul id="command-palette-list" ref={listRef} role="listbox">
           {mergedCommands.map((command, index) => {
             const previousGroup = mergedCommands[index - 1]?.group
