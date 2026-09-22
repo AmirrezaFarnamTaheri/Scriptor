@@ -1522,6 +1522,10 @@ test.describe('visual review states', () => {
     })).toBe(true)
     await expect(capture).toContainText('Todos')
     await captureElement(page, capture, 'visual-quick-capture.png')
+
+    await todoRow.getByRole('button', { name: 'Mark todo complete', exact: true }).click()
+    await expect(todoRow).toHaveClass(/done/)
+    await expect.poll(() => todo.evaluate((element) => getComputedStyle(element).textDecorationLine)).toContain('line-through')
   })
 
   test('sticky-note overlay evidence', async ({ page }) => {

@@ -88,7 +88,7 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
               <li className="empty-state">No todos yet.</li>
             ) : (
               todos.map((todo) => (
-                <li key={todo.id}>
+                <li key={todo.id} className={todo.done ? 'done' : undefined}>
                   <button
                     type="button"
                     className={todo.done ? 'icon-button done' : 'icon-button'}
