@@ -476,32 +476,34 @@ function SettingsPanelImpl({
                 <p className="health-subtitle">
                   {t('settingsPanel.savedLayout', { mode: workspaceMode })}
                 </p>
-                <label className="diagnostics-opt-in">
-                  <input
-                    type="checkbox"
-                    checked={workspaceLayouts[workspaceMode]?.splitPreview ?? false}
-                    onChange={(event) =>
-                      onSaveWorkspaceLayout(workspaceMode, {
-                        ...workspaceLayouts[workspaceMode],
-                        splitPreview: event.target.checked,
-                      })
-                    }
-                  />
-                  <span>{t('settingsPanel.splitPreview')}</span>
-                </label>
-                <label className="diagnostics-opt-in">
-                  <input
-                    type="checkbox"
-                    checked={workspaceLayouts[workspaceMode]?.showStickies ?? false}
-                    onChange={(event) =>
-                      onSaveWorkspaceLayout(workspaceMode, {
-                        ...workspaceLayouts[workspaceMode],
-                        showStickies: event.target.checked,
-                      })
-                    }
-                  />
-                  <span>{t('settingsPanel.showStickies')}</span>
-                </label>
+                <div className="settings-toggle-list workspace-layout-toggles">
+                  <label className="settings-toggle-card">
+                    <input
+                      type="checkbox"
+                      checked={workspaceLayouts[workspaceMode]?.splitPreview ?? false}
+                      onChange={(event) =>
+                        onSaveWorkspaceLayout(workspaceMode, {
+                          ...workspaceLayouts[workspaceMode],
+                          splitPreview: event.target.checked,
+                        })
+                      }
+                    />
+                    <span>{t('settingsPanel.splitPreview')}</span>
+                  </label>
+                  <label className="settings-toggle-card">
+                    <input
+                      type="checkbox"
+                      checked={workspaceLayouts[workspaceMode]?.showStickies ?? false}
+                      onChange={(event) =>
+                        onSaveWorkspaceLayout(workspaceMode, {
+                          ...workspaceLayouts[workspaceMode],
+                          showStickies: event.target.checked,
+                        })
+                      }
+                    />
+                    <span>{t('settingsPanel.showStickies')}</span>
+                  </label>
+                </div>
                 <label className="settings-field">
                   {t('settingsPanel.graphDepth')}
                   <input
