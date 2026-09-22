@@ -234,7 +234,24 @@ export function installE2eBridge(): void {
             markdown: `${document.markdown}\n\nExternal disk edit.`,
           }
         }
-        return e2eNoteDocument(readPath)
+        const document = e2eNoteDocument(readPath)
+        if (
+          readPath === 'Research Plan.md'
+          && window.sessionStorage.getItem('e2e:frontmatter-populated') === '1'
+          && !document.markdown.startsWith('---\n')
+        ) {
+          const markdown = `---\nproject: Scriptor research\nstatus: active\ntags: research, methods\n---\n\n${document.markdown}`
+          return {
+            ...document,
+            metadata: {
+              ...document.metadata,
+              content_hash: 'hash-frontmatter-visual-fixture',
+              word_count: markdown.split(/\\s+/).filter(Boolean).length,
+            },
+            markdown,
+          }
+        }
+        return document
       }
       case 'vault_save_note': {
         const body = payload as {
@@ -281,6 +298,20 @@ export function installE2eBridge(): void {
       case 'vault_load_config':
         return DEFAULT_CONFIG
       case 'vault_load_snippets':
+        if (window.sessionStorage.getItem('e2e:snippets-populated') === '1') {
+          return [
+            {
+              name: 'literature-note',
+              description: 'Structure a literature finding with its source.',
+              content: '## ${1:Finding}\\n\\nSource: ${2:citation}\\n\\n${3:Notes}',
+            },
+            {
+              name: 'method-check',
+              description: 'Record a methodology check before synthesis.',
+              content: '- Method: ${1:name}\\n- Evidence: ${2:result}',
+            },
+          ]
+        }
         return []
       case 'vault_list_recent_notes':
         return [{ path: 'Research Plan.md', opened_at: '2026-06-23T12:00:00.000Z' }]

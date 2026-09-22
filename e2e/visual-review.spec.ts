@@ -275,6 +275,9 @@ test.describe('visual review states', () => {
   })
 
   test('frontmatter inspector evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:frontmatter-populated', '1')
+    })
     await openVisualWorkspace(page)
     await page.getByRole('button', { name: 'Tools', exact: true }).click()
     await page.getByRole('menuitem', { name: /Frontmatter/i }).click()
@@ -282,6 +285,10 @@ test.describe('visual review states', () => {
     const frontmatter = page.getByRole('dialog', { name: 'Frontmatter', exact: true })
     await expect(frontmatter).toBeVisible()
     await expect(frontmatter.getByRole('heading', { name: 'Frontmatter', exact: true })).toBeVisible()
+    await expect(frontmatter.getByLabel('project', { exact: true })).toHaveValue('Scriptor research')
+    await expect(frontmatter.getByLabel('status', { exact: true })).toHaveValue('active')
+    await expect(frontmatter.getByLabel('tags', { exact: true })).toHaveValue('research, methods')
+    await expect(frontmatter.locator('.frontmatter-fields > li')).toHaveCount(3)
     await expect(frontmatter.locator(':scope > header')).toHaveCSS('display', 'flex')
     await expect.poll(() => frontmatter.evaluate((element) => {
       const style = getComputedStyle(element)
@@ -1269,11 +1276,19 @@ test.describe('visual review states', () => {
   })
 
   test('Snippet catalog evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:snippets-populated', '1')
+    })
     await openVisualWorkspace(page)
     await openCommandPalette(page)
     await runCommand(page, 'Manage snippet catalog')
     const snippets = page.getByRole('dialog', { name: 'Snippet catalog', exact: true })
     await expect(snippets).toBeVisible()
+    await expect(snippets.getByRole('button', { name: 'literature-note', exact: true })).toBeVisible()
+    await expect(snippets.getByRole('button', { name: 'method-check', exact: true })).toBeVisible()
+    await expect(snippets.getByLabel('Name', { exact: true })).toHaveValue('literature-note')
+    await expect(snippets.getByLabel('Description', { exact: true })).toHaveValue('Structure a literature finding with its source.')
+    await expect(snippets.getByLabel('Content', { exact: true })).toContainText('Source:')
     await expect.poll(() => snippets.evaluate((element) => {
       const background = getComputedStyle(element).backgroundColor
       const rgba = background.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
