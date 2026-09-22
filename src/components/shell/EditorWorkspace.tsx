@@ -357,7 +357,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
           languageTool={languageTool}
           setLanguageTool={setLanguageTool}
           renameActiveNote={renameActiveNote}
-          insertSnippet={insertSnippet}
+          insertSnippet={handleInsertSnippet}
           splitPreview={splitPreview}
           showSplitPreview={showSplitPreview}
           setSplitPreview={setSplitPreview}
