@@ -220,14 +220,14 @@ test('Help visual evidence proves centralized, non-injected guidance', () => {
 test('named review evidence stays viewport-representative', () => {
   assert.match(
     visualReview,
-    /captureElement\(page, settings, 'visual-settings-release-quality\\.png'\)/,
+    /captureElement\(page, settings, 'visual-settings-release-quality\.png'\)/,
   )
   assert.doesNotMatch(
     visualReview,
-    /captureElement\(page, releaseQuality, 'visual-settings-release-quality\\.png'\)/,
+    /captureElement\(page, releaseQuality, 'visual-settings-release-quality\.png'\)/,
   )
-  assert.match(visualReview, /visual-reader-epub\\.png/)
-  assert.match(visualReview, /End of reader fixture\\./)
+  assert.match(visualReview, /visual-reader-epub\.png/)
+  assert.match(visualReview, /End of reader fixture\./)
 })
 
 test('major product surfaces keep visual evidence', () => {
