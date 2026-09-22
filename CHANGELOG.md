@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.2.0 — 2026-09-22
+
 ### Fixed
 
 - Keep newer drafts and active-document identity intact when disk reloads, same-tab activation, navigation, or tab fallback reads complete late. Tab closure now waits for a successful fallback and does not discard edits made during its final save.
