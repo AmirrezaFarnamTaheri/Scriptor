@@ -762,7 +762,10 @@
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
   gap: 16px;
   padding: 16px 18px 20px;
-  overflow: auto;
+  /* UnifiedPanelShell owns vertical scrolling. Avoid a second unconstrained
+   * overflow container that makes the companion look clipped while scrollTop
+   * is applied to a child that has no bounded scrollport. */
+  overflow: visible;
 }
 
 .portal-toolbar {
