@@ -4,6 +4,7 @@ import {
   appendEditorLine,
   E2E_SEARCH_MARKER,
   launchApp,
+  openCommandPalette,
   settleLayout,
   waitForSavedMarker,
   waitForWorkspace,
@@ -152,6 +153,32 @@ test.describe('workspace flows', () => {
     })
     await expect(publishDialog.locator('.publish-command-preview')).toContainText('Research Plan.md')
     await expect(publishDialog.getByText('Dry run complete')).toBeVisible()
+  })
+
+  test('command palette search remains geometrically stable while note search resolves', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:search-delay', '1')
+    })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await waitForWorkspace(page)
+    await openCommandPalette(page)
+
+    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    const search = palette.getByRole('searchbox')
+    const list = palette.locator('#command-palette-list')
+    await search.fill('Research')
+
+    const first = await list.boundingBox()
+    expect(first).not.toBeNull()
+    await page.waitForTimeout(320)
+    const during = await list.boundingBox()
+    expect(during).not.toBeNull()
+    expect(Math.abs((during?.y ?? 0) - (first?.y ?? 0))).toBeLessThanOrEqual(1)
+
+    await page.waitForTimeout(850)
+    const settled = await list.boundingBox()
+    expect(settled).not.toBeNull()
+    expect(Math.abs((settled?.y ?? 0) - (first?.y ?? 0))).toBeLessThanOrEqual(1)
   })
 
   test('performance HUD toggle shows metrics overlay', async ({ page }) => {
