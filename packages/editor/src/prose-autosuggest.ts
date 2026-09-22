@@ -43,7 +43,7 @@ export interface ProseAutosuggestOptions {
 }
 
 const DEFAULTS: Required<ProseAutosuggestOptions> = {
-  minPrefix: 3,
+  minPrefix: 4,
   maxSuggestions: 8,
   useCurrentDoc: true,
   useOpenTabs: true,
@@ -226,7 +226,7 @@ function buildSource(
       },
     }))
 
-    return { from, options, filter: false }
+    return { from, options, filter: true, validFor: /^[A-Za-z][A-Za-z]*$/ }
   }
 }
 
