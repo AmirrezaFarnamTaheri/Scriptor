@@ -8,11 +8,15 @@ export function useEditorPreviewScrollSync({
   enabled,
   editorRef,
   previewRef,
+  previewEditorRef,
+  editablePreviewActive,
   scrollContainerRef,
 }: {
   enabled: boolean
   editorRef: RefObject<MarkdownEditorHandle | null>
   previewRef: RefObject<MarkdownPreviewHandle | null>
+  previewEditorRef: RefObject<MarkdownEditorHandle | null>
+  editablePreviewActive: boolean
   scrollContainerRef: RefObject<HTMLElement | null>
 }) {
   const lockRef = useRef(false)
@@ -28,6 +32,18 @@ export function useEditorPreviewScrollSync({
 
       frameRef.current = requestAnimationFrame(() => {
         frameRef.current = null
+
+        if (editablePreviewActive) {
+          const previewEditor = previewEditorRef.current
+          if (!previewEditor) return
+          lockRef.current = true
+          previewEditor.scrollToLine(line, false)
+          requestAnimationFrame(() => {
+            lockRef.current = false
+          })
+          return
+        }
+
         const content = previewRef.current?.getContentRoot()
         const container = scrollContainerRef.current
         if (!content || !container) return
@@ -39,11 +55,26 @@ export function useEditorPreviewScrollSync({
         })
       })
     },
-    [enabled, previewRef, scrollContainerRef],
+    [editablePreviewActive, enabled, previewEditorRef, previewRef, scrollContainerRef],
+  )
+
+  const handlePreviewLine = useCallback(
+    (line: number) => {
+      if (!enabled || !editablePreviewActive || lockRef.current) return
+      const editor = editorRef.current
+      if (!editor) return
+
+      lockRef.current = true
+      editor.scrollToLine(line, false)
+      requestAnimationFrame(() => {
+        lockRef.current = false
+      })
+    },
+    [editablePreviewActive, editorRef, enabled],
   )
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled || editablePreviewActive) return
 
     const container = scrollContainerRef.current
     if (!container) return
@@ -67,7 +98,7 @@ export function useEditorPreviewScrollSync({
 
     container.addEventListener('scroll', onScroll, { passive: true })
     return () => container.removeEventListener('scroll', onScroll)
-  }, [enabled, editorRef, previewRef, scrollContainerRef])
+  }, [editablePreviewActive, enabled, editorRef, previewRef, scrollContainerRef])
 
-  return { handleEditorLine }
+  return { handleEditorLine, handlePreviewLine }
 }
