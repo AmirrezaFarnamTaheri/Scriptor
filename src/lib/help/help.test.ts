@@ -7,7 +7,7 @@ import { parseHelpRequest } from './request.ts'
 import { HELP_STORAGE_KEY } from './types.ts'
 
 test('all guides have unique ids, authored steps, questions, entry paths, safety, and valid related guides', () => {
-  assert.ok(HELP_GUIDES.length >= 90)
+  assert.ok(HELP_GUIDES.length >= 98)
   assert.equal(HELP_BY_ID.size, HELP_GUIDES.length)
   for (const guide of HELP_GUIDES) {
     assert.match(guide.id, /^[a-z][a-z0-9-]+$/)
@@ -141,7 +141,6 @@ test('every literal contextual help topic points to an authored guide', () => {
     'src/components/KeyboardShortcutsSettingsSection.tsx',
     'src/components/KnowledgeFiltersPanel.tsx',
     'src/components/LayoutPresetGallery.tsx',
-    'src/components/LinkRewriteDialog.tsx',
     'src/components/McpPanel.tsx',
     'src/components/NoteHistoryPanel.tsx',
     'src/components/ObsidianImportDialog.tsx',
@@ -163,6 +162,7 @@ test('every literal contextual help topic points to an authored guide', () => {
     'src/components/TaskPanel.tsx',
     'src/components/TemplatePicker.tsx',
     'src/components/VaultBackupSettings.tsx',
+    'src/components/VaultConfigSettingsSection.tsx',
     'src/components/VaultHealthDashboard.tsx',
     'src/components/WorkspaceChromeSettingsSection.tsx',
     'src/components/WritingTargetsPanel.tsx',
@@ -179,6 +179,10 @@ test('every literal contextual help topic points to an authored guide', () => {
     'src/components/shell/SubsystemToggles.tsx',
     'src/components/shell/WorkspaceStatusFooter.tsx',
     'src/components/themes/ThemeCustomizerModal.tsx',
+    'src/components/editor/CustomizableToolbar.tsx',
+    'src/components/RenameBlockDialog.tsx',
+    'src/components/RenameSectionDialog.tsx',
+    'src/components/RenameTagDialog.tsx',
     'src/components/shell/AppTopBar.tsx',
     'src/components/shell/MobileWorkspaceNav.tsx',
     'src/components/TocSidebar.tsx',
@@ -211,4 +215,9 @@ test('dynamic contextual help owners resolve only authored guide ids', () => {
   const prompt = readFileSync('src/components/TextPromptDialog.tsx', 'utf8')
   assert.match(prompt, /data-help-topic=\{request\.helpTopic\}/)
   for (const id of ['publish', 'saved-views', 'ai']) assert.ok(HELP_BY_ID.has(id), id)
+
+  const rewrite = readFileSync('src/components/LinkRewriteDialog.tsx', 'utf8')
+  assert.match(rewrite, /data-help-topic=\{helpTopic\}/)
+  assert.match(rewrite, /helpTopic = 'link-rewrite'/)
+  for (const id of ['link-rewrite', 'rename-block', 'rename-section', 'rename-tag']) assert.ok(HELP_BY_ID.has(id), id)
 })
