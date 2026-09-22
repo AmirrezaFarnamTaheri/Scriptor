@@ -118,13 +118,13 @@ interface SettingsPanelProps {
 
 type SettingsTab = 'general' | 'appearance' | 'workspace' | 'integrations' | 'shortcuts' | 'advanced'
 
-const SETTINGS_TABS: Array<{ id: SettingsTab; labelKey: string }> = [
-  { id: 'general', labelKey: 'settingsPanel.tabs.general' },
-  { id: 'appearance', labelKey: 'settingsPanel.tabs.appearance' },
-  { id: 'workspace', labelKey: 'settingsPanel.tabs.workspace' },
-  { id: 'integrations', labelKey: 'settingsPanel.tabs.integrations' },
-  { id: 'shortcuts', labelKey: 'settingsPanel.tabs.shortcuts' },
-  { id: 'advanced', labelKey: 'settingsPanel.tabs.advanced' },
+const SETTINGS_TABS: Array<{ id: SettingsTab; labelKey: string; helpTopic: string }> = [
+  { id: 'general', labelKey: 'settingsPanel.tabs.general', helpTopic: 'settings' },
+  { id: 'appearance', labelKey: 'settingsPanel.tabs.appearance', helpTopic: 'appearance' },
+  { id: 'workspace', labelKey: 'settingsPanel.tabs.workspace', helpTopic: 'workspace-chrome' },
+  { id: 'integrations', labelKey: 'settingsPanel.tabs.integrations', helpTopic: 'integrations' },
+  { id: 'shortcuts', labelKey: 'settingsPanel.tabs.shortcuts', helpTopic: 'shortcuts' },
+  { id: 'advanced', labelKey: 'settingsPanel.tabs.advanced', helpTopic: 'advanced' },
 ]
 
 /** Renders the tabbed application and vault settings surface. */
@@ -180,7 +180,7 @@ function SettingsPanelImpl({
 }: SettingsPanelProps) {
   const { locale, t, changeLocale, supportedLocales, localeLabels } = useI18n()
   const selectedSpellcheckLocale = resolveHunspellLocale(spellcheckLocale)
-  const settingsTabs = useMemo(() => SETTINGS_TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey) })), [t])
+  const settingsTabs = useMemo(() => SETTINGS_TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey), helpTopic: entry.helpTopic })), [t])
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
   const [configBaseline, setConfigBaseline] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
