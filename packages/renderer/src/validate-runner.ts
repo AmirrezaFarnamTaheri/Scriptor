@@ -21,7 +21,7 @@ import { remarkMpeCodeChunks } from './remark-mpe-code-chunks.ts'
  */
 import { auditMarkup } from './xss-test.ts'
 import './preview-budget-test.ts'
-import { preprocessExtendedTaskStates, renderMarkdownPipeline } from './pipeline.ts'
+import { preprocessExtendedTaskStates, renderMarkdownPipeline, sanitizeRenderedHtml } from './pipeline.ts'
 import { renderMarkdownPreview } from './preview.ts'
 import { findPreviewAnchor } from './scroll-sync.ts'
 import { preprocessImports, preprocessImportsAsync } from './remark-import.ts'
@@ -276,6 +276,17 @@ test('renderMarkdownPreview cache includes render flags and never caches resolve
   assert.match(first, /First/)
   assert.match(second, /Second/)
   assert.notEqual(first, second)
+})
+
+test('final rendered-HTML sanitizer preserves renderer metadata while removing active content', () => {
+  const html = sanitizeRenderedHtml(
+    '<p data-source-line="7">safe</p><span class="katex">math</span><img src="x" onerror="alert(1)"><a href="javascript:alert(1)">x</a><script>alert(1)</script>',
+  )
+  assert.match(html, /data-source-line="7"/)
+  assert.match(html, /class="katex"/)
+  assert.doesNotMatch(html, /onerror\s*=/i)
+  assert.doesNotMatch(html, /javascript:/i)
+  assert.doesNotMatch(html, /<script/i)
 })
 
 test('hostile markdown fixtures strip script and event handlers', () => {

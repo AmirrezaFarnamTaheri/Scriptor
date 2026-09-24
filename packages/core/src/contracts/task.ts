@@ -28,6 +28,8 @@ export interface Task {
   line: number;
   status: TaskStatus;
   text: string;
+  /** Lower integer = more urgent; 0 is normal priority. */
+  priority?: number;
   /** ISO-8601 date or null */
   due?: string | null;
   /** ISO-8601 date or null */

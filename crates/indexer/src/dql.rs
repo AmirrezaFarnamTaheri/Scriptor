@@ -234,7 +234,9 @@ fn execute_single_clause(
 /// Sub-clauses are space-separated key:value pairs:
 ///   `status:open`, `due:2026-08-15`, `due:overdue`, `tag:someTag`
 ///
-/// Unknown tokens are silently ignored so future extensions are forward-compatible.
+/// Unknown or malformed task filters are rejected. Silently ignoring a typo
+/// such as `statsu:done` would widen the query and make the returned task set
+/// look authoritative even though the user's constraint was never applied.
 fn parse_task_filter(filter_str: &str) -> Result<TaskFilter, IndexerError> {
     let mut filter = TaskFilter::default();
     if filter_str.is_empty() {
@@ -243,18 +245,25 @@ fn parse_task_filter(filter_str: &str) -> Result<TaskFilter, IndexerError> {
 
     for token in filter_str.split_whitespace() {
         let Some((raw_key, raw_value)) = token.split_once(':') else {
-            continue;
+            return Err(IndexerError::InvalidQuery(format!(
+                "malformed task filter {token:?}; expected key:value"
+            )));
         };
         let key = raw_key.to_ascii_lowercase();
         let value = raw_value.trim();
+        if value.is_empty() {
+            return Err(IndexerError::InvalidQuery(format!(
+                "task filter {key}: requires a value"
+            )));
+        }
         match key.as_str() {
-            "status" if !value.is_empty() => {
+            "status" => {
                 filter.status = Some(value.to_ascii_lowercase());
             }
             "due" if value.eq_ignore_ascii_case("overdue") => {
                 filter.due_before = Some(local_yesterday());
             }
-            "due" if !value.is_empty() => {
+            "due" => {
                 if !crate::tasks::is_valid_task_date(value) {
                     return Err(IndexerError::InvalidQuery(format!(
                         "invalid task due date {value:?}; expected YYYY-MM-DD"
@@ -263,10 +272,20 @@ fn parse_task_filter(filter_str: &str) -> Result<TaskFilter, IndexerError> {
                 filter.due_before = Some(value.to_string());
                 filter.due_after = Some(value.to_string());
             }
-            "tag" if !value.is_empty() => {
-                filter.tag = Some(value.trim_start_matches('#').to_string());
+            "tag" => {
+                let tag = value.trim_start_matches('#');
+                if tag.is_empty() {
+                    return Err(IndexerError::InvalidQuery(
+                        "task filter tag: requires a tag name".into(),
+                    ));
+                }
+                filter.tag = Some(tag.to_string());
             }
-            _ => {}
+            _ => {
+                return Err(IndexerError::InvalidQuery(format!(
+                    "unsupported task filter {key:?}"
+                )));
+            }
         }
     }
 
@@ -650,6 +669,18 @@ fn body_excludes(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn task_filter_rejects_unknown_or_malformed_constraints() {
+        let unknown = parse_task_filter("statsu:done").expect_err("unknown key must fail");
+        assert!(unknown.to_string().contains("unsupported task filter"));
+
+        let malformed = parse_task_filter("status:open stray").expect_err("bare token must fail");
+        assert!(malformed.to_string().contains("expected key:value"));
+
+        let empty = parse_task_filter("tag:").expect_err("empty value must fail");
+        assert!(empty.to_string().contains("requires a value"));
+    }
 
     #[test]
     fn split_compound_respects_quotes() {

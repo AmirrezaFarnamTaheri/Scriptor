@@ -328,17 +328,6 @@ fn sync_tree(root: &Path) -> Result<(), String> {
     sync_directory(root)
 }
 
-fn write_restore_state(transaction: &Path, state: &str) -> Result<(), String> {
-    let state_path = transaction.join("state");
-    let temporary = transaction.join(".state.tmp");
-    let mut file = fs::File::create(&temporary).map_err(|error| error.to_string())?;
-    file.write_all(state.as_bytes())
-        .map_err(|error| error.to_string())?;
-    sync_file(&temporary)?;
-    fs::rename(&temporary, &state_path).map_err(|error| error.to_string())?;
-    sync_directory(transaction)
-}
-
 fn validate_restore_journal(vault_root: &Path, journal: &Path) -> Result<(), String> {
     let metadata_root = fs::symlink_metadata(vault_root).map_err(|error| error.to_string())?;
     if metadata_root.file_type().is_symlink() || !metadata_root.is_dir() {
@@ -592,11 +581,83 @@ pub fn vault_delete_backup(
 /// Recovers any interrupted restore operation left in `.scriptor/restore-journal`.
 /// Called during `vault_open` and before a new restore so unresolved recovery
 /// state is never discarded merely because the user retries the operation.
-/// Journal state written once the staged content is being promoted into the
-/// vault, i.e. after the vault is cleared and while the staged files are
-/// copied in. A leftover marker of this value marks an in-flight replacement.
+///
+/// Restore states are deliberately explicit and monotonic around destructive
+/// filesystem work. A transition is persisted before the mutation it protects.
+/// If a state write is interrupted and the marker becomes unreadable/missing,
+/// recovery fails closed instead of assuming rollback succeeded.
+const RESTORE_STATE_PREPARING: &str = "preparing";
 const RESTORE_STATE_PROMOTING: &str = "promoting";
+const RESTORE_STATE_ROLLBACK_IN_PROGRESS: &str = "rollback-in-progress";
 const RESTORE_STATE_ROLLED_BACK: &str = "rolled-back";
+const RESTORE_STATE_COMPLETE: &str = "complete";
+
+fn sync_restore_directory(path: &Path) -> Result<(), String> {
+    // Unix requires syncing the containing directory for rename/create
+    // durability. std does not expose an equivalent portable directory handle
+    // on Windows; the state file itself is still sync_all'd, and any
+    // replace-gap/read failure is classified as RecoveryRequired.
+    #[cfg(unix)]
+    {
+        fs::File::open(path)
+            .and_then(|directory| directory.sync_all())
+            .map_err(|error| format!("Failed to sync restore journal directory: {error}"))?;
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+    }
+    Ok(())
+}
+
+fn write_restore_state(transaction: &Path, state: &str) -> Result<(), String> {
+    let state_file = transaction.join("state");
+    let temp_file = transaction.join("state.tmp");
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(&temp_file)
+        .map_err(|error| format!("Failed to create restore state {state}: {error}"))?;
+    file.write_all(state.as_bytes())
+        .map_err(|error| format!("Failed to write restore state {state}: {error}"))?;
+    file.sync_all()
+        .map_err(|error| format!("Failed to sync restore state {state}: {error}"))?;
+    drop(file);
+
+    if let Err(rename_error) = fs::rename(&temp_file, &state_file) {
+        if !state_file.exists() {
+            return Err(format!(
+                "Failed to install restore state {state}: {rename_error}"
+            ));
+        }
+
+        // Windows does not replace an existing destination with rename(). The
+        // fallback can leave a missing marker if interrupted between remove and
+        // rename; that state is intentionally fail-closed by finalization and
+        // recovery rather than being treated as a successful rollback.
+        fs::remove_file(&state_file)
+            .map_err(|error| format!("Failed to replace restore state {state}: {error}"))?;
+        fs::rename(&temp_file, &state_file)
+            .map_err(|error| format!("Failed to install restore state {state}: {error}"))?;
+    }
+    sync_restore_directory(transaction)
+}
+
+fn restore_failure_is_reconciled(journal_state: Option<&str>) -> bool {
+    matches!(
+        journal_state,
+        Some(state)
+            if state == RESTORE_STATE_PREPARING || state == RESTORE_STATE_ROLLED_BACK
+    )
+}
+
+fn should_attempt_restore_reopen(
+    transaction_result: &Result<(), String>,
+    journal_state: Option<&str>,
+) -> bool {
+    transaction_result.is_ok() || restore_failure_is_reconciled(journal_state)
+}
 
 pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
     let journal = vault_root.join(".scriptor").join("restore-journal");
@@ -616,7 +677,11 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
     let state_file = journal.join("state");
     let state = fs::read_to_string(&state_file)
         .map(|s| s.trim().to_string())
-        .map_err(|error| format!("Failed to read restore journal state: {error}"))?;
+        .map_err(|error| {
+            format!(
+                "Failed to read restore journal state: {error}. Journal preserved for recovery."
+            )
+        })?;
 
     if state == RESTORE_STATE_ROLLED_BACK {
         // The replacement was reverted and the rollback was flushed before this
@@ -627,7 +692,7 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
         sync_directory(&vault_root.join(".scriptor"))
             .map_err(|error| format!("Failed to durably remove restore journal: {error}"))?;
         Ok(())
-    } else if state == RESTORE_STATE_PROMOTING {
+    } else if state == RESTORE_STATE_PROMOTING || state == RESTORE_STATE_ROLLBACK_IN_PROGRESS {
         let rollback = journal.join("rollback");
         let rollback_metadata = fs::symlink_metadata(&rollback)
             .map_err(|error| format!("Restore rollback snapshot is missing: {error}"))?;
@@ -635,8 +700,9 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
             return Err("Restore rollback snapshot must be a regular directory; journal preserved for manual inspection.".into());
         }
         eprintln!(
-            "[vault-backup] Interrupted restore detected in promoting state; rolling back to pre-restore snapshot"
+            "[vault-backup] Interrupted restore detected in {state} state; rolling back to pre-restore snapshot"
         );
+        write_restore_state(&journal, RESTORE_STATE_ROLLBACK_IN_PROGRESS)?;
         clear_persistent_vault_content(vault_root).map_err(|error| {
             format!("Failed to clear partial vault during restore rollback: {error}")
         })?;
@@ -645,12 +711,16 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
             .map_err(|error| format!("Failed to restore rollback snapshot: {error}"))?;
         sync_tree(vault_root)
             .map_err(|error| format!("Failed to durably restore rollback snapshot: {error}"))?;
+        write_restore_state(&journal, RESTORE_STATE_ROLLED_BACK)?;
         fs::remove_dir_all(&journal)
             .map_err(|error| format!("Failed to remove completed restore journal: {error}"))?;
         sync_directory(&vault_root.join(".scriptor"))
             .map_err(|error| format!("Failed to durably remove restore journal: {error}"))?;
         Ok(())
-    } else if state == "preparing" || state == "complete" {
+    } else if state == RESTORE_STATE_PREPARING
+        || state == RESTORE_STATE_ROLLED_BACK
+        || state == RESTORE_STATE_COMPLETE
+    {
         fs::remove_dir_all(&journal)
             .map_err(|error| format!("Failed to remove {state} restore journal: {error}"))?;
         sync_directory(&vault_root.join(".scriptor"))
@@ -737,31 +807,23 @@ fn finalize_restore(
             Ok(()) => VaultRestoreStatus::CommittedReady,
             Err(_) => VaultRestoreStatus::CommittedNeedsReopen,
         },
-        Err(_) => match journal_state.as_deref() {
-            // The transaction reached promotion, so the staged content is in
-            // place even though the completion marker could not be written.
-            // Recovery on the next vault open reconciles it.
-            Some(state) if state == RESTORE_STATE_PROMOTING => VaultRestoreStatus::RecoveryRequired,
-            // A rollback is only trustworthy when it recorded that it flushed
-            // the restored snapshot. `preparing` means the promotion never
-            // started, and `rolled-back` means the revert completed durably;
-            // both leave the vault holding the pre-restore content.
-            Some("preparing") | Some(RESTORE_STATE_ROLLED_BACK) => VaultRestoreStatus::RolledBack,
-            // If the marker is unreadable or unexpected, keep persistence frozen:
-            // assuming rollback would allow the superseded editor draft to
-            // overwrite a restore that may already have promoted files.
-            _ => VaultRestoreStatus::RecoveryRequired,
-        },
+        Err(_) if restore_failure_is_reconciled(journal_state.as_deref()) => {
+            VaultRestoreStatus::RolledBack
+        }
+        Err(_) => VaultRestoreStatus::RecoveryRequired,
     };
 
     if status == VaultRestoreStatus::CommittedReady {
         // A fresh session now owns the restored content, so the rollback
         // snapshot is no longer needed. A failed cleanup is not fatal:
         // recovery finalizes a leftover `complete` journal on the next open.
-        if fs::remove_dir_all(transaction).is_ok()
-            && let Some(parent) = transaction.parent()
-        {
-            let _ = sync_directory(parent);
+        if let Err(error) = fs::remove_dir_all(transaction) {
+            eprintln!("[vault-backup] Restore committed and reopened, but journal cleanup failed: {error}");
+        } else if let Some(parent) = transaction.parent() {
+            if let Err(error) = sync_directory(parent) {
+                eprintln!("[vault-backup] Restore journal directory sync failed: {error}");
+            }
+        }
         }
     }
 
@@ -838,7 +900,7 @@ pub fn vault_restore_backup(
     validate_restore_journal(&vault_root, &transaction)?;
     let staged = transaction.join("staged");
     let rollback = transaction.join("rollback");
-    write_restore_state(&transaction, "preparing")?;
+    write_restore_state(&transaction, RESTORE_STATE_PREPARING)?;
 
     let result = (|| {
         let mut ignored = Vec::new();
@@ -848,12 +910,17 @@ pub fn vault_restore_backup(
         ignored.clear();
         copy_tree(&vault_root, &rollback, Path::new(""), &mut ignored)?;
         sync_tree(&rollback)?;
-        write_restore_state(&transaction, "promoting")?;
+        write_restore_state(&transaction, RESTORE_STATE_PROMOTING)?;
         clear_persistent_vault_content(&vault_root)?;
         sync_directory(&vault_root)?;
         ignored.clear();
         if let Err(promote_error) = copy_tree(&staged, &vault_root, Path::new(""), &mut ignored) {
-            let rollback_result = clear_persistent_vault_content(&vault_root).and_then(|_| {
+            let rollback_result = write_restore_state(
+                &transaction,
+                RESTORE_STATE_ROLLBACK_IN_PROGRESS,
+            )
+            .and_then(|_| clear_persistent_vault_content(&vault_root))
+            .and_then(|_| {
                 ignored.clear();
                 copy_tree(&rollback, &vault_root, Path::new(""), &mut ignored)
             });
@@ -881,7 +948,7 @@ pub fn vault_restore_backup(
             };
         }
         sync_tree(&vault_root)?;
-        write_restore_state(&transaction, "complete")?;
+        write_restore_state(&transaction, RESTORE_STATE_COMPLETE)?;
         Ok(())
     })();
 
@@ -894,16 +961,20 @@ pub fn vault_restore_backup(
     // The journal marker is read after the transaction: an error paired with a
     // `promoting` marker means the staged content was being promoted when the
     // failure happened, so the vault must not be treated as rolled back.
-    let journal_state = fs::read_to_string(transaction.join("state")).ok();
-    let reopened = scriptor_vault::open_vault(&vault_root);
+    let journal_state = fs::read_to_string(transaction.join("state"))
+        .ok()
+        .map(|state| state.trim().to_string());
+    let should_reopen = should_attempt_restore_reopen(&result, journal_state.as_deref());
+    let reopened = if should_reopen {
+        scriptor_vault::open_vault(&vault_root).map_err(|error| error.to_string())
+    } else {
+        Err("restore recovery is unresolved; normal session reopen was intentionally skipped".to_string())
+    };
     let outcome = finalize_restore(
         result,
         &transaction,
         journal_state,
-        reopened
-            .as_ref()
-            .map(|_| ())
-            .map_err(|error| error.to_string()),
+        reopened.as_ref().map(|_| ()).map_err(Clone::clone),
         &backup_name,
         &manifest.source_vault_root,
     );
@@ -1167,14 +1238,56 @@ mod tests {
             "/source/vault",
         );
 
-        assert_eq!(
-            outcome.status,
-            VaultRestoreStatus::RecoveryRequired,
-            "an unreadable journal marker is ambiguous, so persistence must stay frozen"
+        assert_eq!(outcome.status, VaultRestoreStatus::RecoveryRequired);
+    }
+
+    #[test]
+    fn successful_rollback_terminal_state_is_resumable() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let transaction = directory.path().join("restore-journal");
+
+        let outcome = finalize_restore(
+            Err("promotion failed, rollback succeeded".to_string()),
+            &transaction,
+            Some(RESTORE_STATE_ROLLED_BACK.to_string()),
+            Ok(()),
+            "vault-backup-a1b2c3d4e5f6-20260712-120000-42",
+            "/source/vault",
         );
-        assert!(
-            journal.exists(),
-            "recovery still needs the rollback journal"
+
+        assert_eq!(outcome.status, VaultRestoreStatus::RolledBack);
+        assert!(should_attempt_restore_reopen(
+            &Err("promotion failed".to_string()),
+            Some(RESTORE_STATE_ROLLED_BACK),
+        ));
+    }
+
+    #[test]
+    fn unresolved_restore_failure_skips_normal_reopen() {
+        assert!(!should_attempt_restore_reopen(
+            &Err("promotion failed".to_string()),
+            Some(RESTORE_STATE_PROMOTING),
+        ));
+        assert!(!should_attempt_restore_reopen(
+            &Err("journal unreadable".to_string()),
+            None,
+        ));
+        assert!(!should_attempt_restore_reopen(
+            &Err("future state".to_string()),
+            Some("future-state"),
+        ));
+    }
+
+    #[test]
+    fn restore_state_writer_persists_terminal_marker() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        write_restore_state(directory.path(), RESTORE_STATE_ROLLED_BACK)
+            .expect("write restore state");
+        assert_eq!(
+            fs::read_to_string(directory.path().join("state"))
+                .expect("read state")
+                .trim(),
+            RESTORE_STATE_ROLLED_BACK
         );
     }
 

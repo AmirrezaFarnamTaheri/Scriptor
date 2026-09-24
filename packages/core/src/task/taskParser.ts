@@ -35,11 +35,11 @@ const START_MARKER = '\u{1F6EB}'
 const RRULE_MARKER = '\u{1F501}'
 
 const PRIORITY_MARKERS = [
-  '\u{1F53A}',
-  '\u{23EB}',
-  '\u{1F53C}',
-  '\u{1F53D}',
-  '\u{23EC}',
+  ['\u{1F53A}', -3],
+  ['\u{23EB}', -2],
+  ['\u{1F53C}', -1],
+  ['\u{1F53D}', 1],
+  ['\u{23EC}', 2],
 ] as const
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -173,11 +173,13 @@ function parseTaskLine(
   // Determine field style from content before extracting.
   const fieldStyle: TaskFieldStyle = rest.includes('[due::') ||
     rest.includes('[scheduled::') ||
-    rest.includes('[start::')
+    rest.includes('[start::') ||
+    rest.includes('[rrule::') ||
+    rest.includes('[priority::')
     ? 'dataview'
     : 'emoji'
 
-  const { title, due, scheduled, start, rrule, tags } =
+  const { title, priority, due, scheduled, start, rrule, tags } =
     fieldStyle === 'dataview'
       ? extractDataviewFields(rest)
       : extractEmojiFields(rest)
@@ -190,6 +192,7 @@ function parseTaskLine(
     line: lineIdx,
     status,
     text: title.trim(),
+    priority,
     due: due ?? null,
     scheduled: scheduled ?? null,
     start: start ?? null,
@@ -203,6 +206,7 @@ function parseTaskLine(
 
 interface ParsedFields {
   title: string
+  priority: number
   due?: string
   scheduled?: string
   start?: string
@@ -216,15 +220,22 @@ function extractDataviewFields(text: string): ParsedFields {
   let scheduled: string | undefined
   let start: string | undefined
   let rrule: string | undefined
+  let priority = 0
 
   clean = removeDataviewField(clean, 'due', (v) => { due = v })
   clean = removeDataviewField(clean, 'scheduled', (v) => { scheduled = v })
   clean = removeDataviewField(clean, 'start', (v) => { start = v })
   clean = removeDataviewField(clean, 'rrule', (v) => { rrule = v })
-  clean = removeDataviewField(clean, 'priority', () => {})
+  clean = removeDataviewField(clean, 'priority', (v) => {
+    const normalized = v.trim()
+    if (/^-?\d+$/.test(normalized)) {
+      const parsed = Number(normalized)
+      if (Number.isSafeInteger(parsed)) priority = parsed
+    }
+  })
 
   const tags = extractTags(clean)
-  return { title: clean.trim(), due, scheduled, start, rrule, tags }
+  return { title: clean.trim(), priority, due, scheduled, start, rrule, tags }
 }
 
 function removeDataviewField(
@@ -251,9 +262,11 @@ function extractEmojiFields(text: string): ParsedFields {
   let clean = text
   let due: string | undefined
 
-  for (const marker of PRIORITY_MARKERS) {
+  let priority = 0
+  for (const [marker, value] of PRIORITY_MARKERS) {
     if (clean.includes(marker)) {
       clean = clean.replace(marker, '')
+      priority = value
       break
     }
   }
@@ -279,7 +292,7 @@ function extractEmojiFields(text: string): ParsedFields {
   const rrule = rruleResult[1]
 
   const tags = extractTags(clean)
-  return { title: clean.trim(), due, scheduled, start, rrule, tags }
+  return { title: clean.trim(), priority, due, scheduled, start, rrule, tags }
 }
 
 function extractEmojiDate(
@@ -331,6 +344,9 @@ function extractTags(text: string): string[] {
 
 function serializeEmojiFields(task: Task): string {
   let suffix = ''
+  const priority = task.priority ?? 0
+  const priorityMarker = PRIORITY_MARKERS.find(([, value]) => value === priority)?.[0]
+  if (priorityMarker) suffix += ` ${priorityMarker}`
   if (task.due) suffix += ` ${DUE_MARKER} ${task.due}`
   if (task.scheduled) suffix += ` ${SCHEDULED_MARKER} ${task.scheduled}`
   if (task.start) suffix += ` ${START_MARKER} ${task.start}`
@@ -340,6 +356,7 @@ function serializeEmojiFields(task: Task): string {
 
 function serializeDataviewFields(task: Task): string {
   let suffix = ''
+  if ((task.priority ?? 0) !== 0) suffix += ` [priority:: ${task.priority}]`
   if (task.due) suffix += ` [due:: ${task.due}]`
   if (task.scheduled) suffix += ` [scheduled:: ${task.scheduled}]`
   if (task.start) suffix += ` [start:: ${task.start}]`
