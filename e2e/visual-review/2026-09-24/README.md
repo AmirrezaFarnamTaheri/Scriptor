@@ -3,6 +3,7 @@
 This review covers the browser UI after the visual remediation. The [nine contact sheets](contact-sheets/sheet-01.png) index every available capture from the review run; [inventory.txt](inventory.txt) maps the numbered tiles to their screenshot names. Fourteen full-resolution screenshots preserve states that earlier documentation did not show, including touch at 320px, dark mobile, populated Reader and Kanban workspaces, import, Persian RTL Help, high zoom, and high contrast.
 
 The PR consolidation added three more full-resolution captures: [direct Help answers](screenshots/visual-help-direct-answers.png), [first-open graph guidance](screenshots/visual-graph-first-open-guidance.png), and [writable Preview](screenshots/visual-editor-writable-preview.png). Each was visually inspected and its focused browser workflow passed. These later captures are separate from the nine original contact sheets and inventory.
+The current workflow keeps the 100% zoom reset assertion but omits its byte-identical second screenshot; the contact sheets remain an archive of the earlier review run.
 
 ## Scope and result
 

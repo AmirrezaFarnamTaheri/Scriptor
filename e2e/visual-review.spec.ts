@@ -1951,7 +1951,6 @@ test.describe('visual review states', () => {
     await page.keyboard.press('Control+0')
     await expect.poll(() => page.locator('body').evaluate((element) => getComputedStyle(element).zoom)).toBe('1')
     await expect(page.locator('.cm-editor .cm-content')).toBeVisible()
-    await captureVisual(page, 'visual-codemirror-375-explicit-100.png')
   })
 
   test('supplemental Reader and Kanban workspace context evidence', async ({ page }) => {
