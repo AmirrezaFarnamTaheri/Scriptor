@@ -772,7 +772,13 @@ pub fn vault_restore_backup(
     let result = (|| {
         let mut ignored = Vec::new();
         copy_tree(&source, &staged, Path::new(""), &mut ignored)?;
-        let _ = fs::remove_file(staged.join(MANIFEST_FILE));
+        let staged_manifest = staged.join(MANIFEST_FILE);
+        fs::remove_file(&staged_manifest).map_err(|error| {
+            format!(
+                "Failed to remove backup manifest from staged vault content {}: {error}",
+                staged_manifest.display()
+            )
+        })?;
         ignored.clear();
         copy_tree(&vault_root, &rollback, Path::new(""), &mut ignored)?;
         write_restore_state(&transaction, RESTORE_STATE_PROMOTING)?;

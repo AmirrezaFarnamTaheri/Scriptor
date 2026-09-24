@@ -73,7 +73,12 @@ fn probe_vault(path: Option<&Path>) -> Result<String, String> {
     let probe = root.join(".scriptor-doctor-write-probe");
     std::fs::write(&probe, b"probe")
         .map_err(|error| format!("vault root not writable ({}): {error}", root.display()))?;
-    let _ = std::fs::remove_file(&probe);
+    std::fs::remove_file(&probe).map_err(|error| {
+        format!(
+            "vault write probe succeeded but cleanup failed for {}: {error}",
+            probe.display()
+        )
+    })?;
     Ok(format!("vault writable: {}", root.display()))
 }
 

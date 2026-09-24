@@ -212,6 +212,58 @@ fn google_auth_required(message: impl AsRef<str>) -> String {
     format!("{GOOGLE_AUTH_REQUIRED_PREFIX} {}", message.as_ref())
 }
 
+fn disconnect_google_tokens(keychain_account: &str) -> Result<(), String> {
+    let revocation = match load_tokens(keychain_account) {
+        Ok(Some(tokens)) => {
+            let token = tokens
+                .refresh_token
+                .as_deref()
+                .filter(|value| !value.is_empty())
+                .unwrap_or(tokens.access_token.as_str());
+            match http_client() {
+                Ok(client) => match client
+                    .post(REVOKE_ENDPOINT)
+                    .form(&[("token", token)])
+                    .send()
+                {
+                    Ok(response) if response.status().is_success() => Ok(()),
+                    Ok(response) => {
+                        let status = response.status();
+                        Err(format!(
+                            "Google token revocation failed ({status}): {}",
+                            bounded_error_body(response)
+                        ))
+                    }
+                    Err(error) => Err(format!("Google token revocation request failed: {error}")),
+                },
+                Err(error) => Err(error),
+            }
+        }
+        Ok(None) => Ok(()),
+        Err(error) => Err(format!(
+            "Stored Google credentials could not be read for revocation: {error}"
+        )),
+    };
+
+    // Local disconnect must not retain credentials merely because the network
+    // is unavailable. Preserve both outcomes so the UI can tell the user when
+    // local credentials were removed but remote revocation still needs manual
+    // confirmation in their Google Account.
+    let local_delete = keychain_delete(keychain_account).map_err(|error| error.to_string());
+    match (revocation, local_delete) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(revoke_error), Ok(())) => Err(format!(
+            "Local Google credentials were removed, but remote access could not be confirmed revoked: {revoke_error}. Review Google Account third-party access to revoke it manually."
+        )),
+        (Ok(()), Err(delete_error)) => Err(format!(
+            "Google access was revoked remotely, but local credential cleanup failed: {delete_error}"
+        )),
+        (Err(revoke_error), Err(delete_error)) => Err(format!(
+            "Google disconnect was incomplete: remote revocation failed ({revoke_error}); local credential cleanup also failed ({delete_error})"
+        )),
+    }
+}
+
 fn require_tokens(keychain_account: &str) -> Result<StoredTokens, String> {
     load_tokens(keychain_account)?
         .ok_or_else(|| google_auth_required("Google account is not connected."))
@@ -1130,15 +1182,7 @@ pub fn google_gmail_disconnect(
         Some(GMAIL_AUTH_SCOPE),
         None,
     )?;
-    if let Ok(Some(tokens)) = load_tokens(GMAIL_TOKEN_KEYCHAIN_ACCOUNT)
-        && let Ok(client) = http_client()
-    {
-        let _ = client
-            .post(REVOKE_ENDPOINT)
-            .form(&[("token", tokens.access_token.as_str())])
-            .send();
-    }
-    keychain_delete(GMAIL_TOKEN_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())
+    disconnect_google_tokens(GMAIL_TOKEN_KEYCHAIN_ACCOUNT)
 }
 
 fn validate_gmail_message_id(id: &str) -> Result<(), String> {
@@ -1622,15 +1666,7 @@ pub fn google_calendar_disconnect(
         Some(AUTH_SCOPE),
         None,
     )?;
-    if let Ok(Some(tokens)) = load_tokens(CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)
-        && let Ok(client) = http_client()
-    {
-        let _ = client
-            .post(REVOKE_ENDPOINT)
-            .form(&[("token", tokens.access_token.as_str())])
-            .send();
-    }
-    keychain_delete(CALENDAR_TOKEN_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())
+    disconnect_google_tokens(CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)
 }
 
 #[tauri::command]
