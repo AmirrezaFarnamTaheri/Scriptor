@@ -217,6 +217,16 @@ test('main workspace — light mode', async ({ page }) => {
   await expect(page).toHaveScreenshot('workspace-light.png', { fullPage: false })
 })
 
+test('empty note with an open vault', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await ensureCleanStatusDock(page)
+  await page.locator('.tabs-row').getByRole('button', { name: 'Close Research Plan' }).click()
+  await expect(page.locator('.editor-empty-card')).toBeVisible()
+  await captureReadyScreenshot(page, shotPath('empty-note'))
+  await expect(page).toHaveScreenshot('empty-note.png', { fullPage: false })
+})
+
 test('main workspace — dark mode', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('scriptor:app-theme', 'dark')

@@ -41,6 +41,21 @@
 }
 
 @media (max-width: 1100px) and (min-width: 821px) {
+  .workspace-mode-strip {
+    flex: 0 0 132px;
+    overflow: visible;
+  }
+
+  .workspace-mode-strip .workspace-mode {
+    display: none;
+  }
+
+  .workspace-mode-select {
+    display: block;
+    width: 100%;
+    min-height: 40px;
+  }
+
   /* Tablet adaptive layout: ensure the editor maintains a readable writing surface (>= 580px) */
   .workspace-grid {
     grid-template-columns:
@@ -61,6 +76,14 @@
 
   .workspace-grid[data-vault-collapsed='true'][data-inspector-collapsed='true'] {
     grid-template-columns: 0px 0px minmax(0, 1fr) 0px 0px;
+  }
+
+  .daily-note-label-full {
+    display: none;
+  }
+
+  .daily-note-label-compact {
+    display: inline;
   }
 }
 
@@ -194,8 +217,7 @@
 
   .history-controls {
     min-width: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
+    overflow: visible;
     padding: 2px;
   }
 
@@ -468,6 +490,12 @@ html[data-ui-reflow='mobile'] .top-actions {
 /* The bottom workspace navigation already opens Inspector. Reclaim that top
  * action's width so the remaining controls can keep full touch targets. */
 html[data-ui-reflow='mobile'] .topbar-inspector-toggle {
+  display: none;
+}
+
+/* Keep the essential 44px controls on-screen; Support remains available
+   through the command palette on the narrow mobile toolbar. */
+html[data-ui-reflow='mobile'] .support-heart-action {
   display: none;
 }
 

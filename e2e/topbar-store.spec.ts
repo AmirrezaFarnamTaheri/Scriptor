@@ -39,16 +39,6 @@ test.describe('top bar customization and support', () => {
     await launchApp(page)
     await settleLayout(page)
 
-    // Support is intentionally off the default writing chrome. Pin it through
-    // the top-bar customizer before verifying the semantic heart treatment.
-    const customize = page.getByRole('button', { name: 'Customize top bar actions' })
-    await customize.click()
-    const popup = page.getByRole('dialog', { name: 'Customize top bar actions' })
-    const supportToggle = popup.getByRole('checkbox', { name: 'Support Scriptor' })
-    await expect(supportToggle).not.toBeChecked()
-    await supportToggle.check()
-    await page.keyboard.press('Escape')
-
     const supportButton = page.getByRole('button', { name: 'Support Scriptor' }).first()
     await expect(supportButton).toHaveClass(/support-heart-action/)
     await expect(supportButton.locator('svg')).toHaveAttribute('fill', 'currentColor')
@@ -66,6 +56,47 @@ test.describe('top bar customization and support', () => {
     await openCommandPalette(page)
     await runCommand(page, 'Support Scriptor')
     await expect(panel).toBeVisible()
+  })
+
+  test('top-bar panel buttons close their docked panels on a second click', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 900 })
+    await page.addInitScript(() => window.localStorage.setItem('scriptor:panel-presentation', 'dock-right'))
+    await launchApp(page)
+    await settleLayout(page)
+
+    for (const [buttonSelector, panelName] of [
+      ['.topbar-secondary-status', 'Git'],
+      ['.topbar-secondary-action', 'Quick capture'],
+    ]) {
+      const button = page.locator(buttonSelector).first()
+      await button.click()
+      const panel = page.getByRole('complementary', { name: panelName })
+      await expect(panel).toBeVisible()
+      await button.click()
+      await expect(panel).toBeHidden()
+    }
+  })
+
+  test('empty-state card contains its actions and tagline at desktop and tablet widths', async ({ page }) => {
+    await launchApp(page)
+    await page.locator('.tabs-row').getByRole('button', { name: 'Close Research Plan' }).click()
+
+    for (const width of [1440, 768]) {
+      await page.setViewportSize({ width, height: 700 })
+      const card = page.locator('.editor-empty-card')
+      await expect(card).toBeVisible()
+      const contained = await card.evaluate((element) => {
+        const outer = element.getBoundingClientRect()
+        return [...element.querySelectorAll('button, small')].every((child) => {
+          const box = child.getBoundingClientRect()
+          return box.left >= outer.left && box.right <= outer.right && box.top >= outer.top && box.bottom <= outer.bottom
+        })
+      })
+      expect(contained).toBe(true)
+      if (width === 1440) {
+        await page.screenshot({ path: test.info().outputPath('empty-note-refined.png'), animations: 'disabled' })
+      }
+    }
   })
 
   test('palette and built-in module managers remain separate product surfaces', async ({ page }) => {

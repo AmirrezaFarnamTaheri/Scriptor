@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Let top-bar panel buttons close their docked panels on a second click, show Support by default, and keep top-bar status hints from covering the sidebar.
+- Keep empty-editor actions and tagline within their card and simplify the cramped history/vault control framing.
+- Let narrow Inspector tabs wrap, show a compact daily-note date, and use a compact workspace selector at tablet width without clipping or overlap.
+
 ## 1.2.1 — 2026-09-24
 
 ### Fixed

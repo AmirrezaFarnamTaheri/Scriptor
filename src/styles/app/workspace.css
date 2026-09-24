@@ -132,6 +132,10 @@
   padding: 0 6px;
 }
 
+.daily-note-label-compact {
+  display: none;
+}
+
 .inbox-panel {
   display: grid;
   gap: 8px;

@@ -8,6 +8,28 @@ function rounded(value: number) {
 }
 
 test.describe('screenshot geometry contracts', () => {
+  test('tablet rail labels and daily date fit without clipping', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 900 })
+    await launchApp(page)
+    await settleLayout(page)
+
+    const tabs = page.locator('.inspector-tabs button')
+    await expect(tabs).toHaveCount(3)
+    expect(await tabs.evaluateAll((buttons) => buttons.every((button) => button.scrollWidth <= button.clientWidth + 1))).toBe(true)
+
+    const dateButton = page.locator('.daily-note-button')
+    await expect(dateButton.locator('.daily-note-label-compact')).toBeVisible()
+    await expect(dateButton.locator('.daily-note-label-full')).toBeHidden()
+    expect(await dateButton.evaluate((button) => button.scrollWidth <= button.clientWidth + 1)).toBe(true)
+
+    const history = await page.locator('.history-controls').boundingBox()
+    const mode = await page.locator('.workspace-mode-strip').boundingBox()
+    expect(history).not.toBeNull()
+    expect(mode).not.toBeNull()
+    expect((history?.x ?? 0) + (history?.width ?? 0)).toBeLessThanOrEqual((mode?.x ?? 0) + 1)
+    await expect(page.locator('.workspace-mode-select')).toBeVisible()
+  })
+
   test('editor toolbar keeps its persistent control groups on one row', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await launchApp(page)

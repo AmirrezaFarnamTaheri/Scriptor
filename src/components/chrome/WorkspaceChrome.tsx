@@ -141,6 +141,7 @@ export const IconButton = memo(function IconButton({
   onClick,
   disabled,
   className,
+  tooltip = true,
 }: {
   label: string
   shortcut?: string
@@ -148,20 +149,24 @@ export const IconButton = memo(function IconButton({
   onClick?: () => void
   disabled?: boolean
   className?: string
+  tooltip?: boolean
 }) {
   return (
     <button
       type="button"
-      className={`icon-button has-custom-tooltip ${className ?? ''}`.trim()}
+      className={`icon-button ${tooltip ? 'has-custom-tooltip' : ''} ${className ?? ''}`.trim()}
       aria-label={shortcut ? `${label} (${shortcut})` : label}
+      title={tooltip ? undefined : label}
       onClick={onClick}
       disabled={disabled}
     >
       {children}
-      <span className="custom-tooltip" aria-hidden="true">
-        {label}
-        {shortcut ? <kbd className="shortcut-badge">{shortcut}</kbd> : null}
-      </span>
+      {tooltip ? (
+        <span className="custom-tooltip" aria-hidden="true">
+          {label}
+          {shortcut ? <kbd className="shortcut-badge">{shortcut}</kbd> : null}
+        </span>
+      ) : null}
     </button>
   )
 })
