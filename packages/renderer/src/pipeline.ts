@@ -150,6 +150,10 @@ const sanitizeSchema = {
   },
 }
 
+// This processor's HTML is immediately passed through sanitizeRenderedHtml.
+// Prefix ids at that final boundary once, so generated TOC links still resolve.
+const intermediateSanitizeSchema = { ...sanitizeSchema, clobberPrefix: '' }
+
 export interface PreviewPipelineOptions {
   enableMath?: boolean
   enableMermaid?: boolean
@@ -186,7 +190,7 @@ function createProcessor(options: PreviewPipelineOptions = {}) {
     .use(rehypeHeadingIds)
     .use(rehypeTaskStates)
     .use(rehypeSafeStyle as never)
-    .use(rehypeSanitize, sanitizeSchema as typeof defaultSchema)
+    .use(rehypeSanitize, intermediateSanitizeSchema as typeof defaultSchema)
     .use(rehypeSourceLines)
     .use(rehypeStringify)
 }
