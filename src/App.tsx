@@ -167,6 +167,7 @@ function App() {
     writingTargetsOpen,
     setActiveMode,
     setKnowledgeWorkbenchTab,
+    setPanel,
     setStatusDockTab,
     setBibliographyOpen,
     setCanvasOpen,
@@ -1079,41 +1080,26 @@ function App() {
   const handleChooseVault = useCallback(() => void chooseVaultFolder(), [chooseVaultFolder])
   const handleOpenVaultAt = useCallback((path: string) => void openVaultAt(path), [openVaultAt])
   const handleOpenCommandPalette = useCallback(() => setCommandPaletteOpen(true), [setCommandPaletteOpen])
-  const handleOpenPortal = useCallback(
-    () => setPortalOpen(true),
-    [setPortalOpen],
-  )
-  const handleOpenQuickCapture = useCallback(
-    () => setQuickCaptureOpen(true),
-    [setQuickCaptureOpen],
-  )
   const handleOpenGraph = useCallback(() => {
     setGraphOpen(true)
     void loadWorkspaceGraph(workspaceActivePath)
   }, [setGraphOpen, loadWorkspaceGraph, workspaceActivePath])
-  const handleOpenCanvas = useCallback(
-    () => setCanvasOpen(true),
-    [setCanvasOpen],
-  )
-  const handleOpenGit = useCallback(
-    () => setGitPanelOpen(true),
-    [setGitPanelOpen],
-  )
   const handleOpenMcp = useCallback(
     () => setMcpPanelOpen(true),
     [setMcpPanelOpen],
   )
-  const handleOpenSupport = useCallback(
-    () => setSupportOpen(true),
-    [setSupportOpen],
-  )
-  const handleOpenPluginManager = useCallback(
-    () => {
-      setPluginManagerScope('palettes')
-      setPluginManagerOpen(true)
-    },
-    [setPluginManagerOpen],
-  )
+  const handleToggleKnowledgeWorkbench = useCallback(() => {
+    if (knowledgeWorkbenchOpen) setKnowledgeWorkbenchOpen(false)
+    else openKnowledgeWorkbench('repair')
+  }, [knowledgeWorkbenchOpen, openKnowledgeWorkbench, setKnowledgeWorkbenchOpen])
+  const handleToggleGraph = useCallback(() => {
+    setPanel('graphOpen', (open) => !open)
+    if (!graphOpen) void loadWorkspaceGraph(workspaceActivePath)
+  }, [setPanel, graphOpen, loadWorkspaceGraph, workspaceActivePath])
+  const handleTogglePluginManager = useCallback(() => {
+    if (!pluginManagerOpen) setPluginManagerScope('palettes')
+    setPluginManagerOpen(!pluginManagerOpen)
+  }, [pluginManagerOpen, setPluginManagerOpen])
   const handleManagePalettesFromSettings = useCallback(
     () => {
       setSettingsOpen(false)
@@ -1351,8 +1337,8 @@ function App() {
           vault={workspace.vault}
           workspaceMode={workspaceMode}
           onWorkspaceModeChange={handleWorkspaceModeChange}
-          onOpenKnowledgeWorkbench={handleOpenKnowledgeWorkbenchRepair}
-          onOpenPublishCenter={handleOpenPublishCenter}
+          onOpenKnowledgeWorkbench={handleToggleKnowledgeWorkbench}
+          onOpenPublishCenter={() => setPanel('publishCenterOpen', (open) => !open)}
           canNavigateBack={workspace.canNavigateBack}
           canNavigateForward={workspace.canNavigateForward}
           onNavigateBack={handleNavigateBack}
@@ -1361,11 +1347,11 @@ function App() {
           recentVaults={recentVaults.recent}
           activeVaultPath={workspace.vault?.root_path ?? null}
           onOpenVault={handleOpenVaultAt}
-          onOpenCommandPalette={handleOpenCommandPalette}
-          onOpenPortal={handleOpenPortal}
-          onOpenQuickCapture={handleOpenQuickCapture}
-          onOpenGraph={handleOpenGraph}
-          onOpenCanvas={handleOpenCanvas}
+          onOpenCommandPalette={() => setCommandPaletteOpen((open) => !open)}
+          onOpenPortal={() => setPanel('portalOpen', (open) => !open)}
+          onOpenQuickCapture={() => setPanel('quickCaptureOpen', (open) => !open)}
+          onOpenGraph={handleToggleGraph}
+          onOpenCanvas={() => setPanel('canvasOpen', (open) => !open)}
           gitTitle={gitTitle}
           gitSuccess={
             !workspace.isGitStatusLoading &&
@@ -1374,12 +1360,12 @@ function App() {
             workspace.gitStatus.clean === true
           }
           gitNeutral={!workspace.isGitStatusLoading && !workspace.gitStatusError && !workspace.gitStatus?.is_repo}
-          onOpenGit={handleOpenGit}
+          onOpenGit={() => setPanel('gitPanelOpen', (open) => !open)}
           mcpLabel={`MCP ${mcp.mode}`}
-          onOpenMcp={handleOpenMcp}
-          onOpenSupport={handleOpenSupport}
-          onOpenSettings={handleOpenSettings}
-          onOpenPluginManager={handleOpenPluginManager}
+          onOpenMcp={() => setPanel('mcpPanelOpen', (open) => !open)}
+          onOpenSupport={() => setPanel('supportOpen', (open) => !open)}
+          onOpenSettings={() => setPanel('settingsOpen', (open) => !open)}
+          onOpenPluginManager={handleTogglePluginManager}
           theme={theme}
           appearance={appearance}
           resolvedAppearance={resolvedAppearance}

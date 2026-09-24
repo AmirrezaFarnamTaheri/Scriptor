@@ -491,13 +491,14 @@ test.describe('Frontend polish regressions', () => {
     await expect(row.locator('.git-file-row-actions button')).toHaveCount(2)
   })
 
-  test('Git shortcut is exposed in the accessible name and visual tooltip is hidden', async ({ page }) => {
+  test('Git shortcut is exposed without a positioned top-bar tooltip', async ({ page }) => {
     await launchApp(page)
     await settleLayout(page)
 
     const gitButton = page.getByRole('button', { name: /(?:⌘⌥G|Ctrl\+Alt\+G)/i })
     await expect(gitButton).toBeVisible()
-    await expect(gitButton.locator('.custom-tooltip')).toHaveAttribute('aria-hidden', 'true')
+    await expect(gitButton).toHaveAttribute('title', /changed file|clean|Git/i)
+    await expect(gitButton.locator('.custom-tooltip')).toHaveCount(0)
 
     await page.keyboard.press('Control+Alt+KeyG')
     await expect(page.getByRole('dialog', { name: 'Git', exact: true })).toBeVisible()

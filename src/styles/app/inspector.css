@@ -54,6 +54,16 @@
   }
 }
 
+@media (min-width: 821px) and (max-width: 1100px) {
+  .inspector-tabs button {
+    min-height: 44px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.2;
+  }
+}
+
 .inspector-tabs button.active {
   color: var(--ink-strong);
   font-weight: 700;

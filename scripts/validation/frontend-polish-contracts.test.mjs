@@ -109,7 +109,7 @@ test('MCP empty states are localized and keep non-tool tabs available', () => {
   assert.match(source, /tab === 'audit'/)
 })
 
-test('Git shortcut names and visual tooltips remain accessible', () => {
+test('Git shortcut names remain accessible without positioned top-bar tooltips', () => {
   const topBar = readFileSync(new URL('../../src/components/shell/AppTopBar.tsx', import.meta.url), 'utf8')
   const chrome = readFileSync(new URL('../../src/components/chrome/WorkspaceChrome.tsx', import.meta.url), 'utf8')
   const shortcuts = readFileSync(new URL('../../src/hooks/useAppKeyboardShortcuts.ts', import.meta.url), 'utf8')
@@ -118,7 +118,8 @@ test('Git shortcut names and visual tooltips remain accessible', () => {
   assert.match(topBar, /getShortcut\('open-git'/)
   assert.match(topBar, /getShortcut\('toggle-vault-sidebar'/)
   assert.match(topBar, /getShortcut\('toggle-inspector'/)
-  assert.match(topBar, /className="custom-tooltip" aria-hidden="true"/)
+  assert.match(topBar, /title=\{gitTitle\}/)
+  assert.doesNotMatch(topBar, /className="custom-tooltip" aria-hidden="true"/)
   assert.match(chrome, /className="custom-tooltip" aria-hidden="true"/)
   assert.match(shortcuts, /run\('open-git', openGit\)/)
   assert.match(shortcuts, /run\('toggle-vault-sidebar', toggleVaultSidebar\)/)

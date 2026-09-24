@@ -602,26 +602,23 @@ body.is-split-resizing .editor-preview-pane {
 .editor-empty {
   position: relative;
   align-content: center;
-  gap: 18px;
-  padding: clamp(24px, 6vw, 72px);
-  background:
-    radial-gradient(circle at 50% 30%, color-mix(in oklch, var(--primary) 9%, transparent), transparent 38%),
-    linear-gradient(180deg, color-mix(in srgb, var(--surface) 48%, transparent), transparent 64%);
+  padding: 24px;
+  background: var(--surface);
 }
 
-.editor-empty::before {
-  content: '';
-  position: absolute;
-  width: min(520px, 78%);
-  height: min(360px, 58%);
+.editor-empty-card {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  width: min(650px, 100%);
+  padding: clamp(28px, 5vw, 64px) clamp(24px, 5vw, 56px);
   border: 1px solid color-mix(in oklch, var(--border) 72%, transparent);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface-elevated) 46%, transparent);
   box-shadow: inset 0 1px 0 var(--glass-highlight);
-  pointer-events: none;
 }
 
-.editor-empty > * {
+.editor-empty-card > * {
   position: relative;
   z-index: 1;
 }
@@ -690,9 +687,8 @@ body.is-split-resizing .editor-preview-pane {
     opacity: 1;
   }
 
-  .editor-empty::before {
-    width: calc(100% - 24px);
-    height: calc(100% - 48px);
+  .editor-empty-card {
+    padding: 28px 20px;
   }
 }
 

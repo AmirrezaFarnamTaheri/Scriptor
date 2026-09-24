@@ -519,34 +519,36 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
             )
           ) : (
             <div className="editor-empty" role="status">
-              <div className="editor-empty-icon" aria-hidden="true">
-                <FileText />
-              </div>
-              <div className="editor-empty-copy">
-                <h2>{hasOpenVault ? t('editor.empty.newNoteTitle') : t('editor.empty.openTitle')}</h2>
-                <p>
-                  {hasOpenVault
-                    ? t('editor.empty.newNoteBody')
-                    : t('editor.empty.openBody')}
-                </p>
-              </div>
-              <div className="editor-empty-actions">
-                {hasOpenVault ? (
-                  <button type="button" className="primary-button" onClick={onCreateNote}>
-                    <FileText aria-hidden="true" />
-                    {t('editor.empty.newNote')}
+              <div className="editor-empty-card">
+                <div className="editor-empty-icon" aria-hidden="true">
+                  <FileText />
+                </div>
+                <div className="editor-empty-copy">
+                  <h2>{hasOpenVault ? t('editor.empty.newNoteTitle') : t('editor.empty.openTitle')}</h2>
+                  <p>
+                    {hasOpenVault
+                      ? t('editor.empty.newNoteBody')
+                      : t('editor.empty.openBody')}
+                  </p>
+                </div>
+                <div className="editor-empty-actions">
+                  {hasOpenVault ? (
+                    <button type="button" className="primary-button" onClick={onCreateNote}>
+                      <FileText aria-hidden="true" />
+                      {t('editor.empty.newNote')}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={hasOpenVault ? 'action-button' : 'primary-button'}
+                    onClick={onOpenVault}
+                  >
+                    <FolderOpen aria-hidden="true" />
+                    {hasOpenVault ? t('editor.empty.openAnother') : t('editor.empty.openVault')}
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  className={hasOpenVault ? 'action-button' : 'primary-button'}
-                  onClick={onOpenVault}
-                >
-                  <FolderOpen aria-hidden="true" />
-                  {hasOpenVault ? t('editor.empty.openAnother') : t('editor.empty.openVault')}
-                </button>
+                </div>
+                <small>{t('editor.empty.tagline')}</small>
               </div>
-              <small>{t('editor.empty.tagline')}</small>
             </div>
           )}
         </article>

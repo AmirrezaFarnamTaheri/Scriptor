@@ -10,6 +10,7 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 | workspace-dark.png | Reviewed dark workspace capture | Docs + stable visual coverage |
 | workspace-tablet.png | 1024px workspace breakpoint capture | VISUAL-REVIEW |
 | workspace-mobile.png | 820px responsive workspace capture | VISUAL-REVIEW |
+| empty-note.png | Open vault with no active note; actions stay inside the empty-state card | UI visual review |
 | editor-preview.png | Reviewed split editor/preview capture | Docs + stable visual coverage |
 | inspector-preview.png | Inspector preview mode with editor/preview controls | VISUAL-REVIEW |
 | command-palette.png | Reviewed command palette capture | Docs + stable visual coverage |

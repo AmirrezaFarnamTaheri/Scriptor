@@ -266,6 +266,7 @@ function AppTopBarImpl({
       <header className="topbar surface-glass" onContextMenu={onHeaderContextMenu}>
         <div className="brand">
           <IconButton
+            tooltip={false}
             label={vaultSidebarCollapsed ? t('topBar.expandSidebar') : t('topBar.collapseSidebar')}
             shortcut={sidebarShortcut}
             onClick={onToggleVaultSidebar}
@@ -279,10 +280,10 @@ function AppTopBarImpl({
 
         {showHistory ? (
           <div className="history-controls" aria-label={t('topBar.historyControls')}>
-            <IconButton label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
+            <IconButton tooltip={false} label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
               <ChevronRight className="flip" />
             </IconButton>
-            <IconButton label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
+            <IconButton tooltip={false} label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
               <ChevronRight />
             </IconButton>
             <button type="button" className="action-button" onClick={onChooseVault}>
@@ -343,6 +344,7 @@ function AppTopBarImpl({
                 .filter((action) => !hiddenTopBarActions.has(action.id))
                 .map((action) => (
                   <IconButton
+                    tooltip={false}
                     key={action.id}
                     label={action.label}
                     onClick={action.onClick}
@@ -356,35 +358,31 @@ function AppTopBarImpl({
           {!hiddenTopBarActions.has('git') ? (
             <button
               type="button"
-              className={`topbar-secondary-status status-button has-custom-tooltip ${gitSuccess ? 'success' : ''} ${gitNeutral ? 'neutral' : ''}`}
+              className={`topbar-secondary-status status-button ${gitSuccess ? 'success' : ''} ${gitNeutral ? 'neutral' : ''}`}
               aria-label={gitShortcut ? `${gitTitle} (${gitShortcut})` : gitTitle}
+              title={gitTitle}
               onClick={onOpenGit}
             >
               <GitBranch />
-              <span className="custom-tooltip" aria-hidden="true">
-                {gitTitle}
-                {gitShortcut ? <kbd className="shortcut-badge">{gitShortcut}</kbd> : null}
-              </span>
             </button>
           ) : null}
 
           {!hiddenTopBarActions.has('mcp') ? (
             <button
               type="button"
-              className={`topbar-status-mcp status-button has-custom-tooltip${workspaceMode === 'automation' ? ' emphasized' : ''}`}
+              className={`topbar-status-mcp status-button${workspaceMode === 'automation' ? ' emphasized' : ''}`}
               onClick={onOpenMcp}
               aria-label={mcpLabel}
+              title={mcpLabel}
             >
               <Lock />
               <span className="sr-only">{mcpLabel}</span>
               <ChevronDown />
-              <span className="custom-tooltip" aria-hidden="true">
-                {mcpLabel}
-              </span>
             </button>
           ) : null}
 
           <IconButton
+            tooltip={false}
             label={t(appearance === 'system' ? 'topBar.appearanceControlSystem' : 'topBar.appearanceControl', {
               action: themeToggleLabel,
               palette: theme,
@@ -394,6 +392,7 @@ function AppTopBarImpl({
             {resolvedAppearance === 'dark' ? <Sun /> : <Moon />}
           </IconButton>
           <IconButton
+            tooltip={false}
             label={inspectorCollapsed ? t('topBar.expandInspector') : t('topBar.collapseInspector')}
             shortcut={inspectorShortcut}
             onClick={onToggleInspector}
@@ -402,19 +401,19 @@ function AppTopBarImpl({
             <PanelRight />
           </IconButton>
           {!hiddenTopBarActions.has('support') ? (
-            <IconButton className="support-heart-action" label={t('topBar.supportScriptor')} onClick={onOpenSupport}>
+            <IconButton tooltip={false} className="support-heart-action" label={t('topBar.supportScriptor')} onClick={onOpenSupport}>
               <Heart fill="currentColor" />
             </IconButton>
           ) : null}
           {onOpenPluginManager && !hiddenTopBarActions.has('paletteStore') ? (
-            <IconButton className="palette-store-action" label={t('topBar.paletteStore')} onClick={onOpenPluginManager}>
+            <IconButton tooltip={false} className="palette-store-action" label={t('topBar.paletteStore')} onClick={onOpenPluginManager}>
               <Palette />
             </IconButton>
           ) : null}
-          <IconButton label={t('topBar.settings')} onClick={onOpenSettings}>
+          <IconButton tooltip={false} label={t('topBar.settings')} onClick={onOpenSettings}>
             <Settings />
           </IconButton>
-          <IconButton label={t('topBar.help')} onClick={() => requestHelp('workspace')}>
+          <IconButton tooltip={false} label={t('topBar.help')} onClick={() => requestHelp('workspace')}>
             <CircleHelp />
           </IconButton>
           <button

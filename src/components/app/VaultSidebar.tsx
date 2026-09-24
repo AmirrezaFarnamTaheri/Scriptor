@@ -248,9 +248,10 @@ function VaultSidebarImpl({
         <button type="button" className="toolbar-button" onClick={() => onCreateDailyNoteOffset(-1)} title={t('vaultSidebar.previousDay')}>
           <ChevronLeft size={14} />
         </button>
-        <button type="button" className="toolbar-button daily-note-button" onClick={onCreateDailyNote}>
+        <button type="button" className="toolbar-button daily-note-button" onClick={onCreateDailyNote} title={dailyNoteLabel ? t('vaultSidebar.todayWithLabel', { label: dailyNoteLabel }) : t('vaultSidebar.today')}>
           <CalendarDays size={14} />
-          {dailyNoteLabel ? t('vaultSidebar.todayWithLabel', { label: dailyNoteLabel }) : t('vaultSidebar.today')}
+          <span className="daily-note-label-full">{dailyNoteLabel ? t('vaultSidebar.todayWithLabel', { label: dailyNoteLabel }) : t('vaultSidebar.today')}</span>
+          {dailyNoteLabel ? <span className="daily-note-label-compact" aria-hidden="true">{dailyNoteLabel}</span> : null}
         </button>
         <button type="button" className="toolbar-button" onClick={() => onCreateDailyNoteOffset(1)} title={t('vaultSidebar.nextDay')}>
           <ChevronRight size={14} />

@@ -20,6 +20,8 @@ export interface WorkspaceChromePrefs {
   showQuickActions: boolean
   /** Top-bar action ids hidden by the user via the customize popover. */
   topBarHiddenActions: string[]
+  /** Version of the one-time migration that changed the default Support visibility. */
+  topBarHiddenActionsMigrationVersion: 1
   /** Ordered, user-configurable top-bar groups. */
   topBarGroupOrder: TopBarGroupId[]
   /** Groups the user has removed from the top bar. */
@@ -59,7 +61,8 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
   showQuickActions: true,
   // Workspace-mode destinations remain available in the command palette and
   // customizer without competing with the default writing controls.
-  topBarHiddenActions: ['workbench', 'publish', 'portal', 'graph', 'canvas', 'support', 'paletteStore'],
+  topBarHiddenActions: ['workbench', 'publish', 'portal', 'graph', 'canvas', 'paletteStore'],
+  topBarHiddenActionsMigrationVersion: 1,
   topBarGroupOrder: ['history', 'modes', 'command', 'actions'],
   topBarHiddenGroups: [],
   topBarGroupWidths: {},
@@ -119,6 +122,16 @@ function uniqueStrings(value: unknown, fallback: readonly string[] = []): string
   return [...new Set(value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0))]
 }
 
+function normalizeHiddenTopBarActions(value: unknown, migrateLegacy: boolean): string[] {
+  const hidden = uniqueStrings(value, DEFAULT_WORKSPACE_CHROME.topBarHiddenActions)
+  const previousDefault = ['workbench', 'publish', 'portal', 'graph', 'canvas', 'support', 'paletteStore']
+  return migrateLegacy &&
+    hidden.length === previousDefault.length &&
+    previousDefault.every((id) => hidden.includes(id))
+    ? hidden.filter((id) => id !== 'support')
+    : hidden
+}
+
 function normalizeGroupOrder(value: unknown): TopBarGroupId[] {
   const incoming = uniqueStrings(value).filter((entry): entry is TopBarGroupId =>
     TOP_BAR_GROUP_IDS.includes(entry as TopBarGroupId),
@@ -148,13 +161,15 @@ function normalizeGroupWidths(value: unknown): WorkspaceChromePrefs['topBarGroup
 export function validateWorkspaceChrome(value: unknown): WorkspaceChromePrefs {
   const parsed = expectRecord(value, 'workspace chrome')
   const fallback = DEFAULT_WORKSPACE_CHROME
+  const migrateLegacyHiddenActions = parsed.topBarHiddenActionsMigrationVersion !== 1
   return {
     vaultSidebarCollapsed: booleanValue(parsed.vaultSidebarCollapsed, fallback.vaultSidebarCollapsed),
     inspectorCollapsed: booleanValue(parsed.inspectorCollapsed, fallback.inspectorCollapsed),
     showTopBar: booleanValue(parsed.showTopBar, fallback.showTopBar),
     showModeStrip: booleanValue(parsed.showModeStrip, fallback.showModeStrip),
     showQuickActions: booleanValue(parsed.showQuickActions, fallback.showQuickActions),
-    topBarHiddenActions: uniqueStrings(parsed.topBarHiddenActions, fallback.topBarHiddenActions),
+    topBarHiddenActions: normalizeHiddenTopBarActions(parsed.topBarHiddenActions, migrateLegacyHiddenActions),
+    topBarHiddenActionsMigrationVersion: 1,
     topBarGroupOrder: normalizeGroupOrder(parsed.topBarGroupOrder),
     topBarHiddenGroups: normalizeHiddenGroups(parsed.topBarHiddenGroups),
     topBarGroupWidths: normalizeGroupWidths(parsed.topBarGroupWidths),
