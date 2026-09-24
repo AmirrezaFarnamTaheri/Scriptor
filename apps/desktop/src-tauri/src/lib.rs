@@ -98,7 +98,12 @@ struct DaemonResyncRequiredEvent {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let _ = scriptor_system_bridge::observability::init_observability("desktop");
+    if let Err(error) = scriptor_system_bridge::observability::init_observability("desktop") {
+        // Logging may be the subsystem that failed to initialize, so use stderr
+        // rather than silently discarding the one error needed to diagnose all
+        // later startup failures.
+        eprintln!("[scriptor-desktop] observability initialization failed: {error}");
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -111,16 +116,20 @@ pub fn run() {
             let handle = app.handle().clone();
             scriptor_daemon::register_rpc_event_handler(move |event| match event.payload {
                 scriptor_ipc::RpcEventPayload::ConfigReloaded { json, generation } => {
-                    let _ = handle.emit(
+                    if let Err(error) = handle.emit(
                         "daemon:config-reloaded",
                         DaemonConfigReloadedEvent { json, generation },
-                    );
+                    ) {
+                        tracing::warn!(%error, "failed to emit daemon config reload event");
+                    }
                 }
                 scriptor_ipc::RpcEventPayload::ResyncRequired { reason } => {
-                    let _ = handle.emit(
+                    if let Err(error) = handle.emit(
                         "daemon:resync-required",
                         DaemonResyncRequiredEvent { reason },
-                    );
+                    ) {
+                        tracing::warn!(%error, "failed to emit daemon resync-required event");
+                    }
                 }
             });
             Ok(())

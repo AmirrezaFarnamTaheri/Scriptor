@@ -7,6 +7,14 @@ import test from 'node:test'
 const root = path.resolve(import.meta.dirname, '../..')
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8')
 
+test('public export theme mirrors the canonical export-runner asset', () => {
+  assert.equal(
+    read('public/export-theme.css'),
+    read('crates/export-runner/assets/export-theme.css'),
+    'public/export-theme.css must remain byte-identical to the canonical embedded export theme',
+  )
+})
+
 test('ipc exports use one canonical path and contain every TS type', () => {
   const rust = read('crates/ipc/src/lib.rs')
   const generated = read('packages/core/src/contracts/ipc-generated.ts')

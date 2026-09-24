@@ -173,6 +173,13 @@ fn copy_tree(
             copy_tree(&entry.path(), &target, &child_relative, files)?;
         } else if file_type.is_file() {
             fs::copy(entry.path(), &target).map_err(|error| error.to_string())?;
+            // A rollback tree is only useful after a crash if the copied bytes
+            // are durable before the restore journal announces a destructive
+            // transition. copy_tree is also used for staged restore content and
+            // backup creation, where the same guarantee is desirable.
+            fs::File::open(&target)
+                .and_then(|file| file.sync_all())
+                .map_err(|error| format!("Failed to sync copied file {}: {error}", target.display()))?;
             let size_bytes = fs::metadata(&target)
                 .map_err(|error| error.to_string())?
                 .len();
@@ -183,6 +190,10 @@ fn copy_tree(
             });
         }
     }
+    #[cfg(unix)]
+    fs::File::open(destination)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|error| format!("Failed to sync copied directory {}: {error}", destination.display()))?;
     Ok(())
 }
 
