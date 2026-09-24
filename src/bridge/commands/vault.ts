@@ -419,14 +419,27 @@ export type VaultRestoreStatus =
   | 'committed-needs-reopen'
   | 'committed-ready'
 
-export async function vaultRestoreBackup(backupName: string, backupPath?: string): Promise<VaultRestoreResult> {
+export async function authorizeVaultRestoreBackup(backupName: string): Promise<string> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('restore_backup', backupName)
+  return authorizeSensitiveOperation('restore_backup', backupName)
+}
+
+export async function vaultRestoreBackupAuthorized(
+  backupName: string,
+  backupPath: string | undefined,
+  authorizationToken: string,
+): Promise<VaultRestoreResult> {
+  requireNative()
   return invoke<VaultRestoreResult>('vault_restore_backup', {
     backupName,
     backupPath: backupPath ?? null,
     authorizationToken,
   })
+}
+
+export async function vaultRestoreBackup(backupName: string, backupPath?: string): Promise<VaultRestoreResult> {
+  const authorizationToken = await authorizeVaultRestoreBackup(backupName)
+  return vaultRestoreBackupAuthorized(backupName, backupPath, authorizationToken)
 }
 
 export async function vaultDeleteBackup(backupName: string, backupPath?: string): Promise<void> {

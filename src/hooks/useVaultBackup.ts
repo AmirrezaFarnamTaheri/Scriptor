@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
+  authorizeVaultRestoreBackup,
   indexerRebuild,
   vaultCreateBackup,
   vaultDeleteBackup,
   vaultListBackups,
-  vaultRestoreBackup,
+  vaultRestoreBackupAuthorized,
 } from '../bridge/commands'
 import type { VaultBackupEntry } from '../bridge/commands'
 import { expectRecord } from '../lib/runtimeSchema'
@@ -101,8 +102,8 @@ export function useVaultBackup(vaultOpen: boolean) {
     try {
       const list = await vaultListBackups(settings.backupPath || undefined)
       setBackups(list || [])
-    } catch {
-      setBackups([])
+    } catch (caught) {
+      setLastError(caught instanceof Error ? caught.message : 'Could not list backups')
     }
   }, [vaultOpen, settings.backupPath])
 
@@ -152,11 +153,29 @@ export function useVaultBackup(vaultOpen: boolean) {
       setLastError(null)
       setLastMessage(null)
       let restoreApplied = false
+      let restorePreparationStarted = false
+      let nativeInvocationStarted = false
       try {
+        // Authorization is acquired before persistence is frozen. A cancelled
+        // approval is therefore known to be pre-transaction and cannot strand
+        // the workspace in restore mode.
+        const authorizationToken = await authorizeVaultRestoreBackup(backupName)
+
         // Flush acknowledged edits, then freeze editor persistence before the
         // native transaction starts replacing authoritative vault files.
+        restorePreparationStarted = true
         await dispatchVaultLifecycleEvent('scriptor:vault-restore-starting', { backupName })
-        const result = await vaultRestoreBackup(backupName, settings.backupPath || undefined)
+
+        // From this point onward, a rejected invoke is an *unknown outcome*.
+        // The native process may have mutated the vault before IPC delivery was
+        // interrupted, so rejection can never prove that it is safe to resume
+        // the superseded editor generation.
+        nativeInvocationStarted = true
+        const result = await vaultRestoreBackupAuthorized(
+          backupName,
+          settings.backupPath || undefined,
+          authorizationToken,
+        )
         // Only an explicitly rolled-back restore is safe to resume editor
         // persistence over. Every other status means vault files were already
         // replaced, so resuming the superseded draft would overwrite them.
@@ -209,11 +228,14 @@ export function useVaultBackup(vaultOpen: boolean) {
         onRestored?.()
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : 'Restore failed'
-        if (!restoreApplied) {
-          // The invoke rejected before a committed outcome was returned: a
-          // transport error, or a pre-transaction failure such as authorization
-          // or manifest verification. Nothing on disk was replaced, so it is
-          // safe to resume the original editor persistence generation.
+        if (!restorePreparationStarted) {
+          // Authorization/native preconditions failed before editor persistence
+          // was frozen, so there is no restore lifecycle to unwind.
+          setLastError(message)
+        } else if (!nativeInvocationStarted) {
+          // Preparing the workspace failed before the native restore was
+          // invoked. No filesystem replacement could have started, so the
+          // original persistence generation is safe to resume.
           try {
             await dispatchVaultLifecycleEvent('scriptor:vault-restore-aborted', { backupName })
           } catch (resumeError) {
@@ -221,6 +243,14 @@ export function useVaultBackup(vaultOpen: boolean) {
             return
           }
           setLastError(message)
+        } else if (!restoreApplied) {
+          // Once invocation starts, rejection is transport-ambiguous: native
+          // mutation may have happened before the structured outcome was lost.
+          // Fail closed and keep persistence frozen until vault_open runs the
+          // journal/rename recovery paths.
+          setLastError(
+            `Restore outcome could not be confirmed: ${message}. Editor persistence remains paused; reopen the vault before editing so recovery can reconcile on-disk state.`,
+          )
         } else {
           // The filesystem restore is already authoritative. Never label that
           // durable operation as failed merely because UI/index resynchronizing
@@ -258,8 +288,10 @@ export function useVaultBackup(vaultOpen: boolean) {
       .then((entries) => {
         if (!cancelled) setBackups(entries || [])
       })
-      .catch(() => {
-        if (!cancelled) setBackups([])
+      .catch((caught: unknown) => {
+        if (!cancelled) {
+          setLastError(caught instanceof Error ? caught.message : 'Could not list backups')
+        }
       })
     return () => {
       cancelled = true

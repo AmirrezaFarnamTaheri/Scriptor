@@ -59,13 +59,17 @@ test('backup creation and restore serialize against vault session mutation', () 
   assert.ok(backupRs.indexOf('write_recover(&state.session, "session")', restoreStart) > restoreStart)
 })
 
-test('restore lifecycle freezes persistence before replacement and refreshes derived state only after rebuild terminal state', () => {
-  const startEvent = useVaultBackup.indexOf("dispatchVaultLifecycleEvent('scriptor:vault-restore-starting'")
-  const nativeRestore = useVaultBackup.indexOf('await vaultRestoreBackup(', startEvent)
+test('restore lifecycle freezes persistence only after authorization and fails closed on ambiguous invoke rejection', () => {
+  const authorization = useVaultBackup.indexOf('await authorizeVaultRestoreBackup(backupName)')
+  const startEvent = useVaultBackup.indexOf("dispatchVaultLifecycleEvent('scriptor:vault-restore-starting'", authorization)
+  const nativeRestore = useVaultBackup.indexOf('await vaultRestoreBackupAuthorized(', startEvent)
   const filesRestored = useVaultBackup.indexOf("dispatchVaultLifecycleEvent('scriptor:vault-files-restored'", nativeRestore)
   const rebuild = useVaultBackup.indexOf('await indexerRebuild()', filesRestored)
   const finished = useVaultBackup.indexOf("dispatchVaultLifecycleEvent('scriptor:vault-restored'", rebuild)
-  assert.ok(startEvent !== -1 && nativeRestore > startEvent && filesRestored > nativeRestore && rebuild > filesRestored && finished > rebuild)
+  assert.ok(authorization !== -1 && startEvent > authorization && nativeRestore > startEvent && filesRestored > nativeRestore && rebuild > filesRestored && finished > rebuild)
+  assert.ok(useVaultBackup.includes('else if (!nativeInvocationStarted)'))
+  assert.ok(useVaultBackup.includes('Editor persistence remains paused; reopen the vault before editing'))
+  assert.ok(useVaultBackup.includes("dispatchVaultLifecycleEvent('scriptor:vault-restore-aborted'"))
 
   assert.ok(workspaceEditor.includes('persistenceGenerationRef.current += 1'))
   assert.ok(workspaceEditor.includes('saveTimersByDocRef.current.clear()'))
