@@ -56,12 +56,14 @@ test('task parser matches Rust dataview detection for rrule-only and priority-on
 })
 
 test('task parser preserves Rust priority semantics across parse and serialize', () => {
-  const emoji = parseTasksFromMarkdown('- [/] investigate ⏫ 📅 2026-09-30 #work', 'note.md')[0]!
+  const priorityGlyph = '\u23eb'
+  const dueGlyph = '\u{1f4c5}'
+  const emoji = parseTasksFromMarkdown(`- [/] investigate ${priorityGlyph} ${dueGlyph} 2026-09-30 #work`, 'note.md')[0]!
   assert.equal(emoji.priority, -2)
   assert.equal(emoji.fieldStyle, 'emoji')
   assert.equal(emoji.due, '2026-09-30')
-  assert.match(serializeTask(emoji), /⏫/)
-  assert.match(serializeTask(emoji), /📅 2026-09-30/)
+  assert.ok(serializeTask(emoji).includes(priorityGlyph))
+  assert.ok(serializeTask(emoji).includes(`${dueGlyph} 2026-09-30`))
 
   const dataview = parseTasksFromMarkdown(
     '- [x] ship [priority:: 2] [rrule:: FREQ=MONTHLY] #release',

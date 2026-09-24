@@ -126,23 +126,6 @@ export const surfaceGuides: readonly HelpGuide[] = [
     related: ['hibernation', 'performance', 'status'],
   },
   {
-    id: 'workspace-chrome', title: 'Workspace chrome controls', category: 'Workspace', policy: 'manual',
-    entry: 'Settings → Workspace → workspace chrome.', prerequisite: 'Open Settings when you want to reduce or restore persistent workspace controls.',
-    safety: 'These settings hide or show application chrome; they do not disable the underlying feature or delete data.',
-    source: 'src/components/WorkspaceChromeSettingsSection.tsx', roots: ['[data-help-topic="workspace-chrome"]'],
-    steps: [
-      ['Choose persistent controls', 'Keep frequent writing actions visible and move low-frequency utilities out of the default chrome.'],
-      ['Protect navigation', 'Do not hide every route to a feature you still expect to use; the command palette remains the fallback path.'],
-      ['Check narrow widths', 'After changing chrome, resize or use split views to confirm the remaining controls do not crowd the editor.'],
-      ['Restore intentionally', 'Return to this section when a hidden action becomes part of your regular workflow instead of adding duplicate shortcuts elsewhere.'],
-    ],
-    questions: [
-      ['Does hiding an action disable it?', 'No. It changes chrome visibility; the feature can remain available through commands or its canonical surface.'],
-      ['Why is the top bar intentionally sparse?', 'Persistent writing chrome is prioritized for frequent actions while secondary features use progressive disclosure.'],
-    ],
-    related: ['workspace', 'commands', 'docks'],
-  },
-  {
     id: 'status-dock', title: 'Status dock and operational tabs', category: 'Workspace', policy: 'manual',
     entry: 'Bottom status dock: Problems, Output, and Jobs.', prerequisite: 'Open a vault for workspace-specific operational status.',
     safety: 'The dock reports diagnostics and background work. Opening a tab does not retry, cancel, or mutate a job unless you invoke an explicit action inside it.',
@@ -277,7 +260,7 @@ export const surfaceGuides: readonly HelpGuide[] = [
       ['Does disconnect remove imported mail notes?', 'No. Imported Markdown is local vault content and has a separate lifecycle.'],
     ],
     related: ['gmail', 'google', 'plugins', 'permissions'],
-  }
+  },
   {
     id: 'vault-config', title: 'Vault workflow configuration', category: 'Workspace', policy: 'manual',
     entry: 'Settings → General → Vault configuration.', prerequisite: 'Open the vault whose defaults and workflow rules you intend to change.',

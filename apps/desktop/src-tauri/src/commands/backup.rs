@@ -818,12 +818,13 @@ fn finalize_restore(
         // snapshot is no longer needed. A failed cleanup is not fatal:
         // recovery finalizes a leftover `complete` journal on the next open.
         if let Err(error) = fs::remove_dir_all(transaction) {
-            eprintln!("[vault-backup] Restore committed and reopened, but journal cleanup failed: {error}");
+            eprintln!(
+                "[vault-backup] Restore committed and reopened, but journal cleanup failed: {error}"
+            );
         } else if let Some(parent) = transaction.parent() {
             if let Err(error) = sync_directory(parent) {
                 eprintln!("[vault-backup] Restore journal directory sync failed: {error}");
             }
-        }
         }
     }
 
@@ -915,15 +916,13 @@ pub fn vault_restore_backup(
         sync_directory(&vault_root)?;
         ignored.clear();
         if let Err(promote_error) = copy_tree(&staged, &vault_root, Path::new(""), &mut ignored) {
-            let rollback_result = write_restore_state(
-                &transaction,
-                RESTORE_STATE_ROLLBACK_IN_PROGRESS,
-            )
-            .and_then(|_| clear_persistent_vault_content(&vault_root))
-            .and_then(|_| {
-                ignored.clear();
-                copy_tree(&rollback, &vault_root, Path::new(""), &mut ignored)
-            });
+            let rollback_result =
+                write_restore_state(&transaction, RESTORE_STATE_ROLLBACK_IN_PROGRESS)
+                    .and_then(|_| clear_persistent_vault_content(&vault_root))
+                    .and_then(|_| {
+                        ignored.clear();
+                        copy_tree(&rollback, &vault_root, Path::new(""), &mut ignored)
+                    });
             return match rollback_result {
                 Ok(()) => {
                     // Record the rollback itself as a durable terminal state. A
@@ -968,7 +967,10 @@ pub fn vault_restore_backup(
     let reopened = if should_reopen {
         scriptor_vault::open_vault(&vault_root).map_err(|error| error.to_string())
     } else {
-        Err("restore recovery is unresolved; normal session reopen was intentionally skipped".to_string())
+        Err(
+            "restore recovery is unresolved; normal session reopen was intentionally skipped"
+                .to_string(),
+        )
     };
     let outcome = finalize_restore(
         result,

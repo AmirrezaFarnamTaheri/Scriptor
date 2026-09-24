@@ -430,6 +430,7 @@ function SettingsPanelImpl({
 
       <div
         className="settings-tab-pane"
+        data-help-topic="integrations"
         hidden={activeTab !== 'integrations'}
         style={activeTab !== 'integrations' ? { display: 'none' } : undefined}
       >

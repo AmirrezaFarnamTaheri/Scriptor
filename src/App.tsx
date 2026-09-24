@@ -1680,13 +1680,8 @@ function App() {
         onCloseReader={handleCloseReader}
         onCloseTasks={handleCloseTasks}
         onCloseKanban={handleCloseKanban}
-        onCreateKanbanBoard={() => {
-          void workspace.createNote(
-            'Kanban Board',
-            '---\nkanban-plugin: basic\n---\n\n# Kanban Board\n\n## Todo\n\n## Doing\n\n## Done\n',
-            { requireMissing: true },
-          )
-        }}
+        onCreateKanbanBoard={() => void workspace.createNote('Kanban Board',
+          '---\nkanban-plugin: basic\n---\n\n# Kanban Board\n\n## Todo\n\n## Doing\n\n## Done\n', { requireMissing: true })}
         bibliographyOpen={bibliographyOpen}
         bibliography={bibliography}
         setBibliographyOpen={setBibliographyOpen}

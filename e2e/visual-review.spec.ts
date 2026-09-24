@@ -556,6 +556,35 @@ test.describe('visual review states', () => {
     await captureVisual(page, 'visual-workspace-high-contrast.png')
   })
 
+  test('direct Help answers evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.locator('header.topbar').getByRole('button', { name: 'Help & guides', exact: true }).click()
+    const help = page.getByRole('dialog', { name: 'Help & guides', exact: true })
+    await help.getByRole('searchbox').fill('Does a layout preset change my note?')
+    await expect(help.getByRole('heading', { name: 'Quick answers' })).toBeVisible()
+    await expect(help.getByText('It changes workspace presentation settings, not Markdown content.', { exact: false })).toBeVisible()
+    await captureElement(page, help, 'visual-help-direct-answers.png')
+  })
+
+  test('first-open graph guidance evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.evaluate(() => window.localStorage.setItem('scriptor:help-guides:v1', JSON.stringify({ version: 2, progress: {} })))
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await waitForVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open graph')
+    await expect(page.getByRole('region', { name: 'Knowledge graph navigation' })).toBeVisible()
+    await settleLayout(page)
+    await page.screenshot({ path: test.info().outputPath('visual-graph-first-open-guidance.png'), animations: 'disabled', caret: 'hide' })
+  })
+
+  test('writable Preview mode evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.locator('.editor-toolbar').getByRole('button', { name: 'Preview', exact: true }).click()
+    await expect(page.locator('.editor-rendered-view .editable-preview-editor .cm-line').first()).toBeVisible()
+    await captureVisual(page, 'visual-editor-writable-preview.png')
+  })
+
   test('mobile Help remains styled, bounded, and centralized', async ({ page }) => {
     await openMobileWorkspace(page)
     await expect(page.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)

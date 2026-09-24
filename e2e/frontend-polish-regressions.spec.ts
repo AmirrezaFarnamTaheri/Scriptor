@@ -196,6 +196,7 @@ test.describe('Frontend polish regressions', () => {
     const status = palette.locator('.command-palette-search-status')
 
     await expect(status).toBeAttached()
+    await page.waitForTimeout(220)
     const before = await header.boundingBox()
     const reservedStatusWidth = await status.evaluate((element) => element.getBoundingClientRect().width)
     expect(before).not.toBeNull()

@@ -118,7 +118,7 @@ test('toolbar and top-bar customize surfaces retain their own scroll position', 
   await toolList.hover()
   await page.mouse.wheel(0, 500)
   await expect.poll(() => toolList.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
-  await toolbarCustomizer.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await toolbarCustomizer.locator('.toolbar-customizer-actions').getByRole('button', { name: 'Cancel', exact: true }).click()
 
   await page.getByRole('button', { name: 'Customize top bar actions', exact: true }).click()
   const topBarCustomizer = page.getByRole('dialog', { name: 'Customize top bar actions' })

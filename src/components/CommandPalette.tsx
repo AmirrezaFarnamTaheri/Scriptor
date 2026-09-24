@@ -123,7 +123,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
         <div className="command-palette-header">
           <Search className="command-palette-search-icon" aria-hidden="true" />
           <input
-            type="search" value={query}
+            type="search" inputMode="search" autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} value={query}
             onChange={(event) => {
               isKeyboardNav.current = false
               setSearchingQuery(null)
@@ -161,7 +161,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
             </span>
           ) : null}
         </p>
-        <ul id="command-palette-list" ref={listRef} role="listbox">
+        <ul id="command-palette-list" ref={listRef} role="listbox" aria-busy={isSearchingNotes}>
           {mergedCommands.map((command, index) => {
             const previousGroup = mergedCommands[index - 1]?.group
             const showHeading = hasNoteResults && (index === 0 || previousGroup !== command.group)

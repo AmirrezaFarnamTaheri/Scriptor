@@ -20,6 +20,7 @@ interface SavedViewsPanelProps {
     label: string
     defaultValue: string
     submitLabel?: string
+    helpTopic?: string
   }) => Promise<string | null>
 }
 

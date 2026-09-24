@@ -698,11 +698,11 @@ function PluginsTab({
 // ---------------------------------------------------------------------------
 
 /** Tab order used for both rendering and Arrow-key navigation. */
-const STORE_TABS: Array<{ id: StoreTab; labelKey: string; icon: React.ReactNode }> = [
-  { id: 'plugins', labelKey: 'store.tabs.plugins', icon: <Box size={13} /> },
-  { id: 'mcp', labelKey: 'store.tabs.mcp', icon: <Cpu size={13} /> },
-  { id: 'features', labelKey: 'store.tabs.features', icon: <FlaskConical size={13} /> },
-  { id: 'layouts', labelKey: 'store.tabs.layouts', icon: <LayoutTemplate size={13} /> },
+const STORE_TABS: Array<{ id: StoreTab; labelKey: string; icon: React.ReactNode; helpTopic: string }> = [
+  { id: 'plugins', labelKey: 'store.tabs.plugins', icon: <Box size={13} />, helpTopic: 'plugins' },
+  { id: 'mcp', labelKey: 'store.tabs.mcp', icon: <Cpu size={13} />, helpTopic: 'mcp' },
+  { id: 'features', labelKey: 'store.tabs.features', icon: <FlaskConical size={13} />, helpTopic: 'feature-flags' },
+  { id: 'layouts', labelKey: 'store.tabs.layouts', icon: <LayoutTemplate size={13} />, helpTopic: 'layout-presets' },
 ]
 
 const tabId = (tab: StoreTab) => `store-tab-${tab}`

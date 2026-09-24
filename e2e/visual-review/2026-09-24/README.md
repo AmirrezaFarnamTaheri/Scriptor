@@ -2,6 +2,8 @@
 
 This review covers the browser UI after the visual remediation. The [nine contact sheets](contact-sheets/sheet-01.png) index every available capture from the review run; [inventory.txt](inventory.txt) maps the numbered tiles to their screenshot names. Fourteen full-resolution screenshots preserve states that earlier documentation did not show, including touch at 320px, dark mobile, populated Reader and Kanban workspaces, import, Persian RTL Help, high zoom, and high contrast.
 
+The PR consolidation added three more full-resolution captures: [direct Help answers](screenshots/visual-help-direct-answers.png), [first-open graph guidance](screenshots/visual-graph-first-open-guidance.png), and [writable Preview](screenshots/visual-editor-writable-preview.png). Each was visually inspected and its focused browser workflow passed. These later captures are separate from the nine original contact sheets and inventory.
+
 ## Scope and result
 
 - The 103-case visual workflow produced 102 passes and one blank-page failure before the dark-mobile app booted. That exact state passed five consecutive isolated reruns on one worker. The initial default-port attempt could not bind and ran no tests. These are workflow reliability limits, not a clean 103-case pass.

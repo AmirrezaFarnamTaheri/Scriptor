@@ -8,11 +8,16 @@
 - Let PDF/EPUB Reader content use the available panel height, render Kanban checkbox states with meaningful icons and names, and provide a direct new-board action for non-board notes.
 - Improve small-text contrast, modal opacity, Kanban card spacing, inspector outline placement, and the clarity of English Help content within Persian UI.
 - Give document tabs and Kanban cards valid accessible ownership, and clarify the mobile Inspector and workspace Tools labels.
+- Keep command-palette note search and toolbar customization visually stable while typing or scrolling, with clearer busy-state accessibility.
+- Treat incomplete backup-restore journals as unresolved, preserve rollback evidence, and avoid reopening an unreconciled vault session.
+- Re-sanitize renderer and embed output after extensions or diagram promotion, and report malformed task filters and indexed tag data rather than silently widening or emptying results.
 
 ### Changed
 
 - Make editor Preview and the right side of Split directly writable visual Markdown surfaces backed by the same canonical draft as Source. The Inspector's Rendered output remains the read-only fidelity/reference view.
 - Preserve ordinary authoring newlines in live rendered preview by default and synchronize Source/Preview by the active cursor line as well as scrolling.
+- Add direct answers and contextual first-open Help guidance, plus granular manual guides for dialogs, workspace controls, and recovery surfaces.
+- Update the grouped npm and Cargo dependencies and their lockfiles.
 
 ## 1.2.0 — 2026-09-22
 

@@ -186,6 +186,14 @@ test.beforeEach(async ({ page }) => {
     }
     setDefault('scriptor:app-theme', 'light')
     setDefault('scriptor:onboarding-complete', 'true')
+    setDefault('scriptor:help-guides:v1', JSON.stringify({
+      version: 1,
+      progress: Object.fromEntries([
+        'workbench', 'graph', 'canvas', 'tasks', 'kanban', 'reader',
+        'export', 'plugins', 'modules', 'integrations', 'gmail', 'mcp',
+        'custom-theme', 'resource-sync',
+      ].map((id) => [id, { step: 0, completed: false, introduced: true }])),
+    }))
     setDefault('scriptor:editor-mode', 'monaco')
     setDefault('scriptor:headless-engine', 'false')
     setDefault('scriptor:workspace-mode', 'writing')
