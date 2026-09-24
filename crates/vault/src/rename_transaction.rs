@@ -11,6 +11,7 @@ use crate::path::{RelativeVaultPath, VaultRoot};
 
 const TXN_DIR_NAME: &str = "rename-txn";
 const TXN_MANIFEST: &str = "rename-txn.json";
+const TXN_MANIFEST_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
@@ -68,13 +69,23 @@ pub fn recover_pending_rename_transactions(
 
     let data = fs::read_to_string(&manifest_file)
         .map_err(|source| VaultError::io(&manifest_file, source))?;
-    let txn: RenameTransactionManifest = match serde_json::from_str(&data) {
-        Ok(value) => value,
-        Err(_) => {
-            let _ = fs::remove_file(&manifest_file);
-            return Ok(RenameRecoveryOutcome::default());
+    let txn: RenameTransactionManifest = serde_json::from_str(&data).map_err(|error| {
+        VaultError::InvalidConfig {
+            message: format!(
+                "rename recovery manifest is corrupt and was preserved at {}: {error}",
+                manifest_file.display()
+            ),
         }
-    };
+    })?;
+    if !(1..=TXN_MANIFEST_VERSION).contains(&txn.version) {
+        return Err(VaultError::InvalidConfig {
+            message: format!(
+                "unsupported rename recovery manifest version {}; manifest preserved at {}",
+                txn.version,
+                manifest_file.display()
+            ),
+        });
+    }
 
     let outcome = match txn.phase {
         RenamePhase::FileMoveDone => {
@@ -302,7 +313,7 @@ impl StagedRenameTransaction {
         }
 
         let manifest = RenameTransactionManifest {
-            version: 3,
+            version: TXN_MANIFEST_VERSION,
             phase: RenamePhase::Staged,
             from_path: from_path.to_string(),
             to_path: to_path.to_string(),
@@ -434,6 +445,42 @@ mod tests {
 
         staged.commit().unwrap();
         assert!(!manifest.is_file());
+    }
+
+    #[test]
+    fn corrupt_recovery_manifest_is_preserved_and_fails_closed() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let manifest = manifest_path(&session.root);
+        std::fs::create_dir_all(manifest.parent().unwrap()).unwrap();
+        std::fs::write(&manifest, b"{not-json").unwrap();
+
+        let error = recover_pending_rename_transactions(&session.root)
+            .expect_err("corrupt recovery state must not be discarded");
+        assert!(error.to_string().contains("manifest is corrupt"));
+        assert!(manifest.is_file(), "recovery evidence must be preserved");
+    }
+
+    #[test]
+    fn future_recovery_manifest_version_is_preserved_and_rejected() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let manifest = manifest_path(&session.root);
+        std::fs::create_dir_all(manifest.parent().unwrap()).unwrap();
+        let future = RenameTransactionManifest {
+            version: TXN_MANIFEST_VERSION + 1,
+            phase: RenamePhase::Staged,
+            from_path: "Note.md".into(),
+            to_path: "Renamed.md".into(),
+            source_backup: ".scriptor/rename-txn/source.bak".into(),
+            ..Default::default()
+        };
+        std::fs::write(&manifest, serde_json::to_vec(&future).unwrap()).unwrap();
+
+        let error = recover_pending_rename_transactions(&session.root)
+            .expect_err("unknown recovery semantics must fail closed");
+        assert!(error.to_string().contains("unsupported rename recovery manifest version"));
+        assert!(manifest.is_file(), "future recovery manifest must be preserved");
     }
 
     #[test]
