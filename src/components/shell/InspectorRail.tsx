@@ -103,6 +103,7 @@ interface InspectorRailProps {
 }
 
 const INSPECTOR_TABS: readonly string[] = ['inspector', 'preview', 'plugins']
+const INSPECTOR_HELP_TOPICS = { inspector: 'inspector', preview: 'preview', plugins: 'plugins' } as const
 
 /** Renders the contextual inspector, preview, and plugin rail for the active note. */
 function InspectorRailImpl({
@@ -191,6 +192,7 @@ function InspectorRailImpl({
             tabIndex={activeMode === mode ? 0 : -1}
             aria-selected={activeMode === mode}
             aria-controls={`inspector-panel-${mode}`}
+            data-help-topic={INSPECTOR_HELP_TOPICS[mode]}
             className={activeMode === mode ? 'active' : ''}
             onClick={() => onModeChange(mode)}
           >
@@ -225,35 +227,6 @@ function InspectorRailImpl({
         </div>
       ) : null}
 
-      {/* Note context belongs to the inspector tab, not above preview or store. */}
-      {showInspectorHealth && activeMode === 'inspector' ? (
-        <WidgetCard title={t('inspector.noteHealth')} action={healthAction} onAction={onOpenHealthDashboard}>
-          <div className="metric-grid">
-            {healthMetrics.map(([label, value]) => (
-              <div className="metric" key={label}>
-                <span>{label}</span>
-                <strong>{value}</strong>
-              </div>
-            ))}
-          </div>
-        </WidgetCard>
-      ) : null}
-
-      {presetConfig.showQuality && activeMode === 'inspector' ? (
-        <NoteQualityCard
-          activePath={activePath}
-          health={health}
-          outboundLinks={inspectorLinks.length}
-          backlinkCount={backlinks.length}
-          citationKeys={citationRows}
-          bibliographyKeys={bibliographyKeys}
-          isNoteDirty={isNoteDirty}
-          onOpenWorkbench={onOpenKnowledgeWorkbench}
-          onOpenPublish={onOpenPublishCenter}
-          onOpenGraph={onOpenGraph}
-        />
-      ) : null}
-
       {/* ── Panel regions — each gets role="tabpanel" ────────────────────────── */}
 
       {/* PREVIEW panel */}
@@ -261,6 +234,7 @@ function InspectorRailImpl({
         id="inspector-panel-preview"
         role="tabpanel"
         aria-labelledby="inspector-tab-preview"
+        data-help-topic="preview"
         hidden={activeMode !== 'preview'}
       >
         {activeMode === 'preview' ? (
@@ -363,6 +337,7 @@ function InspectorRailImpl({
         id="inspector-panel-inspector"
         role="tabpanel"
         aria-labelledby="inspector-tab-inspector"
+        data-help-topic="inspector"
         hidden={activeMode !== 'inspector'}
       >
         {activeMode === 'inspector' ? (
@@ -395,6 +370,34 @@ function InspectorRailImpl({
                   )}
                 </div>
               </WidgetCard>
+            ) : null}
+
+            {showInspectorHealth ? (
+              <WidgetCard title={t('inspector.noteHealth')} action={healthAction} onAction={onOpenHealthDashboard}>
+                <div className="metric-grid">
+                  {healthMetrics.map(([label, value]) => (
+                    <div className="metric" key={label}>
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+              </WidgetCard>
+            ) : null}
+
+            {presetConfig.showQuality ? (
+              <NoteQualityCard
+                activePath={activePath}
+                health={health}
+                outboundLinks={inspectorLinks.length}
+                backlinkCount={backlinks.length}
+                citationKeys={citationRows}
+                bibliographyKeys={bibliographyKeys}
+                isNoteDirty={isNoteDirty}
+                onOpenWorkbench={onOpenKnowledgeWorkbench}
+                onOpenPublish={onOpenPublishCenter}
+                onOpenGraph={onOpenGraph}
+              />
             ) : null}
 
             {presetConfig.showLinks ? (
@@ -546,6 +549,7 @@ function InspectorRailImpl({
         id="inspector-panel-plugins"
         role="tabpanel"
         aria-labelledby="inspector-tab-plugins"
+        data-help-topic="plugins"
         hidden={activeMode !== 'plugins'}
       >
         {activeMode === 'plugins' ? (

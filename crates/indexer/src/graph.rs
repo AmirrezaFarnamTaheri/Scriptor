@@ -424,7 +424,7 @@ fn load_note_tags(
     let mut tags = HashMap::new();
     for row in rows {
         let (id, json) = row?;
-        let parsed = serde_json::from_str::<Vec<String>>(&json).unwrap_or_default();
+        let parsed = serde_json::from_str::<Vec<String>>(&json)?;
         if !parsed.is_empty() {
             tags.insert(id, parsed);
         }

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { createRequire } from 'node:module'
 
 import { selectGitPanelState } from '../src/lib/gitPanelState'
 import type { GitStatus } from '../src/types/vault'
@@ -9,6 +10,8 @@ const OPEN_GIT = 'Open Git panel'
 const OPEN_READER = 'Open reader'
 const OPEN_TASKS = 'Open tasks panel'
 const OPEN_KANBAN = 'Open kanban board'
+const nodeRequire = createRequire(import.meta.url)
+const axeScript = createRequire(nodeRequire.resolve('@axe-core/cli')).resolve('axe-core/axe.min.js')
 
 const READY_STATUS: GitStatus = {
   is_repo: true,
@@ -44,7 +47,136 @@ test.describe('Git panel state selector', () => {
   })
 })
 
+test.describe('Coarse-pointer workspace', () => {
+  test.use({ viewport: { width: 320, height: 900 }, hasTouch: true, isMobile: true })
+
+  test('primary mobile controls retain 44px targets without hiding top actions', async ({ page }) => {
+    await launchApp(page)
+    const controls = [
+      page.locator('header.topbar').getByRole('button', { name: 'Settings' }),
+      page.locator('header.topbar').getByRole('button', { name: 'Help & guides' }),
+      page.locator('header.topbar').getByRole('button', { name: 'Customize top bar actions' }),
+      page.locator('.tabs-row').getByRole('button', { name: 'Close Research Plan' }),
+      page.locator('.editor-toolbar').getByRole('button', { name: 'Source' }),
+      page.locator('.editor-toolbar').getByRole('button', { name: 'Split' }),
+      page.locator('.editor-toolbar').getByRole('button', { name: 'Preview' }),
+    ]
+    for (const control of controls) {
+      await expect(control).toBeVisible()
+      const box = await control.boundingBox()
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(44)
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+    }
+    await expect.poll(() => page.locator('.top-actions').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+    await expect(page.getByRole('navigation', { name: 'Mobile workspace navigation' }).getByRole('button', { name: 'Inspector' })).toBeVisible()
+  })
+})
+
 test.describe('Frontend polish regressions', () => {
+  test('fresh narrow workspaces keep full-size text and controls', async ({ page }) => {
+    for (const width of [320, 375, 768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      await launchApp(page)
+      await expect.poll(() => page.locator('body').evaluate((body) => getComputedStyle(body).zoom)).toBe('1')
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+    }
+  })
+
+  test('document tab arrows move focus with selection', async ({ page }) => {
+    await launchApp(page)
+    await page.getByRole('button', { name: 'Field Notes.md' }).click()
+    const selected = page.getByRole('tab', { name: 'Field Notes', selected: true })
+    await selected.focus()
+    await selected.press('ArrowLeft')
+    const research = page.getByRole('tab', { name: 'Research Plan', selected: true })
+    await expect(research).toBeFocused()
+  })
+
+  test('Reader fills its panel and Kanban exposes readable statuses', async ({ page }) => {
+    await launchApp(page)
+    await page.getByRole('button', { name: 'Research Paper.pdf' }).click()
+    const reader = page.locator('.reader-panel')
+    await expect(reader.locator('iframe')).toBeVisible()
+    await expect.poll(() => reader.evaluate((panel) => {
+      const body = panel.querySelector('.unified-panel-body')!.getBoundingClientRect()
+      const frame = panel.querySelector('iframe')!.getBoundingClientRect()
+      return frame.height / body.height
+    })).toBeGreaterThan(0.75)
+    await reader.getByRole('button', { name: 'Close' }).click()
+    await page.getByRole('button', { name: 'Sprint Board.md' }).click()
+    await openCommandPalette(page)
+    await runCommand(page, OPEN_KANBAN)
+    const board = page.getByRole('dialog', { name: 'Sprint Board', exact: true })
+    await expect(board.locator('.kanban-card__status[title="Open"]')).toHaveCount(1)
+    await expect(board.locator('.kanban-card__status[title="In Progress"]')).toHaveCount(1)
+    await expect(board.locator('.kanban-card__status[title="Done"]')).toHaveCount(1)
+  })
+
+  test('non-board notes offer an explicit new-board path without rewriting the note', async ({ page }) => {
+    await launchApp(page)
+    await openCommandPalette(page)
+    await runCommand(page, OPEN_KANBAN)
+    const board = page.getByRole('dialog', { name: 'Kanban', exact: true })
+    await expect(board.getByRole('button', { name: 'Create a new board' })).toBeVisible()
+    await board.getByRole('button', { name: 'Create a new board' }).click()
+    await expect(page.getByRole('tab', { name: 'Kanban Board', selected: true })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Research Plan' })).toBeVisible()
+  })
+
+  test('writing inspector puts the note outline ahead of health and publishing cards', async ({ page }) => {
+    await launchApp(page)
+    const inspector = page.locator('.inspector-panel')
+    const outline = inspector.getByRole('heading', { name: 'Outline', exact: true })
+    const health = inspector.getByRole('heading', { name: 'Vault health', exact: true })
+    await expect(outline).toBeVisible()
+    await expect(health).toBeVisible()
+    const positions = await Promise.all([outline, health].map((item) => item.evaluate((element) => element.getBoundingClientRect().top)))
+    expect(positions[0]).toBeLessThan(positions[1]!)
+  })
+
+  test('document tabs and Kanban lists meet their declared ARIA ownership', async ({ page }) => {
+    await launchApp(page)
+    await page.getByRole('button', { name: 'Field Notes.md' }).click()
+    await page.addScriptTag({ path: axeScript })
+    const audit = () => page.evaluate(async () => {
+      const axe = (window as Window & { axe: { run: (root: Document, options: unknown) => Promise<{ violations: Array<{ id: string }> }> } }).axe
+      const result = await axe.run(document, { runOnly: ['aria-required-children', 'aria-prohibited-attr'] })
+      return result.violations.map((violation) => violation.id)
+    })
+    expect(await audit()).toEqual([])
+
+    await page.getByRole('button', { name: 'Sprint Board.md' }).click()
+    await openCommandPalette(page)
+    await runCommand(page, OPEN_KANBAN)
+    await expect(page.getByRole('dialog', { name: 'Sprint Board', exact: true })).toBeVisible()
+    expect(await audit()).toEqual([])
+  })
+
+  test('shared panel text and editor heading meet small-text contrast', async ({ page }) => {
+    await launchApp(page)
+    await page.addScriptTag({ path: axeScript })
+    const contrastFailures = () => page.evaluate(async () => {
+      const axe = (window as Window & { axe: { run: (root: Document, options: unknown) => Promise<{ violations: Array<{ id: string; nodes: Array<{ target: string[]; failureSummary?: string }> }> }> } }).axe
+      const result = await axe.run(document, { runOnly: ['color-contrast'] })
+      return result.violations.flatMap((violation) => violation.nodes.map((node) => ({ target: node.target, summary: node.failureSummary })))
+    })
+
+    await page.locator('header.topbar').getByRole('button', { name: 'Settings', exact: true }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await expect(settings).toBeVisible()
+    const light = await contrastFailures()
+    expect(light.filter((node) => node.target.some((target) => target.includes('health-subtitle') || target.includes('unified-panel-tabs')))).toEqual([])
+    await settings.getByRole('button', { name: 'Close' }).click()
+
+    await page.locator('.editor-toolbar').getByRole('button', { name: 'Tools', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Switch to CodeMirror editor' }).click()
+    await page.locator('header.topbar').getByRole('button', { name: /Switch to dark appearance/ }).click()
+    await expect(page.locator('.cm-editor')).toBeVisible()
+    const dark = await contrastFailures()
+    expect(dark.filter((node) => node.target.some((target) => target.includes('cm-line') || target.includes('cm-heading')))).toEqual([])
+  })
+
   for (const zoom of [0.7, 2]) {
     test(`app zoom ${zoom} keeps the workspace exactly within the viewport`, async ({ page }) => {
       await page.addInitScript((factor) => localStorage.setItem('scriptor:ui-zoom', String(factor)), zoom)
@@ -54,11 +186,47 @@ test.describe('Frontend polish regressions', () => {
     })
   }
 
+  test('command palette search chrome stays stable while typing and note lookup settles', async ({ page }) => {
+    await launchApp(page)
+    await openCommandPalette(page)
+
+    const palette = page.getByRole('dialog', { name: 'Command palette', exact: true })
+    const search = palette.getByRole('searchbox')
+    const header = palette.locator('.command-palette-header')
+    const status = palette.locator('.command-palette-search-status')
+
+    await expect(status).toBeAttached()
+    await page.waitForTimeout(220)
+    const before = await header.boundingBox()
+    const reservedStatusWidth = await status.evaluate((element) => element.getBoundingClientRect().width)
+    expect(before).not.toBeNull()
+    expect(reservedStatusWidth).toBeGreaterThan(0)
+
+    await search.pressSequentially('notes', { delay: 35 })
+    await expect(search).toHaveValue('notes')
+    await expect(search).toBeFocused()
+    await expect(status).toBeAttached()
+    await expect.poll(() => status.evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBe(Math.round(reservedStatusWidth))
+
+    const during = await header.boundingBox()
+    expect(during).not.toBeNull()
+    expect(during?.x).toBeCloseTo(before?.x ?? 0, 0)
+    expect(during?.y).toBeCloseTo(before?.y ?? 0, 0)
+    expect(during?.height).toBeCloseTo(before?.height ?? 0, 0)
+
+    await expect(palette.getByRole('option').first()).toBeVisible()
+    await expect(palette.getByText('Notes', { exact: true })).toBeVisible()
+    const after = await header.boundingBox()
+    expect(after?.x).toBeCloseTo(before?.x ?? 0, 0)
+    expect(after?.y).toBeCloseTo(before?.y ?? 0, 0)
+    expect(after?.height).toBeCloseTo(before?.height ?? 0, 0)
+  })
+
   test('inspector modes leave every editor toolbar control inside the writing column', async ({ page }) => {
     await launchApp(page)
     for (const width of [1440, 1240, 1024]) {
       await page.setViewportSize({ width, height: 900 })
-      for (const mode of ['Inspector', 'Rendered output', 'Plugins']) {
+      for (const mode of ['Inspector', 'Rendered output', 'Tools']) {
         await page.locator('.inspector-tabs').getByRole('tab', { name: mode, exact: true }).click()
         await settleLayout(page)
         const violations = await page.evaluate(() => {
@@ -204,11 +372,11 @@ test.describe('Frontend polish regressions', () => {
     await expect(page.locator('.monaco-editor')).toBeVisible()
     await expect.poll(() => page.locator('.monaco-editor').evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(96)
 
-    await nav.getByRole('button', { name: 'Lens' }).click()
+    await nav.getByRole('button', { name: 'Inspector' }).click()
     await expect(page.locator('.editor-panel')).toBeHidden()
     await expect(page.locator('.inspector-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeInViewport()
-    await expect(page.locator('.inspector-panel .metric-grid .metric').first()).toBeInViewport()
+    await expect(page.locator('#inspector-panel-inspector .outline-row').first()).toBeInViewport()
   })
 
   test('vault tree opens supported reader documents directly in the reader panel', async ({ page }) => {
@@ -305,8 +473,8 @@ test.describe('Frontend polish regressions', () => {
     await runCommand(page, OPEN_KANBAN)
 
     const board = page.getByRole('dialog', { name: 'Sprint Board', exact: true })
-    const todo = board.getByRole('list', { name: 'Todo column' })
-    const doing = board.getByRole('list', { name: 'Doing column' })
+    const todo = board.getByRole('list', { name: 'Todo cards' })
+    const doing = board.getByRole('list', { name: 'Doing cards' })
     await todo.getByRole('button', { name: 'Move Draft release notes right' }).click()
     await expect(board).toContainText('Moving card and refreshing board…')
     await expect(doing.getByRole('listitem').filter({ hasText: 'Draft release notes' })).toBeVisible()
@@ -417,7 +585,7 @@ test.describe('Frontend polish regressions', () => {
     await launchApp(page)
     await settleLayout(page)
 
-    await page.getByRole('tab', { name: 'Plugins' }).click()
+    await page.getByRole('tab', { name: 'Tools' }).click()
     await page.getByRole('tab', { name: 'MCP' }).click()
     const readOnlyMode = page.getByRole('radio', { name: /Read-Only/i })
     await expect(readOnlyMode).toBeEnabled()

@@ -30,6 +30,7 @@ export function TextPromptDialog({ request, onSubmit, onCancel }: TextPromptDial
         className="rename-dialog"
         role="dialog"
         aria-modal="true"
+        data-help-topic={request.helpTopic}
         aria-labelledby={`${inputId}-title`}
         onClick={(event) => event.stopPropagation()}
         onSubmit={(event) => {

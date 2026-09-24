@@ -91,7 +91,7 @@
 .unified-panel-tabs button.active {
   border-color: var(--accent);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--ink-strong);
 }
 
 .unified-panel-body {

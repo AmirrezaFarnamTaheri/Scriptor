@@ -25,7 +25,7 @@ test.describe('capability surfaces', () => {
   })
 
   test('makes runtime controls and layout presets interactive in the canonical store', async ({ page }) => {
-    await page.getByRole('tab', { name: 'Plugins' }).click()
+    await page.getByRole('tab', { name: 'Tools' }).click()
 
     await page.getByRole('tab', { name: 'Features' }).click()
     const graphServices = page.getByRole('button', { name: 'Toggle Graph background services' })
@@ -70,7 +70,7 @@ test.describe('capability surfaces', () => {
   })
 
   test('keeps the four-section store navigable at high text zoom', async ({ page }) => {
-    await page.getByRole('tab', { name: 'Plugins' }).click()
+    await page.getByRole('tab', { name: 'Tools' }).click()
     const storeTabs = page.getByRole('tablist', { name: 'Store sections' })
 
     await page.evaluate(() => {

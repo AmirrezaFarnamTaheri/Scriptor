@@ -10,13 +10,14 @@
  */
 
 /** Schemes permitted for links surfaced in notes or opened externally. */
-const ALLOWED_SCHEMES: readonly string[] = ['https:', 'http:']
+const ALLOWED_SCHEMES: readonly string[] = ['https:', 'http:', 'mailto:']
 
 /**
  * Return the URL when it parses and uses an allow-listed scheme, else `null`.
  *
  * Rejects `javascript:`, `data:`, `vbscript:`, `file:`, relative paths, blank
- * strings, and anything non-parsable.
+ * strings, and anything non-parsable. Allows `mailto:` for explicit user
+ * actions such as support contact links.
  */
 export function safeExternalUrl(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null

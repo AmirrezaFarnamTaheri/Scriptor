@@ -66,6 +66,7 @@ export interface PaletteCommandContext {
     label: string
     defaultValue: string
     submitLabel?: string
+    helpTopic?: string
   }) => Promise<string | null>
   pluginCommands?: Array<{ pluginId: string; command: import('@scriptor/core/contracts/plugin').PluginCommandContribution }>
   runPluginCommand?: (entry: { pluginId: string; command: import('@scriptor/core/contracts/plugin').PluginCommandContribution }) => void | Promise<void>
@@ -513,6 +514,7 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
           label: 'Describe the edit you want the assistant to draft',
           defaultValue: '',
           submitLabel: 'Draft',
+          helpTopic: 'ai',
         }).then((prompt) => {
           if (!prompt) return
           void ai.proposeDraftFromPrompt(prompt, workspace.draftMarkdown).then((proposed) => {

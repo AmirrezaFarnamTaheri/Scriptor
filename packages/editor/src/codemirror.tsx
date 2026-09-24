@@ -166,6 +166,14 @@ class CodeMirrorAdapter implements EditorAdapter {
         if (update.docChanged) {
           options.onChange?.(update.state.doc.toString())
         }
+        // Cursor/selection movement is the semantic "active writing line".
+        // Do not emit for a controlled-value sync alone: the sibling editor
+        // receives those document transactions too and would otherwise bounce
+        // its stale selection back to the editor the user is actively typing in.
+        if (update.selectionSet && this.onVisibleLineChange) {
+          const line = update.state.doc.lineAt(update.state.selection.main.head).number
+          this.onVisibleLineChange(line)
+        }
       }),
     ]
 
@@ -173,10 +181,12 @@ class CodeMirrorAdapter implements EditorAdapter {
       extensions.push(placeholder('Start writing Markdown...'))
     }
 
-    setVimModeCallbacks({
-      onSave: options.onVimSave,
-      onQuit: options.onVimQuit,
-    })
+    if (options.vimMode || options.onVimSave || options.onVimQuit) {
+      setVimModeCallbacks({
+        onSave: options.onVimSave,
+        onQuit: options.onVimQuit,
+      })
+    }
 
     this.view = new EditorView({
       parent: host,
@@ -285,8 +295,27 @@ class CodeMirrorAdapter implements EditorAdapter {
     const current = this.getValue()
     if (current === markdown) return
 
+    // The split workspace keeps two editor views on one canonical Markdown
+    // draft. Mirror only the changed span instead of replacing the whole
+    // document on every keystroke, which preserves the sibling editor's
+    // selection, viewport mapping, and useful undo granularity.
+    let from = 0
+    const sharedLength = Math.min(current.length, markdown.length)
+    while (from < sharedLength && current.charCodeAt(from) === markdown.charCodeAt(from)) from += 1
+
+    let currentTo = current.length
+    let markdownTo = markdown.length
+    while (
+      currentTo > from &&
+      markdownTo > from &&
+      current.charCodeAt(currentTo - 1) === markdown.charCodeAt(markdownTo - 1)
+    ) {
+      currentTo -= 1
+      markdownTo -= 1
+    }
+
     this.view.dispatch({
-      changes: { from: 0, to: current.length, insert: markdown },
+      changes: { from, to: currentTo, insert: markdown.slice(from, markdownTo) },
     })
   }
 
@@ -382,6 +411,8 @@ export interface MarkdownEditorProps {
   typewriter?: boolean
   focusDim?: boolean
   distractionFree?: boolean
+  /** Secondary synchronized editors must not own the document-wide focus class. */
+  manageDistractionFreeClass?: boolean
   showLineNumbers?: boolean
   editorTheme?: EditorThemeId
   onVimSave?: () => void | Promise<void>
@@ -410,6 +441,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     typewriter = false,
     focusDim = false,
     distractionFree = false,
+    manageDistractionFreeClass = true,
     showLineNumbers = true,
     editorTheme = 'light',
     onVimSave,
@@ -431,17 +463,18 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   }, [onChange])
 
   useEffect(() => {
-    onVisibleLineChangeRef.current = onVisibleLineChange
-  }, [onVisibleLineChange])
+    onVisibleLineChangeRef.current = scrollSyncEnabled ? onVisibleLineChange : undefined
+  }, [onVisibleLineChange, scrollSyncEnabled])
 
   useEffect(() => {
     onVimSaveRef.current = onVimSave
     onVimQuitRef.current = onVimQuit
+    if (!vimMode && !onVimSave && !onVimQuit) return
     setVimModeCallbacks({
       onSave: () => onVimSaveRef.current?.(),
       onQuit: () => onVimQuitRef.current?.(),
     })
-  }, [onVimSave, onVimQuit])
+  }, [onVimSave, onVimQuit, vimMode])
 
   const lastEmittedValueRef = useRef<string | null>(null)
 
@@ -472,9 +505,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         onChangeRef.current(markdown)
       },
       readOnly,
-      onVisibleLineChange: scrollSyncEnabled
-        ? (line) => onVisibleLineChangeRef.current?.(line)
-        : undefined,
+      // Install the lightweight listener once. Whether synchronization is
+      // active is owned by the mutable callback ref above, so entering/leaving
+      // Split never destroys the editor (and therefore never drops caret/undo).
+      onVisibleLineChange: (line) => onVisibleLineChangeRef.current?.(line),
       snippetContext,
       snippetCatalog,
       autocompleteContext,
@@ -498,7 +532,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       adapterRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readOnly, scrollSyncEnabled])
+  }, [readOnly])
 
   useEffect(() => {
     setPasteImageHandler(saveImageFromClipboard ?? null)
@@ -566,9 +600,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   }, [showLineNumbers])
 
   useEffect(() => {
+    if (!manageDistractionFreeClass) return
     setDistractionFreeClass(distractionFree)
     return () => setDistractionFreeClass(false)
-  }, [distractionFree])
+  }, [distractionFree, manageDistractionFreeClass])
 
   useEffect(() => {
     adapterRef.current?.setEditorTheme(editorTheme)

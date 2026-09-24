@@ -87,3 +87,46 @@ test('toolbar validates persisted widths and ignores duplicate and unknown tools
   await waitForWorkspace(page)
   await expect(page.locator('.toolbar-pinned [data-tool-id="bold"]')).toHaveCount(1)
 })
+
+
+test('toolbar tools popover keeps wheel scrolling inside the menu', async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 420 })
+  await page.getByRole('button', { name: 'Tools', exact: true }).click()
+
+  const menu = page.getByRole('menu', { name: 'Tools', exact: true })
+  await expect(menu).toBeVisible()
+  await expect.poll(() => menu.evaluate((element) => element.scrollHeight > element.clientHeight + 1)).toBe(true)
+
+  await menu.hover()
+  await page.mouse.wheel(0, 600)
+  await expect.poll(() => menu.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  const scrolled = await menu.evaluate((element) => element.scrollTop)
+
+  // Scrolling the portal must not be treated as viewport movement and trigger
+  // a reposition pass that resets the menu's own scroll state.
+  await page.waitForTimeout(100)
+  await expect.poll(() => menu.evaluate((element) => element.scrollTop)).toBeGreaterThanOrEqual(Math.max(1, scrolled - 1))
+})
+
+test('toolbar and top-bar customize surfaces retain their own scroll position', async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 420 })
+
+  await page.getByRole('button', { name: 'Customize toolbar', exact: true }).click()
+  const toolbarCustomizer = page.getByRole('dialog', { name: 'Customize toolbar' })
+  const toolList = toolbarCustomizer.locator('.toolbar-customizer-list')
+  await expect.poll(() => toolList.evaluate((element) => element.scrollHeight > element.clientHeight + 1)).toBe(true)
+  await toolList.hover()
+  await page.mouse.wheel(0, 500)
+  await expect.poll(() => toolList.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  await toolbarCustomizer.locator('.toolbar-customizer-actions').getByRole('button', { name: 'Cancel', exact: true }).click()
+
+  await page.getByRole('button', { name: 'Customize top bar actions', exact: true }).click()
+  const topBarCustomizer = page.getByRole('dialog', { name: 'Customize top bar actions' })
+  await expect.poll(() => topBarCustomizer.evaluate((element) => element.scrollHeight > element.clientHeight + 1)).toBe(true)
+  await topBarCustomizer.hover()
+  await page.mouse.wheel(0, 500)
+  await expect.poll(() => topBarCustomizer.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  const scrolled = await topBarCustomizer.evaluate((element) => element.scrollTop)
+  await page.waitForTimeout(100)
+  await expect.poll(() => topBarCustomizer.evaluate((element) => element.scrollTop)).toBeGreaterThanOrEqual(Math.max(1, scrolled - 1))
+})

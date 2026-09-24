@@ -1,4 +1,5 @@
 import { escapeHtml, slugify } from './escape.ts'
+import { sanitizeRenderedHtml } from './pipeline.ts'
 
 export interface EmbedFetchContext {
   /** Resolve note path/title to markdown body. Host implements vault lookup. */
@@ -71,7 +72,7 @@ export async function hydrateWikilinkEmbeds(
 
       const body = section.length > 0 ? extractSection(fetched, section) : fetched
       const html = ctx.renderMarkdown ? ctx.renderMarkdown(body) : renderFallback(body)
-      embed.innerHTML = html
+      embed.innerHTML = sanitizeRenderedHtml(html)
       embed.classList.add('wikilink-embed-loaded')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Embed failed'

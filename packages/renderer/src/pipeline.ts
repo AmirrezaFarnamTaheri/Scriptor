@@ -78,6 +78,7 @@ const sanitizeSchema = {
   ],
   attributes: {
     ...defaultSchema.attributes,
+    '*': [...(defaultSchema.attributes?.['*'] ?? []), 'dataSourceLine'],
     code: [...(defaultSchema.attributes?.code ?? []), 'className'],
     pre: [
       ...(defaultSchema.attributes?.pre ?? []),
@@ -149,6 +150,10 @@ const sanitizeSchema = {
   },
 }
 
+// This processor's HTML is immediately passed through sanitizeRenderedHtml.
+// Prefix ids at that final boundary once, so generated TOC links still resolve.
+const intermediateSanitizeSchema = { ...sanitizeSchema, clobberPrefix: '' }
+
 export interface PreviewPipelineOptions {
   enableMath?: boolean
   enableMermaid?: boolean
@@ -185,12 +190,37 @@ function createProcessor(options: PreviewPipelineOptions = {}) {
     .use(rehypeHeadingIds)
     .use(rehypeTaskStates)
     .use(rehypeSafeStyle as never)
-    .use(rehypeSanitize, sanitizeSchema as typeof defaultSchema)
+    .use(rehypeSanitize, intermediateSanitizeSchema as typeof defaultSchema)
     .use(rehypeSourceLines)
     .use(rehypeStringify)
 }
 
 const defaultProcessor = createProcessor()
+
+const finalHtmlSanitizer = unified()
+  .use(rehypeRaw)
+  .use(rehypeSafeStyle as never)
+  .use(rehypeSanitize, sanitizeSchema as typeof defaultSchema)
+  .use(rehypeStringify)
+
+/**
+ * Re-sanitize already-rendered HTML after an extensible transformation.
+ *
+ * The regular Markdown pipeline sanitizes HAST before stringification, but
+ * callers such as preview post-processors and embed renderers can produce HTML
+ * after that point. Feeding the HTML back through rehypeRaw + the same schema
+ * gives every such path one final trust boundary without falling back to a
+ * second, narrower sanitizer policy.
+ */
+export function sanitizeRenderedHtml(html: string): string {
+  const tree = {
+    type: 'root',
+    children: [{ type: 'raw', value: html }],
+  }
+  const sanitized = finalHtmlSanitizer.runSync(tree as never)
+  return String(finalHtmlSanitizer.stringify(sanitized))
+}
+
 
 function applyPreviewOptions(markdown: string, options: PreviewPipelineOptions): string {
   let next = markdown
@@ -270,5 +300,9 @@ export function renderMarkdownPipeline(
     options.enableBreaks === true ? createProcessor(options) : defaultProcessor
   const file = processor.processSync(preprocessed)
   const html = String(file)
-  return options.enableMermaid === false ? html : promoteMermaidHtml(html)
+  const promoted = options.enableMermaid === false ? html : promoteMermaidHtml(html)
+  // Mermaid promotion is a string-level transformation that occurs after the
+  // primary HAST sanitizer. Re-sanitize so the exported renderer never returns
+  // post-sanitizer HTML that bypassed the canonical schema.
+  return sanitizeRenderedHtml(promoted)
 }

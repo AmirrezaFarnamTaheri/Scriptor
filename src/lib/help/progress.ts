@@ -5,12 +5,12 @@ export interface HelpStorage { getItem(key: string): string | null; setItem(key:
 export interface HelpSnapshot { preferences: HelpPreferences; storageWarning: boolean }
 export type HelpAction =
   | { type: 'step'; id: string; step: number }
-  | { type: 'finish' | 'restart'; id: string }
+  | { type: 'finish' | 'restart' | 'introduce'; id: string }
   | { type: 'reset' }
 
 export function emptyHelpPreferences(): HelpPreferences { return { version: 1, progress: {} } }
 export function getProgress(preferences: HelpPreferences, id: string): GuideProgress {
-  return Object.hasOwn(preferences.progress, id) ? preferences.progress[id]! : { step: 0, completed: false }
+  return Object.hasOwn(preferences.progress, id) ? preferences.progress[id]! : { step: 0, completed: false, introduced: false }
 }
 
 export function parseHelpPreferences(raw: string | null): HelpPreferences {
@@ -28,6 +28,7 @@ export function parseHelpPreferences(raw: string | null): HelpPreferences {
     progress[id] = {
       step: Math.max(0, Math.min(guide.steps.length - 1, Math.floor(step))),
       completed: 'completed' in record && record.completed === true,
+      introduced: 'introduced' in record && record.introduced === true,
     }
   }
   // Legacy version-1 payloads may contain retired invitation fields. Ignore
@@ -41,8 +42,9 @@ export function reduceHelpPreferences(current: HelpPreferences, action: HelpActi
   if (!guide) return current
   const old = getProgress(current, action.id)
   let next = { ...old }
-  if (action.type === 'restart') next = { step: 0, completed: false }
-  if (action.type === 'finish') next = { step: guide.steps.length - 1, completed: true }
+  if (action.type === 'restart') next = { ...old, step: 0, completed: false }
+  if (action.type === 'finish') next = { ...old, step: guide.steps.length - 1, completed: true, introduced: true }
+  if (action.type === 'introduce') next = { ...old, introduced: true }
   if (action.type === 'step') {
     const step = Number.isFinite(action.step) ? Math.floor(action.step) : old.step
     next = { ...old, step: Math.max(0, Math.min(guide.steps.length - 1, step)) }

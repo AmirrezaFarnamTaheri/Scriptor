@@ -88,8 +88,11 @@ fn apply_copy(
     }
     remove_if_exists(&staging)?;
     if let Err(error) = copy_resource(source, &staging) {
-        let _ = remove_if_exists(&staging);
-        return Err(error);
+        let cleanup = remove_if_exists(&staging)
+            .err()
+            .map(|cleanup_error| format!("; staging cleanup also failed: {cleanup_error}"))
+            .unwrap_or_default();
+        return Err(format!("{error}{cleanup}"));
     }
     let staged_hash = hash_resource_directory(&staging)?;
     if staged_hash != operation.expected_source_hash {
@@ -131,9 +134,12 @@ fn apply_copy(
                 )
             })
             .unwrap_or_default();
-        let _ = remove_if_exists(&staging);
+        let cleanup = remove_if_exists(&staging)
+            .err()
+            .map(|cleanup_error| format!("; staging cleanup also failed: {cleanup_error}"))
+            .unwrap_or_default();
         return Err(format!(
-            "failed to promote staged resource to {}: {error}{recovery}",
+            "failed to promote staged resource to {}: {error}{recovery}{cleanup}",
             destination.display()
         ));
     }
@@ -206,9 +212,17 @@ fn move_with_verified_copy(
         if let Some(expected) = expected_hash {
             let moved_hash = hash_resource_directory(destination)?;
             if moved_hash != expected {
-                let _ = fs::rename(destination, source);
+                let rollback = fs::rename(destination, source)
+                    .err()
+                    .map(|rollback_error| {
+                        format!(
+                            "; rollback rename also failed (content remains at {}): {rollback_error}",
+                            destination.display()
+                        )
+                    })
+                    .unwrap_or_default();
                 return Err(format!(
-                    "moved content failed verification: {}",
+                    "moved content failed verification: {}{rollback}",
                     destination.display()
                 ));
             }
@@ -216,15 +230,31 @@ fn move_with_verified_copy(
         return Ok(());
     }
     if let Err(error) = copy_resource(source, destination) {
-        let _ = remove_if_exists(destination);
-        return Err(error);
+        let cleanup = remove_if_exists(destination)
+            .err()
+            .map(|cleanup_error| {
+                format!(
+                    "; failed to clean partial destination {}: {cleanup_error}",
+                    destination.display()
+                )
+            })
+            .unwrap_or_default();
+        return Err(format!("{error}{cleanup}"));
     }
     if let Some(expected) = expected_hash {
         let copied_hash = hash_resource_directory(destination)?;
         if copied_hash != expected {
-            let _ = remove_if_exists(destination);
+            let cleanup = remove_if_exists(destination)
+                .err()
+                .map(|cleanup_error| {
+                    format!(
+                        "; failed to clean invalid destination {}: {cleanup_error}",
+                        destination.display()
+                    )
+                })
+                .unwrap_or_default();
             return Err(format!(
-                "copied quarantine content failed verification: {}",
+                "copied quarantine content failed verification: {}{cleanup}",
                 destination.display()
             ));
         }

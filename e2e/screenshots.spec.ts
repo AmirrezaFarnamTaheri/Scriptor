@@ -69,9 +69,17 @@ async function waitForFullWorkspace(page: Page) {
 }
 
 async function waitForPreviewReady(page: Page) {
-  await expect(page.locator('.markdown-preview h1').first()).toContainText('Research Plan', {
-    timeout: 30_000,
-  })
+  const visual = page.locator('.editable-preview-editor .cm-content').first()
+  const rendered = page.locator('.markdown-preview h1').first()
+  await expect.poll(async () => {
+    if (await visual.isVisible().catch(() => false)) {
+      return (await visual.textContent())?.includes('Research Plan') ?? false
+    }
+    if (await rendered.isVisible().catch(() => false)) {
+      return (await rendered.textContent())?.includes('Research Plan') ?? false
+    }
+    return false
+  }, { timeout: 30_000 }).toBe(true)
   await expect(page.locator('.preview-error')).toHaveCount(0)
   await settleLayout(page)
 }
@@ -93,7 +101,7 @@ async function waitForSettingsReady(page: Page) {
 async function openPluginPermissionsForShot(page: Page) {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.getByRole('tab', { name: 'Plugins', exact: true }).click()
+  await page.getByRole('tab', { name: 'Tools', exact: true }).click()
   const store = page.locator('.store-root')
   await expect(store.getByRole('tab', { name: 'Manage installed', selected: true })).toBeVisible()
   const permissions = store.getByRole('region', { name: 'Permissions for Vault Lint', exact: true })
@@ -178,6 +186,14 @@ test.beforeEach(async ({ page }) => {
     }
     setDefault('scriptor:app-theme', 'light')
     setDefault('scriptor:onboarding-complete', 'true')
+    setDefault('scriptor:help-guides:v1', JSON.stringify({
+      version: 1,
+      progress: Object.fromEntries([
+        'workbench', 'graph', 'canvas', 'tasks', 'kanban', 'reader',
+        'export', 'plugins', 'modules', 'integrations', 'gmail', 'mcp',
+        'custom-theme', 'resource-sync',
+      ].map((id) => [id, { step: 0, completed: false, introduced: true }])),
+    }))
     setDefault('scriptor:editor-mode', 'monaco')
     setDefault('scriptor:headless-engine', 'false')
     setDefault('scriptor:workspace-mode', 'writing')
@@ -530,7 +546,7 @@ test('compact mobile vault and inspector panes', async ({ page }) => {
   await expect(page.locator('.virtual-note-list').getByRole('button', { name: 'Research Plan.md' })).toBeVisible()
   await captureReadyScreenshot(page, shotPath('mobile-vault'))
 
-  await nav.getByRole('button', { name: 'Lens' }).click()
+  await nav.getByRole('button', { name: 'Inspector' }).click()
   await waitForInspectorReady(page)
   await expect(page.locator('.inspector-panel')).toBeInViewport()
   await captureReadyScreenshot(page, shotPath('mobile-inspector'))
@@ -564,7 +580,7 @@ test('onboarding tour', async ({ page }) => {
 test('plugins panel', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.getByRole('tab', { name: 'Plugins' }).click()
+  await page.getByRole('tab', { name: 'Tools' }).click()
   await expect(page.getByRole('heading', { name: 'Plugin management' })).toBeVisible()
   const storeTabs = page.locator('.store-tablist .store-tab')
   await expect(storeTabs).toHaveCount(4)
@@ -603,7 +619,7 @@ test('workspace in full rendered preview mode', async ({ page }) => {
   await setEditorSurfaceMode(page, 'Preview')
   const renderedView = page.locator('.editor-rendered-view')
   await expect(renderedView).toBeVisible()
-  await expect(renderedView.locator('.markdown-preview h1')).toContainText('Research Plan')
+  await expect(renderedView.locator('.editable-preview-editor .cm-content')).toContainText('Research Plan')
   await captureReadyScreenshot(page, shotPath('workspace-rendered'))
 })
 
@@ -611,9 +627,9 @@ test('task list rendered items', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
   await ensureCleanStatusDock(page)
-  await setEditorSurfaceMode(page, 'Split')
+  await page.getByRole('tab', { name: 'Rendered output', exact: true }).click()
   await waitForPreviewReady(page)
-  const taskList = page.locator('.markdown-preview ul.contains-task-list, .markdown-preview ul:has(> li.task-list-item)').first()
+  const taskList = page.locator('.inspector-panel .markdown-preview ul.contains-task-list, .inspector-panel .markdown-preview ul:has(> li.task-list-item)').first()
   await expect(taskList).toBeVisible()
   await settleLayout(page)
   await taskList.screenshot({ path: shotPath('task-list-preview') })

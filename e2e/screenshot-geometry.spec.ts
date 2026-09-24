@@ -46,7 +46,7 @@ test.describe('screenshot geometry contracts', () => {
     await settleLayout(page)
 
     const inspector = page.locator('.inspector-panel')
-    const metrics = inspector.locator(':scope > .widget-card').first().locator('.metric-grid .metric')
+    const metrics = inspector.locator('.metric-grid .metric')
     await expect(metrics).toHaveCount(8)
     const geometry = await metrics.evaluateAll((nodes) => {
       const panel = nodes[0]?.closest('.inspector-panel')

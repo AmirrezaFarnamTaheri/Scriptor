@@ -77,7 +77,8 @@ requirePattern('src/components/CanvasPanel.tsx', /aria-modal="true"/, 'canvas di
 requirePattern('src/components/ObsidianImportDialog.tsx', /useFocusTrap\(dialogRef,\s*\{\s*active:\s*true(?:,\s*initialFocus:\s*false)?\s*\}\)/, 'import dialog must trap and restore focus')
 requirePattern('src/components/ObsidianImportDialog.tsx', /aria-labelledby=\{titleId\}/, 'import dialog must have a programmatic title')
 requirePattern('src/components/shell/EditorWorkspace.tsx', /type EditorTransformAction/, 'editor actions must use the editor package contract')
-requirePattern('src/components/shell/EditorWorkspace.tsx', /type MarkdownPreviewProps/, 'preview bridge must use the renderer package contract')
+requirePattern('src/components/shell/EditorWorkspace.tsx', /previewEditorRef: RefObject<MarkdownEditorHandle \| null>/, 'writable preview must use the editor package handle contract')
+requirePattern('src/components/shell/EditorWorkspace.tsx', /className="markdown-editor editable-preview-editor"/, 'writable preview must remain a first-class editor surface')
 {
   const editorSource = source('src/components/shell/EditorWorkspace.tsx')
   const buttonTags = editorSource.match(/<\/?button\b[^>]*>/gi) ?? []

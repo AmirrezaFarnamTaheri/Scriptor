@@ -65,7 +65,7 @@ pub fn list_view_notes(
     let mut hits = Vec::new();
     for row in rows {
         let (id, path, title, modified_at, tags_json, note_type, organized, archived) = row?;
-        let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+        let tags: Vec<String> = serde_json::from_str(&tags_json)?;
         let metadata = NoteMetadata {
             id,
             vault_id: session.descriptor.id.clone(),

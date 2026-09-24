@@ -59,13 +59,35 @@
 }
 
 .command-palette-scope-hint {
+  min-height: 30px;
   margin: 0;
   padding: 7px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   border-bottom: 1px solid var(--border-soft, var(--border));
   background: var(--surface-muted);
   color: var(--muted);
   font-size: 11px;
   line-height: 1.4;
+}
+
+.command-palette-scope-hint > span:first-child {
+  min-width: 0;
+}
+
+.command-palette-search-status {
+  flex: 0 1 auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  visibility: hidden;
+}
+
+.command-palette-search-status.is-active {
+  visibility: visible;
 }
 
 .command-palette ul {

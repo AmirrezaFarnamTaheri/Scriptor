@@ -81,15 +81,23 @@ async function waitForVisualWorkspace(page: Page) {
 }
 
 async function waitForPreviewReady(page: Page) {
-  const preview = page.getByRole('article', { name: 'Markdown preview' }).first()
-  await expect(preview).toBeVisible({ timeout: 30_000 })
-  await expect(preview.getByRole('heading', { name: 'Research Plan', level: 1 })).toBeVisible()
+  const visual = page.locator('.editable-preview-editor .cm-content').first()
+  const rendered = page.getByRole('article', { name: 'Markdown preview' }).first()
+  await expect.poll(async () => {
+    if (await visual.isVisible().catch(() => false)) {
+      return (await visual.textContent())?.includes('Research Plan') ?? false
+    }
+    if (await rendered.isVisible().catch(() => false)) {
+      return (await rendered.textContent())?.includes('Research Plan') ?? false
+    }
+    return false
+  }, { timeout: 30_000 }).toBe(true)
   await expect(page.locator('.preview-error')).toHaveCount(0)
   await settleLayout(page)
 }
 
 async function waitForActiveSplitPreview(page: Page) {
-  const splitPreview = page.getByRole('article', { name: 'Markdown preview' }).first()
+  const splitPreview = page.locator('aside[aria-label="Split Markdown preview"]')
   if (await splitPreview.isVisible()) await waitForPreviewReady(page)
 }
 
@@ -205,6 +213,14 @@ test.describe('visual review states', () => {
       }
       setDefault('scriptor:app-theme', 'light')
       setDefault('scriptor:onboarding-complete', 'true')
+      setDefault('scriptor:help-guides:v1', JSON.stringify({
+        version: 1,
+        progress: Object.fromEntries([
+          'workbench', 'graph', 'canvas', 'tasks', 'kanban', 'reader',
+          'export', 'plugins', 'modules', 'integrations', 'gmail', 'mcp',
+          'custom-theme', 'resource-sync',
+        ].map((id) => [id, { step: 0, completed: false, introduced: true }])),
+      }))
       setDefault('scriptor:editor-mode', 'monaco')
       setDefault('scriptor:headless-engine', 'false')
       setDefault('scriptor:workspace-mode', 'writing')
@@ -540,6 +556,35 @@ test.describe('visual review states', () => {
     await captureVisual(page, 'visual-workspace-high-contrast.png')
   })
 
+  test('direct Help answers evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.locator('header.topbar').getByRole('button', { name: 'Help & guides', exact: true }).click()
+    const help = page.getByRole('dialog', { name: 'Help & guides', exact: true })
+    await help.getByRole('searchbox').fill('Does a layout preset change my note?')
+    await expect(help.getByRole('heading', { name: 'Quick answers' })).toBeVisible()
+    await expect(help.getByText('It changes workspace presentation settings, not Markdown content.', { exact: false })).toBeVisible()
+    await captureElement(page, help, 'visual-help-direct-answers.png')
+  })
+
+  test('first-open graph guidance evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.evaluate(() => window.localStorage.setItem('scriptor:help-guides:v1', JSON.stringify({ version: 2, progress: {} })))
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await waitForVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open graph')
+    await expect(page.getByRole('region', { name: 'Knowledge graph navigation' })).toBeVisible()
+    await settleLayout(page)
+    await page.screenshot({ path: test.info().outputPath('visual-graph-first-open-guidance.png'), animations: 'disabled', caret: 'hide' })
+  })
+
+  test('writable Preview mode evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.locator('.editor-toolbar').getByRole('button', { name: 'Preview', exact: true }).click()
+    await expect(page.locator('.editor-rendered-view .editable-preview-editor .cm-line').first()).toBeVisible()
+    await captureVisual(page, 'visual-editor-writable-preview.png')
+  })
+
   test('mobile Help remains styled, bounded, and centralized', async ({ page }) => {
     await openMobileWorkspace(page)
     await expect(page.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
@@ -730,11 +775,11 @@ test.describe('visual review states', () => {
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-ui-zoom-200-editor.png')
 
-    await nav.getByRole('button', { name: 'Lens' }).click()
+    await nav.getByRole('button', { name: 'Inspector' }).click()
     await expect(page.locator('.editor-panel')).toBeHidden()
     await expect(page.locator('.inspector-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeInViewport()
-    await expect(page.locator('.inspector-panel .metric-grid .metric').first()).toBeInViewport()
+    await expect(page.locator('#inspector-panel-inspector .outline-row').first()).toBeInViewport()
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-ui-zoom-200-inspector.png')
   })
@@ -1055,7 +1100,7 @@ test.describe('visual review states', () => {
 
   test('workspace layout presets evidence', async ({ page }) => {
     await openVisualWorkspace(page)
-    await page.getByRole('tab', { name: 'Plugins', exact: true }).click()
+    await page.getByRole('tab', { name: 'Tools', exact: true }).click()
     const store = page.locator('.store-root')
     await expect(store).toBeVisible()
     await store.getByRole('tab', { name: 'Layouts', exact: true }).click()
@@ -1878,6 +1923,79 @@ test.describe('visual review states', () => {
     await expect(exportMenu).toBeVisible()
     await expect(exportMenu.getByRole('menuitem').first()).toBeVisible()
     await captureVisual(page, 'visual-canvas-export-menu.png')
+  })
+
+  test('supplemental CodeMirror light and dark workspace evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.locator('.editor-toolbar').getByRole('button', { name: 'Tools', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Switch to CodeMirror editor' }).click()
+    await expect(page.locator('.cm-editor .cm-content')).toBeVisible()
+    await expect(page.locator('.cm-content')).toContainText('Research Plan')
+    await captureVisual(page, 'visual-codemirror-workspace-light.png')
+
+    await page.locator('header.topbar').getByRole('button', { name: /Switch to dark appearance/ }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark')
+    await expect(page.locator('.cm-editor .cm-content')).toBeVisible()
+    await captureVisual(page, 'visual-codemirror-workspace-dark.png')
+  })
+
+  test('supplemental narrow CodeMirror zoom comparison evidence', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await waitForWorkspace(page, { allowHiddenVaultList: true })
+    await page.locator('.editor-toolbar').getByRole('button', { name: 'Tools', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Switch to CodeMirror editor' }).click()
+    await expect(page.locator('.cm-editor .cm-content')).toBeVisible()
+    await captureVisual(page, 'visual-codemirror-375-default-100.png')
+
+    await page.keyboard.press('Control+0')
+    await expect.poll(() => page.locator('body').evaluate((element) => getComputedStyle(element).zoom)).toBe('1')
+    await expect(page.locator('.cm-editor .cm-content')).toBeVisible()
+  })
+
+  test('supplemental Reader and Kanban workspace context evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.getByRole('button', { name: 'Research Paper.pdf' }).click()
+    const reader = page.locator('.reader-panel')
+    await expect(reader.locator('iframe[title*="Research Paper.pdf"]')).toBeVisible()
+    await captureVisual(page, 'visual-reader-pdf-workspace.png')
+    await reader.getByRole('button', { name: 'Close' }).click()
+
+    await page.getByRole('button', { name: 'Sprint Board.md' }).click()
+    await openCommandPalette(page)
+    await runCommand(page, 'Open kanban board')
+    const board = page.getByRole('dialog', { name: 'Sprint Board', exact: true })
+    await expect(board).toContainText('Draft release notes')
+    await captureVisual(page, 'visual-kanban-workspace.png')
+  })
+
+  test('supplemental import and rename dialog context evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Import Obsidian vault')
+    const importer = page.getByRole('dialog', { name: 'Import Obsidian vault', exact: true })
+    await expect(importer).toBeVisible()
+    await captureVisual(page, 'visual-obsidian-import-workspace.png')
+    await importer.getByRole('button', { name: 'Cancel' }).click()
+
+    await page.locator('.virtual-note-list')
+      .getByRole('button', { name: 'Research Plan.md', exact: true })
+      .click({ button: 'right' })
+    const rename = page.getByRole('dialog', { name: 'Rename note', exact: true })
+    await expect(rename).toBeVisible()
+    await captureVisual(page, 'visual-rename-workspace.png')
+  })
+
+  test.describe('coarse-pointer workspace', () => {
+    test.use({ hasTouch: true, isMobile: true })
+
+    test('320px touch targets and top actions evidence', async ({ page }) => {
+      await openMobileWorkspace(page, 320, 900)
+      await expect(page.locator('header.topbar').getByRole('button', { name: 'Settings' })).toBeVisible()
+      await expect(page.locator('.tabs-row').getByRole('button', { name: 'Close Research Plan' })).toBeVisible()
+      await expectNoHorizontalOverflow(page)
+      await captureVisual(page, 'visual-mobile-touch-320.png')
+    })
   })
 
 })

@@ -15,7 +15,7 @@ export function registerScriptorMonacoThemes(monaco: Monaco): void {
     colors: {
       'editor.background': '#f8fafc',
       'editor.foreground': '#0f172a',
-      'editorLineNumber.foreground': '#64748b',
+      'editorLineNumber.foreground': '#526277',
       'editor.selectionBackground': '#dbeafe',
       'editor.lineHighlightBackground': '#f1f5f9',
     },

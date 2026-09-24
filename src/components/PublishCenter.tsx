@@ -250,7 +250,7 @@ export const PublishCenter = memo(function PublishCenter({
           <ExportPrintPreview markdown={draftMarkdown} activePath={activePath} previewProps={previewProps} />
         ) : null}
 
-        <section className="publish-center-section" aria-labelledby="site-publishing-heading">
+        <section className="publish-center-section" aria-labelledby="site-publishing-heading" data-help-topic="publish">
           <h3 id="site-publishing-heading">
             <Globe size={16} aria-hidden="true" />
             Publish a documentation site

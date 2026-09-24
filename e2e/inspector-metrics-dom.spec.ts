@@ -15,7 +15,7 @@ for (const width of [236, 340, 510]) {
     test(`health metrics adapt to a ${width}px ${direction} rail independently of viewport width`, async ({ page }) => {
       await page.setViewportSize({ width: 1024, height: 900 })
       await page.setContent(`<style>* { box-sizing: border-box; }</style><style>${styles}</style>
-        <aside class="inspector-panel" style="width:${width}px" dir="${direction}">
+        <aside id="inspector-panel-inspector" class="inspector-panel" style="width:${width}px" dir="${direction}">
           <section class="widget-card"><div class="metric-grid">
             ${labels.map((label) => `<div class="metric"><span>${label}</span><strong>0</strong></div>`).join('')}
           </div></section>

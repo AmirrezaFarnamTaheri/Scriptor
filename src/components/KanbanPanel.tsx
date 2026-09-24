@@ -342,16 +342,14 @@ const KanbanColumn = memo(function KanbanColumn({ column, sourcePath, columns, p
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      role="list"
-      aria-label={`${column.name} column`}
     >
       <header className="kanban-column__header">
         <h3>{column.name}</h3>
         <span className="kanban-column__count">{column.cards.length}</span>
       </header>
-      <div className="kanban-column__cards">
+      <div className="kanban-column__cards" role="list" aria-label={`${column.name} cards`}>
         {column.cards.length === 0 ? (
-          <p className="kanban-column__empty">No cards</p>
+          <p className="kanban-column__empty" role="listitem">No cards</p>
         ) : (
           column.cards.map((card) => (
             <KanbanCard
@@ -386,10 +384,11 @@ export interface KanbanPanelProps {
   /** Vault-relative path of the kanban note, or null if none active. */
   notePath: string | null
   onClose: () => void
+  onCreateBoard?: () => void
   runSourceNoteMutation?: (sourcePath: string, runMutation: () => Promise<void>) => Promise<boolean>
 }
 
-export const KanbanPanel = memo(function KanbanPanel({ notePath, onClose, runSourceNoteMutation }: KanbanPanelProps) {
+export const KanbanPanel = memo(function KanbanPanel({ notePath, onClose, onCreateBoard, runSourceNoteMutation }: KanbanPanelProps) {
   const store = useKanbanStore(notePath, runSourceNoteMutation)
   const board = store.board
   const [isCompactLayout, setIsCompactLayout] = useState(() =>
@@ -452,10 +451,10 @@ export const KanbanPanel = memo(function KanbanPanel({ notePath, onClose, runSou
         <p className="health-subtitle">Moving card and refreshing board…</p>
       )}
       {isNotKanban && (
-        <p className="empty-state">
-          This note is not a kanban file. Add{' '}
-          <code>kanban-plugin: basic</code> to the frontmatter.
-        </p>
+        <div className="empty-state">
+          <p>This note is not a kanban file. Create a separate board, or add <code>kanban-plugin: basic</code> to this note’s frontmatter.</p>
+          {onCreateBoard ? <button type="button" className="primary-button" onClick={onCreateBoard}>Create a new board</button> : null}
+        </div>
       )}
 
       {board && isCompactLayout && board.columns.length > 1 ? (

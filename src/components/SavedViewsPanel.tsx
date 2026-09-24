@@ -20,6 +20,7 @@ interface SavedViewsPanelProps {
     label: string
     defaultValue: string
     submitLabel?: string
+    helpTopic?: string
   }) => Promise<string | null>
 }
 
@@ -210,6 +211,7 @@ export const SavedViewsPanel = memo(function SavedViewsPanel({
       label: 'Name for this saved view',
       defaultValue: 'My view',
       submitLabel: 'Save',
+      helpTopic: 'saved-views',
     }).then((label) => {
       if (!label) return
       const next: SavedViewPreset = {

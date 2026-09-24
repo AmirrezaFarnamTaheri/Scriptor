@@ -69,6 +69,64 @@ body.is-split-resizing .editor-preview-pane {
   padding: 16px 24px;
 }
 
+/* Preview is an authoring surface, not a read-only report. Both the dedicated
+ * Preview mode and the right side of Split use the same lossless Markdown
+ * document model as Source while presenting it with prose-first styling. */
+.editor-rendered-view.editable-preview-surface,
+.editor-preview-pane.editable-preview-pane {
+  overflow: hidden;
+  padding: 0;
+  background: var(--bg);
+}
+
+.editable-preview-editor,
+.editable-preview-editor .cm-editor {
+  height: 100%;
+}
+
+.editable-preview-editor .cm-scroller {
+  font-family: var(--font-body, system-ui, sans-serif) !important;
+  font-size: 15px !important;
+  line-height: 1.72 !important;
+}
+
+.editable-preview-editor .cm-content {
+  box-sizing: border-box;
+  width: min(100%, calc(var(--preview-max-ch, 72ch) + 48px));
+  max-width: 100%;
+  min-height: 100%;
+  margin-inline: auto;
+  padding: 20px 24px 72px !important;
+  caret-color: var(--primary);
+}
+
+.editable-preview-editor .cm-gutters {
+  display: none;
+}
+
+.editable-preview-editor .cm-activeLine {
+  background: color-mix(in oklch, var(--primary-soft) 28%, transparent);
+}
+
+.editable-preview-editor .cm-wysiwyg-heading {
+  font-family: var(--font-display, var(--font-body, system-ui, sans-serif));
+  color: var(--ink-strong);
+}
+
+.editable-preview-editor .cm-wysiwyg-strong {
+  color: var(--ink-strong);
+}
+
+.editable-preview-editor .cm-wysiwyg-blockquote {
+  background: color-mix(in oklch, var(--surface) 88%, transparent);
+}
+
+@media (max-width: 640px) {
+  .editable-preview-editor .cm-content {
+    padding-inline: 16px !important;
+  }
+}
+
 .format-row button.active {
   background: var(--primary-soft);
   color: var(--primary-strong);
@@ -157,6 +215,13 @@ body.is-split-resizing .editor-preview-pane {
 }
 .tabs-row::-webkit-scrollbar {
   display: none;
+}
+
+.tab-list-semantic {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
 }
 
 .tab {

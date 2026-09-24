@@ -43,6 +43,7 @@ export type WorkspacePanelLaunchersProps = {
   onCloseReader: () => void
   onCloseTasks: () => void
   onCloseKanban: () => void
+  onCreateKanbanBoard?: () => void
   bibliographyOpen?: boolean
   bibliography?: BibliographyEntry[]
   setBibliographyOpen?: (open: boolean) => void
@@ -97,6 +98,7 @@ function WorkspacePanelLaunchersImpl({
   onCloseReader,
   onCloseTasks,
   onCloseKanban,
+  onCreateKanbanBoard,
   bibliographyOpen,
   bibliography = [],
   setBibliographyOpen,
@@ -231,6 +233,7 @@ function WorkspacePanelLaunchersImpl({
             <KanbanPanel
               notePath={workspace.activePath}
               onClose={onCloseKanban}
+              onCreateBoard={onCreateKanbanBoard}
               runSourceNoteMutation={workspace.runNoteMutation}
             />
           </Suspense>
@@ -417,6 +420,7 @@ function WorkspacePanelLaunchersImpl({
                       label: 'Describe the edit you want the assistant to draft',
                       defaultValue: '',
                       submitLabel: 'Draft',
+                      helpTopic: 'ai',
                     })
                     if (!prompt || !workspace.activePath) return
                     const proposed = await ai.proposeDraftFromPrompt(prompt, workspace.draftMarkdown)

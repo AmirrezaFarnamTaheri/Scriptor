@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useId } from 'react'
 import { RotateCcw, FileText, Pin, X } from 'lucide-react'
 
 import { useI18n } from '../../lib/i18n'
@@ -34,14 +34,23 @@ export const EditorTabBar = memo(function EditorTabBar({
   onCloseTab,
 }: EditorTabBarProps) {
   const { t } = useI18n()
+  const tabListId = useId()
 
   return (
     <div
       className="tabs-row"
       data-help-topic="tabs"
-      role={openTabs.length > 0 ? 'tablist' : 'group'}
-      aria-label={openTabs.length > 0 ? t('editor.tabBar.openNotes') : t('editor.tabBar.editorTabs')}
+      role="group"
+      aria-label={t('editor.tabBar.editorTabs')}
     >
+      {openTabs.length > 0 ? (
+        <span
+          className="tab-list-semantic"
+          role="tablist"
+          aria-label={t('editor.tabBar.openNotes')}
+          aria-owns={openTabs.map((_, index) => `${tabListId}-${index}`).join(' ')}
+        />
+      ) : null}
       {canReopenClosedTab && onReopenClosedTab ? (
         <span role="presentation">
           <button
@@ -65,6 +74,7 @@ export const EditorTabBar = memo(function EditorTabBar({
             role="presentation"
           >
             <button
+              id={`${tabListId}-${tabIndex}`}
               type="button"
               className="tab tab-main"
               role="tab"
@@ -80,11 +90,10 @@ export const EditorTabBar = memo(function EditorTabBar({
                 else return
                 event.preventDefault()
                 const target = openTabs[targetIndex]
+                const tabRow = event.currentTarget.closest('.tabs-row')
                 onOpenTab(target.path)
                 requestAnimationFrame(() => {
-                  const tabButtons = event.currentTarget
-                    .closest('[role="tablist"]')
-                    ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+                  const tabButtons = tabRow?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
                   tabButtons?.[targetIndex]?.focus()
                 })
               }}

@@ -550,7 +550,7 @@
     "tabs": {
       "inspector": "Inspector",
       "preview": "Rendered output",
-      "plugins": "Plugins"
+      "plugins": "Tools"
     },
     "preset": {
       "balanced": {

@@ -191,10 +191,13 @@ function AppTopBarImpl({
     const height = popup?.height ?? Math.min(420, window.innerHeight * 0.7)
     const anchorRight = rect?.right ?? 272
     const anchorBottom = rect?.bottom ?? 58
-    setCustomizePos({
+    const next = {
       x: Math.max(8, Math.min(anchorRight - width, window.innerWidth - width - 8)),
       y: Math.max(8, Math.min(anchorBottom + 6, window.innerHeight - height - 8)),
-    })
+    }
+    setCustomizePos((current) => (
+      current?.x === next.x && current?.y === next.y ? current : next
+    ))
   }, [])
 
   const openCustomize = useCallback(() => {
@@ -221,15 +224,20 @@ function AppTopBarImpl({
       customizeAnchorRef.current?.focus()
     }
     const onViewportChange = () => positionCustomize()
+    const onViewportScroll = (event: Event) => {
+      const target = event.target
+      if (target instanceof Node && customizePopupRef.current?.contains(target)) return
+      positionCustomize()
+    }
     window.addEventListener('pointerdown', onPointerDown, true)
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('resize', onViewportChange)
-    window.addEventListener('scroll', onViewportChange, true)
+    window.addEventListener('scroll', onViewportScroll, true)
     return () => {
       window.removeEventListener('pointerdown', onPointerDown, true)
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('resize', onViewportChange)
-      window.removeEventListener('scroll', onViewportChange, true)
+      window.removeEventListener('scroll', onViewportScroll, true)
     }
   }, [customizeOpen, positionCustomize])
 
@@ -389,6 +397,7 @@ function AppTopBarImpl({
             label={inspectorCollapsed ? t('topBar.expandInspector') : t('topBar.collapseInspector')}
             shortcut={inspectorShortcut}
             onClick={onToggleInspector}
+            className="topbar-inspector-toggle"
           >
             <PanelRight />
           </IconButton>
@@ -425,6 +434,7 @@ function AppTopBarImpl({
           className="topbar-customize"
           ref={customizePopupRef}
           role="dialog"
+          data-help-topic="workspace-chrome"
           aria-label={t('topBar.customizeAria')}
           style={{ left: customizePos.x, top: customizePos.y }}
         >
