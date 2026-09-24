@@ -3,8 +3,6 @@ import { useEffect } from 'react'
 const ZOOM_STORAGE_KEY = 'scriptor:ui-zoom'
 const ZOOM_MIN = 0.5
 const ZOOM_MAX = 2.5
-/** Content min-width the top bar is designed against; below this we zoom out to fit. */
-const FIT_REFERENCE_WIDTH = 1180
 const MOBILE_REFLOW_WIDTH = 820
 const STACKED_REFLOW_WIDTH = 1320
 
@@ -21,11 +19,6 @@ function readStoredZoom(): number | null {
   } catch {
     return null
   }
-}
-
-function defaultFitZoom(): number {
-  if (window.innerWidth >= FIT_REFERENCE_WIDTH) return 1
-  return clampZoom(window.innerWidth / FIT_REFERENCE_WIDTH)
 }
 
 function updateZoomReflow(factor: number): void {
@@ -65,12 +58,12 @@ async function applyZoom(factor: number): Promise<void> {
 
 /**
  * Whole-app zoom: Ctrl+wheel, Ctrl+=/Ctrl+- step, Ctrl+0 reset. The factor is
- * persisted and restored on launch; the default zooms out just enough to fit
- * the designed content width on narrow windows.
+ * persisted and restored on launch. Fresh profiles retain readable 100% scale
+ * at every width; responsive layout handles narrow windows.
  */
 export function useAppZoom(): void {
   useEffect(() => {
-    let factor = readStoredZoom() ?? defaultFitZoom()
+    let factor = readStoredZoom() ?? 1
     let applyScheduled = false
 
     const apply = () => {
@@ -126,9 +119,9 @@ export function useAppZoom(): void {
       if (resizeFrame) return
       resizeFrame = window.requestAnimationFrame(() => {
         resizeFrame = 0
-        // Re-fit only while the user has not chosen an explicit zoom.
+        // Preserve a user-selected zoom while responsive CSS handles resizing.
         if (readStoredZoom() === null) {
-          factor = defaultFitZoom()
+          factor = 1
           apply()
         } else {
           updateZoomReflow(factor)

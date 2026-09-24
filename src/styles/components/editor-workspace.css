@@ -159,6 +159,13 @@ body.is-split-resizing .editor-preview-pane {
   display: none;
 }
 
+.tab-list-semantic {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .tab {
   min-width: 120px;
   max-width: 220px;

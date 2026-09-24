@@ -225,35 +225,6 @@ function InspectorRailImpl({
         </div>
       ) : null}
 
-      {/* Note context belongs to the inspector tab, not above preview or store. */}
-      {showInspectorHealth && activeMode === 'inspector' ? (
-        <WidgetCard title={t('inspector.noteHealth')} action={healthAction} onAction={onOpenHealthDashboard}>
-          <div className="metric-grid">
-            {healthMetrics.map(([label, value]) => (
-              <div className="metric" key={label}>
-                <span>{label}</span>
-                <strong>{value}</strong>
-              </div>
-            ))}
-          </div>
-        </WidgetCard>
-      ) : null}
-
-      {presetConfig.showQuality && activeMode === 'inspector' ? (
-        <NoteQualityCard
-          activePath={activePath}
-          health={health}
-          outboundLinks={inspectorLinks.length}
-          backlinkCount={backlinks.length}
-          citationKeys={citationRows}
-          bibliographyKeys={bibliographyKeys}
-          isNoteDirty={isNoteDirty}
-          onOpenWorkbench={onOpenKnowledgeWorkbench}
-          onOpenPublish={onOpenPublishCenter}
-          onOpenGraph={onOpenGraph}
-        />
-      ) : null}
-
       {/* ── Panel regions — each gets role="tabpanel" ────────────────────────── */}
 
       {/* PREVIEW panel */}
@@ -395,6 +366,34 @@ function InspectorRailImpl({
                   )}
                 </div>
               </WidgetCard>
+            ) : null}
+
+            {showInspectorHealth ? (
+              <WidgetCard title={t('inspector.noteHealth')} action={healthAction} onAction={onOpenHealthDashboard}>
+                <div className="metric-grid">
+                  {healthMetrics.map(([label, value]) => (
+                    <div className="metric" key={label}>
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+              </WidgetCard>
+            ) : null}
+
+            {presetConfig.showQuality ? (
+              <NoteQualityCard
+                activePath={activePath}
+                health={health}
+                outboundLinks={inspectorLinks.length}
+                backlinkCount={backlinks.length}
+                citationKeys={citationRows}
+                bibliographyKeys={bibliographyKeys}
+                isNoteDirty={isNoteDirty}
+                onOpenWorkbench={onOpenKnowledgeWorkbench}
+                onOpenPublish={onOpenPublishCenter}
+                onOpenGraph={onOpenGraph}
+              />
             ) : null}
 
             {presetConfig.showLinks ? (

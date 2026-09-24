@@ -19,6 +19,14 @@
   background: var(--reader-bg);
 }
 
+/* The shared shell body is block-level by default. Give Reader a complete
+   flex sizing chain so its iframe takes the available panel height. */
+.reader-panel .unified-panel-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* ── Navigation toolbar ───────────────────────────────────────────────────── */
 
 .reader-panel__nav {

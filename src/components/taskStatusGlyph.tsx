@@ -1,6 +1,6 @@
 import { Ban, CheckCheck, Circle, CircleEllipsis, CornerDownRight, HelpCircle } from 'lucide-react'
 
-import { getStatusMeta } from '@scriptor/core/task'
+import { checkboxCharToStatus, getStatusMeta } from '@scriptor/core/task'
 
 interface TaskStatusGlyphProps {
   status: string
@@ -11,15 +11,17 @@ export function TaskStatusGlyph({
   status,
   className = 'task-status-chip',
 }: TaskStatusGlyphProps) {
-  const meta = getStatusMeta(status)
+  const normalizedStatus = checkboxCharToStatus(status)
+  const meta = getStatusMeta(normalizedStatus)
 
   return (
     <span
       className={`${className} task-status-chip--${meta.cssClass}`}
       title={meta.label}
+      role="img"
       aria-label={meta.label}
     >
-      {renderStatusIcon(status)}
+      {renderStatusIcon(normalizedStatus)}
     </span>
   )
 }

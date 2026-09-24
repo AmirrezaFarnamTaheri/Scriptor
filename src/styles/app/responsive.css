@@ -465,6 +465,34 @@ html[data-ui-reflow='mobile'] .top-actions {
   overflow-x: auto;
 }
 
+/* The bottom workspace navigation already opens Inspector. Reclaim that top
+ * action's width so the remaining controls can keep full touch targets. */
+html[data-ui-reflow='mobile'] .topbar-inspector-toggle {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  html[data-ui-reflow='mobile'] .top-actions {
+    max-width: min(calc(100vw - 112px), 320px);
+  }
+
+  html[data-ui-reflow='mobile'] .topbar button,
+  html[data-ui-reflow='mobile'] .vault-panel button,
+  html[data-ui-reflow='mobile'] .tabs-row button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  html[data-ui-reflow='mobile'] .tab-icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  html[data-ui-reflow='mobile'] .workspace-switcher select {
+    min-height: 44px;
+  }
+}
+
 html[data-ui-reflow='mobile'] .workspace-mode-strip {
   grid-column: 1 / -1;
   order: 3;

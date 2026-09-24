@@ -389,6 +389,7 @@ function AppTopBarImpl({
             label={inspectorCollapsed ? t('topBar.expandInspector') : t('topBar.collapseInspector')}
             shortcut={inspectorShortcut}
             onClick={onToggleInspector}
+            className="topbar-inspector-toggle"
           >
             <PanelRight />
           </IconButton>

@@ -19,7 +19,7 @@ interface MobileWorkspaceNavProps {
 const ITEMS: { id: MobilePane; label: string; icon: typeof BookOpen }[] = [
   { id: 'vault', label: 'Vault', icon: LayoutGrid },
   { id: 'editor', label: 'Write', icon: PenLine },
-  { id: 'inspector', label: 'Lens', icon: BookOpen },
+  { id: 'inspector', label: 'Inspector', icon: BookOpen },
   { id: 'command', label: 'Command', icon: Command },
 ]
 

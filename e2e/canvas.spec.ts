@@ -38,8 +38,8 @@ async function grantCanvasKitConsent(page: Page): Promise<void> {
 
 async function enableCanvasKit(page: Page): Promise<void> {
   // Bundled manifests are preinstalled in E2E; contributions appear only after activation.
-  await page.getByRole('tab', { name: 'Plugins' }).click()
-  const storePlugins = page.getByRole('tabpanel', { name: 'Plugins' }).last()
+  await page.getByRole('tab', { name: 'Tools' }).click()
+  const storePlugins = page.getByRole('tabpanel', { name: 'Tools' }).last()
   await expect(storePlugins.getByRole('heading', { name: /^Installed \(\d+\)$/ })).toBeVisible({
     timeout: 15_000,
   })

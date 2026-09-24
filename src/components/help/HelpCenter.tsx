@@ -82,7 +82,7 @@ export function HelpCenter({ request, store, onClose, onReveal, returnFocus = nu
           <nav aria-label={labels.results}><ul>{results.map((item) => <li key={item.id}><button type="button" aria-current={id === item.id ? 'page' : undefined} onClick={() => selectGuide(item.id)} lang="en" dir="ltr">{item.title}</button></li>)}</ul></nav>
           {results.length === 0 ? <p role="status">{labels.noResults}</p> : null}
         </aside>
-        <div className="help-reading-pane">
+        <div className="help-reading-pane" lang="en" dir="ltr">
           <HelpTopic key={id} guide={guide} view={view} labels={labels} store={store} onView={setView} onGuide={selectGuide} onReveal={onReveal} />
         </div>
       </div>

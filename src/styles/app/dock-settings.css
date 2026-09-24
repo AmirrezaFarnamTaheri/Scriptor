@@ -678,7 +678,7 @@
 
 .kanban-card {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: flex-start;
   gap: 8px;
   padding: 8px;
@@ -711,6 +711,8 @@
 .kanban-card__actions {
   display: flex;
   gap: 4px;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
 }
 
 .kanban-card__move {

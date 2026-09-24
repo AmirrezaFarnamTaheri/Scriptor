@@ -1,6 +1,8 @@
 import { Compartment } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { tags } from '@lezer/highlight'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 
 import type { EditorThemeId } from './editor-types.ts'
 
@@ -28,8 +30,13 @@ const lightTheme = EditorView.theme(
   { dark: false },
 )
 
+// One Dark's coral heading is below the small-text contrast floor on #282c34.
+const darkHeadingContrast = syntaxHighlighting(HighlightStyle.define([
+  { tag: tags.heading, color: '#f08a93', fontWeight: 'bold' },
+]))
+
 export function editorThemeExtension(theme: EditorThemeId) {
-  return theme === 'dark' ? oneDark : lightTheme
+  return theme === 'dark' ? [darkHeadingContrast, oneDark] : lightTheme
 }
 
 export function editorThemeCompartment() {

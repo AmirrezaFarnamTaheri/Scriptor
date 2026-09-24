@@ -93,7 +93,7 @@ async function waitForSettingsReady(page: Page) {
 async function openPluginPermissionsForShot(page: Page) {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.getByRole('tab', { name: 'Plugins', exact: true }).click()
+  await page.getByRole('tab', { name: 'Tools', exact: true }).click()
   const store = page.locator('.store-root')
   await expect(store.getByRole('tab', { name: 'Manage installed', selected: true })).toBeVisible()
   const permissions = store.getByRole('region', { name: 'Permissions for Vault Lint', exact: true })
@@ -530,7 +530,7 @@ test('compact mobile vault and inspector panes', async ({ page }) => {
   await expect(page.locator('.virtual-note-list').getByRole('button', { name: 'Research Plan.md' })).toBeVisible()
   await captureReadyScreenshot(page, shotPath('mobile-vault'))
 
-  await nav.getByRole('button', { name: 'Lens' }).click()
+  await nav.getByRole('button', { name: 'Inspector' }).click()
   await waitForInspectorReady(page)
   await expect(page.locator('.inspector-panel')).toBeInViewport()
   await captureReadyScreenshot(page, shotPath('mobile-inspector'))
@@ -564,7 +564,7 @@ test('onboarding tour', async ({ page }) => {
 test('plugins panel', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.getByRole('tab', { name: 'Plugins' }).click()
+  await page.getByRole('tab', { name: 'Tools' }).click()
   await expect(page.getByRole('heading', { name: 'Plugin management' })).toBeVisible()
   const storeTabs = page.locator('.store-tablist .store-tab')
   await expect(storeTabs).toHaveCount(4)

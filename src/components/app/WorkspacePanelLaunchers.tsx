@@ -43,6 +43,7 @@ export type WorkspacePanelLaunchersProps = {
   onCloseReader: () => void
   onCloseTasks: () => void
   onCloseKanban: () => void
+  onCreateKanbanBoard?: () => void
   bibliographyOpen?: boolean
   bibliography?: BibliographyEntry[]
   setBibliographyOpen?: (open: boolean) => void
@@ -97,6 +98,7 @@ function WorkspacePanelLaunchersImpl({
   onCloseReader,
   onCloseTasks,
   onCloseKanban,
+  onCreateKanbanBoard,
   bibliographyOpen,
   bibliography = [],
   setBibliographyOpen,
@@ -231,6 +233,7 @@ function WorkspacePanelLaunchersImpl({
             <KanbanPanel
               notePath={workspace.activePath}
               onClose={onCloseKanban}
+              onCreateBoard={onCreateKanbanBoard}
               runSourceNoteMutation={workspace.runNoteMutation}
             />
           </Suspense>

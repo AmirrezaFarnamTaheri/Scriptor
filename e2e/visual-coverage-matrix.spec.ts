@@ -175,7 +175,7 @@ test.describe('visual coverage matrix', () => {
     await expectDarkSurface(canvas)
     await closeSurface(canvas)
 
-    await page.getByRole('tab', { name: 'Plugins', exact: true }).click()
+    await page.getByRole('tab', { name: 'Tools', exact: true }).click()
     await expect(page.locator('.store-root')).toBeVisible()
     await expectDarkSurface(page.locator('.inspector-panel'))
 

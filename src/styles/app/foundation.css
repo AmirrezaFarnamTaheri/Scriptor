@@ -138,7 +138,7 @@
   padding: 18px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--surface-raised);
+  background: var(--dialog-bg, var(--bg-elevated));
 }
 
 .rename-dialog header {
