@@ -69,7 +69,7 @@ pub fn list_note_summaries(
     let mut output = Vec::new();
     while let Some(row) = rows.next()? {
         let tags_json: String = row.get(6)?;
-        let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+        let tags: Vec<String> = serde_json::from_str(&tags_json)?;
         let organized: i64 = row.get(4)?;
         let archived: i64 = row.get(5)?;
         output.push(NoteIndexSummary {
@@ -122,18 +122,29 @@ pub fn list_inbox_notes(
          ORDER BY modified_at DESC",
     )?;
     let rows = statement.query_map(params![vault_id], |row| {
-        let tags_json: String = row.get(6)?;
-        Ok(NoteIndexSummary {
-            path: row.get(0)?,
-            title: row.get(1)?,
-            modified_at: row.get(2)?,
-            note_type: row.get(3)?,
-            organized: row.get::<_, i64>(4)? != 0,
-            archived: row.get::<_, i64>(5)? != 0,
-            tags: serde_json::from_str(&tags_json).unwrap_or_default(),
-        })
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, Option<String>>(3)?,
+            row.get::<_, i64>(4)?,
+            row.get::<_, i64>(5)?,
+            row.get::<_, String>(6)?,
+        ))
     })?;
-    let summaries = rows.collect::<Result<Vec<_>, _>>()?;
+    let mut summaries = Vec::new();
+    for row in rows {
+        let (path, title, modified_at, note_type, organized, archived, tags_json) = row?;
+        summaries.push(NoteIndexSummary {
+            path,
+            title,
+            modified_at,
+            note_type,
+            organized: organized != 0,
+            archived: archived != 0,
+            tags: serde_json::from_str(&tags_json)?,
+        });
+    }
     Ok(filter_inbox_notes(summaries, period))
 }
 
