@@ -426,6 +426,7 @@ function AppTopBarImpl({
           className="topbar-customize"
           ref={customizePopupRef}
           role="dialog"
+          data-help-topic="workspace-chrome"
           aria-label={t('topBar.customizeAria')}
           style={{ left: customizePos.x, top: customizePos.y }}
         >

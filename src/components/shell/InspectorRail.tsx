@@ -103,6 +103,7 @@ interface InspectorRailProps {
 }
 
 const INSPECTOR_TABS: readonly string[] = ['inspector', 'preview', 'plugins']
+const INSPECTOR_HELP_TOPICS = { inspector: 'inspector', preview: 'preview', plugins: 'plugins' } as const
 
 /** Renders the contextual inspector, preview, and plugin rail for the active note. */
 function InspectorRailImpl({
@@ -191,6 +192,7 @@ function InspectorRailImpl({
             tabIndex={activeMode === mode ? 0 : -1}
             aria-selected={activeMode === mode}
             aria-controls={`inspector-panel-${mode}`}
+            data-help-topic={INSPECTOR_HELP_TOPICS[mode]}
             className={activeMode === mode ? 'active' : ''}
             onClick={() => onModeChange(mode)}
           >
@@ -232,6 +234,7 @@ function InspectorRailImpl({
         id="inspector-panel-preview"
         role="tabpanel"
         aria-labelledby="inspector-tab-preview"
+        data-help-topic="preview"
         hidden={activeMode !== 'preview'}
       >
         {activeMode === 'preview' ? (
@@ -334,6 +337,7 @@ function InspectorRailImpl({
         id="inspector-panel-inspector"
         role="tabpanel"
         aria-labelledby="inspector-tab-inspector"
+        data-help-topic="inspector"
         hidden={activeMode !== 'inspector'}
       >
         {activeMode === 'inspector' ? (
@@ -545,6 +549,7 @@ function InspectorRailImpl({
         id="inspector-panel-plugins"
         role="tabpanel"
         aria-labelledby="inspector-tab-plugins"
+        data-help-topic="plugins"
         hidden={activeMode !== 'plugins'}
       >
         {activeMode === 'plugins' ? (

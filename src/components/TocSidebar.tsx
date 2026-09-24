@@ -10,7 +10,7 @@ interface TocSidebarProps {
 
 export const TocSidebar = memo(function TocSidebar({ entries, activeLine, onSelect, onClose }: TocSidebarProps) {
   return (
-    <aside className="toc-sidebar" aria-label="Table of contents">
+    <aside className="toc-sidebar" aria-label="Table of contents" data-help-topic="outline">
       <header>
         <h3>Outline</h3>
         <button type="button" className="icon-button" onClick={onClose} aria-label="Close outline">

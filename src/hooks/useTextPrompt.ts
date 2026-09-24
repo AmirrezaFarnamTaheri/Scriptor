@@ -5,6 +5,7 @@ export interface TextPromptRequest {
   label: string
   defaultValue: string
   submitLabel?: string
+  helpTopic?: string
 }
 
 interface PendingPrompt extends TextPromptRequest {

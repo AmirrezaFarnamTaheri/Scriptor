@@ -29,6 +29,7 @@ export function useStarlightPublishing({
       label: 'Output folder for Starlight site',
       defaultValue: 'scriptor-publish',
       submitLabel: 'Review plan',
+      helpTopic: 'publish',
     })
     if (!requestedOutput) return
     try {

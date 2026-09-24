@@ -36,6 +36,7 @@ export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourP
       modalAriaLabel="Product tour"
       onClose={onComplete}
       className="onboarding-tour"
+      helpTopic="workspace"
       headerMeta={progress}
       showClose={false}
       closeOnBackdrop={false}

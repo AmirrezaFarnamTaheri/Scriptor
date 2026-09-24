@@ -1,4 +1,4 @@
-export type GuidePolicy = 'first-run' | 'manual'
+export type GuidePolicy = 'first-run' | 'first-open' | 'manual'
 export type GuideCategory = 'Workspace' | 'Writing' | 'Knowledge' | 'Publishing' | 'Integrations' | 'Recovery'
 export type GuideStep = readonly [title: string, instruction: string, target?: string]
 export type GuideQuestion = readonly [question: string, answer: string]
@@ -23,6 +23,7 @@ export interface HelpGuide {
 export interface GuideProgress {
   step: number
   completed: boolean
+  introduced: boolean
 }
 export interface HelpPreferences {
   version: 1

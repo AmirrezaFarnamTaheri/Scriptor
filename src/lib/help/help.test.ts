@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { test } from 'node:test'
-import { browseGuides, HELP_GUIDES, HELP_BY_ID, searchGuides } from './catalog.ts'
+import { browseGuides, FIRST_OPEN_GUIDE_IDS, HELP_GUIDES, HELP_BY_ID, searchAnswers, searchGuides } from './catalog.ts'
 import { emptyHelpPreferences, getProgress, HelpProgressStore, parseHelpPreferences, reduceHelpPreferences } from './progress.ts'
 import { parseHelpRequest } from './request.ts'
 import { HELP_STORAGE_KEY } from './types.ts'
@@ -27,9 +28,14 @@ test('only the overview is automatic first-run; dangerous operations are manual'
   for (const id of ['google', 'gmail', 'reader', 'kanban', 'tasks']) assert.equal(HELP_BY_ID.get(id)?.experimental, true)
 })
 
-test('all feature guides are on demand; only the workspace overview is first-run', () => {
+test('first-open invitations are limited to the deliberate complex-surface allowlist', () => {
+  assert.deepEqual(
+    HELP_GUIDES.filter((guide) => guide.policy === 'first-open').map((guide) => guide.id).sort(),
+    Array.from(FIRST_OPEN_GUIDE_IDS).sort(),
+  )
   for (const guide of HELP_GUIDES) {
-    assert.equal(guide.policy, guide.id === 'workspace' ? 'first-run' : 'manual', guide.id)
+    const expected = guide.id === 'workspace' ? 'first-run' : FIRST_OPEN_GUIDE_IDS.has(guide.id) ? 'first-open' : 'manual'
+    assert.equal(guide.policy, expected, guide.id)
   }
 })
 
@@ -40,6 +46,10 @@ test('help search covers questions and workflows without network or vault access
   assert.ok(searchGuides('operation messages').some((guide) => guide.id === 'activity-output'))
   assert.ok(searchGuides('', 'Recovery').every((guide) => guide.category === 'Recovery'))
   assert.equal(searchGuides('zzzzzzzzzzzzzz').length, 0)
+  const answers = searchAnswers('Does Help search my private notes?')
+  assert.equal(answers[0]?.guide.id, 'search')
+  assert.match(answers[0]?.answer ?? '', /does not submit|does not/i)
+  assert.equal(searchAnswers('').length, 0)
 })
 
 test('idle Help browsing stays contextual while search and categories expose the full corpus', () => {
@@ -62,7 +72,10 @@ test('reading, progress, completion, and reset are independent', () => {
   const progressed = reduceHelpPreferences(empty, { type: 'step', id: 'graph', step: 999 })
   assert.equal(getProgress(progressed, 'graph').step, HELP_BY_ID.get('graph')!.steps.length - 1)
   assert.equal(getProgress(progressed, 'graph').completed, false)
-  const done = reduceHelpPreferences(progressed, { type: 'finish', id: 'graph' })
+  assert.equal(getProgress(progressed, 'graph').introduced, false)
+  const introduced = reduceHelpPreferences(progressed, { type: 'introduce', id: 'graph' })
+  assert.equal(getProgress(introduced, 'graph').introduced, true)
+  const done = reduceHelpPreferences(introduced, { type: 'finish', id: 'graph' })
   assert.equal(getProgress(done, 'graph').completed, true)
   const reset = reduceHelpPreferences(done, { type: 'reset' })
   assert.deepEqual(reset.progress, {})
@@ -72,7 +85,7 @@ test('reading, progress, completion, and reset are independent', () => {
 test('untrusted persisted state is bounded, filters unknown ids, and ignores retired invitation fields', () => {
   const prefs = parseHelpPreferences(JSON.stringify({ version: 1, hints: false, progress: { graph: { step: -4, completed: 'yes', offered: true }, unknown: { step: 5 } } }))
   assert.deepEqual(Object.keys(prefs.progress), ['graph'])
-  assert.deepEqual(prefs.progress.graph, { step: 0, completed: false })
+  assert.deepEqual(prefs.progress.graph, { step: 0, completed: false, introduced: false })
   assert.throws(() => parseHelpPreferences('{'))
   assert.throws(() => parseHelpPreferences(JSON.stringify({ version: 88 })))
   assert.throws(() => parseHelpPreferences(' '.repeat(100_001)))
@@ -101,6 +114,7 @@ test('only the help preference key is written, and reload resumes', () => {
   const reloaded = new HelpProgressStore(storage)
   assert.equal(getProgress(reloaded.getSnapshot().preferences, 'google').step, 2)
   assert.equal(getProgress(reloaded.getSnapshot().preferences, 'google').completed, false)
+  assert.equal(getProgress(reloaded.getSnapshot().preferences, 'google').introduced, false)
 })
 
 test('help requests accept only authored ids and views, never commands or HTML', () => {
@@ -108,4 +122,39 @@ test('help requests accept only authored ids and views, never commands or HTML',
   assert.equal(parseHelpRequest({ id: '<script>', view: 'tour' }), null)
   assert.equal(parseHelpRequest({ id: 'restore', view: 'execute' }), null)
   assert.equal(parseHelpRequest(null), null)
+})
+
+
+function sourceFiles(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(root, entry.name)
+    if (entry.isDirectory()) return sourceFiles(path)
+    return /\.tsx?$/.test(entry.name) ? [path] : []
+  })
+}
+
+test('source-owned help topics resolve to authored guides and major panels/dialogs keep a contextual owner', () => {
+  const files = sourceFiles('src/components')
+  const literalTopic = /(?:data-help-topic|helpTopic)=["']([a-z][a-z0-9-]+)["']/g
+  const reachableTopics = new Set<string>()
+
+  for (const path of files) {
+    const source = readFileSync(path, 'utf8')
+    for (const match of source.matchAll(literalTopic)) {
+      reachableTopics.add(match[1]!)
+      assert.ok(HELP_BY_ID.has(match[1]!), `${path} references unknown help topic ${match[1]}`)
+    }
+
+    if (source.includes('<UnifiedPanelShell')) {
+      assert.match(source, /helpTopic=["'][a-z][a-z0-9-]+["']/, `${path} must identify its UnifiedPanelShell help owner`)
+    }
+
+    if (/role=["'](?:dialog|alertdialog)["']/.test(source)) {
+      assert.match(source, /(?:data-help-topic|helpTopic)=/, `${path} dialog must expose contextual help ownership`)
+    }
+  }
+
+  for (const id of FIRST_OPEN_GUIDE_IDS) {
+    assert.ok(reachableTopics.has(id), `first-open guide ${id} has no reachable source-owned help topic`)
+  }
 })
