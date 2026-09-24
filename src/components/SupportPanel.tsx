@@ -10,6 +10,7 @@ import {
   MAINTAINER_NAME,
 } from '../brand/support'
 import { writeClipboardText } from '../lib/clipboardText'
+import { safeExternalUrl } from '../lib/safeExternalUrl'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 
 interface SupportPanelProps {
@@ -22,8 +23,11 @@ const WALLET_ROWS = [
   { id: 'tron', label: 'TRON', address: DONATION_WALLETS.tron },
 ] as const
 
-function openExternal(url: string) {
-  window.open(url, '_blank', 'noopener,noreferrer')
+function openExternal(url: string): void {
+  const safeUrl = safeExternalUrl(url)
+  if (!safeUrl) return
+
+  window.open(safeUrl, '_blank', 'noopener,noreferrer')
 }
 
 export function SupportPanel({ onClose }: SupportPanelProps) {

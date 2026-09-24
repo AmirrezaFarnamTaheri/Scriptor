@@ -20,6 +20,10 @@ test('accepts a plain http URL', () => {
   assert.equal(safeExternalUrl('http://intranet.example/standup'), 'http://intranet.example/standup')
 })
 
+test('accepts a mailto URL for explicit contact actions', () => {
+  assert.equal(safeExternalUrl('mailto:support@example.com'), 'mailto:support@example.com')
+})
+
 test('trims surrounding whitespace before returning the URL', () => {
   assert.equal(safeExternalUrl('  https://example.com/x  '), 'https://example.com/x')
 })
