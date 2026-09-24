@@ -695,7 +695,7 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
     } else if state == RESTORE_STATE_PROMOTING || state == RESTORE_STATE_ROLLBACK_IN_PROGRESS {
         let rollback = journal.join("rollback");
         let rollback_metadata = fs::symlink_metadata(&rollback)
-            .map_err(|error| format!("Restore rollback snapshot is missing: {error}"))?;
+            .map_err(|error| format!("Restore rollback snapshot is missing. Journal preserved for manual inspection. Error: {error}"))?;
         if rollback_metadata.file_type().is_symlink() || !rollback_metadata.is_dir() {
             return Err("Restore rollback snapshot must be a regular directory; journal preserved for manual inspection.".into());
         }

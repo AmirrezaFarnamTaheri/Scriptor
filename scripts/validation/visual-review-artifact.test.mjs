@@ -5,8 +5,8 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const workflow = fs.readFileSync(path.join(root, '.github/workflows/visual-review.yml'), 'utf8')
-const refreshWorkflow = fs.readFileSync(path.join(root, '.github/workflows/refresh-screenshots.yml'), 'utf8')
+const workflow = fs.readFileSync(path.join(root, '.github/workflows/visual-review.yml'), 'utf8').replace(/\r\n/g, '\n')
+const refreshWorkflow = fs.readFileSync(path.join(root, '.github/workflows/refresh-screenshots.yml'), 'utf8').replace(/\r\n/g, '\n')
 const packager = fs.readFileSync(path.join(root, 'scripts/ci/prepare-visual-review-package.ps1'), 'utf8')
 const visualReview = fs.readFileSync(path.join(root, 'e2e/visual-review.spec.ts'), 'utf8')
 const visualConfig = fs.readFileSync(path.join(root, 'playwright.visual.config.ts'), 'utf8')
@@ -199,9 +199,10 @@ test('expanded visual evidence matrix remains captured', () => {
 })
 
 
-test('every visual capture passes through the shared Help-restraint wrapper', () => {
+test('visual captures restrain ambient Help except the explicit first-open evidence', () => {
   const screenshotCalls = [...visualReview.matchAll(/\.screenshot\(/g)]
-  assert.equal(screenshotCalls.length, 2, 'visual scenarios must not call screenshot() directly')
+  assert.equal(screenshotCalls.length, 3, 'only the first-open guidance scenario may capture an ambient invitation')
+  assert.match(visualReview, /await page\.screenshot\(\{ path: test\.info\(\)\.outputPath\('visual-graph-first-open-guidance\.png'\)/)
   const visualHelper = visualReview.match(/async function captureVisual[\s\S]*?\n}/)?.[0] ?? ''
   const elementHelper = visualReview.match(/async function captureElement[\s\S]*?\n}/)?.[0] ?? ''
   assert.match(visualHelper, /await expectNoAmbientHelp\(page\)/)
