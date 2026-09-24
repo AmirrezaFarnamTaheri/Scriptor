@@ -4,7 +4,7 @@ import path from 'node:path'
 import test from 'node:test'
 
 const root = path.resolve(import.meta.dirname, '../..')
-const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8')
+const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8').replace(/\r\n/g, '\n')
 
 test('unsigned release remains the secret-free default while native signing is explicitly gated', () => {
   const workflow = read('.github/workflows/release.yml')
@@ -167,7 +167,8 @@ test('toolbar popovers escape scroll clipping without a React positioning loop',
 
   assert.match(portal, /createPortal\(/)
   assert.match(portal, /document\.body/)
-  assert.match(portal, /addEventListener\('scroll', updatePosition, true\)/)
+  assert.match(portal, /addEventListener\('scroll', handleViewportScroll, true\)/)
+  assert.match(portal, /panelRef\.current\?\.contains\(target\)\) return/)
   assert.match(portal, /ResizeObserver/)
   assert.match(portal, /event\.key !== 'Escape'/)
   assert.match(portal, /event\.key === 'Tab'/)
