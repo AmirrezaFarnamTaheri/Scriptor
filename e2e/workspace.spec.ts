@@ -21,7 +21,9 @@ test.describe('workspace flows', () => {
       window.localStorage.setItem('scriptor:workspace-mode', 'writing')
       window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
       window.localStorage.setItem('scriptor:split-preview', 'false')
-      window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
+      if (!window.localStorage.getItem('scriptor:workspace-chrome')) {
+        window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
+      }
     }, WORKSPACE_CHROME_PREFS)
   })
 
@@ -324,6 +326,7 @@ test.describe('workspace flows', () => {
     expect(normalized.uiBorderRadius).toBe('rounded')
     expect(normalized.glassBlur).toBe('glass')
     expect(normalized.topBarHiddenActions).toEqual(['graph', 'canvas'])
+    expect(normalized.topBarHiddenActionsMigrationVersion).toBe(1)
     expect(normalized.topBarGroupOrder).toEqual(['actions', 'history', 'modes', 'command'])
     expect(normalized.topBarHiddenGroups).toEqual(['history'])
     expect(normalized.topBarGroupWidths).toEqual({ history: 'wide' })
@@ -331,5 +334,38 @@ test.describe('workspace flows', () => {
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem('scriptor:vault-width'))).toBeNull()
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem('scriptor:inspector-width'))).toBeNull()
     void stored
+  })
+
+  test('legacy Support visibility migrates once and then respects an intentional hide', async ({ page }) => {
+    await page.addInitScript(() => {
+      if (window.sessionStorage.getItem('e2e:support-migration-seeded') === '1') return
+      window.sessionStorage.setItem('e2e:support-migration-seeded', '1')
+      const raw = window.localStorage.getItem('scriptor:workspace-chrome')
+      const envelope = raw ? JSON.parse(raw) : { schemaVersion: 1, savedAt: '2026-01-01T00:00:00.000Z', data: {} }
+      envelope.data.topBarHiddenActions = ['workbench', 'publish', 'portal', 'graph', 'canvas', 'support', 'paletteStore']
+      delete envelope.data.topBarHiddenActionsMigrationVersion
+      window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(envelope))
+    })
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await waitForWorkspace(page)
+
+    const readChromePrefs = () => page.evaluate(() =>
+      JSON.parse(window.localStorage.getItem('scriptor:workspace-chrome') ?? '{}').data,
+    )
+    await expect.poll(async () => (await readChromePrefs()).topBarHiddenActionsMigrationVersion).toBe(1)
+    await expect.poll(async () => (await readChromePrefs()).topBarHiddenActions).not.toContain('support')
+
+    await page.evaluate(() => {
+      const raw = window.localStorage.getItem('scriptor:workspace-chrome')
+      const envelope = raw ? JSON.parse(raw) : null
+      if (!envelope) throw new Error('workspace chrome preferences were not saved')
+      envelope.data.topBarHiddenActions = [...envelope.data.topBarHiddenActions, 'support']
+      window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(envelope))
+    })
+
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await waitForWorkspace(page)
+    await expect.poll(async () => (await readChromePrefs()).topBarHiddenActions).toContain('support')
   })
 })
