@@ -54,9 +54,9 @@ export function useEditorOrchestrationController({
 }: EditorOrchestrationOptions) {
   const [visibleEditorLine, setVisibleEditorLine] = useState(1)
   const editorRef = useRef<MarkdownEditorHandle | null>(null)
+  const previewEditorRef = useRef<MarkdownEditorHandle | null>(null)
   const previewRef = useRef<MarkdownPreviewHandle | null>(null)
   const inspectorPanelRef = useRef<HTMLElement | null>(null)
-  const splitPreviewScrollRef = useRef<HTMLElement | null>(null)
 
   // ── Spellcheck & LanguageTool configuration ────────────────────────────────
   useEffect(() => {
@@ -113,14 +113,14 @@ export function useEditorOrchestrationController({
 
   // ── Scroll Sync ────────────────────────────────────────────────────────────
   const scrollSyncEnabled = showSplitPreview || showInspectorPreview
-  const scrollContainerRef = (showSplitPreview
-    ? splitPreviewScrollRef
-    : inspectorPanelRef) as RefObject<HTMLElement | null>
+  const scrollContainerRef = inspectorPanelRef as RefObject<HTMLElement | null>
 
-  const { handleEditorLine: syncEditorLine } = useEditorPreviewScrollSync({
+  const { handleEditorLine: syncEditorLine, handlePreviewLine } = useEditorPreviewScrollSync({
     enabled: scrollSyncEnabled,
     editorRef,
     previewRef,
+    previewEditorRef,
+    editablePreviewActive: showSplitPreview,
     scrollContainerRef,
   })
 
@@ -179,11 +179,12 @@ export function useEditorOrchestrationController({
   return {
     editorRef,
     previewRef,
+    previewEditorRef,
     inspectorPanelRef,
-    splitPreviewScrollRef,
     scrollSyncEnabled,
     visibleEditorLine,
     handleEditorLine,
+    handlePreviewLine,
     tocEntries,
     editorAutocompleteContext,
     monacoCompletionContext,

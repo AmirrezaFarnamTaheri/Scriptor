@@ -28,7 +28,7 @@ Scriptor is designed for long-running projects such as books, theses, technical 
 
 | Work with your material | What Scriptor provides |
 |---|---|
-| **Write and revise** | Source, split, and rendered views; outline navigation; snippets; configurable editor; note history |
+| **Write and revise** | Source plus writable visual Preview/Split views; read-only rendered output in the Inspector; outline navigation; snippets; configurable editor; note history |
 | **Build evidence** | Wikilinks, backlinks, citations, graph exploration, health checks, unresolved-link repair |
 | **Publish reproducibly** | Named Pandoc profiles for HTML, PDF, DOCX, LaTeX, ePub, and Reveal.js |
 | **Automate with boundaries** | Git-aware workflows, audited MCP tools, permissioned plugins, and a local daemon |

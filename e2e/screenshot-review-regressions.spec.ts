@@ -25,10 +25,10 @@ test('slow worker replaces provisional preview instead of leaving it stuck', asy
   }, WORKSPACE_CHROME_PREFS)
   await page.goto('/')
   await waitForWorkspace(page)
-  await page.locator('.editor-toolbar').getByRole('button', { name: 'Split', exact: true }).click()
-  const preview = page.locator('aside[aria-label="Split Markdown preview"]')
+  await page.getByRole('tab', { name: 'Rendered output', exact: true }).click()
+  const preview = page.locator('.inspector-panel').getByRole('article', { name: 'Markdown preview' })
   await expect(preview.getByRole('heading', { name: 'Delayed worker result' })).toBeVisible()
-  await expect(preview.getByRole('article')).toHaveAttribute('aria-busy', 'false')
+  await expect(preview).toHaveAttribute('aria-busy', 'false')
 })
 
 test('focused graph label uses readable text color on the light canvas', async ({ page }) => {
@@ -52,8 +52,8 @@ test('command palette surface is opaque', async ({ page }) => {
 
 test('task list items render checkboxes without double bullet discs', async ({ page }) => {
   await launchApp(page)
-  await page.locator('.editor-toolbar').getByRole('button', { name: 'Split', exact: true }).click()
-  const preview = page.locator('aside[aria-label="Split Markdown preview"]')
+  await page.getByRole('tab', { name: 'Rendered output', exact: true }).click()
+  const preview = page.locator('.inspector-panel').getByRole('article', { name: 'Markdown preview' })
   await expect(preview.getByRole('heading', { name: 'Research Plan' })).toBeVisible()
 
   const taskLists = preview.locator('ul.contains-task-list, ul:has(> li.task-list-item)')
@@ -73,8 +73,10 @@ test('editor surface mode switcher synchronizes with main viewport in Preview mo
   await page.locator('.editor-toolbar').getByRole('button', { name: 'Preview', exact: true }).click()
   const renderedView = page.locator('.editor-rendered-view')
   await expect(renderedView).toBeVisible()
-  await expect(renderedView.locator('.markdown-preview h1')).toContainText('Research Plan')
-  // Monaco editor must not be mounted in rendered view
+  await expect(renderedView.locator('.editable-preview-editor .cm-content')).toContainText('Research Plan')
+  // Preview is a visual CodeMirror authoring surface; the Monaco source engine
+  // is unmounted while Preview owns the central workspace.
+  await expect(renderedView.locator('.editable-preview-editor .cm-editor')).toBeVisible()
   await expect(page.locator('.monaco-editor')).toHaveCount(0)
 })
 
@@ -86,9 +88,10 @@ test('editor surface mode switcher synchronizes with main viewport in Preview mo
   await page.locator('.editor-toolbar').getByRole('button', { name: 'Preview', exact: true }).click()
   const renderedView = page.locator('.editor-rendered-view')
   await expect(renderedView).toBeVisible()
-  await expect(renderedView.locator('.markdown-preview h1')).toContainText('Research Plan')
-  // CodeMirror editor must not be mounted in rendered view
-  await expect(page.locator('.cm-editor')).toHaveCount(0)
+  await expect(renderedView.locator('.editable-preview-editor .cm-content')).toContainText('Research Plan')
+  // The source CodeMirror is replaced by exactly one visual editing surface.
+  await expect(renderedView.locator('.editable-preview-editor .cm-editor')).toHaveCount(1)
+  await expect(page.locator('.editor-rendered-view .cm-editor')).toHaveCount(1)
 })
 
 test('status bar reading time and word count reflect active note accurately', async ({ page }) => {

@@ -77,7 +77,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       className,
       basePath,
       fetchNote,
-      enableBreaks,
+      enableBreaks = true,
       executeDql,
       runCodeChunk,
       postProcessHtml,

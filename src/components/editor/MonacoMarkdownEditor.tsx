@@ -36,6 +36,7 @@ export interface MonacoMarkdownEditorProps {
   transformRequest?: { seq: number; action: string } | null
   typographyRequest?: { seq: number; action: TypographyAction } | null
   scrollToLine?: number | null
+  onVisibleLineChange?: (line: number) => void
   completionContext?: MonacoCompletionContext
 }
 
@@ -55,6 +56,7 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       transformRequest,
       typographyRequest,
       scrollToLine,
+      onVisibleLineChange,
       completionContext,
     },
     ref,
@@ -66,6 +68,7 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
     const completionDisposableRef = useRef<{ dispose: () => void } | null>(null)
     const latest = useRef(value)
     const onChangeRef = useRef(onChange)
+    const onVisibleLineChangeRef = useRef(onVisibleLineChange)
     const lastSyncedValueRef = useRef(value)
     const lastInsertSeqRef = useRef<number | null>(null)
     const lastTransformSeqRef = useRef<number | null>(null)
@@ -83,6 +86,10 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
     useEffect(() => {
       onChangeRef.current = onChange
     }, [onChange])
+
+    useEffect(() => {
+      onVisibleLineChangeRef.current = onVisibleLineChange
+    }, [onVisibleLineChange])
 
     useEffect(() => {
       setMonacoCompletionContext(completionContext ?? {})
@@ -546,6 +553,15 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       lastSyncedValueRef.current = model.getValue()
       modelRef.current = model
       editor.setModel(model)
+
+      editor.onDidChangeCursorPosition((event) => {
+        onVisibleLineChangeRef.current?.(event.position.lineNumber)
+      })
+      editor.onDidScrollChange(() => {
+        const topLine = editor.getVisibleRanges()[0]?.startLineNumber
+        if (topLine) onVisibleLineChangeRef.current?.(topLine)
+      })
+
       if (import.meta.env.VITE_E2E_MODE === 'true') {
         ;(window as Window & { __scriptorE2eEditor?: MonacoEditor.IStandaloneCodeEditor }).__scriptorE2eEditor =
           editor

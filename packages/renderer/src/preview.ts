@@ -25,11 +25,15 @@ export function renderMarkdownPreview(
   markdown: string,
   options?: PreviewPipelineOptions,
 ): string {
+  // Live preview follows authoring line breaks by default. Export/publish paths
+  // call the lower-level pipeline directly, so their strict Markdown semantics
+  // remain unchanged unless they explicitly opt into breaks.
+  const effectiveOptions: PreviewPipelineOptions = { enableBreaks: true, ...options }
   // Resolver callbacks make the result context-dependent even for identical
   // markdown and option flags. Resolve those renders every time rather than
   // pretending a function identity can be represented by a stable cache key.
-  const cacheable = options?.fetchNote === undefined
-  const key = renderCacheKey(markdown, options)
+  const cacheable = effectiveOptions.fetchNote === undefined
+  const key = renderCacheKey(markdown, effectiveOptions)
   const cached = cacheable ? renderCache.get(key) : undefined
   if (cached !== undefined) {
     // Re-insert to keep least-recently-used ordering under the Map cap.
@@ -38,7 +42,7 @@ export function renderMarkdownPreview(
     return cached
   }
   try {
-    const html = renderMarkdownPipeline(markdown, options)
+    const html = renderMarkdownPipeline(markdown, effectiveOptions)
     if (cacheable) {
       renderCache.set(key, html)
       if (renderCache.size > RENDER_CACHE_LIMIT) {
