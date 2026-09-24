@@ -4,6 +4,7 @@ import { knowledgeGuides } from './guides-knowledge.ts'
 import { workflowGuides } from './guides-workflows.ts'
 import { settingsGuides } from './guides-settings.ts'
 import { referenceGuides } from './guides-reference.ts'
+import { surfaceGuides } from './guides-surfaces.ts'
 
 /**
  * First-open invitations are reserved for complex, optional, experimental, or
@@ -16,7 +17,7 @@ export const FIRST_OPEN_GUIDE_IDS = new Set([
   'custom-theme', 'resource-sync',
 ])
 
-export const HELP_GUIDES: readonly HelpGuide[] = [...writingGuides, ...knowledgeGuides, ...workflowGuides, ...settingsGuides, ...referenceGuides].map((guide) => {
+export const HELP_GUIDES: readonly HelpGuide[] = [...writingGuides, ...knowledgeGuides, ...workflowGuides, ...settingsGuides, ...referenceGuides, ...surfaceGuides].map((guide) => {
   if (FIRST_OPEN_GUIDE_IDS.has(guide.id)) guide = { ...guide, policy: 'first-open' }
   if (guide.id === 'export-jobs') return { ...guide, source: 'src/components/StatusDockPanel.tsx' }
   if (guide.id === 'settings') return { ...guide, steps: guide.steps.map((step, index) => index === 0 ? ['Choose a category', 'Use General, Appearance, Workspace, Integrations, Shortcuts, or Advanced according to the job rather than searching one long form.'] as const : step) }
