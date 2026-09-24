@@ -821,10 +821,10 @@ fn finalize_restore(
             eprintln!(
                 "[vault-backup] Restore committed and reopened, but journal cleanup failed: {error}"
             );
-        } else if let Some(parent) = transaction.parent() {
-            if let Err(error) = sync_directory(parent) {
-                eprintln!("[vault-backup] Restore journal directory sync failed: {error}");
-            }
+        } else if let Some(parent) = transaction.parent()
+            && let Err(error) = sync_directory(parent)
+        {
+            eprintln!("[vault-backup] Restore journal directory sync failed: {error}");
         }
     }
 
