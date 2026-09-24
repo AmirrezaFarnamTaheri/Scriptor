@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.2.1 — 2026-09-24
+
 ### Fixed
 
 - Keep fresh narrow workspaces at readable 100% scale while preserving explicit zoom, full-size touch targets on coarse-pointer layouts, keyboard focus when switching note tabs, and editor view controls during horizontal toolbar overflow.
