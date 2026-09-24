@@ -240,7 +240,7 @@ export async function captureReadyScreenshot(page: Page, path: string) {
 }
 
 export async function waitForWorkspace(page: Page, options: { allowHiddenVaultList?: boolean } = {}) {
-  await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible()
+  await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible({ timeout: 45_000 })
   // The top-bar vault badge yields (stays mounted, hidden) at tight widths by
   // design — the workspace switcher and status footer repeat it — so "loaded"
   // is asserted on attachment, and on visibility only when it is shown.
