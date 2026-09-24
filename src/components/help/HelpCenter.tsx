@@ -52,7 +52,7 @@ export function HelpCenter({ request, store, onClose, onReveal, returnFocus = nu
     }
   }, [returnFocus])
 
-  const selectGuide = (next: string) => { setId(next); setView('guide') }
+  const selectGuide = (next: string) => { setId(next); setView('guide'); setQuery('') }
   const keyDown = (event: KeyboardEvent<HTMLDialogElement>) => {
     // Underlying legacy feature focus traps listen on document. Keep their
     // handlers out of this top-layer dialog's tab sequence and text input.

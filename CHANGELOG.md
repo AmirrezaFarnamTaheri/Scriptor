@@ -10,6 +10,7 @@
 - Give document tabs and Kanban cards valid accessible ownership, and clarify the mobile Inspector and workspace Tools labels.
 - Keep command-palette note search and toolbar customization visually stable while typing or scrolling, with clearer busy-state accessibility.
 - Keep table-of-contents links aligned with heading IDs after the final HTML sanitizer.
+- Open the selected Help guide directly from search results so its tour controls are available.
 - Treat incomplete backup-restore journals as unresolved, preserve rollback evidence, and avoid reopening an unreconciled vault session.
 - Re-sanitize renderer and embed output after extensions or diagram promotion, and report malformed task filters and indexed tag data rather than silently widening or emptying results.
 
