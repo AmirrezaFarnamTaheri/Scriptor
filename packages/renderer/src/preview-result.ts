@@ -1,3 +1,5 @@
+import { sanitizeRenderedHtml } from './pipeline.ts'
+
 export interface PreviewPostProcessResult {
   html: string
   warning: string | null
@@ -35,10 +37,10 @@ export function applyPreviewPostProcess(
     if (typeof processed !== 'string') {
       throw new TypeError('preview post-processor returned a non-string value')
     }
-    return { html: processed, warning: null }
+    return { html: sanitizeRenderedHtml(processed), warning: null }
   } catch (error) {
     return {
-      html,
+      html: sanitizeRenderedHtml(html),
       warning: previewEnhancementWarning('Preview extension', error),
     }
   }

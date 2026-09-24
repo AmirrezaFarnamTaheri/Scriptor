@@ -61,6 +61,17 @@ test('invalid post-process results preserve the core Markdown HTML', () => {
   assert.match(result.warning ?? '', /non-string/)
 })
 
+test('post-process output is sanitized at the final extension boundary', () => {
+  const result = applyPreviewPostProcess(
+    '<p data-source-line="3">core</p>',
+    () => '<p data-source-line="3">enhanced</p><img src="x" onerror="alert(1)"><a href="javascript:alert(1)">x</a>',
+  )
+
+  assert.match(result.html, /<p data-source-line="3">enhanced<\/p>/)
+  assert.doesNotMatch(result.html, /onerror\s*=/i)
+  assert.doesNotMatch(result.html, /javascript:/i)
+})
+
 test('preview warnings are de-duplicated without dropping distinct failures', () => {
   assert.equal(
     combinePreviewWarnings('Extension failed.', 'Extension failed.', 'Mermaid failed.'),
