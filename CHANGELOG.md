@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.2.2 — 2026-09-25
+
 ### Fixed
 
 - Let top-bar panel buttons close their docked panels on a second click, show Support by default, and keep top-bar status hints from covering the sidebar.
