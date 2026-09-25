@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.2.5 — 2026-09-25
+
+### Fixed
+
+- Poll the tablet Inspector tab geometry contract until the rail has settled, preventing a transient layout measurement from blocking the release quality gate.
+
 ## 1.2.4 — 2026-09-25
 
 ### Fixed

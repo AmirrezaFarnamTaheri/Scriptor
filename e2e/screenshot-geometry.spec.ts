@@ -15,7 +15,12 @@ test.describe('screenshot geometry contracts', () => {
 
     const tabs = page.locator('.inspector-tabs button')
     await expect(tabs).toHaveCount(3)
-    expect(await tabs.evaluateAll((buttons) => buttons.every((button) => button.scrollWidth <= button.clientWidth + 1))).toBe(true)
+    await expect
+      .poll(
+        () => tabs.evaluateAll((buttons) => buttons.every((button) => button.scrollWidth <= button.clientWidth + 1)),
+        { timeout: 10_000, message: 'Inspector tab labels should fit after the rail settles' },
+      )
+      .toBe(true)
 
     const dateButton = page.locator('.daily-note-button')
     await expect(dateButton.locator('.daily-note-label-compact')).toBeVisible()
