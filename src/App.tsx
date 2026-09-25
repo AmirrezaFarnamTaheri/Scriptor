@@ -1,6 +1,15 @@
 import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, Suspense } from 'react'
 import type { PluginRuntimePolicy } from '@scriptor/plugin-api'
-import { applyRendererExtensions } from '@scriptor/renderer'
+import {
+  applyRendererExtensions,
+  attachPreviewCodeCopy,
+  hydrateMpeCodeChunks,
+  renderMarkdownPreview,
+  renderMermaidDiagrams,
+  renderPlantUmlDiagrams,
+  sanitizeRenderedHtml,
+} from '@scriptor/renderer'
+import type { MarkdownVisualBlockRenderer } from '@scriptor/editor'
 import { indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
@@ -607,6 +616,38 @@ function App() {
     previewPostProcess,
     previewPlantUmlLocal,
   })
+  const visualBlockRenderer = useCallback<MarkdownVisualBlockRenderer>(
+    (request, container) => {
+      let html = renderMarkdownPreview(request.raw, {
+        enableBreaks: true,
+        basePath: workspace.activePath ?? undefined,
+      })
+      if (previewBridge.postProcessHtml) {
+        try {
+          html = sanitizeRenderedHtml(previewBridge.postProcessHtml(html))
+        } catch {
+          // A plugin failure must not erase the canonical block render.
+        }
+      }
+      container.innerHTML = html
+
+      void (async () => {
+        try {
+          await renderMermaidDiagrams(container)
+          if (previewBridge.renderPlantUmlLocal) {
+            await renderPlantUmlDiagrams(container, previewBridge.renderPlantUmlLocal)
+          }
+          if (previewBridge.runCodeChunk) {
+            await hydrateMpeCodeChunks(container, previewBridge.runCodeChunk)
+          }
+          attachPreviewCodeCopy(container)
+        } catch {
+          // The source remains available by activating the block for editing.
+        }
+      })()
+    },
+    [previewBridge, workspace.activePath],
+  )
   const openKnowledgeWorkbench = useCallback((tab: KnowledgeWorkbenchTab = 'repair') => {
     setKnowledgeWorkbenchTab(tab)
     setKnowledgeWorkbenchOpen(true)
@@ -1376,7 +1417,11 @@ function App() {
           onToggleInspector={handleToggleInspector}
         />
 
-        <WorkspaceRuntimeBanners nativeReady={nativeReady} error={workspace.error} />
+        <WorkspaceRuntimeBanners
+          nativeReady={nativeReady}
+          error={workspace.error}
+          closeState={workspace.closeState}
+        />
       </div>
 
       <section
@@ -1517,6 +1562,7 @@ function App() {
           editorInsertRequest={workspace.editorInsertRequest}
           editorTransformRequest={workspace.editorTransformRequest}
           editorTypographyRequest={workspace.editorTypographyRequest}
+          visualBlockRenderer={visualBlockRenderer}
           scrollToEditorLine={workspace.scrollToEditorLine}
           saveImageFromClipboard={nativeReady ? workspace.saveVaultImage : undefined}
           insertSnippet={handleInsertSnippet}

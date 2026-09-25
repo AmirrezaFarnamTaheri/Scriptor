@@ -58,6 +58,45 @@ test.describe('Markdown preview resilience', () => {
     await expect(page.getByText(/could not be displayed/i)).toHaveCount(0)
   })
 
+  test('Preview and Split render Mermaid while keeping fenced blocks editable', async ({ page }) => {
+    await page.evaluate(() => {
+      const editor = (window as Window & {
+        __scriptorE2eEditor?: { getModel?: () => { setValue?: (value: string) => void } | null }
+      }).__scriptorE2eEditor
+      editor?.getModel?.()?.setValue?.([
+        '# Diagram',
+        '',
+        '```mermaid',
+        'classDiagram',
+        '  class Animal',
+        '```',
+        '',
+        '```powershell',
+        'Write-Output "hello"',
+        '```',
+      ].join('\n'))
+    })
+    await page.waitForTimeout(500)
+
+    const editorToolbar = page.locator('.editor-toolbar')
+    await editorToolbar.getByRole('button', { name: 'Preview', exact: true }).click()
+    const preview = page.locator('.editor-rendered-view .editable-preview-editor')
+    await expect(preview.locator('.cm-visual-block .mermaid svg')).toBeAttached({ timeout: 15_000 })
+    await expect(preview.locator('.cm-visual-block')).toHaveCount(2)
+    await expect(preview.locator('.cm-content')).not.toContainText('classDiagram')
+
+    await preview.locator('.cm-visual-block').first().click()
+    await expect(preview.locator('.cm-content')).toContainText('classDiagram')
+    await expect(preview.locator('.cm-visual-block')).toHaveCount(1)
+
+    await preview.locator('.cm-line').first().click()
+    await editorToolbar.getByRole('button', { name: 'Split', exact: true }).click()
+    const split = page.locator('aside .editable-preview-editor')
+    await expect(split.locator('.cm-visual-block .mermaid svg')).toBeAttached({ timeout: 15_000 })
+    await expect(split.locator('.cm-content')).not.toContainText('classDiagram')
+    await expect(split.locator('.cm-visual-block pre')).toHaveCount(1)
+  })
+
   test('Preview mode is writable by default and preserves edits when returning to Source', async ({ page }) => {
     const editorToolbar = page.locator('.editor-toolbar')
     await editorToolbar.getByRole('button', { name: 'Preview', exact: true }).click()

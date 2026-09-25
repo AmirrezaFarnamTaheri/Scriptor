@@ -3,6 +3,7 @@ import type { SnippetVariableContext } from './snippet-parser.ts'
 import type { EditorAutocompleteContext } from './editor-autocomplete.ts'
 import type { EditorThemeId } from './editor-themes.ts'
 import type { ProseCorpus } from './prose-autosuggest.ts'
+import type { MarkdownVisualBlockRenderer } from './visual-block.ts'
 import type { WikilinkPreviewResolver } from './wikilink-hover-tooltip.ts'
 
 export interface EditorStats {
@@ -45,6 +46,8 @@ export interface EditorAdapterOptions {
   saveImageFromClipboard?: (file: File) => Promise<string | null>
   /** Async resolver for [[wikilink]] hover tooltips. */
   wikilinkPreviewResolver?: WikilinkPreviewResolver
+  /** Renders inactive fenced blocks inside editable Preview/Split surfaces. */
+  visualBlockRenderer?: MarkdownVisualBlockRenderer | null
 }
 
 const NON_ASCII_WORD_PATTERN = /[\p{L}\p{N}]/u

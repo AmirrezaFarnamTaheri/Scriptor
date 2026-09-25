@@ -47,7 +47,13 @@ fn setup_tray(app: &mut tauri::App) -> tauri::Result<()> {
                 }
             }
             "quit" => {
-                app.exit(0);
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                    let _ = window.close();
+                } else {
+                    app.exit(0);
+                }
             }
             _ => {}
         })

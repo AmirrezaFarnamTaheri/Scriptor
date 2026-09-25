@@ -33,6 +33,8 @@ interface OpenTab {
   pinned?: boolean
 }
 
+export type WorkspaceCloseState = 'idle' | 'saving' | 'delayed' | 'failed'
+
 interface SaveRequest {
   path: string
   markdown: string
@@ -84,6 +86,7 @@ export function useWorkspaceEditor({
   const [activeNote, setActiveNote] = useState<NoteDocument | null>(null)
   const [draftMarkdown, setDraftMarkdown] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [closeState, setCloseState] = useState<WorkspaceCloseState>('idle')
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [externalChangeConflict, setExternalChangeConflict] = useState<ExternalChangeConflict | null>(null)
   const [noteNav, setNoteNav] = useState<{ paths: string[]; index: number }>({ paths: [], index: -1 })
@@ -969,6 +972,7 @@ export function useWorkspaceEditor({
     let disposed = false
     let unlisten: (() => void) | undefined
     let closingAfterFlush = false
+    let delayedCloseTimer: number | null = null
 
     void import('@tauri-apps/api/window')
       .then(async ({ getCurrentWindow }) => {
@@ -981,16 +985,28 @@ export function useWorkspaceEditor({
           if (!hasPendingPersistenceRef.current()) return
           event.preventDefault()
           closingAfterFlush = true
+          setError(null)
+          setCloseState('saving')
+          delayedCloseTimer = window.setTimeout(() => {
+            if (closingAfterFlush) setCloseState('delayed')
+          }, 2_000)
           try {
             const flushed = await flushAllPendingSavesRef.current()
             if (!flushed) {
+              setCloseState('failed')
               setError('Could not save all pending note changes. Scriptor kept the window open so your draft is not lost.')
               return
             }
             await appWindow.destroy()
+            setCloseState('idle')
           } catch (caught) {
+            setCloseState('failed')
             setError(`Could not close Scriptor safely: ${caught instanceof Error ? caught.message : String(caught)}`)
           } finally {
+            if (delayedCloseTimer !== null) {
+              window.clearTimeout(delayedCloseTimer)
+              delayedCloseTimer = null
+            }
             closingAfterFlush = false
           }
         })
@@ -1004,6 +1020,7 @@ export function useWorkspaceEditor({
     return () => {
       disposed = true
       unlisten?.()
+      if (delayedCloseTimer !== null) window.clearTimeout(delayedCloseTimer)
     }
   }, [logActivity, setError])
 
@@ -1067,6 +1084,7 @@ export function useWorkspaceEditor({
     isNoteDirty,
     externalChangeConflict,
     isSaving,
+    closeState,
     lastSavedAt,
     canNavigateBack: noteNav.index > 0,
     canNavigateForward: noteNav.index >= 0 && noteNav.index < noteNav.paths.length - 1,

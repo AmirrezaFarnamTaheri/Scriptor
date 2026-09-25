@@ -50,6 +50,8 @@ import { taskToggleClickExtension } from './task-toggle.ts'
 import { wysiwygDecorationExtension } from './wysiwyg-decorations.ts'
 import { wikilinkHoverTooltip, type WikilinkPreviewResolver } from './wikilink-hover-tooltip.ts'
 import { wikilinkDecorationExtension } from './wikilink-decorations.ts'
+import { visualBlockDecorations } from './visual-block-decorations.ts'
+import type { MarkdownVisualBlockRenderer } from './visual-block.ts'
 import {
   editorThemeCompartment,
   editorThemeExtension,
@@ -72,6 +74,7 @@ const typewriterCompartment = new Compartment()
 const focusDimCompartment = new Compartment()
 const lineNumbersCompartment = new Compartment()
 const wikilinkHoverCompartment = new Compartment()
+const visualBlockCompartment = new Compartment()
 const themeCompartment = editorThemeCompartment()
 
 class CodeMirrorAdapter implements EditorAdapter {
@@ -79,10 +82,12 @@ class CodeMirrorAdapter implements EditorAdapter {
   private onVisibleLineChange?: (line: number) => void
   private scrollListener?: () => void
   private snippetContext: SnippetVariableContext
+  private visualBlockRenderer: MarkdownVisualBlockRenderer | null
 
   constructor(host: HTMLElement, options: EditorAdapterOptions) {
     this.onVisibleLineChange = options.onVisibleLineChange
     this.snippetContext = options.snippetContext ?? {}
+    this.visualBlockRenderer = options.visualBlockRenderer ?? null
     setPasteImageHandler(options.saveImageFromClipboard ?? null)
     const completionSources = [
       snippetAutocompleteSource,
@@ -127,6 +132,7 @@ class CodeMirrorAdapter implements EditorAdapter {
           ? wikilinkHoverTooltip(options.wikilinkPreviewResolver)
           : [],
       ),
+      visualBlockCompartment.of(visualBlockDecorations(this.visualBlockRenderer)),
       EditorView.lineWrapping,
       EditorView.theme({
         '&': {
@@ -275,6 +281,14 @@ class CodeMirrorAdapter implements EditorAdapter {
     })
   }
 
+  setVisualBlockRenderer(renderer: MarkdownVisualBlockRenderer | null): void {
+    if (renderer === this.visualBlockRenderer) return
+    this.visualBlockRenderer = renderer
+    this.view.dispatch({
+      effects: visualBlockCompartment.reconfigure(visualBlockDecorations(renderer)),
+    })
+  }
+
   setShowLineNumbers(enabled: boolean): void {
     this.view.dispatch({
       effects: lineNumbersCompartment.reconfigure(enabled ? lineNumbers() : []),
@@ -404,6 +418,7 @@ export interface MarkdownEditorProps {
   snippetCatalog?: SnippetCatalogEntry[]
   autocompleteContext?: EditorAutocompleteContext
   saveImageFromClipboard?: (file: File) => Promise<string | null>
+  visualBlockRenderer?: MarkdownVisualBlockRenderer | null
   vimMode?: boolean
   spellcheck?: boolean
   languageTool?: boolean
@@ -447,6 +462,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     onVimSave,
     onVimQuit,
     saveImageFromClipboard,
+    visualBlockRenderer,
   },
   ref,
 ) {
@@ -524,6 +540,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       onVimSave: () => onVimSaveRef.current?.(),
       onVimQuit: () => onVimQuitRef.current?.(),
       saveImageFromClipboard,
+      visualBlockRenderer,
     })
     adapterRef.current = adapter
 
@@ -537,6 +554,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   useEffect(() => {
     setPasteImageHandler(saveImageFromClipboard ?? null)
   }, [saveImageFromClipboard])
+
+  useEffect(() => {
+    adapterRef.current?.setVisualBlockRenderer(visualBlockRenderer ?? null)
+  }, [visualBlockRenderer])
 
   useEffect(() => {
     if (value === lastEmittedValueRef.current) return
