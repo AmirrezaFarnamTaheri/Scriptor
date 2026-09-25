@@ -240,7 +240,20 @@ export async function captureReadyScreenshot(page: Page, path: string) {
 }
 
 export async function waitForWorkspace(page: Page, options: { allowHiddenVaultList?: boolean } = {}) {
-  await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible({ timeout: 45_000 })
+  const workspace = page.getByRole('main', { name: 'Scriptor workspace' })
+  try {
+    await expect(workspace).toBeVisible({ timeout: 45_000 })
+  } catch (firstBootError) {
+    // A Vite dependency-optimization reload can leave a freshly navigated page
+    // without the app shell under parallel CI load. Retry once on the same URL;
+    // a real boot failure still fails below instead of being masked.
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    try {
+      await expect(workspace).toBeVisible({ timeout: 45_000 })
+    } catch {
+      throw firstBootError
+    }
+  }
   // The top-bar vault badge yields (stays mounted, hidden) at tight widths by
   // design — the workspace switcher and status footer repeat it — so "loaded"
   // is asserted on attachment, and on visibility only when it is shown.
