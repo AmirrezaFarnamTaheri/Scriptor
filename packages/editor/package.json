@@ -1,7 +1,7 @@
 {
   "name": "@scriptor/editor",
   "private": true,
-  "version": "1.2.5",
+  "version": "1.2.6",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",

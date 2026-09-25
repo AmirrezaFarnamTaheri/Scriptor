@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.2.6 — 2026-09-25
+
+### Fixed
+
+- Give tablet-width Inspector tab buttons a small layout buffer so labels stay within their buttons on fractional release-runner widths.
+
 ## 1.2.5 — 2026-09-25
 
 ### Fixed

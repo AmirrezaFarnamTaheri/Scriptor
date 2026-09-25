@@ -55,9 +55,15 @@
 }
 
 @media (min-width: 821px) and (max-width: 1100px) {
+  .inspector-tabs {
+    gap: 2px;
+    padding: 3px;
+  }
+
   .inspector-tabs button {
     min-height: 44px;
     max-width: 100%;
+    padding-inline: 4px;
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
