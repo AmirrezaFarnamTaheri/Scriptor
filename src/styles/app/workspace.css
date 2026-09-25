@@ -124,12 +124,13 @@
 
 .daily-note-nav .daily-note-button {
   justify-content: center;
+  gap: 5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
   font-size: 12px;
-  padding: 0 6px;
+  padding: 0 4px;
 }
 
 .daily-note-label-compact {

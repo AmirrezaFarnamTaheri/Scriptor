@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.2.7 — 2026-09-25
+
+### Fixed
+
+- Tighten the compact daily-note button spacing so the date label fits within the tablet sidebar without a fractional-pixel overflow.
+
 ## 1.2.6 — 2026-09-25
 
 ### Fixed
