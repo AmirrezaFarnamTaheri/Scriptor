@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.2.3 — 2026-09-25
+
+### Fixed
+
+- Render Mermaid diagrams, highlighted code blocks, and executable MPE chunks inside the writable Preview and Split surfaces while preserving click-to-edit Markdown source.
+- Make native desktop close safe and observable by allowing the guarded window destroy, showing save progress, and routing tray Quit through the same pending-save close path.
+
 ## 1.2.2 — 2026-09-25
 
 ### Fixed
