@@ -1,18 +1,10 @@
 import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, Suspense } from 'react'
 import type { PluginRuntimePolicy } from '@scriptor/plugin-api'
-import {
-  applyRendererExtensions,
-  attachPreviewCodeCopy,
-  hydrateMpeCodeChunks,
-  renderMarkdownPreview,
-  renderMermaidDiagrams,
-  renderPlantUmlDiagrams,
-  sanitizeRenderedHtml,
-} from '@scriptor/renderer'
-import type { MarkdownVisualBlockRenderer } from '@scriptor/editor'
+import { applyRendererExtensions } from '@scriptor/renderer'
 import { indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
+import { useVisualBlockRenderer } from './hooks/useVisualBlockRenderer'
 import { VaultSidebar } from './components/app/VaultSidebar'
 import {
   PanelFallback,
@@ -616,38 +608,7 @@ function App() {
     previewPostProcess,
     previewPlantUmlLocal,
   })
-  const visualBlockRenderer = useCallback<MarkdownVisualBlockRenderer>(
-    (request, container) => {
-      let html = renderMarkdownPreview(request.raw, {
-        enableBreaks: true,
-        basePath: workspace.activePath ?? undefined,
-      })
-      if (previewBridge.postProcessHtml) {
-        try {
-          html = sanitizeRenderedHtml(previewBridge.postProcessHtml(html))
-        } catch {
-          // A plugin failure must not erase the canonical block render.
-        }
-      }
-      container.innerHTML = html
-
-      void (async () => {
-        try {
-          await renderMermaidDiagrams(container)
-          if (previewBridge.renderPlantUmlLocal) {
-            await renderPlantUmlDiagrams(container, previewBridge.renderPlantUmlLocal)
-          }
-          if (previewBridge.runCodeChunk) {
-            await hydrateMpeCodeChunks(container, previewBridge.runCodeChunk)
-          }
-          attachPreviewCodeCopy(container)
-        } catch {
-          // The source remains available by activating the block for editing.
-        }
-      })()
-    },
-    [previewBridge, workspace.activePath],
-  )
+  const visualBlockRenderer = useVisualBlockRenderer(previewBridge, workspace.activePath)
   const openKnowledgeWorkbench = useCallback((tab: KnowledgeWorkbenchTab = 'repair') => {
     setKnowledgeWorkbenchTab(tab)
     setKnowledgeWorkbenchOpen(true)
