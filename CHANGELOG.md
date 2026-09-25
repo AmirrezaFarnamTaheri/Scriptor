@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.2.4 — 2026-09-25
+
+### Fixed
+
+- Keep Inspector tab labels inside their tablet-width buttons so the release screenshot-geometry gate and narrow layouts cannot report clipped controls.
+
 ## 1.2.3 — 2026-09-25
 
 ### Fixed
