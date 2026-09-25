@@ -126,6 +126,7 @@ interface EditorWorkspaceProps {
   editorInsertRequest: MarkdownEditorProps['insertRequest']
   editorTransformRequest: MarkdownEditorProps['transformRequest']
   editorTypographyRequest: MarkdownEditorProps['typographyRequest']
+  visualBlockRenderer?: MarkdownEditorProps['visualBlockRenderer']
   scrollToEditorLine: number | null
   saveImageFromClipboard?: (file: File) => Promise<string | null>
   insertSnippet: (content: string) => void
@@ -225,6 +226,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
     editorInsertRequest,
     editorTransformRequest,
     editorTypographyRequest,
+    visualBlockRenderer,
     scrollToEditorLine,
     saveImageFromClipboard,
     insertSnippet,
@@ -427,6 +429,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                       insertRequest={editorInsertRequest}
                       transformRequest={editorTransformRequest}
                       typographyRequest={editorTypographyRequest}
+                      visualBlockRenderer={visualBlockRenderer}
                       snippetContext={snippetContext}
                       snippetCatalog={snippetCatalog}
                       autocompleteContext={editorAutocompleteContext}
@@ -606,6 +609,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                     languageTool={languageTool}
                     editorTheme={editorTheme}
                     saveImageFromClipboard={saveImageFromClipboard}
+                    visualBlockRenderer={visualBlockRenderer}
                     showLineNumbers={false}
                     className="markdown-editor editable-preview-editor"
                   />

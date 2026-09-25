@@ -4,6 +4,7 @@ import { applyRendererExtensions } from '@scriptor/renderer'
 import { indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
+import { useVisualBlockRenderer } from './hooks/useVisualBlockRenderer'
 import { VaultSidebar } from './components/app/VaultSidebar'
 import {
   PanelFallback,
@@ -607,6 +608,7 @@ function App() {
     previewPostProcess,
     previewPlantUmlLocal,
   })
+  const visualBlockRenderer = useVisualBlockRenderer(previewBridge, workspace.activePath)
   const openKnowledgeWorkbench = useCallback((tab: KnowledgeWorkbenchTab = 'repair') => {
     setKnowledgeWorkbenchTab(tab)
     setKnowledgeWorkbenchOpen(true)
@@ -1376,7 +1378,11 @@ function App() {
           onToggleInspector={handleToggleInspector}
         />
 
-        <WorkspaceRuntimeBanners nativeReady={nativeReady} error={workspace.error} />
+        <WorkspaceRuntimeBanners
+          nativeReady={nativeReady}
+          error={workspace.error}
+          closeState={workspace.closeState}
+        />
       </div>
 
       <section
@@ -1517,6 +1523,7 @@ function App() {
           editorInsertRequest={workspace.editorInsertRequest}
           editorTransformRequest={workspace.editorTransformRequest}
           editorTypographyRequest={workspace.editorTypographyRequest}
+          visualBlockRenderer={visualBlockRenderer}
           scrollToEditorLine={workspace.scrollToEditorLine}
           saveImageFromClipboard={nativeReady ? workspace.saveVaultImage : undefined}
           insertSnippet={handleInsertSnippet}

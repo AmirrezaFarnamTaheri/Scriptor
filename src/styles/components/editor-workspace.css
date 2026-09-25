@@ -121,6 +121,43 @@ body.is-split-resizing .editor-preview-pane {
   background: color-mix(in oklch, var(--surface) 88%, transparent);
 }
 
+.editable-preview-editor .cm-visual-block {
+  position: relative;
+  margin: 8px 0 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: text;
+  transition: border-color 150ms var(--ease-soft), background-color 150ms var(--ease-soft);
+}
+
+.editable-preview-editor .cm-visual-block:hover {
+  border-color: color-mix(in oklch, var(--primary) 24%, var(--border));
+  background: color-mix(in oklch, var(--primary-soft) 18%, transparent);
+}
+
+.editable-preview-editor .cm-visual-block:focus-within {
+  border-color: color-mix(in oklch, var(--primary) 48%, var(--border));
+}
+
+.editable-preview-editor .cm-visual-block-content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  padding: 10px 12px;
+}
+
+.editable-preview-editor .cm-visual-block-content > pre {
+  margin: 0;
+}
+
+.editable-preview-editor .cm-visual-block-content .mermaid {
+  max-width: 100%;
+}
+
+.editable-preview-editor .cm-visual-block-content button {
+  cursor: pointer;
+}
+
 @media (max-width: 640px) {
   .editable-preview-editor .cm-content {
     padding-inline: 16px !important;

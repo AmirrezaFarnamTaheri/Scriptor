@@ -7,7 +7,7 @@ export {
   getPreviewTopSourceLine,
   scrollPreviewToLine,
 } from './scroll-sync'
-export { renderMarkdownPipeline, type PreviewPipelineOptions } from './pipeline'
+export { renderMarkdownPipeline, sanitizeRenderedHtml, type PreviewPipelineOptions } from './pipeline'
 export { preprocessWikilinks } from './preprocess'
 export { preprocessWikilinkEmbeds, remarkWikilinkEmbed } from './remark-wikilink-embed'
 export { preprocessImports, preprocessImportsAsync, remarkImport, type ImportResolverOptions } from './remark-import'
@@ -15,6 +15,8 @@ export { remarkAlerts } from './remark-alerts'
 export { remarkBreaksPlugin, remarkBreaks } from './remark-breaks'
 export { remarkDqlBlocks } from './remark-dql'
 export { attachPreviewCodeCopy } from './code-copy.ts'
+export { renderMermaidDiagrams } from './mermaid-client.ts'
+export { renderPlantUmlDiagrams } from './plantuml-client.ts'
 export { hydrateDqlBlocks, type DqlResultRow } from './dql-client'
 export { hydrateWikilinkEmbeds, type EmbedFetchContext } from './embed-client'
 export { remarkInfographic } from './remark-infographic'

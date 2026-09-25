@@ -56,6 +56,10 @@ export {
   SUPPORTED_LOCALES,
 } from './hunspell-dictionary.ts'
 export { wysiwygDecorationExtension } from './wysiwyg-decorations.ts'
+export type {
+  MarkdownVisualBlockRenderRequest,
+  MarkdownVisualBlockRenderer,
+} from './visual-block.ts'
 export { findReplaceExtension, openFindPanel } from './find-replace.ts'
 export {
   toggleBlockquote,
