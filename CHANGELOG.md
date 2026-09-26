@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.2.8 — 2026-09-26
+
+### Fixed
+
+- Make the tablet daily-note geometry contract assert the actual grid fit and intentional ellipsis behavior instead of intrinsic scroll width, which is expected to exceed the compact button width.
+
 ## 1.2.7 — 2026-09-25
 
 ### Fixed

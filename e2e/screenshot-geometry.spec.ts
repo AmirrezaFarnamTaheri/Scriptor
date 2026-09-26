@@ -25,7 +25,16 @@ test.describe('screenshot geometry contracts', () => {
     const dateButton = page.locator('.daily-note-button')
     await expect(dateButton.locator('.daily-note-label-compact')).toBeVisible()
     await expect(dateButton.locator('.daily-note-label-full')).toBeHidden()
-    expect(await dateButton.evaluate((button) => button.scrollWidth <= button.clientWidth + 1)).toBe(true)
+    const dateLayout = await dateButton.evaluate((button) => {
+      const parent = button.parentElement
+      const buttonRect = button.getBoundingClientRect()
+      const parentRect = parent?.getBoundingClientRect()
+      return {
+        fitsTrack: Boolean(parentRect && buttonRect.right <= parentRect.right + 1),
+        usesEllipsis: getComputedStyle(button).textOverflow === 'ellipsis',
+      }
+    })
+    expect(dateLayout).toEqual({ fitsTrack: true, usesEllipsis: true })
 
     const history = await page.locator('.history-controls').boundingBox()
     const mode = await page.locator('.workspace-mode-strip').boundingBox()
