@@ -972,6 +972,12 @@ test.describe('visual review states', () => {
     }
     const problems = page.locator('#dock-panel-problems')
     await expect(problems).toBeVisible()
+    // The fixture note's only "problem" used to be its own `- [/]` in-progress
+    // task marker, reported as a missing link reference. With that false
+    // positive gone the dock must report a clean vault, and the header
+    // geometry is measured against a diagnostic the user can actually cause.
+    await expect(problems).toContainText('No vault, Git, or client problems detected.')
+    await appendEditorLine(page, 'See [unresolved-reference] for the method.')
     const editorLintHeader = problems.locator('.diagnostics-section-header').filter({ hasText: 'Editor lint' })
     const linkReferenceAction = editorLintHeader.getByRole('button', { name: 'Generate link references' })
     await expect(linkReferenceAction).toBeVisible()

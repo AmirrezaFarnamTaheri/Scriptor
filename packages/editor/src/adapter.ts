@@ -1,3 +1,5 @@
+import { TASK_CHECKBOX_CLASS_SOURCE } from '@scriptor/core/task'
+
 import type { SnippetCatalogEntry } from './snippet-catalog.ts'
 import type { SnippetVariableContext } from './snippet-parser.ts'
 import type { EditorAutocompleteContext } from './editor-autocomplete.ts'
@@ -204,8 +206,12 @@ export function countWords(markdown: string): number {
         continue
       }
 
-      // Skip list & task markers: - [ ] or 1. [x] etc.
-      const listMatch = line.match(/^(?:[-*+]|\d+[.)])\s+(?:\[[ xX/\\-]\]\s+)?/)
+      // Skip list & task markers: - [ ] or 1. [x] etc. The marker characters
+      // come from the status registry, so `[>]`, `[/]` and `[-]` are not
+      // counted as words the way a hard-coded `[ xX]` would leave them.
+      const listMatch = line.match(
+        new RegExp(`^(?:[-*+]|\\d+[.)])\\s+(?:\\[[${TASK_CHECKBOX_CLASS_SOURCE}]\\]\\s+)?`),
+      )
       if (listMatch) {
         i += listMatch[0].length
         lineStart = false

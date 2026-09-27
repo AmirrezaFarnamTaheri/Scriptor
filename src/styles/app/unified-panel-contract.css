@@ -141,16 +141,27 @@ body:has(.unified-panel-docked) .bottom-tabs-wrap {
  * same effective width as a compact desktop. Viewport media queries cannot see
  * that reduced content width, so apply the compact footer grid when a dock is
  * actually present. This prevents subsystem pills/repository state from being
- * clipped beneath the companion rail. */
+ * clipped beneath the companion rail.
+
+ * All four summary children stay on one row. This used to declare three tracks and
+ * push `.repo-state` onto `grid-column: 1 / -1`, which moved it to a second row and
+ * — with the repo-state allowed to wrap — dropped the vault name onto a third line,
+ * so opening any docked panel silently grew the footer by two lines. The progress
+ * track shrinks to absorb the reduced width instead, and the vault identity is
+ * dropped because the sidebar header already names the vault. */
 body:has(.unified-panel-docked) .status-summary {
-  grid-template-columns: auto auto minmax(220px, 1fr);
+  grid-template-columns: auto auto minmax(120px, 1fr) minmax(0, auto);
 }
 
 body:has(.unified-panel-docked) .status-summary .repo-state {
-  grid-column: 1 / -1;
-  justify-content: flex-start;
+  grid-column: auto;
+  justify-content: flex-end;
   margin-left: 0;
   overflow: hidden;
+}
+
+body:has(.unified-panel-docked) .status-summary .repo-vault {
+  display: none;
 }
 
 /* Dock header actions can be wider than the companion column (MCP's reset

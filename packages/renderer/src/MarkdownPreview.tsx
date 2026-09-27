@@ -355,7 +355,22 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         const warnings: string[] = []
         const noteFetcher = fetchNoteRef.current
 
-        await runEnhancement('Mermaid rendering', () => renderMermaidDiagrams(root), warnings)
+        // A diagram that cannot be parsed is marked in place with its source, so
+        // the preview still shows where it was. The phase warning covers the case
+        // where the whole enhancement could not start at all.
+        if (cancelled) return
+        try {
+          const { failed } = await renderMermaidDiagrams(root)
+          if (failed > 0) {
+            warnings.push(
+              failed === 1
+                ? 'One diagram could not be rendered; its source is shown in place.'
+                : `${failed} diagrams could not be rendered; their sources are shown in place.`,
+            )
+          }
+        } catch (error) {
+          warnings.push(previewEnhancementWarning('Mermaid rendering', error))
+        }
         await runEnhancement(
           'PlantUML rendering',
           () =>

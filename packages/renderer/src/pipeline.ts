@@ -11,6 +11,7 @@ import remarkRehype from 'remark-rehype'
 import { unified } from 'unified'
 
 import { preprocessWikilinks, stripFrontmatterPreservingLines } from './preprocess.ts'
+import { EXTENDED_TASK_CHECKBOX_CLASS_SOURCE } from '@scriptor/core/task'
 import { promoteMermaidHtml } from './mermaid-html.ts'
 import { rehypeHeadingIds } from './rehype-heading-ids.ts'
 import { rehypeSafeStyle } from './rehype-safe-style.ts'
@@ -263,7 +264,9 @@ export function preprocessExtendedTaskStates(markdown: string): string {
       }
       if (fence) return line
 
-      const taskMatch = /^(\s*[-*+]\s+)\[([/\->])\](\s+)(.*)$/.exec(line)
+      const taskMatch = new RegExp(
+        `^(\\s*[-*+]\\s+)\\[([${EXTENDED_TASK_CHECKBOX_CLASS_SOURCE}])\\](\\s+)(.*)$`,
+      ).exec(line)
       if (!taskMatch) return line
       const [, prefix, state, spacing, body] = taskMatch
       const taskState = state === '/' ? 'in-progress' : state === '-' ? 'cancelled' : 'forwarded'

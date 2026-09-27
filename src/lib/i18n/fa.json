@@ -522,7 +522,7 @@
       "words": "{{count}} واژه",
       "characters": "{{count}} نویسه",
       "minRead": "{{count}} دقیقه مطالعه",
-      "minReadEmpty": "— دقیقه مطالعه",
+      "minReadEmpty": "—",
       "saving": "در حال ذخیره...",
       "saved": "ذخیره شد {{time}}",
       "markdown": "مارک‌داون"
@@ -579,7 +579,7 @@
       "orphanAssets": "فایل‌های بدون ارجاع",
       "duplicateTitles": "عنوان‌های تکراری",
       "invalidFrontmatter": "فرادادهٔ نامعتبر",
-      "missingCitations": "ارجاعات مفقود",
+      "missingCitations": "ارجاعات حل‌نشده",
       "indexedNotes": "یادداشت‌های نمایه‌شده",
       "vaultWords": "واژه‌های خزانه",
       "cache": "حافظهٔ نهان",

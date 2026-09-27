@@ -39,7 +39,12 @@ export function SubsystemToggles({
           type="button"
           className={`subsystem-toggle-badge ${hibernated ? 'hibernated' : 'active'}`}
           onClick={() => onChange(!hibernated)}
-          aria-pressed={hibernated}
+          // `aria-pressed` follows the appearance: pressed means the subsystem is
+          // running, which is the state the `active` class paints. It used to
+          // report the opposite, so in a row of otherwise identical badges a
+          // screen reader announced "pressed" for whichever ones looked switched
+          // off — and disagreed with the diagnostics pill beside them.
+          aria-pressed={!hibernated}
           title={`${title}: ${hibernated ? 'Hibernated' : 'Active'} (click to toggle)`}
         >
           {label}

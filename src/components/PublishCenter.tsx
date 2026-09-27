@@ -9,6 +9,7 @@ import { ExportPrintPreview } from './ExportPrintPreview'
 import { PublishDiffView } from './PublishDiffView'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { supportsPrintPagePreview } from '@scriptor/export'
+import { formatBadgeFor } from '../lib/exportProfileFormat'
 import type { ExportJobOutput, ExportJobRecord, PublishPlan } from '../types/vault'
 import { useLatexCompiler, type LatexCompilerConfig } from '../hooks/useLatexCompiler'
 
@@ -109,18 +110,11 @@ export const PublishCenter = memo(function PublishCenter({
           </button>
         ) : null
       }
-      footer={
-        <div className="publish-center-footer">
-          <span className="publish-footer-status">
-            {activePath ? `Active: ${activePath}` : 'No active note open'}
-          </span>
-          {isExporting ? (
-            <button type="button" className="toolbar-button" onClick={onCancelExport}>
-              Cancel export
-            </button>
-          ) : null}
-        </div>
-      }
+      // No footer: the header subtitle already carries the active note, and it
+      // becomes the live `Exporting …` line while a run is in progress. The
+      // header's own `headerActions` slot carries Cancel, so a footer would only
+      // ever have repeated one of the two.
+      footer={null}
     >
       <div className="publish-center-grid">
         <section className="publish-center-section" aria-labelledby="export-files-heading">
@@ -132,12 +126,14 @@ export const PublishCenter = memo(function PublishCenter({
             Create a file with one of the Pandoc profiles configured for this vault.
           </p>
           <ul className="publish-profile-list">
-            {exportProfiles.map((profile) => (
-              <li key={profile.id}>
+            {exportProfiles.map((profile) => {
+              const formatBadge = formatBadgeFor(profile)
+              return (
+                <li key={profile.id}>
                 <div className="publish-profile-summary">
                   <div className="publish-profile-title-row">
                     <strong>{profile.label}</strong>
-                    <span className="publish-format-chip">{profile.format.toUpperCase()}</span>
+                    {formatBadge ? <span className="publish-format-chip">{formatBadge}</span> : null}
                   </div>
                   <div className="publish-profile-destination">
                     <FolderOutput size={13} aria-hidden="true" />
@@ -165,8 +161,9 @@ export const PublishCenter = memo(function PublishCenter({
                     Export {profile.format.toUpperCase()}
                   </button>
                 </div>
-              </li>
-            ))}
+                </li>
+              )
+            })}
           </ul>
         </section>
 

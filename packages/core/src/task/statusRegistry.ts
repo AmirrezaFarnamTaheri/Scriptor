@@ -101,6 +101,57 @@ export const statusRegistry: ReadonlyMap<string, StatusMeta> = new Map(
 )
 
 /**
+ * Every character Scriptor accepts between `[` and `]` on a task line: the
+ * built-in statuses plus GFM's uppercase `X`, which the registry does not
+ * store.
+ *
+ * `[/]`, `[-]` and `[>]` are the *same syntax* as `[ ]` and `[x]`, and
+ * `serializeTask` writes them. A pattern that hard-codes `[ xX]` therefore
+ * treats a task the app itself authored as ordinary text — which is how the
+ * `[/]` marker came to be reported as a missing link reference, how the
+ * WYSIWYG surface lost its brackets, and how `[>]` came to be counted as a
+ * word. Derive every task-marker pattern from this set.
+ */
+export const TASK_CHECKBOX_CHARS: readonly string[] = Array.from(
+  new Set([...Array.from(statusRegistry.values(), (meta) => meta.checkboxChar), 'X']),
+)
+
+/** True when `char` is a task checkbox character, without its brackets. */
+export function isTaskCheckboxChar(char: string): boolean {
+  return TASK_CHECKBOX_CHARS.includes(char)
+}
+
+/**
+ * Body for a regular-expression character class matching any task checkbox
+ * character: `TASK_CHECKBOX_CLASS_SOURCE` is safe to interpolate between
+ * `[` and `]`. `-` is escaped so it can never be read as a range.
+ */
+export const TASK_CHECKBOX_CLASS_SOURCE: string = TASK_CHECKBOX_CHARS.map((char) =>
+  char.replace(/[\\\]^-]/g, '\\$&'),
+).join('')
+
+/** The markers GFM already understands, so a consumer must not claim them twice. */
+const GFM_CHECKBOX_CHARS: ReadonlySet<string> = new Set([' ', 'x', 'X'])
+
+/**
+ * The markers Scriptor adds on top of GFM: `[/]`, `[-]`, `[>]`. These are the
+ * ones a consumer must recognise as task syntax, because nothing upstream
+ * handles them for it.
+ *
+ * Two independent parsers have to agree on this exact set — the CodeMirror
+ * block parser in `packages/editor` and the preprocessor in
+ * `packages/renderer` — or the editor and the exported document would read the
+ * same line differently.
+ */
+export const EXTENDED_TASK_CHECKBOX_CHARS: readonly string[] = TASK_CHECKBOX_CHARS.filter(
+  (char) => !GFM_CHECKBOX_CHARS.has(char),
+)
+
+export const EXTENDED_TASK_CHECKBOX_CLASS_SOURCE: string = EXTENDED_TASK_CHECKBOX_CHARS.map((char) =>
+  char.replace(/[\\\]^-]/g, '\\$&'),
+).join('')
+
+/**
  * Look up status metadata.  Returns the built-in entry if found, or a generic
  * "custom" fallback for unknown statuses.
  */

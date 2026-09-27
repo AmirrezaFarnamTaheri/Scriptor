@@ -145,6 +145,70 @@ test('Global shortcut guards and persistence respect React and editable-target s
   )
 })
 
+test('Empty reading-time status is a neutral placeholder in every locale', () => {
+  for (const locale of ['en', 'de', 'fa']) {
+    const data = JSON.parse(
+      readFileSync(new URL(`../../src/lib/i18n/${locale}.json`, import.meta.url), 'utf8'),
+    )
+    assert.equal(data.editor.status.minReadEmpty, '—', `${locale} zero-minute reading time must be neutral`)
+    assert.doesNotMatch(
+      data.editor.status.minReadEmpty,
+      /min|Min|دقیقه/,
+      `${locale} zero-minute reading time must not append a duration label`,
+    )
+  }
+})
+
+test('Vault health metric names and cache status read the same everywhere', () => {
+  // The inspector, the workspace footer and the health dashboard all show the
+  // same snapshot. They used to pick their own wording ("Missing citations" vs
+  // "Unresolved citations") and their own casing for the cache status
+  // ("Fresh" vs the raw `fresh` wire value), so the same number read two ways.
+  const healthFormatter = readFileSync(
+    new URL('../../src/lib/vaultHealth.ts', import.meta.url),
+    'utf8',
+  )
+  assert.match(healthFormatter, /cacheStatusLabel/, 'a single formatter must own the cache status label')
+
+  for (const file of [
+    '../../src/App.tsx',
+    '../../src/components/shell/WorkspaceStatusFooter.tsx',
+    '../../src/components/VaultHealthDashboard.tsx',
+  ]) {
+    const source = readFileSync(new URL(file, import.meta.url), 'utf8')
+    // Require the call, not just the absence of the old ternary: a surface that
+    // dropped the label entirely would satisfy a grep-only guard.
+    assert.match(
+      source,
+      /cacheStatusLabel\(t,/,
+      `${file} must format the cache status through the shared helper`,
+    )
+    assert.doesNotMatch(
+      source,
+      /cache_status === 'fresh'/,
+      `${file} must not re-derive the cache status label`,
+    )
+  }
+
+  // The dashboard must render the shared label rather than the raw wire value.
+  const dashboard = readFileSync(
+    new URL('../../src/components/VaultHealthDashboard.tsx', import.meta.url),
+    'utf8',
+  )
+  assert.doesNotMatch(
+    dashboard,
+    /\['Cache',\s*summary\.cache_status\]/,
+    'the health dashboard must not print the raw lowercase cache status',
+  )
+
+  const en = JSON.parse(readFileSync(new URL('../../src/lib/i18n/en.json', import.meta.url), 'utf8'))
+  assert.equal(
+    en.inspector.health.missingCitations,
+    'Unresolved citations',
+    'the inspector citation metric must use the health dashboard wording',
+  )
+})
+
 test('Git error and retry copy is localized in every locale', () => {
   for (const locale of ['en', 'de', 'fa']) {
     const data = JSON.parse(

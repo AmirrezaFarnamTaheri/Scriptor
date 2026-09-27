@@ -303,6 +303,23 @@
   font-size: 11px;
 }
 
+/* Edge lines are drawn first and labels second, so without a halo the line runs
+   straight through the glyphs and the note name becomes unreadable. Stroking the
+   text in the backdrop colour with `paint-order: stroke` paints that stroke
+   behind the fill, punching a clear plate out of the line without needing the
+   label's measured width.
+
+   The backdrop is `--dialog-bg`, not `--surface`: this SVG stage is transparent
+   and sits on `.graph-overlay`, which is painted in the opaque `--dialog-bg`.
+   The canvas renderer above the 100-node threshold fills its own buffer with
+   `--surface` and therefore uses that for its plate instead. */
+.graph-node-label {
+  paint-order: stroke;
+  stroke: var(--dialog-bg, var(--bg-elevated));
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
 .graph-node.focus text {
   fill: var(--ink-strong);
   font-weight: 600;
