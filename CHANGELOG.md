@@ -25,6 +25,9 @@
 - Keep the status strip one row so the bottom dock never grows two lines. Three separate rules each let the footer wrap: the narrow-viewport band forced the repo-state onto its own full-width row, the docked-panel contract did the same whenever a companion panel like MCP was open, and the repo-state itself was allowed to flex-wrap. The result was a strip of two or three lines, with the vault name dropping below the status pills. The summary keeps all four of its children on one row, the repo-state may no longer wrap, and the vault identity is dropped when space is tight because the sidebar header already names the vault.
 - Report the footer subsystem badges' pressed state in the same sense as they are painted. `aria-pressed` meant the opposite of the badge's own appearance, so a screen reader announced "pressed" for whichever looked switched off — and disagreed with the diagnostics pill in the same row.
 
+- Make the MCP authorization level a real radiogroup. It was four independent `aria-pressed` toggle buttons in a generic group, so a screen reader announced four switches rather than one setting with a current value, and a `Current: Read only` badge existed only to restate in prose what the control should have conveyed itself. It is now `role="radiogroup"` with `role="radio"` children, roving tabindex and arrow/Home/End navigation, and the badge is gone.
+- Bound the MCP tool result and give it a copy control. The result box had no maximum height, so a large result grew the docked panel until its content was cut off at the viewport edge with nothing to indicate there was more below, and there was no way to take the JSON without selecting it by hand. The box now scrolls within itself and copies verbatim, reusing the existing clipboard helper.
+
 ## 1.2.8 — 2026-09-26
 
 ### Fixed

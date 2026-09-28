@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { CommandResult, McpMode, McpToolDescriptor } from '@scriptor/core'
-import { AlertTriangle, LockKeyhole, Server, ShieldCheck, Sparkles } from 'lucide-react'
+import { AlertTriangle, Check, Copy, LockKeyhole, Server, ShieldCheck, Sparkles } from 'lucide-react'
 
 import type { DraftPatch } from '@scriptor/mcp'
 import { McpDraftDiffEditor } from './editor/McpDraftDiffEditor'
 import { MCP_RECIPES } from '../lib/mcpRecipes'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
+import { writeClipboardText } from '../lib/clipboardText'
 import { useI18n } from '../lib/i18n'
 import { ResourceSyncPanel } from './ResourceSyncPanel'
 import '../styles/components/mcp-panel.css'
@@ -106,11 +107,57 @@ export function McpPanel({
   const [inputJson, setInputJson] = useState(TOOL_DEFAULTS['mcp.search'])
   const [expandedDraftId, setExpandedDraftId] = useState<string | null>(null)
   const [draftBefore, setDraftBefore] = useState<Record<string, string>>({})
+  const [resultCopied, setResultCopied] = useState(false)
+
+  // Pretty-printed once so the visible text and the copied text are byte-identical.
+  const resultText = useMemo(() => (lastResult ? JSON.stringify(lastResult, null, 2) : ''), [lastResult])
+
+  const copyResult = useCallback(async () => {
+    if (!resultText) return
+    try {
+      await writeClipboardText(resultText)
+      setResultCopied(true)
+      window.setTimeout(() => setResultCopied((current) => (current ? false : current)), 1800)
+    } catch {
+      // Clipboard unavailable — the result is still selectable in the box below.
+    }
+  }, [resultText])
 
   const effectiveTool = useMemo(
     () => tools.find((tool) => tool.name === selectedTool) ?? tools[0],
     [selectedTool, tools],
   )
+
+  const modeIds = useMemo(() => MODES.map((entry) => `mcp-mode-${entry}`), [])
+
+  /**
+   * Arrow/Home/End navigation for the authorization radiogroup.
+   *
+   * A one-of-N choice belongs in a radiogroup, not a row of independent toggle
+   * buttons: as `aria-pressed` toggles a screen reader announced four unrelated
+   * switches rather than one setting with a current value. Mirrors the inspector
+   * preset row, which is the same shape of control.
+   */
+  const handleModeKeys = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    // Arrow from the focused radio, not from the stored value. Roving tabindex
+    // normally keeps the two identical, but keying off focus means the control
+    // still behaves predictably if they ever drift apart.
+    const focusedIndex = modeIds.findIndex((id) => document.activeElement?.id === id)
+    const current = focusedIndex >= 0 ? focusedIndex : MODES.indexOf(mode)
+    if (current < 0) return
+    let next = -1
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (current + 1) % MODES.length
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      next = (current - 1 + MODES.length) % MODES.length
+    } else if (event.key === 'Home') next = 0
+    else if (event.key === 'End') next = MODES.length - 1
+    if (next === -1) return
+    event.preventDefault()
+    const target = MODES[next]
+    if (!target) return
+    onModeChange(target)
+    document.getElementById(modeIds[next] ?? '')?.focus()
+  }
 
   const noToolsState = (
     <div className="plugin-empty-graphic">
@@ -144,18 +191,27 @@ export function McpPanel({
               <h3 id="mcp-authorization-heading">{t('mcp.authorizationHeading')}</h3>
               <p className="health-subtitle">{t('mcp.authorizationScope')}</p>
             </div>
-            <span className={`mcp-mode-summary is-${MODE_META[mode].risk}`} role="status">
-              {t('mcp.currentMode', { mode: t(MODE_META[mode].labelKey) })}
-            </span>
           </div>
-          <div className="mcp-mode-row" role="group" aria-label={t('mcp.authorizationLevelAria')}>
-            {MODES.map((entry) => {
+          {/* The current level is stated by the checked radio below, which is how a
+              radiogroup is meant to report a one-of-N value. A "Current: …" badge
+              here repeated that fact in the same viewport, and the role it carried
+              was the only thing making the summary readable — now redundant. */}
+          <div
+            className="mcp-mode-row"
+            role="radiogroup"
+            aria-label={t('mcp.authorizationLevelAria')}
+            onKeyDown={handleModeKeys}
+          >
+            {MODES.map((entry, index) => {
               const meta = MODE_META[entry]
               const checked = mode === entry
               return (
                 <button
                   type="button"
-                  aria-pressed={checked}
+                  role="radio"
+                  id={modeIds[index]}
+                  aria-checked={checked}
+                  tabIndex={checked ? 0 : -1}
                   key={entry}
                   className={checked ? 'mcp-mode-option active' : 'mcp-mode-option'}
                   data-risk={meta.risk}
@@ -280,9 +336,25 @@ export function McpPanel({
                 </div>
 
                 {lastResult ? (
-                  <pre className="mcp-result" aria-live="polite">
-                    {JSON.stringify(lastResult, null, 2)}
-                  </pre>
+                  <div className="mcp-result-block">
+                    <div className="mcp-result-actions">
+                      <span className="health-subtitle">Result</span>
+                      {/* A tool result is JSON the user usually needs verbatim, so it
+                          gets a copy control rather than being selected by hand. */}
+                      <button
+                        type="button"
+                        className="toolbar-button"
+                        aria-label="Copy tool result as JSON"
+                        onClick={() => void copyResult()}
+                      >
+                        {resultCopied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+                        {resultCopied ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                    <pre className="mcp-result" aria-live="polite">
+                      {resultText}
+                    </pre>
+                  </div>
                 ) : null}
               </>
             )

@@ -123,7 +123,9 @@ async function invokeMcpOutlineForShot(page: Page) {
   await runCommand(page, 'Open MCP panel')
   const panel = page.locator('.mcp-panel')
   await expect(panel).toBeVisible()
-  await expect(panel.getByRole('button', { name: /^Read only/ })).toHaveAttribute('aria-pressed', 'true')
+  // The authorization level is a one-of-N radiogroup, so the current level is the
+  // checked radio rather than a pressed toggle button.
+  await expect(panel.getByRole('radio', { name: /^Read only/ })).toHaveAttribute('aria-checked', 'true')
   await panel.getByRole('tab', { name: 'Tools', exact: true }).click()
   await panel.getByRole('combobox', { name: 'Tool', exact: true }).selectOption('mcp.inspectOutline')
   await expect(panel.getByRole('textbox', { name: 'Input JSON' })).toHaveValue(/Research Plan\.md/)

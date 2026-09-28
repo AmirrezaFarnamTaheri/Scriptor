@@ -32,22 +32,6 @@
   margin: 0;
 }
 
-.mcp-mode-summary {
-  flex: 0 0 auto;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface-raised);
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.mcp-mode-summary.is-write {
-  border-color: color-mix(in oklch, var(--warning, var(--primary)) 45%, var(--border));
-  color: var(--warning, var(--primary-strong));
-}
-
 .mcp-mode-row {
   display: grid;
   /* Adapt to the docked panel width, not just the browser viewport. */
@@ -235,13 +219,30 @@
   box-shadow: var(--focus-ring);
 }
 
+/* Bounded so a large tool result scrolls inside its own box instead of growing the
+   docked panel until its content is cut off at the viewport edge with no indication
+   that anything is below. */
 .mcp-result {
   margin: 0;
   padding: 10px;
+  max-height: 40vh;
   border-radius: 8px;
   background: var(--surface);
   font-size: 12px;
   overflow: auto;
+}
+
+.mcp-result-block {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mcp-result-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .mcp-drafts ul,

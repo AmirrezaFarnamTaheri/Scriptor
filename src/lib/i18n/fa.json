@@ -257,7 +257,6 @@
     "authorizationHeading": "مجوزدهی خزانه",
     "authorizationScope": "این وضعیت فقط به خزانهٔ فعال مربوط است، نه به کل Scriptor.",
     "authorizationLevelAria": "سطح مجوز MCP",
-    "currentMode": "حالت فعلی: {{mode}}",
     "modeOff": "خاموش",
     "modeOffDescription": "هیچ ابزار MCP به خزانهٔ فعال دسترسی ندارد.",
     "modeReadOnly": "فقط خواندنی",
