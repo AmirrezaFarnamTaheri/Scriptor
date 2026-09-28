@@ -91,12 +91,26 @@ pub fn parse_note_markdown(path: &str, markdown: &str) -> ParsedNote {
     }
 }
 
+fn is_frontmatter_delimiter(line: &str) -> bool {
+    matches!(
+        line.trim_matches(|ch| ch == '\u{feff}' || ch == ' ' || ch == '\t'),
+        "---"
+    )
+}
+
+fn is_frontmatter_closing_delimiter(line: &str) -> bool {
+    matches!(line.trim(), "---" | "...")
+}
+
 fn split_frontmatter(markdown: &str) -> (String, String, bool, Option<String>) {
-    if !markdown.starts_with("---\n") && !markdown.starts_with("---\r\n") {
+    let lines: Vec<&str> = markdown.lines().collect();
+    if !lines
+        .first()
+        .is_some_and(|line| is_frontmatter_delimiter(line))
+    {
         return (String::new(), markdown.to_string(), true, None);
     }
 
-    let lines: Vec<&str> = markdown.lines().collect();
     if lines.len() < 2 {
         return (
             String::new(),
@@ -108,7 +122,7 @@ fn split_frontmatter(markdown: &str) -> (String, String, bool, Option<String>) {
 
     let mut end_index = None;
     for (index, line) in lines.iter().enumerate().skip(1) {
-        if *line == "---" {
+        if is_frontmatter_closing_delimiter(line) {
             end_index = Some(index);
             break;
         }
@@ -479,5 +493,43 @@ mod tests {
         assert!(parsed.body.is_empty());
         assert!(parsed.tags.is_empty());
         assert!(parsed.headings.is_empty());
+    }
+
+    #[test]
+    fn frontmatter_delimiters_tolerate_horizontal_whitespace_and_crlf() {
+        let markdown = "---   \r\ntitle: Frontmatter title\r\ntags: [hidden]\r\n---\t\r\n\r\n# Body title\r\n#tag\r\n";
+        let parsed = parse_note_markdown("Whitespace.md", markdown);
+
+        assert!(parsed.frontmatter_valid);
+        assert_eq!(parsed.title, "Body title");
+        assert_eq!(parsed.tags, vec!["tag"]);
+        assert_eq!(parsed.body, "\n# Body title\n#tag");
+    }
+
+    #[test]
+    fn frontmatter_recognizes_yaml_end_marker() {
+        let markdown = "---
+title: Frontmatter title
+...
+# Body title
+";
+        let parsed = parse_note_markdown("End Marker.md", markdown);
+
+        assert!(parsed.frontmatter_valid);
+        assert_eq!(parsed.title, "Body title");
+        assert_eq!(parsed.body, "# Body title");
+    }
+
+    #[test]
+    fn frontmatter_requires_document_boundary_delimiter() {
+        let markdown = "[@smith2024]---
+# Citation note
+";
+        let parsed = parse_note_markdown("Citation.md", markdown);
+
+        assert!(parsed.frontmatter_valid);
+        assert!(parsed.frontmatter_error.is_none());
+        assert_eq!(parsed.title, "Citation note");
+        assert_eq!(parsed.body, markdown);
     }
 }

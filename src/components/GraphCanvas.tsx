@@ -55,6 +55,51 @@ function directedPairKey(source: string, target: string): string {
   return source < target ? `${source}\u0000${target}` : `${target}\u0000${source}`
 }
 
+/**
+ * Perpendicular offset applied to each direction of a reciprocal pair so `A → B`
+ * and `B → A` read as two edges rather than one.
+ *
+ * Every edge is drawn, but the offset was applied along each edge's *own*
+ * perpendicular: reversing an edge reverses that perpendicular too, so the sign
+ * change meant to push the two directions apart cancelled out and the pair stayed
+ * collinear. `reciprocalOffsetFor` derives the normal from a pair-canonical
+ * direction instead, which is what actually separates them.
+ *
+ * The value has to clear the arrowhead, and it is shared with the SVG renderer
+ * below the 100-node threshold, whose arrow is wider: its `graph-arrow` marker
+ * declares `markerWidth="7"` in `strokeWidth` units, which against the edge's 1.5
+ * stroke is really 10.5 units.
+ */
+const RECIPROCAL_EDGE_OFFSET = 12
+const ARROW_SIZE = 6
+const LABEL_PLATE_PAD_X = 3
+const LABEL_PLATE_HEIGHT = 12
+
+/**
+ * The perpendicular offset vector for one direction of a reciprocal pair.
+ *
+ * The normal is taken from the pair in a fixed order, so both directions share
+ * it; the sign then genuinely puts them on opposite sides.
+ */
+function reciprocalOffsetFor(
+  sourceId: string,
+  targetId: string,
+  source: { x: number; y: number },
+  target: { x: number; y: number },
+  reciprocal: boolean,
+): { ox: number; oy: number } {
+  if (!reciprocal) return { ox: 0, oy: 0 }
+  const sourceFirst = sourceId < targetId
+  const cdx = sourceFirst ? target.x - source.x : source.x - target.x
+  const cdy = sourceFirst ? target.y - source.y : source.y - target.y
+  const distance = Math.hypot(cdx, cdy) || 1
+  const sign = sourceFirst ? 1 : -1
+  return {
+    ox: (-cdy / distance) * RECIPROCAL_EDGE_OFFSET * sign,
+    oy: (cdx / distance) * RECIPROCAL_EDGE_OFFSET * sign,
+  }
+}
+
 export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNode }: GraphCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const hoveredIdRef = useRef<string | null>(null)
@@ -126,17 +171,14 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       const distance = Math.hypot(dx, dy) || 1
       const ux = dx / distance
       const uy = dy / distance
-      const nx = -uy
-      const ny = ux
       const directions = reciprocalPairs.get(directedPairKey(edge.source, edge.target))
       const reciprocal = (directions?.size ?? 0) > 1
-      const directionSign = edge.source < edge.target ? 1 : -1
-      const offset = reciprocal ? 5 * directionSign : 0
-      const startX = src.x + nx * offset
-      const startY = src.y + ny * offset
+      const { ox, oy } = reciprocalOffsetFor(edge.source, edge.target, src, tgt, reciprocal)
+      const startX = src.x + ox
+      const startY = src.y + oy
       const targetRadius = tgt.path === focusPath ? 22 : 17
-      const endX = tgt.x + nx * offset - ux * targetRadius
-      const endY = tgt.y + ny * offset - uy * targetRadius
+      const endX = tgt.x + ox - ux * targetRadius
+      const endY = tgt.y + oy - uy * targetRadius
       const faded = Boolean(hoveredId && hoveredId !== edge.source && hoveredId !== edge.target)
       const edgeColor = edge.kind === 'wikilink' ? primaryColor : mutedColor
 
@@ -150,15 +192,47 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       ctx.lineTo(endX, endY)
       ctx.stroke()
 
-      const arrowSize = 6
+      const arrowSize = ARROW_SIZE
+      // The arrowhead spans the edge's own perpendicular, which is unrelated to
+      // the reciprocal offset above.
+      const perpX = -uy
+      const perpY = ux
       ctx.beginPath()
       ctx.moveTo(endX, endY)
-      ctx.lineTo(endX - ux * arrowSize + nx * (arrowSize * 0.6), endY - uy * arrowSize + ny * (arrowSize * 0.6))
-      ctx.lineTo(endX - ux * arrowSize - nx * (arrowSize * 0.6), endY - uy * arrowSize - ny * (arrowSize * 0.6))
+      ctx.lineTo(endX - ux * arrowSize + perpX * (arrowSize * 0.6), endY - uy * arrowSize + perpY * (arrowSize * 0.6))
+      ctx.lineTo(endX - ux * arrowSize - perpX * (arrowSize * 0.6), endY - uy * arrowSize - perpY * (arrowSize * 0.6))
       ctx.closePath()
       ctx.fill()
       ctx.restore()
     }
+
+    // Label plates go in their own pass, after the edges and before the nodes.
+    // Drawn inline with the label instead, the plate's top edge reaches y+18 and
+    // would paint over the bottom of the r=22 keyboard focus ring — the one
+    // affordance keyboard navigation depends on.
+    ctx.save()
+    ctx.fillStyle = surfaceColor
+    for (const node of nodes) {
+      const isFocus = node.path === focusPath
+      const isHovered = hoveredId === node.id
+      const isKeyboardFocus = keyboardNode?.id === node.id
+      if (!(nodes.length < 60 || isFocus || isHovered || isKeyboardFocus)) continue
+      const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
+      ctx.font = '11px sans-serif'
+      ctx.textAlign = 'center'
+      const metrics = ctx.measureText(label)
+      const labelY = node.y + 28
+      ctx.beginPath()
+      ctx.roundRect(
+        node.x - metrics.width / 2 - LABEL_PLATE_PAD_X,
+        labelY - LABEL_PLATE_HEIGHT + 2,
+        metrics.width + LABEL_PLATE_PAD_X * 2,
+        LABEL_PLATE_HEIGHT,
+        3,
+      )
+      ctx.fill()
+    }
+    ctx.restore()
 
     for (const node of nodes) {
       const isFocus = node.path === focusPath
@@ -190,10 +264,10 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
 
       const showLabel = nodes.length < 60 || isFocus || isHovered || isKeyboardFocus
       if (showLabel) {
-        ctx.fillStyle = inkColor
+        const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
         ctx.font = '11px sans-serif'
         ctx.textAlign = 'center'
-        const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
+        ctx.fillStyle = inkColor
         ctx.fillText(label, node.x, node.y + 28)
       }
     }

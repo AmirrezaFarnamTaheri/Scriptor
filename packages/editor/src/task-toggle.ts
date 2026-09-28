@@ -1,9 +1,13 @@
+import { TASK_CHECKBOX_CLASS_SOURCE } from '@scriptor/core/task'
 import { syntaxTree } from '@codemirror/language'
 import { EditorView } from '@codemirror/view'
 
 import { toggleTaskList } from './gfm-commands.ts'
 
-const TASK_LINE = /^(\s*[-*+] +\[[ xX]\] )/
+// Must accept every marker the status registry can produce, not just GFM's
+// `[ ]`/`[x]`: the click handler below gates on a `TaskMarker` node, which the
+// parser also emits for `[/]`, `[-]` and `[>]`.
+const TASK_LINE = new RegExp(`^(\\s*[-*+] +\\[[${TASK_CHECKBOX_CLASS_SOURCE}]\\] )`)
 
 function taskLineAt(view: EditorView, pos: number): { lineFrom: number; lineTo: number; checked: boolean } | null {
   const line = view.state.doc.lineAt(pos)

@@ -96,6 +96,7 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
         </div>
         {visibleEntries.map((entry) => {
           const value = effectiveValue(entry.id, entry.defaultShortcut)
+          const effectiveDisplay = value ? formatShortcut(value) ?? value : ''
           const draft = drafts[entry.id]
           const hasOverride = shortcuts.hasOverride(entry.id)
           return (
@@ -129,11 +130,16 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
                 />
                 {draft?.error ? (
                   <small id={`shortcut-error-${entry.id}`} className="settings-field-error" role="alert">{draft.error}</small>
-                ) : (
-                  <small className="shortcut-effective-label">
-                    {value ? `Displays as ${formatShortcut(value) ?? value}` : 'Disabled'}
-                  </small>
-                )}
+                ) : !value ? (
+                  <small className="shortcut-effective-label">Disabled</small>
+                ) : effectiveDisplay !== value ? (
+                  // The input already shows the stored shortcut, and most defaults
+                  // are stored in the same human-readable form the helper would
+                  // print (`Alt+I` under an `Alt+I` input). Only speak up when
+                  // normalising actually changes something — `mod+i` becoming
+                  // `Ctrl+I`, or a Mac glyph row.
+                  <small className="shortcut-effective-label">Displays as {effectiveDisplay}</small>
+                ) : null}
               </div>
               <div role="cell" className="shortcut-row-actions">
                 {hasOverride ? (

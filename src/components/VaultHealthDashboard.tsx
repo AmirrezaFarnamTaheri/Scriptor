@@ -1,6 +1,8 @@
 import { memo } from 'react'
 import { Activity, CheckCircle2 } from 'lucide-react'
 
+import { useI18n } from '../lib/i18n'
+import { cacheStatusLabel, type Translate } from '../lib/vaultHealth'
 import { summarizeLintIssues } from '../lib/vaultLintSummary'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import '../styles/components/health-dashboard.css'
@@ -24,7 +26,7 @@ interface VaultHealthDashboardProps {
   isFixingVaultLint?: boolean
 }
 
-function metricRows(summary: VaultHealthReport) {
+function metricRows(summary: VaultHealthReport, t: Translate) {
   return [
     ['Indexed notes', summary.indexed_notes],
     ['Total words', summary.total_words.toLocaleString()],
@@ -34,7 +36,7 @@ function metricRows(summary: VaultHealthReport) {
     ['Invalid frontmatter', summary.invalid_frontmatter],
     ['Unresolved citations', summary.unresolved_citations],
     ['Slow export runs', summary.slow_exports],
-    ['Cache', summary.cache_status],
+    ['Cache', cacheStatusLabel(t, summary.cache_status)],
   ] as const
 }
 
@@ -51,6 +53,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
   isFixingVaultLint = false,
 }: VaultHealthDashboardProps) {
   const summary = diagnostics?.summary ?? null
+  const { t } = useI18n()
   const lintSummary = diagnostics ? summarizeLintIssues(diagnostics.issues) : null
   const vaultWidgets = inspectorWidgets.filter((widget) => widget.placement === 'vault')
   const issueCount = diagnostics?.issues.length ?? 0
@@ -131,7 +134,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
           </div>
 
           <div className="metric-grid health-metrics">
-            {metricRows(summary).map(([label, value]) => (
+            {metricRows(summary, t).map(([label, value]) => (
               <div className="metric" key={label}>
                 <span>{label}</span>
                 <strong>{String(value)}</strong>

@@ -522,7 +522,7 @@
       "words": "{{count}} Wörter",
       "characters": "{{count}} Zeichen",
       "minRead": "{{count}} Min. Lesezeit",
-      "minReadEmpty": "— Min. Lesezeit",
+      "minReadEmpty": "—",
       "saving": "Speichern...",
       "saved": "Gespeichert {{time}}",
       "markdown": "Markdown"
@@ -579,7 +579,7 @@
       "orphanAssets": "Verwaiste Dateien",
       "duplicateTitles": "Doppelte Titel",
       "invalidFrontmatter": "Ungültige Metadaten",
-      "missingCitations": "Fehlende Zitate",
+      "missingCitations": "Unaufgelöste Zitate",
       "indexedNotes": "Indexierte Notizen",
       "vaultWords": "Wörter im Vault",
       "cache": "Cache",

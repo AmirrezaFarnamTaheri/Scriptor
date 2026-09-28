@@ -1,4 +1,6 @@
-import type { InlineParser } from '@lezer/markdown'
+import type { BlockContext, BlockParser, InlineParser, LeafBlock } from '@lezer/markdown'
+
+import { EXTENDED_TASK_CHECKBOX_CLASS_SOURCE } from '@scriptor/core/task'
 
 export interface WikilinkParserConfig {
   format?: 'link|title' | 'title|link'
@@ -97,6 +99,50 @@ export const footnoteParser: InlineParser = {
     if (!match || match.index !== 0) return -1
     return ctx.addElement(ctx.elt('Footnote', pos, pos + match[0].length))
   },
+}
+
+/**
+ * Scriptor's extended task markers (`[/]`, `[-]`, `[>]`).
+ *
+ * GFM's task-list block parser only accepts `[ ]` and `[x]`, so an extended
+ * marker falls through to the default paragraph parser, which reads `[/]` as a
+ * shortcut link reference. The WYSIWYG surface then hides the link's brackets
+ * as link syntax and renders `- / Draft methodology` — the author's own task
+ * syntax silently corrupted. Extending the block parser instead produces the
+ * exact `Task` + `TaskMarker` shape GFM already emits for `[ ]`, so the
+ * markers stay visible and every consumer sees one task syntax.
+ *
+ * The character set comes from the status registry and is shared with
+ * `preprocessExtendedTaskStates` in `@scriptor/renderer`: if the editor and the
+ * exported document disagree about what a task line is, the same note reads
+ * two different ways.
+ */
+const EXTENDED_TASK_MARKER = new RegExp(`^\\[[${EXTENDED_TASK_CHECKBOX_CLASS_SOURCE}]\\][ \t]`)
+
+class ExtendedTaskParser {
+  nextLine() {
+    return false
+  }
+
+  finish(cx: BlockContext, leaf: LeafBlock) {
+    cx.addLeafElement(
+      leaf,
+      cx.elt('Task', leaf.start, leaf.start + leaf.content.length, [
+        cx.elt('TaskMarker', leaf.start, leaf.start + 3),
+        ...cx.parser.parseInline(leaf.content.slice(3), leaf.start + 3),
+      ]),
+    )
+    return true
+  }
+}
+
+export const extendedTaskListParser: BlockParser = {
+  name: 'scriptor-extended-task-list',
+  leaf: (cx, leaf) =>
+    EXTENDED_TASK_MARKER.test(leaf.content) && cx.parentType()?.name === 'ListItem'
+      ? new ExtendedTaskParser()
+      : null,
+  after: 'SetextHeading',
 }
 
 export const footnoteRefParser: import('@lezer/markdown').BlockParser = {

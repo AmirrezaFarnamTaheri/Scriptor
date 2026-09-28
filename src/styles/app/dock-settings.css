@@ -925,7 +925,12 @@
   margin-left: auto;
   min-width: 0;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  /* Never wrap. The repo-state is allowed to clip (the docked-panel contract sets
+     `overflow: hidden`) because wrapping here silently grew the status strip: the
+     vault name dropped onto a second line, so the bottom dock became two lines
+     whenever the row was tight. Space is reclaimed by dropping the whole
+     `.repo-vault` identity group in the responsive and docked-panel rules. */
+  flex-wrap: nowrap;
   color: var(--muted);
   font-size: 13px;
 }

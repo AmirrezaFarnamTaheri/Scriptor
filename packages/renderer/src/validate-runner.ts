@@ -60,6 +60,23 @@ test('unterminated frontmatter remains visible instead of silently hiding conten
   assert.equal(stripFrontmatterPreservingLines(source), source)
 })
 
+test('frontmatter delimiters tolerate whitespace and CRLF without shifting source lines', () => {
+  const source = '---   \r\ntitle: Draft\r\ntags: [audit]\r\n--- \t\r\n# Visible title'
+  const stripped = stripFrontmatterPreservingLines(source)
+  assert.equal(stripped.split('\n').length, source.split('\n').length)
+  assert.doesNotMatch(stripped, /title: Draft|tags: \[audit\]/)
+  assert.match(stripped, /# Visible title$/)
+
+  const html = renderMarkdownPipeline(source)
+  assert.doesNotMatch(html, /title: Draft|tags:|audit/)
+  assert.match(html, /<h1[^>]*data-source-line="5"[^>]*>Visible title<\/h1>/)
+})
+
+test('frontmatter stripping only applies to a document-boundary delimiter', () => {
+  const source = '[@smith2024]---\n# Citation note'
+  assert.equal(stripFrontmatterPreservingLines(source), source)
+})
+
 test('pipeline renders wikilink embed placeholders', () => {
   const html = renderMarkdownPipeline('See ![[Target#Intro]]')
   assert.match(html, /data-wikilink-embed="true"/)
@@ -248,7 +265,7 @@ test('pipeline renders block math with KaTeX', () => {
 test('pipeline promotes mermaid fences to diagram containers', () => {
   const html = renderMarkdownPipeline('```mermaid\ngraph LR\n  A-->B\n```')
   assert.match(html, /class="mermaid"/)
-  assert.match(html, /A-->B/)
+  assert.match(html, /A--&gt;B|A-->B/)
 })
 
 test('scroll sync helpers find anchors by line', () => {

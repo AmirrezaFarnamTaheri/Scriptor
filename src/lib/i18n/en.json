@@ -522,7 +522,7 @@
       "words": "{{count}} words",
       "characters": "{{count}} characters",
       "minRead": "{{count}} min read",
-      "minReadEmpty": "— min read",
+      "minReadEmpty": "—",
       "saving": "Saving...",
       "saved": "Saved {{time}}",
       "markdown": "Markdown"
@@ -579,7 +579,7 @@
       "orphanAssets": "Orphan assets",
       "duplicateTitles": "Duplicate titles",
       "invalidFrontmatter": "Invalid frontmatter",
-      "missingCitations": "Missing citations",
+      "missingCitations": "Unresolved citations",
       "indexedNotes": "Indexed notes",
       "vaultWords": "Vault words",
       "cache": "Cache",

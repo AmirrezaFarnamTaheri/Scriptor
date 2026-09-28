@@ -1,3 +1,4 @@
+import { TASK_CHECKBOX_CLASS_SOURCE } from '@scriptor/core/task'
 import { syntaxTree } from '@codemirror/language'
 import { EditorSelection, type Line } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
@@ -17,7 +18,10 @@ function linesInSelection(view: EditorView, from: number, to: number): Line[] {
 }
 
 export function removeListMarkers(text: string): string {
-  return text.replace(/^([-*+] +\[[ xX]\] )|^([-*+] )|^(\d+\. )/, '')
+  return text.replace(
+    new RegExp(`^([-*+] +\\[[${TASK_CHECKBOX_CLASS_SOURCE}]\\] )|^([-*+] )|^(\\d+\\. )`),
+    '',
+  )
 }
 
 function toggleBlockWithMarks(
@@ -205,7 +209,7 @@ export function toggleBlockquote(view: EditorView): void {
 export function toggleBulletList(view: EditorView): void {
   toggleListStyle(
     view,
-    () => /^([ \t]*[-*+] )(?! *\[[ xX]\]) */,
+    () => new RegExp(`^([ \\t]*[-*+] )(?! *\\[[${TASK_CHECKBOX_CLASS_SOURCE}]\\]\\]) *`),
     (_, suggested) => suggested ?? '-',
   )
 }
@@ -221,10 +225,10 @@ export function toggleOrderedList(view: EditorView): void {
 export function toggleTaskList(view: EditorView): void {
   toggleListStyle(
     view,
-    () => /^([ \t]*[-*+] +\[[ xX]\] +)/,
+    () => new RegExp(`^([ \\t]*[-*+] +\\[[${TASK_CHECKBOX_CLASS_SOURCE}]\\] +)`),
     () => '- [ ]',
     (line) => {
-      if (!/[-*+] +\[ \]/.test(line)) {
+      if (!new RegExp(`[-*+] +\\[ \\]`).test(line)) {
         return undefined
       }
       return line.replace(/([-*+] +\[) (\].*)/, '$1x$2')

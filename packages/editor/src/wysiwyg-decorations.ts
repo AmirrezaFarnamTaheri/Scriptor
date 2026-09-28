@@ -3,6 +3,8 @@ import type { Range } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import type { Extension } from '@codemirror/state'
 
+import { TASK_CHECKBOX_CLASS_SOURCE } from '@scriptor/core/task'
+
 const headingMarks = new Map<number, Decoration>([
   [1, Decoration.mark({ class: 'cm-wysiwyg-heading cm-wysiwyg-heading-1' })],
   [2, Decoration.mark({ class: 'cm-wysiwyg-heading cm-wysiwyg-heading-2' })],
@@ -19,7 +21,10 @@ const inlineCodeMark = Decoration.mark({ class: 'cm-wysiwyg-inline-code' })
 const blockquoteMark = Decoration.mark({ class: 'cm-wysiwyg-blockquote' })
 const taskListMark = Decoration.mark({ class: 'cm-wysiwyg-task' })
 
-const taskLinePattern = /^(\s*[-*+] +\[[ xX]\] )/
+// GFM's `[ ]`/`[x]` plus Scriptor's `[/]`, `[-]`, `[>]` task markers, from the
+// status registry. All of them are authored source that stays visible in the
+// WYSIWYG surface.
+const taskLinePattern = new RegExp(`^(\\s*[-*+] +\\[[${TASK_CHECKBOX_CLASS_SOURCE}]\\] )`)
 
 function buildDecorations(view: EditorView): DecorationSet {
   const ranges: Range<Decoration>[] = []

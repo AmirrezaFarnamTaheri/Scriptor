@@ -400,6 +400,117 @@ test('link reference rules ignore task-list checkboxes', () => {
   assert.equal(generateLinkReferenceDefinitions(markdown), markdown)
 })
 
+test('link reference rules ignore Scriptor extended task markers', () => {
+  // `[/]`, `[-]` and `[>]` are Scriptor's own task syntax, written by
+  // `serializeTask`. Reporting them as missing link references inflated the
+  // workspace "Problems" count on every note that used them.
+  const markdown = [
+    '# Outline',
+    '',
+    '- [/] Draft methodology',
+    '- [-] Cancelled experiment',
+    '- [>] Forwarded request',
+    '2. [/] numbered in-progress',
+    '',
+  ].join('\n')
+  const messages = lintLinkReferences(markdown)
+  assert.deepEqual(messages.filter((message) => message.ruleId === 'foam-missing-reference'), [])
+  assert.equal(generateLinkReferenceDefinitions(markdown), markdown)
+})
+
+test('link reference rules still flag a bracket that only looks like a task marker', () => {
+  const markdown = ['Use the [/] operator in prose, not at a list start.', ''].join('\n')
+  const messages = lintLinkReferences(markdown)
+  assert.equal(messages.filter((message) => message.ruleId === 'foam-missing-reference').length, 1)
+})
+
+test('every task-marker pattern accepts the whole status registry', async () => {
+  // One hard-coded `[ xX]` copy in the word counter meant a `[>]` task counted
+  // its marker as a word, and copies in the list toggles and marker stripper
+  // could not round-trip a task the serialiser writes. Derive them all from
+  // `TASK_CHECKBOX_CLASS_SOURCE` and prove the set covers every status.
+  const { TASK_CHECKBOX_CHARS, EXTENDED_TASK_CHECKBOX_CLASS_SOURCE } =
+    await import('@scriptor/core/task')
+  const { countWords } = await import('./adapter.ts')
+  const { removeListMarkers } = await import('./gfm-commands.ts')
+
+  assert.deepEqual(
+    [...TASK_CHECKBOX_CHARS].sort(),
+    [' ', '-', '/', '>', 'X', 'x'],
+    'the registry set must cover every built-in status plus GFM uppercase X',
+  )
+  for (const char of TASK_CHECKBOX_CHARS) {
+    const line = `- [${char}] Draft methodology`
+    assert.equal(
+      countWords(line),
+      2,
+      `countWords must skip the [${char}] marker instead of counting it as a word`,
+    )
+    assert.equal(
+      removeListMarkers(line),
+      'Draft methodology',
+      `removeListMarkers must strip a [${char}] marker`,
+    )
+  }
+  // The two parsers that must agree on Scriptor's *extra* markers share the
+  // registry-derived set, so they cannot drift apart. GFM's own markers are
+  // excluded from it: a consumer must not claim `[ ]` and `[x]` twice.
+  assert.equal(EXTENDED_TASK_CHECKBOX_CLASS_SOURCE, '/\\->')
+  const extended = new RegExp(`[${EXTENDED_TASK_CHECKBOX_CLASS_SOURCE}]`)
+  for (const char of ['/', '-', '>']) assert.ok(extended.test(char), `${char} must be an extended marker`)
+  for (const char of [' ', 'x', 'X']) {
+    assert.equal(extended.test(char), false, `GFM marker ${char} must stay with GFM`)
+  }
+})
+
+import { GFM, parser as commonmark, type MarkdownConfig } from '@lezer/markdown'
+
+import { SCRIPTOR_DEFINED_NODES, scriptorBlockParsers, scriptorInlineParsers } from './markdown/scriptor-parse-config.ts'
+
+/** Parse with the same extensions `scriptorMarkdownExtension` installs. */
+function parseWithScriptorExtensions(markdown: string) {
+  const config: MarkdownConfig = {
+    defineNodes: SCRIPTOR_DEFINED_NODES.map((node) => ({ name: node.name })),
+    parseInline: scriptorInlineParsers(),
+    parseBlock: scriptorBlockParsers(),
+  }
+  return commonmark.configure([GFM, config]).parse(markdown)
+}
+
+function nodeNames(tree: ReturnType<typeof parseWithScriptorExtensions>): string[] {
+  const names: string[] = []
+  const cursor = tree.cursor()
+  do {
+    if (cursor.name) names.push(cursor.name)
+  } while (cursor.next())
+  return names
+}
+
+test('extended task markers parse as a GFM task, not as a link reference', () => {
+  // Without this, `[/]` falls through to the paragraph parser as a shortcut
+  // `Link`, and the WYSIWYG surface hides its brackets as link syntax —
+  // rendering `- / Draft methodology` instead of the authored `- [/] …`.
+  for (const marker of ['[/]', '[-]', '[>]']) {
+    const names = nodeNames(parseWithScriptorExtensions(`- ${marker} item\n`))
+    assert.ok(names.includes('Task'), `${marker} should produce a Task node: ${names.join(',')}`)
+    assert.ok(names.includes('TaskMarker'), `${marker} should produce a TaskMarker node`)
+    assert.equal(names.includes('Link'), false, `${marker} must not parse as a Link`)
+  }
+})
+
+test('GFM task markers keep their own parser', () => {
+  for (const marker of ['[ ]', '[x]']) {
+    const names = nodeNames(parseWithScriptorExtensions(`- ${marker} item\n`))
+    assert.ok(names.includes('Task'), `${marker} should produce a Task node`)
+  }
+})
+
+test('a bracketed reference outside a list item still parses as a link', () => {
+  const names = nodeNames(parseWithScriptorExtensions('Compare [/] and [-] markers in prose.\n'))
+  assert.equal(names.includes('Task'), false)
+  assert.ok(names.includes('Link'), `expected Link in ${names.join(',')}`)
+})
+
 test('link reference rules skip fenced code regions', () => {
   const markdown = ['Text', '', '```', 'array[index] and [not-a-ref]', '```', ''].join('\n')
   const messages = lintLinkReferences(markdown)

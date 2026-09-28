@@ -100,6 +100,47 @@ interface GraphPanelProps {
 const DEFAULT_VIEW_WIDTH = 720
 const DEFAULT_VIEW_HEIGHT = 420
 
+/**
+ * Perpendicular offset applied to each direction of a reciprocal pair so `A → B`
+ * and `B → A` read as two edges rather than one.
+ *
+ * Every edge is drawn, but the offset was applied along each edge's *own*
+ * perpendicular: reversing an edge reverses that perpendicular too, so the sign
+ * change meant to push the two directions apart cancelled out and the pair stayed
+ * collinear — a 4-edge graph read as 2 lines. `reciprocalOffsetFor` derives the
+ * normal from a pair-canonical direction instead, which is what actually
+ * separates them.
+ *
+ * The value has to clear the arrowhead. The `graph-arrow` marker declares
+ * `markerWidth="7"` in `strokeWidth` units, so against the edge's 1.5 stroke it
+ * is really 10.5 units wide; 12 clears that. The canvas renderer's arrow is a
+ * flat `ARROW_SIZE`, so one constant serves both.
+ */
+const RECIPROCAL_EDGE_OFFSET = 12
+
+/**
+ * The perpendicular offset for one direction of a reciprocal pair.
+ *
+ * The normal is taken from the pair in a fixed order, so both directions share
+ * it; the sign then genuinely puts them on opposite sides. `ux`/`uy` stay the
+ * edge's own direction, because the arrow still has to point at the target.
+ */
+function reciprocalOffsetFor(
+  sourceId: string,
+  targetId: string,
+  source: { x: number; y: number },
+  target: { x: number; y: number },
+  reciprocal: boolean,
+): { nx: number; ny: number } {
+  if (!reciprocal) return { nx: 0, ny: 0 }
+  const sourceFirst = sourceId < targetId
+  const cdx = sourceFirst ? target.x - source.x : source.x - target.x
+  const cdy = sourceFirst ? target.y - source.y : source.y - target.y
+  const distance = Math.hypot(cdx, cdy) || 1
+  const sign = sourceFirst ? 1 : -1
+  return { nx: (-cdy / distance) * RECIPROCAL_EDGE_OFFSET * sign, ny: (cdx / distance) * RECIPROCAL_EDGE_OFFSET * sign }
+}
+
 export const GraphPanel = memo(function GraphPanel({
   graph,
   focusPath,
@@ -518,15 +559,13 @@ export const GraphPanel = memo(function GraphPanel({
             const distance = Math.hypot(dx, dy) || 1
             const ux = dx / distance
             const uy = dy / distance
-            const nx = -uy
-            const ny = ux
             const reciprocal = (reciprocalPairs.get(graphPairKey(edge.source, edge.target))?.size ?? 0) > 1
-            const offset = reciprocal ? (edge.source < edge.target ? 5 : -5) : 0
+            const { nx, ny } = reciprocalOffsetFor(edge.source, edge.target, source, target, reciprocal)
             const targetRadius = target.path === focusPath ? 20 : 16
-            const startX = source.x + nx * offset
-            const startY = source.y + ny * offset
-            const endX = target.x + nx * offset - ux * targetRadius
-            const endY = target.y + ny * offset - uy * targetRadius
+            const startX = source.x + nx
+            const startY = source.y + ny
+            const endX = target.x + nx - ux * targetRadius
+            const endY = target.y + ny - uy * targetRadius
             return (
               <line
                 key={edge.id}
@@ -534,6 +573,13 @@ export const GraphPanel = memo(function GraphPanel({
                 y1={startY}
                 x2={endX}
                 y2={endY}
+                // Which pair an edge belongs to is not otherwise recoverable from
+                // the DOM, so geometry-based checks could not tell a reciprocal
+                // pair from two unrelated edges the layout happened to place
+                // collinear. These are also what a reader needs to understand the
+                // drawing without seeing the layout.
+                data-edge-source={edge.source}
+                data-edge-target={edge.target}
                 className={edge.kind === 'wikilink' ? 'graph-edge wikilink' : 'graph-edge'}
                 markerEnd={edge.kind === 'wikilink' ? 'url(#graph-arrow-wikilink)' : 'url(#graph-arrow)'}
                 opacity={hoveredId && hoveredId !== edge.source && hoveredId !== edge.target ? 0.25 : 0.9}
@@ -569,7 +615,7 @@ export const GraphPanel = memo(function GraphPanel({
                   <circle r={22} fill="none" className="graph-node-focus-ring" />
                 )}
                 <circle r={isFocus || isHovered ? 18 : 14} fill={fillColor} />
-                <text y={28} textAnchor="middle">
+                <text y={28} textAnchor="middle" className="graph-node-label">
                   {node.label.length > 18 ? `${node.label.slice(0, 17)}...` : node.label}
                 </text>
               </g>

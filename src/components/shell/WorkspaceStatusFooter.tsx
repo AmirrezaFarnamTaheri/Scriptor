@@ -6,6 +6,7 @@ import { StatusDockPanel, type StatusDockTab } from '../StatusDockPanel'
 import { SubsystemToggles } from './SubsystemToggles'
 import { usePersistedBoolean } from '../../hooks/usePersistedBoolean'
 import { useI18n } from '../../lib/i18n'
+import { cacheStatusLabel } from '../../lib/vaultHealth'
 import type { ClientDiagnosticEvent } from '../../hooks/useDiagnosticsSettings'
 import type { ActivityEntry } from '../../hooks/useActivityLog'
 import type { EditorLintMessage } from '@scriptor/editor'
@@ -118,13 +119,9 @@ function WorkspaceStatusFooterImpl({
     true,
   )
   const { t } = useI18n()
-  const cacheStatusLabel = !health
+  const cacheStatusText = !health
     ? t('statusDock.noVaultOpen')
-    : health.cache_status === 'fresh'
-      ? t('inspector.health.cacheFresh')
-      : health.cache_status === 'stale'
-        ? t('inspector.health.cacheStale')
-        : t('inspector.health.cacheRebuilding')
+    : cacheStatusLabel(t, health.cache_status)
   const previousDockTab = useRef(statusDockTab)
 
   useEffect(() => {
@@ -231,19 +228,22 @@ function WorkspaceStatusFooterImpl({
         )}
 
         <div className="repo-state">
-          <label
-            className="diagnostics-opt-in"
+          {/* Sits in the same row as the subsystem pills below, which are
+              `subsystem-toggle-badge` buttons with a coloured status dot. This
+              opt-in is a toggle of exactly the same kind, so it is a button with
+              the same tokenised treatment rather than a bare checkbox sitting
+              among them. */}
+          <button
+            type="button"
+            className={`subsystem-toggle-badge ${diagnosticsOptIn ? 'active' : 'hibernated'}`}
+            onClick={() => onDiagnosticsOptInChange(!diagnosticsOptIn)}
+            aria-pressed={diagnosticsOptIn}
+            aria-label={t('statusDock.diagnosticsOptInAria')}
             title={t('statusDock.diagnosticsTitle')}
           >
-            <input
-              type="checkbox"
-              checked={diagnosticsOptIn}
-              onChange={(event) => onDiagnosticsOptInChange(event.target.checked)}
-              aria-label={t('statusDock.diagnosticsOptInAria')}
-            />
-            <span>{t('statusDock.diagnostics')}</span>
-          </label>
-          <span>{cacheStatusLabel}</span>
+            {t('statusDock.diagnostics')}
+          </button>
+          <span>{cacheStatusText}</span>
           {diagnosticsOptIn && timeToFirstEditMs != null ? <span title="Time to first edit this session">TTFE {timeToFirstEditMs < 1000 ? `${timeToFirstEditMs}ms` : `${(timeToFirstEditMs / 1000).toFixed(1)}s`}</span> : null}
           {diagnosticsOptIn && timeToFirstExportMs != null ? <span title="Time to first export this session">TTFX {(timeToFirstExportMs / 1000).toFixed(1)}s</span> : null}
           <SubsystemToggles
@@ -258,9 +258,14 @@ function WorkspaceStatusFooterImpl({
             spellcheck={hibernateSpellcheck}
             onSpellcheckChange={onHibernateSpellcheckChange}
           />
-          <GitBranch />
-          <span>{vault?.name ?? t('statusDock.unopened')}</span>
-          <CheckCircle2 />
+          {/* Grouped so the whole identity block — branch glyph, vault name, and
+              the vault-healthy check — can be dropped as one unit when the strip
+              is short on width. The sidebar header already names the vault. */}
+          <span className="repo-vault">
+            <GitBranch />
+            <span>{vault?.name ?? t('statusDock.unopened')}</span>
+            <CheckCircle2 />
+          </span>
         </div>
           </>
         ) : (

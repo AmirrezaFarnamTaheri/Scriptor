@@ -22,6 +22,21 @@ import {
 } from '../../lib/monaco-completions'
 import { monacoThemeForEditor, registerScriptorMonacoThemes } from '../../lib/monaco-themes'
 
+/**
+ * Monaco's bracket-pair colorizer reads its settings from the *text model*,
+ * not from the editor options, and `monaco.editor.createModel` starts from the
+ * defaults — so the matching `bracketPairColorization` editor option alone has
+ * no effect on a model this app creates. Left enabled, the colorizer flagged
+ * the closing `]]` of every `[[wikilink]]` as an "unexpected closing bracket"
+ * and painted it red. Markdown has no bracket-delimited syntax, so every
+ * bracket in a note is prose and the colorizer is pure noise.
+ */
+function disableBracketPairColorization(model: MonacoEditor.ITextModel) {
+  model.updateOptions({
+    bracketColorizationOptions: { enabled: false, independentColorPoolPerBracketType: false },
+  })
+}
+
 export interface MonacoMarkdownEditorProps {
   notePath: string
   value: string
@@ -132,11 +147,13 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       const existing = monaco.editor.getModel(uri)
       if (existing && existing === modelRef.current) {
         editor.setModel(existing)
+        disableBracketPairColorization(existing)
         return
       }
       existing?.dispose()
 
       const model = monaco.editor.createModel(latest.current, 'markdown', uri)
+      disableBracketPairColorization(model)
       lastSyncedValueRef.current = model.getValue()
       modelRef.current?.dispose()
       modelRef.current = model
@@ -553,6 +570,7 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       lastSyncedValueRef.current = model.getValue()
       modelRef.current = model
       editor.setModel(model)
+      disableBracketPairColorization(model)
 
       editor.onDidChangeCursorPosition((event) => {
         onVisibleLineChangeRef.current?.(event.position.lineNumber)
@@ -615,6 +633,12 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
             fontSize: editorFontSize,
             scrollBeyondLastLine: false,
             quickSuggestions: { strings: true },
+            // Markdown has no bracket-delimited syntax, so Monaco's pair
+            // colorizer has nothing meaningful to match — and it flags the
+            // closing `]]` of every `[[wikilink]]` (and `[@cite]`, `[ ]`) as an
+            // "unexpected closing bracket", painting it red. Every bracket in
+            // a note is prose, so the noise outweighs the feature.
+            bracketPairColorization: { enabled: false },
           }}
           onChange={(next) => {
             const nextValue = next ?? ''

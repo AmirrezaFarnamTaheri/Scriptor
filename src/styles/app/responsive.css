@@ -13,16 +13,28 @@
 @media (max-width: 1320px) {
   /* The workspace grid squeezes its side rails dynamically below this width
      (see `.workspace-grid` in foundation.css), so the inspector stays a
-     docked right rail instead of stacking onto the editor. Only the status
-     summary needs narrower-column tweaks here. */
+     docked right rail instead of stacking onto the editor.
+
+     The status strip still has to be one row. It used to force `.repo-state`
+     onto its own full-width row here; at tablet widths that row no longer fit
+     beside the summary either, so the strip grew to three lines and ate the
+     vertical space the editor needs. The progress track shrinks to absorb the
+     squeeze instead, and the vault identity is dropped — the sidebar header
+     already names the vault, and it is the widest single item here. */
   .status-summary {
-    grid-template-columns: auto minmax(240px, 1fr);
+    grid-template-columns: auto auto minmax(120px, 1fr) minmax(0, auto);
   }
 
   .status-summary .repo-state {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    margin-left: 0;
+    grid-column: auto;
+    justify-content: flex-end;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .status-summary .repo-vault {
+    display: none;
   }
 }
 

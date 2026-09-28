@@ -6,6 +6,8 @@
  * and a highlighted wikilink such as [[[[Methodology]]]] without mutating the
  * indexed source text.
  */
+import { TASK_CHECKBOX_CLASS_SOURCE } from '@scriptor/core/task'
+
 export function formatSearchSnippet(snippet: string): string {
   let value = snippet
   const wikilink = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
@@ -20,7 +22,9 @@ export function formatSearchSnippet(snippet: string): string {
     // double brackets are marker debris rather than useful presentation.
     .replace(/\[\[|\]\]/g, '')
     .replace(/(^|\s)#{1,6}\s+/g, '$1')
-    .replace(/(^|\s)[*-]\s+\[[ xX]\]\s+/g, '$1')
+    // Strip the task marker with the same character set the editor parses, so
+    // a snippet of `- [/] Draft methodology` does not show the raw `[/]`.
+    .replace(new RegExp(`(^|\\s)[*-]\\s+\\[[${TASK_CHECKBOX_CLASS_SOURCE}]\\]\\s+`, 'g'), '$1')
     .replace(/\s+/g, ' ')
     .trim()
 }

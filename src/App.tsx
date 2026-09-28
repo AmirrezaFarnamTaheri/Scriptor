@@ -91,6 +91,7 @@ import {
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
 import { useI18n } from './lib/i18n'
+import { cacheStatusLabel } from './lib/vaultHealth'
 import { useStoreSurfaceController } from './hooks/useStoreSurfaceController'
 import { CapabilityWorkflowOverlays } from './components/app/CapabilityWorkflowOverlays'
 import { usePluginCommandRuntime } from './hooks/usePluginCommandRuntime'
@@ -1007,11 +1008,7 @@ function App() {
   const healthMetrics = useMemo(() => {
     const cacheStatus = !workspace.health
       ? '—'
-      : workspace.health.cache_status === 'fresh'
-        ? t('inspector.health.cacheFresh')
-        : workspace.health.cache_status === 'stale'
-          ? t('inspector.health.cacheStale')
-          : t('inspector.health.cacheRebuilding')
+      : cacheStatusLabel(t, workspace.health.cache_status)
     return [
       [t('inspector.health.brokenLinks'), String(workspace.health?.broken_links ?? 0)],
       [t('inspector.health.orphanAssets'), String(workspace.health?.orphan_assets ?? 0)],

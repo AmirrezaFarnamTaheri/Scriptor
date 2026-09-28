@@ -232,3 +232,38 @@
   overflow-x: auto;
 }
 
+/* A diagram that could not be parsed. It reads as a note with a reason and the
+   author's source, rather than a broken glyph or body text that looks authored. */
+.markdown-preview .mermaid-render-failure {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklch, var(--color-status-warning, #f59e0b) 40%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--color-status-warning, #f59e0b) 8%, var(--surface-2));
+  overflow-x: visible;
+}
+
+.markdown-preview .mermaid-failure-title {
+  font-size: 12px;
+  color: var(--ink-strong);
+}
+
+.markdown-preview .mermaid-failure-reason {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.markdown-preview .mermaid-failure-source {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+

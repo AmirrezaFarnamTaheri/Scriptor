@@ -126,6 +126,17 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
 }: EditorFormatToolbarProps) {
   const { t } = useI18n()
 
+  /**
+   * Whether a control that rewrites the document can do anything.
+   *
+   * It needs an open note *and* an editable surface. In `rendered` mode there is
+   * no text cursor behind the toolbar, so the formatting controls were enabled but
+   * inert — the same "looks live, does nothing" problem the no-note state already
+   * had. View-mode and editor-setting controls are deliberately excluded: they do
+   * not rewrite the document and stay available either way.
+   */
+  const canTransform = Boolean(activePath) && editorSurfaceMode !== 'rendered'
+
   const extras = useMemo(() => toolbarExtras ?? [
     ...INSERT_TOOLS.map((item) => ({
       id: `extra:insert:${item.id}`,
@@ -133,7 +144,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
       node: (
         <button
           type="button"
-          disabled={!activePath}
+          disabled={!canTransform}
           title={item.label}
           aria-label={item.label}
           onClick={() => handleInsertSnippet(item.content)}
@@ -150,7 +161,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
         node: (
           <button
             type="button"
-            disabled={!activePath}
+            disabled={!canTransform}
             title={label}
             aria-label={label}
             onClick={() => handleApplyEditorTypography(action as TypographyAction)}
@@ -160,7 +171,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
         ),
       }
     }),
-  ], [activePath, handleApplyEditorTypography, handleInsertSnippet, t, toolbarExtras])
+  ], [canTransform, handleApplyEditorTypography, handleInsertSnippet, t, toolbarExtras])
 
   return (
     <div className="editor-toolbar-wrapper">
@@ -186,54 +197,54 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
         </div>
         <CustomizableToolbar extras={extras}>
         <div className="format-group" aria-label={t('editor.toolbar.structure')}>
-          <button key="heading-1" type="button" disabled={!activePath} title={t('editor.transforms.heading1')} aria-label={t('editor.transforms.heading1')} onClick={() => handleApplyEditorTransform('h1')}>
+          <button key="heading-1" type="button" disabled={!canTransform} title={t('editor.transforms.heading1')} aria-label={t('editor.transforms.heading1')} onClick={() => handleApplyEditorTransform('h1')}>
             <Heading1 />
           </button>
-          <button key="heading-2" type="button" disabled={!activePath} title={t('editor.transforms.heading2')} aria-label={t('editor.transforms.heading2')} onClick={() => handleApplyEditorTransform('h2')}>
+          <button key="heading-2" type="button" disabled={!canTransform} title={t('editor.transforms.heading2')} aria-label={t('editor.transforms.heading2')} onClick={() => handleApplyEditorTransform('h2')}>
             <Heading2 />
           </button>
-          <button key="heading-3" type="button" disabled={!activePath} title={t('editor.transforms.heading3')} aria-label={t('editor.transforms.heading3')} onClick={() => handleApplyEditorTransform('h3')}>
+          <button key="heading-3" type="button" disabled={!canTransform} title={t('editor.transforms.heading3')} aria-label={t('editor.transforms.heading3')} onClick={() => handleApplyEditorTransform('h3')}>
             <Heading3 />
           </button>
-          <button key="outline" type="button" disabled={!activePath} title={t('editor.transforms.toc')} aria-label={t('editor.transforms.toc')} onClick={onToggleToc}>
+          <button key="outline" type="button" disabled={!canTransform} title={t('editor.transforms.toc')} aria-label={t('editor.transforms.toc')} onClick={onToggleToc}>
             <ListTree />
           </button>
-          <button key="frontmatter" type="button" disabled={!activePath} title={t('editor.transforms.frontmatter')} aria-label={t('editor.transforms.frontmatter')} onClick={onOpenFrontmatter}>
+          <button key="frontmatter" type="button" disabled={!canTransform} title={t('editor.transforms.frontmatter')} aria-label={t('editor.transforms.frontmatter')} onClick={onOpenFrontmatter}>
             <FileBox />
           </button>
-          <button key="move-section-up" type="button" disabled={!activePath} title={t('editor.transforms.moveSectionUp')} aria-label={t('editor.transforms.moveSectionUp')} onClick={() => handleApplyEditorTransform('move-section-up')}>
+          <button key="move-section-up" type="button" disabled={!canTransform} title={t('editor.transforms.moveSectionUp')} aria-label={t('editor.transforms.moveSectionUp')} onClick={() => handleApplyEditorTransform('move-section-up')}>
             <ArrowUpToLine />
           </button>
-          <button key="move-section-down" type="button" disabled={!activePath} title={t('editor.transforms.moveSectionDown')} aria-label={t('editor.transforms.moveSectionDown')} onClick={() => handleApplyEditorTransform('move-section-down')}>
+          <button key="move-section-down" type="button" disabled={!canTransform} title={t('editor.transforms.moveSectionDown')} aria-label={t('editor.transforms.moveSectionDown')} onClick={() => handleApplyEditorTransform('move-section-down')}>
             <ArrowDownToLine />
           </button>
         </div>
 
         <div className="format-group" aria-label={t('editor.toolbar.styleAndInsert')}>
-          <button key="bold" type="button" disabled={!activePath} title={t('editor.transforms.bold')} aria-label={t('editor.transforms.bold')} onClick={() => handleApplyEditorTransform('bold')}>
+          <button key="bold" type="button" disabled={!canTransform} title={t('editor.transforms.bold')} aria-label={t('editor.transforms.bold')} onClick={() => handleApplyEditorTransform('bold')}>
             <Bold />
           </button>
-          <button key="italic" type="button" disabled={!activePath} title={t('editor.transforms.italic')} aria-label={t('editor.transforms.italic')} onClick={() => handleApplyEditorTransform('italic')}>
+          <button key="italic" type="button" disabled={!canTransform} title={t('editor.transforms.italic')} aria-label={t('editor.transforms.italic')} onClick={() => handleApplyEditorTransform('italic')}>
             <Italic />
           </button>
-          <button key="link" type="button" disabled={!activePath} title={t('editor.transforms.link')} aria-label={t('editor.transforms.link')} onClick={() => handleApplyEditorTransform('link')}>
+          <button key="link" type="button" disabled={!canTransform} title={t('editor.transforms.link')} aria-label={t('editor.transforms.link')} onClick={() => handleApplyEditorTransform('link')}>
             <Link />
           </button>
-          <TypographyMenu key="typography" disabled={!activePath} onSelect={handleApplyEditorTypography} />
-          <button key="table" type="button" disabled={!activePath} title={t('editor.transforms.insertTable')} aria-label={t('editor.transforms.insertTable')} onClick={() => handleApplyEditorTransform('table')}>
+          <TypographyMenu key="typography" disabled={!canTransform} onSelect={handleApplyEditorTypography} />
+          <button key="table" type="button" disabled={!canTransform} title={t('editor.transforms.insertTable')} aria-label={t('editor.transforms.insertTable')} onClick={() => handleApplyEditorTransform('table')}>
             <Table />
           </button>
-          <button key="table-add-row" type="button" disabled={!activePath} title={t('editor.transforms.addRow')} aria-label={t('editor.transforms.addRow')} onClick={() => handleApplyEditorTransform('table-add-row')}>
+          <button key="table-add-row" type="button" disabled={!canTransform} title={t('editor.transforms.addRow')} aria-label={t('editor.transforms.addRow')} onClick={() => handleApplyEditorTransform('table-add-row')}>
             <Rows />
           </button>
-          <button key="table-add-column" type="button" disabled={!activePath} title={t('editor.transforms.addColumn')} aria-label={t('editor.transforms.addColumn')} onClick={() => handleApplyEditorTransform('table-add-col')}>
+          <button key="table-add-column" type="button" disabled={!canTransform} title={t('editor.transforms.addColumn')} aria-label={t('editor.transforms.addColumn')} onClick={() => handleApplyEditorTransform('table-add-col')}>
             <Columns />
           </button>
-          <InsertMenu key="insert" disabled={!activePath} onInsert={handleInsertSnippet} />
+          <InsertMenu key="insert" disabled={!canTransform} onInsert={handleInsertSnippet} />
         </div>
 
         <div className="format-group" aria-label={t('editor.toolbar.reviewAndCapture')}>
-          <button key="organize-note" type="button" disabled={!activePath} title={t('editor.transforms.markOrganized')} aria-label={t('editor.transforms.markOrganized')} onClick={onOrganizeActive}>
+          <button key="organize-note" type="button" disabled={!canTransform} title={t('editor.transforms.markOrganized')} aria-label={t('editor.transforms.markOrganized')} onClick={onOrganizeActive}>
             <CheckCircle2 />
           </button>
           <button key="writing-targets" type="button" title={t('editor.transforms.writingTargets')} aria-label={t('editor.transforms.writingTargets')} onClick={onOpenWritingTargets}>
@@ -375,7 +386,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
           >
             <PanelRight />
           </button>
-          <button key="horizontal-rule" type="button" disabled={!activePath} title={t('editor.insertRule')} aria-label={t('editor.insertRule')} onClick={() => insertSnippet('\n---\n')}>
+          <button key="horizontal-rule" type="button" disabled={!canTransform} title={t('editor.insertRule')} aria-label={t('editor.insertRule')} onClick={() => insertSnippet('\n---\n')}>
             <MoreHorizontal />
           </button>
         </div>

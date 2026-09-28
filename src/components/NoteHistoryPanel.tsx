@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { Clock, RotateCcw } from 'lucide-react'
 
 import {
@@ -8,6 +8,7 @@ import {
   vaultRestoreNoteHistoryRevision,
 } from '../bridge/commands'
 import { MutationConfirmation } from './chrome/MutationConfirmation'
+import { diffLines } from '../lib/lineDiff'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 
 export interface NoteHistoryRevision {
@@ -70,6 +71,8 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
   const [currentError, setCurrentError] = useState<CurrentErrorState | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState(false)
+  // The raw panes stay available; the diff is an additional reading aid.
+  const [showDiff, setShowDiff] = useState(true)
 
   useEffect(() => {
     if (!path) return
@@ -149,6 +152,14 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
     selectedId && previewReady && currentReady && !previewErrorMessage && !currentErrorMessage,
   )
 
+  // The diff needs both sides in hand. It is derived from the two texts already
+  // loaded here, so no extra revision metadata is requested or invented.
+  const diffReady = previewReady && currentReady
+  const diff = useMemo(
+    () => (diffReady ? diffLines(currentMarkdown, preview) : { lines: [], added: 0, removed: 0, truncated: false }),
+    [diffReady, currentMarkdown, preview],
+  )
+
   const restore = async () => {
     if (!path || !selectedId || !canRestore) return
     setBusy(true)
@@ -208,6 +219,23 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
                 <strong>Compare before restoring</strong>
                 <span>{selectedRevision ? formatRevisionDate(selectedRevision.saved_at) : 'Select a revision'}</span>
               </div>
+              {/* The two raw panes are always rendered below; this only adds or
+                  removes the line-by-line view, so the raw Markdown stays available
+                  either way. */}
+              <button
+                type="button"
+                className="toolbar-button"
+                aria-pressed={showDiff}
+                disabled={!diffReady}
+                onClick={() => setShowDiff((value) => !value)}
+                title={
+                  showDiff
+                    ? 'Hide the line-by-line changes'
+                    : 'Show what changed between this revision and the current note'
+                }
+              >
+                {showDiff ? 'Hide changes' : 'Show changes'}
+              </button>
               <button
                 type="button"
                 className="toolbar-button note-history-restore"
@@ -240,6 +268,40 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
               </p>
             ) : null}
             <div className="note-history-compare" aria-label="Current note and selected revision comparison">
+              {showDiff && diffReady ? (
+                <section className="note-history-diff-section" aria-labelledby="note-history-diff-heading">
+                  <h3 id="note-history-diff-heading">Changes</h3>
+                  {/* The counts are the accessible summary. The per-line marks
+                      below are decoration, so the list is hidden from assistive
+                      technology to avoid reading the note out twice. */}
+                  <p className="note-history-diff-summary">
+                    <span className="note-history-diff-added">+{diff.added}</span>
+                    <span className="note-history-diff-removed">−{diff.removed}</span>
+                    <span>
+                      {diff.added === 0 && diff.removed === 0
+                        ? 'No line differences'
+                        : `${diff.added} added, ${diff.removed} removed`}
+                    </span>
+                  </p>
+                  {diff.truncated ? (
+                    <p className="settings-status warn" role="status">
+                      This note is too large to show a line-by-line comparison. Use the
+                      two panes below to read both versions.
+                    </p>
+                  ) : (
+                    <ol className="note-history-diff" aria-hidden="true">
+                      {diff.lines.map((line, index) => (
+                        <li key={`${line.kind}-${index}`} className={`note-history-diff-line is-${line.kind}`}>
+                          <span className="note-history-diff-marker" aria-hidden="true">
+                            {line.kind === 'add' ? '+' : line.kind === 'remove' ? '−' : ' '}
+                          </span>
+                          <span className="note-history-diff-text">{line.text || ' '}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </section>
+              ) : null}
               <section aria-labelledby="note-history-current-heading">
                 <h3 id="note-history-current-heading">Current note</h3>
                 <pre className="note-history-markdown note-history-current-markdown">

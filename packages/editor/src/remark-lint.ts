@@ -1,3 +1,5 @@
+import { isTaskCheckboxChar } from '@scriptor/core/task'
+
 export interface EditorLintMessage {
   line: number
   column: number
@@ -127,10 +129,15 @@ function lineNumberAt(lineOffsets: number[], index: number): number {
   return low + 1
 }
 
-/** `- [x]` / `- [ ]` style task-list checkboxes are not link references. */
+/**
+ * `- [x]` / `- [ ]` / `- [/]` style task-list checkboxes are not link
+ * references. The accepted characters come from the task status registry, so
+ * the lint can never drift from the parser or the serialiser — Scriptor's own
+ * `[/]` marker used to be reported here as a missing reference.
+ */
 function isTaskListCheckbox(markdown: string, match: RegExpExecArray): boolean {
   const label = match[1]!
-  if (!/^[xX ]$/.test(label)) return false
+  if (!isTaskCheckboxChar(label)) return false
   const lineStart = markdown.lastIndexOf('\n', match.index - 1) + 1
   const prefix = markdown.slice(lineStart, match.index)
   return /^\s*(?:[-*+]|\d+[.)])\s+$/.test(prefix)

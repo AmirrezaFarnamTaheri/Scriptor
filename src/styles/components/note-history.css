@@ -112,6 +112,81 @@
   gap: 6px;
 }
 
+/* The line-by-line view reads across both versions at once, so it spans the
+   full width above the two raw panes rather than taking a third column. */
+.note-history-compare > .note-history-diff-section {
+  grid-column: 1 / -1;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.note-history-diff-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.note-history-diff-added {
+  font-weight: 700;
+  color: var(--success);
+}
+
+.note-history-diff-removed {
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.note-history-diff {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.note-history-diff-line {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 4px;
+  padding: 0 10px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-history-diff-marker {
+  text-align: center;
+  color: var(--muted);
+  user-select: none;
+}
+
+/* Additions and removals are marked by colour *and* a leading +/− glyph, so the
+   distinction does not depend on colour alone. */
+.note-history-diff-line.is-add {
+  background: color-mix(in oklch, var(--success) 14%, transparent);
+}
+
+.note-history-diff-line.is-add .note-history-diff-marker {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.note-history-diff-line.is-remove {
+  background: color-mix(in oklch, var(--danger) 12%, transparent);
+}
+
+.note-history-diff-line.is-remove .note-history-diff-marker {
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .note-history-compare h3 {
   margin: 0;
   font-size: 11px;
