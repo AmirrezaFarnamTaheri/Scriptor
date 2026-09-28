@@ -257,7 +257,6 @@
     "authorizationHeading": "Vault authorization",
     "authorizationScope": "This state is scoped to the active vault, not to Scriptor globally.",
     "authorizationLevelAria": "MCP authorization level",
-    "currentMode": "Current: {{mode}}",
     "modeOff": "Off",
     "modeOffDescription": "No MCP tool can access the active vault.",
     "modeReadOnly": "Read only",

@@ -257,7 +257,6 @@
     "authorizationHeading": "Tresor-Autorisierung",
     "authorizationScope": "Dieser Zustand gilt für den aktiven Tresor, nicht global für Scriptor.",
     "authorizationLevelAria": "MCP-Autorisierungsstufe",
-    "currentMode": "Aktuell: {{mode}}",
     "modeOff": "Aus",
     "modeOffDescription": "Kein MCP-Werkzeug kann auf den aktiven Tresor zugreifen.",
     "modeReadOnly": "Nur lesen",
