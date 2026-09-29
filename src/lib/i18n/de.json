@@ -699,7 +699,6 @@
     "individualApproval": "Einzelne Plugins können weiterhin eine Tresor-Zugriffsfreigabe benötigen.",
     "installedCount": "Installiert ({{count}})",
     "disableSafeModeBeforeEnable": "Deaktivieren Sie den abgesicherten Modus, bevor Sie Plugins aktivieren",
-    "reviewBeforeEnable": "Erforderliche Berechtigungen vor dem Aktivieren prüfen",
     "enabled": "Aktiviert",
     "enable": "Aktivieren",
     "permissionsAria": "Berechtigungen für {{plugin}}",

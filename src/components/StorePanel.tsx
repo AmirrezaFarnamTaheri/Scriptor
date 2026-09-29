@@ -522,23 +522,32 @@ function PluginsTab({
                       {consented ? (
                         <Lock size={12} className="store-icon-50" />
                       ) : null}
-                      <button
-                        type="button"
-                        onClick={() => onTogglePlugin(plugin.manifest.id, !plugin.enabled)}
-                        disabled={safeMode || (!plugin.enabled && !consented)}
-                        aria-pressed={plugin.enabled}
-                        aria-describedby={consented ? undefined : consentHintId}
-                        title={
-                          safeMode
-                            ? t('store.disableSafeModeBeforeEnable')
-                            : !plugin.enabled && !consented
-                              ? t('store.reviewBeforeEnable')
-                              : undefined
-                        }
-                        className={`store-plugin-toggle${plugin.enabled ? ' enabled' : ''}`}
-                      >
-                        {plugin.enabled ? t('store.enabled') : t('store.enable')}
-                      </button>
+                      {/*
+                        Omitted entirely while the plugin is neither enabled nor
+                        consented. In that state the toggle is permanently disabled —
+                        `PluginRegistry.setEnabled` refuses a plugin whose required
+                        permissions were not granted for the active vault — so it sat
+                        permanently inert directly above the "Review required access"
+                        button that is the only way to change the state. The review
+                        path below is what enables the plugin, and the consent hint
+                        explains why. Kept whenever it can act: to turn the plugin off,
+                        or to turn it on once consent exists.
+                      */}
+                      {!consented && !plugin.enabled ? null : (
+                        <button
+                          type="button"
+                          onClick={() => onTogglePlugin(plugin.manifest.id, !plugin.enabled)}
+                          disabled={safeMode}
+                          aria-pressed={plugin.enabled}
+                          aria-describedby={consented ? undefined : consentHintId}
+                          title={
+                            safeMode ? t('store.disableSafeModeBeforeEnable') : undefined
+                          }
+                          className={`store-plugin-toggle${plugin.enabled ? ' enabled' : ''}`}
+                        >
+                          {plugin.enabled ? t('store.enabled') : t('store.enable')}
+                        </button>
+                      )}
                     </div>
                   </div>
 

@@ -699,7 +699,6 @@
     "individualApproval": "Individual plugins may still require vault access approval.",
     "installedCount": "Installed ({{count}})",
     "disableSafeModeBeforeEnable": "Disable safe mode before enabling plugins",
-    "reviewBeforeEnable": "Review required permissions before enabling this plugin",
     "enabled": "Enabled",
     "enable": "Enable",
     "permissionsAria": "Permissions for {{plugin}}",
