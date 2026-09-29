@@ -699,7 +699,6 @@
     "individualApproval": "برخی افزونه‌ها همچنان ممکن است به تأیید دسترسی به خزانه نیاز داشته باشند.",
     "installedCount": "نصب‌شده ({{count}})",
     "disableSafeModeBeforeEnable": "برای فعال‌کردن افزونه‌ها ابتدا حالت امن را غیرفعال کنید",
-    "reviewBeforeEnable": "پیش از فعال‌سازی، مجوزهای لازم را بررسی کنید",
     "enabled": "فعال",
     "enable": "فعال‌کردن",
     "permissionsAria": "مجوزهای {{plugin}}",

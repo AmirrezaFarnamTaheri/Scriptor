@@ -28,6 +28,8 @@
 - Make the MCP authorization level a real radiogroup. It was four independent `aria-pressed` toggle buttons in a generic group, so a screen reader announced four switches rather than one setting with a current value, and a `Current: Read only` badge existed only to restate in prose what the control should have conveyed itself. It is now `role="radiogroup"` with `role="radio"` children, roving tabindex and arrow/Home/End navigation, and the badge is gone.
 - Bound the MCP tool result and give it a copy control. The result box had no maximum height, so a large result grew the docked panel until its content was cut off at the viewport edge with nothing to indicate there was more below, and there was no way to take the JSON without selecting it by hand. The box now scrolls within itself and copies verbatim, reusing the existing clipboard helper.
 
+- Remove the permanently disabled Enable toggle from a plugin awaiting permission review. `PluginRegistry.setEnabled` refuses a plugin whose required permissions were not granted for the active vault, so the toggle could never act; it sat inert directly above the `Review and grant required permissions` button that is the only way to change the state. The toggle now appears only where it can do something — to turn a plugin off, or on once consent exists.
+
 ## 1.2.8 — 2026-09-26
 
 ### Fixed
