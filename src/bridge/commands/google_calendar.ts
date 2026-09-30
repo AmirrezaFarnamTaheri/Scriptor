@@ -12,6 +12,7 @@ import { authorizeSensitiveOperation } from './authorization.ts'
 
 export interface CalendarEvent {
   id: string
+  etag?: string | null
   summary: string
   description: string | null
   start: string
@@ -28,6 +29,7 @@ export interface CalendarEvent {
 
 export interface GoogleTask {
   id: string
+  etag?: string | null
   title: string
   notes: string | null
   status: 'needsAction' | 'completed'
@@ -164,4 +166,19 @@ export async function googleCalendarDeleteTask(taskListId: string, taskId: strin
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
   await invoke('google_calendar_delete_task', { taskListId, taskId, authorizationToken })
+}
+
+export type PlannerWrite =
+  | { kind: 'event'; calendarId: string; eventId: string; etag: string | null; title: string; start: string; end: string; create: boolean }
+  | { kind: 'task'; taskListId: string; taskId: string; etag: string; title: string; due: string | null; done: boolean }
+
+export async function googlePlannerWrite(request: PlannerWrite): Promise<{ id: string; etag: string | null }> {
+  requireNative()
+  const scope = request.kind === 'event' ? `Google Calendar event ${request.calendarId}:${request.eventId}` : `Google Task ${request.taskListId}:${request.taskId}`
+  const authorizationToken = request.kind === 'event'
+    ? await authorizeSensitiveOperation('google_calendar_write', scope)
+    : await authorizeSensitiveOperation('google_task_write', scope)
+  const result: unknown = await invoke(request.kind === 'event' ? 'google_planner_write_event' : 'google_planner_write_task', {request, authorizationToken})
+  if (!result || typeof result !== 'object' || !('id' in result) || typeof result.id !== 'string') throw new Error('Invalid planner provider result')
+  return {id:result.id,etag:'etag' in result && typeof result.etag === 'string' ? result.etag : null}
 }

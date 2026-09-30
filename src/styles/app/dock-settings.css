@@ -628,7 +628,7 @@
 }
 
 .kanban-column {
-  flex: 0 0 220px;
+  flex: 1 0 220px;
   display: flex;
   flex-direction: column;
   background: var(--surface, var(--panel));
@@ -933,6 +933,14 @@
   flex-wrap: nowrap;
   color: var(--muted);
   font-size: 13px;
+}
+
+.repo-vault {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .diagnostics-opt-in {

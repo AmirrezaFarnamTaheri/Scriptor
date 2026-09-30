@@ -11,6 +11,7 @@ pub mod log;
 pub mod pandoc;
 pub mod sealed;
 pub mod theme;
+mod typst;
 pub mod validate;
 
 pub use cancel::{ExportCancelSlot, cancel_active_export, new_cancel_slot};

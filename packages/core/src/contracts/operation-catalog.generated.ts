@@ -12,6 +12,171 @@ export const OPERATION_CATALOG = {
   },
   "operations": [
     {
+      "name": "indexer_asset_usage",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/indexer.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "none",
+      "scope": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "degraded",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "rpc.EmbeddingsInspect",
+      "surface": "daemon-rpc",
+      "owner": "crates/ipc/src/lib.rs",
+      "authorizationClass": "local-ipc",
+      "mutationClass": "none",
+      "scope": null,
+      "schemaKind": "typed-rust",
+      "inputType": "RpcMethod::EmbeddingsInspect",
+      "maxInputBytes": 2097152,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "google_planner_write_event",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_calendar_write",
+      "authorizationVariant": "GoogleCalendarWrite",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "google_planner_write_task",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_task_write",
+      "authorizationVariant": "GoogleTaskWrite",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_inspect",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "none",
+      "scope": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_set_api_key",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "keychain_write",
+      "authorizationVariant": "KeychainWrite",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_delete_api_key",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "keychain_delete",
+      "authorizationVariant": "KeychainDelete",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_connect",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_drive_auth",
+      "authorizationVariant": "GoogleDriveAuth",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_disconnect",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "keychain_delete",
+      "authorizationVariant": "KeychainDelete",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_read",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_drive_read",
+      "authorizationVariant": "GoogleDriveRead",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_write",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_drive_write",
+      "authorizationVariant": "GoogleDriveWrite",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
       "name": "cli.Backlinks",
       "surface": "cli",
       "owner": "crates/cli/src/command_line.rs",

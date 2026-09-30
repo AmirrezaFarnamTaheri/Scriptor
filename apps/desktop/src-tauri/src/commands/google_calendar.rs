@@ -58,7 +58,7 @@ const GOOGLE_TASK_SYNC_MAX_MUTATIONS: usize = 1000;
 const GOOGLE_TASK_MAX_PAGES: usize = 100;
 
 /// `openid`/`email` are appended so the authed email can be resolved.
-const OAUTH_SCOPES: &str = "openid email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks";
+const OAUTH_SCOPES: &str = "openid email https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks";
 /// Gmail scopes are requested only from the dedicated Gmail manager flow.
 const GMAIL_OAUTH_SCOPES: &str = "openid email https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send";
 
@@ -101,6 +101,7 @@ pub struct EventReminder {
 #[serde(rename_all = "camelCase")]
 pub struct CalendarEvent {
     id: String,
+    etag: Option<String>,
     summary: String,
     description: Option<String>,
     start: String,
@@ -119,6 +120,7 @@ pub struct CalendarEvent {
 #[serde(rename_all = "camelCase")]
 pub struct GoogleTask {
     id: String,
+    etag: Option<String>,
     title: String,
     notes: Option<String>,
     status: String,
@@ -485,7 +487,7 @@ struct UserInfoResponse {
     email: Option<String>,
 }
 
-fn http_client() -> Result<reqwest::blocking::Client, String> {
+pub(super) fn http_client() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(HTTP_TIMEOUT_SECS))
         .build()
@@ -562,7 +564,7 @@ fn fetch_email(client: &reqwest::blocking::Client, access_token: &str) -> Result
     Ok(info.email.unwrap_or_default())
 }
 
-fn refresh_if_needed(
+pub(super) fn refresh_if_needed(
     client: &reqwest::blocking::Client,
     keychain_account: &str,
 ) -> Result<String, String> {
@@ -645,6 +647,7 @@ struct GcalReminders {
 #[derive(Debug, Deserialize)]
 struct GcalEvent {
     id: Option<String>,
+    etag: Option<String>,
     summary: Option<String>,
     description: Option<String>,
     location: Option<String>,
@@ -667,6 +670,7 @@ struct GcalEventList {
 #[derive(Debug, Deserialize)]
 struct GTask {
     id: Option<String>,
+    etag: Option<String>,
     title: Option<String>,
     notes: Option<String>,
     status: Option<String>,
@@ -757,6 +761,7 @@ fn map_event(event: GcalEvent, calendar_id: &str) -> CalendarEvent {
 
     CalendarEvent {
         id: event.id.unwrap_or_default(),
+        etag: event.etag,
         summary: event.summary.unwrap_or_default(),
         description: event.description,
         start,
@@ -788,6 +793,7 @@ fn resolve_datetime(value: Option<EventDateTime>) -> (String, bool) {
 fn map_task(task: GTask) -> GoogleTask {
     GoogleTask {
         id: task.id.unwrap_or_default(),
+        etag: task.etag,
         title: task.title.unwrap_or_default(),
         notes: task.notes,
         status: task.status.unwrap_or_else(|| "needsAction".into()),
@@ -803,7 +809,7 @@ fn map_task(task: GTask) -> GoogleTask {
 // Commands
 // ---------------------------------------------------------------------------
 
-fn start_google_auth(
+pub(super) fn start_google_auth(
     client_id: String,
     scopes: &str,
     keychain_account: &str,
@@ -1796,6 +1802,250 @@ struct GoogleTaskUpdateInput {
 
 fn google_task_sync_scope(count: usize) -> String {
     format!("Sync {count} vault task changes")
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum PlannerWrite {
+    Event {
+        #[serde(rename = "calendarId")]
+        calendar_id: String,
+        #[serde(rename = "eventId")]
+        event_id: String,
+        etag: Option<String>,
+        title: String,
+        start: String,
+        end: String,
+        create: bool,
+    },
+    Task {
+        #[serde(rename = "taskListId")]
+        task_list_id: String,
+        #[serde(rename = "taskId")]
+        task_id: String,
+        etag: String,
+        title: String,
+        due: Option<String>,
+        done: bool,
+    },
+}
+
+fn validate_planner_write(request: &PlannerWrite) -> Result<(), String> {
+    let (id, title, etag) = match request {
+        PlannerWrite::Event {
+            calendar_id,
+            event_id,
+            title,
+            start,
+            end,
+            create,
+            etag,
+        } => {
+            validate_calendar_id(calendar_id)?;
+            let begin = chrono::DateTime::parse_from_rfc3339(start)
+                .map_err(|_| "Event start must include a UTC offset")?;
+            let finish = chrono::DateTime::parse_from_rfc3339(end)
+                .map_err(|_| "Event end must include a UTC offset")?;
+            if finish <= begin || finish - begin > chrono::Duration::days(7) {
+                return Err("Event duration must be positive and no longer than seven days".into());
+            }
+            if *create
+                && (event_id.len() < 5
+                    || !event_id
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'v').contains(&b)))
+            {
+                return Err("New event identity must be base32hex".into());
+            }
+            if !create && etag.is_none() {
+                return Err("Refresh the event before changing it".into());
+            }
+            (event_id, title, etag.as_deref())
+        }
+        PlannerWrite::Task {
+            task_list_id,
+            task_id,
+            title,
+            due,
+            etag,
+            ..
+        } => {
+            validate_task_list_id(task_list_id)?;
+            if let Some(due) = due {
+                chrono::DateTime::parse_from_rfc3339(due)
+                    .map_err(|_| "Task due must be RFC3339")?;
+            }
+            (task_id, title, Some(etag.as_str()))
+        }
+    };
+    if id.is_empty() || id.len() > 1024 || id.chars().any(char::is_control) {
+        return Err("Invalid provider identity".into());
+    }
+    if title.trim().is_empty() || title.len() > 4096 || title.contains(['\r', '\n']) {
+        return Err("Title must be one bounded nonempty line".into());
+    }
+    if let Some(etag) = etag {
+        if etag.is_empty() || etag.len() > 512 || etag.chars().any(char::is_control) {
+            return Err("Invalid provider revision".into());
+        }
+    }
+    Ok(())
+}
+
+/// One reviewed planner change per grant. Provider preconditions protect remote revisions.
+#[tauri::command]
+pub fn google_planner_write_event(
+    state: tauri::State<AppState>,
+    request: PlannerWrite,
+    authorization_token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    validate_planner_write(&request)?;
+    let scope = match &request {
+        PlannerWrite::Event {
+            calendar_id,
+            event_id,
+            ..
+        } => format!("Google Calendar event {calendar_id}:{event_id}"),
+        _ => return Err("Event command requires an event change".into()),
+    };
+    require_sensitive_operation(
+        &state,
+        authorization_token
+            .as_deref()
+            .ok_or("Planner authorization is required")?,
+        SensitiveOperation::GoogleCalendarWrite,
+        Some(&scope),
+        None,
+    )?;
+    apply_planner_write(request)
+}
+
+#[tauri::command]
+pub fn google_planner_write_task(
+    state: tauri::State<AppState>,
+    request: PlannerWrite,
+    authorization_token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    validate_planner_write(&request)?;
+    let scope = match &request {
+        PlannerWrite::Task {
+            task_list_id,
+            task_id,
+            ..
+        } => format!("Google Task {task_list_id}:{task_id}"),
+        _ => return Err("Task command requires a task change".into()),
+    };
+    require_sensitive_operation(
+        &state,
+        authorization_token
+            .as_deref()
+            .ok_or("Planner authorization is required")?,
+        SensitiveOperation::GoogleTaskWrite,
+        Some(&scope),
+        None,
+    )?;
+    apply_planner_write(request)
+}
+
+fn apply_planner_write(request: PlannerWrite) -> Result<serde_json::Value, String> {
+    let client = http_client()?;
+    let token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
+    let builder = match request {
+        PlannerWrite::Event {
+            calendar_id,
+            event_id,
+            etag,
+            title,
+            start,
+            end,
+            create,
+        } => {
+            let url = format!(
+                "{CALENDAR_EVENTS_ENDPOINT}/{}/events",
+                percent_encode(&calendar_id)
+            );
+            let mut body = serde_json::json!({"summary":title,"start":{"dateTime":start},"end":{"dateTime":end}});
+            if create {
+                body["id"] = serde_json::Value::String(event_id);
+                client.post(url).bearer_auth(&token).json(&body)
+            } else {
+                client
+                    .patch(format!("{url}/{}", percent_encode(&event_id)))
+                    .bearer_auth(&token)
+                    .header("If-Match", etag.unwrap_or_default())
+                    .json(&body)
+            }
+        }
+        PlannerWrite::Task {
+            task_list_id,
+            task_id,
+            etag,
+            title,
+            due,
+            done,
+        } => {
+            let url = format!(
+                "{TASKS_ENDPOINT}/{}/tasks/{}",
+                percent_encode(&task_list_id),
+                percent_encode(&task_id)
+            );
+            let mut body = serde_json::json!({"title":title,"due":due,"status":if done {"completed"} else {"needsAction"}});
+            if !done {
+                body["completed"] = serde_json::Value::Null;
+            }
+            client
+                .patch(url)
+                .bearer_auth(&token)
+                .header("If-Match", etag)
+                .json(&body)
+        }
+    };
+    let mut response = builder
+        .send()
+        .map_err(|error| format!("Planner provider request failed: {error}"))?;
+    if response.status().as_u16() == 412 || response.status().as_u16() == 409 {
+        return Err("Provider changed since review. Refresh and resolve the conflict.".into());
+    }
+    if !response.status().is_success() {
+        return Err(format!(
+            "Planner provider rejected the change ({})",
+            response.status()
+        ));
+    }
+    let mut bytes = Vec::new();
+    response
+        .by_ref()
+        .take(256 * 1024 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "Unable to read planner provider result")?;
+    if bytes.len() > 256 * 1024 {
+        return Err("Planner response exceeds its size bound".into());
+    }
+    serde_json::from_slice(&bytes).map_err(|_| "Invalid planner provider response".into())
+}
+
+#[cfg(test)]
+mod planner_tests {
+    use super::*;
+    #[test]
+    fn planner_event_requires_positive_offset_aware_duration_and_revision() {
+        let mut value = serde_json::json!({"kind":"event","calendarId":"primary","eventId":"scriptorabc123","etag":null,"title":"Draft","start":"2026-10-01T09:00:00Z","end":"2026-10-01T10:00:00Z","create":true});
+        assert!(validate_planner_write(&serde_json::from_value(value.clone()).unwrap()).is_ok());
+        value["end"] = serde_json::json!("2026-10-01T08:00:00Z");
+        assert!(validate_planner_write(&serde_json::from_value(value.clone()).unwrap()).is_err());
+        value["end"] = serde_json::json!("2026-10-01T10:00:00Z");
+        value["create"] = serde_json::json!(false);
+        assert!(validate_planner_write(&serde_json::from_value(value).unwrap()).is_err());
+    }
+    #[test]
+    fn planner_task_rejects_multiline_title_bad_revision_and_unknown_fields() {
+        let mut value = serde_json::json!({"kind":"task","taskListId":"@default","taskId":"abc","etag":"\"rev1\"","title":"Draft","due":null,"done":false});
+        assert!(validate_planner_write(&serde_json::from_value(value.clone()).unwrap()).is_ok());
+        value["title"] = serde_json::json!("Draft\nInjected");
+        assert!(validate_planner_write(&serde_json::from_value(value.clone()).unwrap()).is_err());
+        value["extra"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<PlannerWrite>(value).is_err());
+    }
 }
 
 fn create_google_task(

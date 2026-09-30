@@ -20,6 +20,12 @@ CLI/TUI and MCP
 
 The renderer is not an authority boundary. Native operations validate scope, authorization, runtime payloads, paths, process policy, and cancellation independently of UI state.
 
+Rename composition flushes pending editor saves before applying native mutations. Link rewrites refresh the active note through the editor's revision/navigation guard; failed saves abort the rename and retain the draft. Native stale-source checks remain authoritative. Recovery backup filenames include a unique version identifier so later renames cannot overwrite the content referenced by older patch records.
+
+Activity history reads inspect at most the final 256 KiB and return at most 200 valid records, skipping malformed and oversized records. Appends reject records over 16 KiB and compact histories exceeding 1 MiB while holding the vault update lock. This policy applies to diagnostic activity; rename recovery records are retained separately and are not automatically pruned.
+
+Rendered output resolves bracket citations against the current bibliography in a text-node postprocessor before final sanitization. Grouped citations retain prefixes, locators, and author suppression; missing keys preserve the original source with an accessible unresolved marker. Code, links, and existing citation markup are excluded. This author/year preview does not replace CSL export formatting or alter authored Markdown. The sanitizer admits only the citation status and accessibility attributes needed by that presentation.
+
 ## Planes and ownership
 
 | Plane | Owner | Responsibilities |

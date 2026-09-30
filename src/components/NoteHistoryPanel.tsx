@@ -10,6 +10,8 @@ import {
 import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { diffLines } from '../lib/lineDiff'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
+import { revisionActivity } from '../lib/researchStudio'
+import '../styles/components/research-studio.css'
 
 export interface NoteHistoryRevision {
   id: string
@@ -139,7 +141,8 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
     }
   }, [loadedHistoryPath, path, selectedId])
 
-  const revisions = loadedHistoryPath === path ? revisionState?.rows ?? [] : []
+  const revisions = useMemo(() => loadedHistoryPath === path ? revisionState?.rows ?? [] : [], [loadedHistoryPath, path, revisionState])
+  const activity = useMemo(() => revisionActivity(revisions), [revisions])
   const selectedRevision = revisions.find((revision) => revision.id === selectedId) ?? null
   const previewReady = previewState?.path === path && previewState.revisionId === selectedId
   const currentReady = currentState?.path === path
@@ -165,6 +168,12 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
     setBusy(true)
     setStatus('Restoring revision…')
     try {
+      const latest = await vaultReadNote(path)
+      if (latest.markdown !== currentMarkdown) {
+        setCurrentState({ path, markdown: latest.markdown })
+        setConfirmRestore(false)
+        throw new Error('The current note changed. Compare the updated content before restoring.')
+      }
       await vaultRestoreNoteHistoryRevision(path, selectedId)
       setCurrentState({ path, markdown: preview })
       setStatus('Revision restored.')
@@ -194,6 +203,12 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
         <p className="empty-state">No saved revisions yet. Edits are captured before each save.</p>
       ) : (
         <div className="note-history-layout">
+          <section aria-label="Revision activity" className="note-history-activity">
+            <label>Scrub saved revisions
+              <input type="range" min={0} max={Math.max(0, revisions.length - 1)} value={Math.max(0, revisions.findIndex((row) => row.id === selectedId))} disabled={busy || revisions.length < 2} onChange={(event) => { setSelectedId(revisions[Number(event.target.value)]?.id ?? null); setConfirmRestore(false) }} aria-valuetext={selectedRevision ? formatRevisionDate(selectedRevision.saved_at) : 'No revision selected'} />
+            </label>
+            <ul className="research-activity" aria-label="Saved revisions per UTC day">{activity.map((day) => <li key={day.date} data-level={day.count >= 5 ? 'high' : 'low'}>{day.date}: {day.count} saves</li>)}</ul>
+          </section>
           <ul className="note-history-timeline" aria-label="Saved revisions">
             {revisions.map((revision) => (
               <li key={revision.id}>

@@ -12,8 +12,10 @@ import type {
 } from '@scriptor/core/contracts/plugin'
 
 import type { LoadedPlugin } from './registry.ts'
+import { parsePluginWorkspace, type PluginWorkspaceDefinition } from './workspace.ts'
 
 export function collectContributions(plugins: LoadedPlugin[]): Required<{
+  workspaces: PluginWorkspaceDefinition[]
   commands: PluginCommandContribution[]
   rendererExtensions: RendererExtensionContribution[]
   inspectorWidgets: InspectorWidgetContribution[]
@@ -27,6 +29,7 @@ export function collectContributions(plugins: LoadedPlugin[]): Required<{
   const empty: PluginContributions = {}
   const merged = plugins.reduce((acc, plugin) => {
     const contributes = plugin.manifest.contributes ?? empty
+    acc.workspaces.push(...(contributes.workspaces ?? []).map(parsePluginWorkspace))
     acc.commands.push(
       ...(contributes.commands ?? []).map((command) => ({
         ...command,
@@ -51,6 +54,7 @@ export function collectContributions(plugins: LoadedPlugin[]): Required<{
     acc.canvasBlocks.push(...(contributes.canvasBlocks ?? []))
     return acc
   }, {
+    workspaces: [] as PluginWorkspaceDefinition[],
     commands: [] as PluginCommandContribution[],
     rendererExtensions: [] as RendererExtensionContribution[],
     inspectorWidgets: [] as InspectorWidgetContribution[],

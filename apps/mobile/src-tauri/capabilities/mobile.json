@@ -1,0 +1,6 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "App-private offline Markdown workspace. No shell, HTTP, broad filesystem or remote capabilities.",
+  "windows": ["main"], "permissions": ["core:default"]
+}

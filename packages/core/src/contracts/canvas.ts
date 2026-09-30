@@ -67,6 +67,14 @@ export interface CanvasLayer {
   order: number
 }
 
+export interface CanvasRelation {
+  id: string
+  connectorBlockId: string
+  sourceNotePath: string
+  targetNotePath: string
+  label: string
+}
+
 export interface CanvasDocument {
   id: CanvasDocumentId
   vaultId: VaultId
@@ -74,6 +82,7 @@ export interface CanvasDocument {
   mode: CanvasMode
   layers: CanvasLayer[]
   blocks: CanvasBlock[]
+  relations?: CanvasRelation[]
   updatedAt: string
 }
 

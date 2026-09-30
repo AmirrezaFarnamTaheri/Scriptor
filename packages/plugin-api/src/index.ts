@@ -15,6 +15,8 @@ export {
 } from './registry.ts'
 export type { LoadedPlugin, PluginConsent, PluginRegistryEntry, PluginRegistrySnapshot } from './registry.ts'
 export { collectContributions } from './contributions.ts'
+export { parsePluginWorkspace, parsePluginWorkspaceRoute, authorizeWorkspaceView, authorizeWorkspaceAction, runtimeConsoleWorkspace } from './workspace.ts'
+export type { PluginWorkspaceDefinition, PluginWorkspaceSection, PluginWorkspaceAction, PluginWorkspaceRoute } from './workspace.ts'
 export { PluginHost, runHostSandboxTests } from './host.ts'
 export {
   createVaultQueryAdapter,

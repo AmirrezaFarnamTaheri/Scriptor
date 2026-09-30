@@ -6110,6 +6110,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "scriptor-mobile"
+version = "1.2.8"
+dependencies = [
+ "scriptor-mobile-runtime",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+]
+
+[[package]]
+name = "scriptor-mobile-runtime"
+version = "1.2.8"
+dependencies = [
+ "chrono",
+ "scriptor-vault",
+ "serde",
+ "tempfile",
+ "thiserror 2.0.20",
+ "walkdir",
+]
+
+[[package]]
 name = "scriptor-native-git"
 version = "1.2.8"
 dependencies = [

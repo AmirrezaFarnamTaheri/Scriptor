@@ -1,0 +1,38 @@
+import { lazy, Suspense } from 'react'
+import type { ReviewFeature } from '../../hooks/useReviewFeatureWorkspaces'
+import type { useVaultWorkspace } from '../../hooks/useVaultWorkspace'
+import { ErrorBoundary } from '../ErrorBoundary'
+import { PanelErrorFallback } from '../PanelErrorFallback'
+import { PanelFallback } from './lazyPanels'
+import '../../styles/components/collaboration.css'
+import type { PluginRuntimePolicy, PluginWorkspaceDefinition, PluginWorkspaceRoute } from '@scriptor/plugin-api'
+import { PluginWorkspaceHost } from '../plugins/PluginWorkspaceHost'
+import { UnifiedPanelShell } from '../chrome/UnifiedPanelShell'
+const CollaborationPanel = lazy(() => import('../CollaborationPanel'))
+const DiagramStudioPanel = lazy(() => import('../DiagramStudioPanel').then(module => ({ default: module.DiagramStudioPanel })))
+const RuntimeConsolePanel = lazy(() => import('../plugins/RuntimeConsolePanel').then(module => ({ default: module.RuntimeConsolePanel })))
+const SemanticInspectorPanel = lazy(() => import('../SemanticInspectorPanel').then(module => ({ default: module.SemanticInspectorPanel })))
+const AssetDeckWorkspace = lazy(() => import('../AssetDeckWorkspace').then(module => ({ default: module.AssetDeckWorkspace })))
+
+interface Props { active: ReviewFeature | null; workspace: ReturnType<typeof useVaultWorkspace>; onClose(): void; onOpenAsset(path: string): void;
+  pluginWorkspace: PluginWorkspaceDefinition | null; pluginPolicy: PluginRuntimePolicy | null; onNavigate(route: PluginWorkspaceRoute): void | Promise<void>; onPluginCommand(pluginId: string, commandId: string): Promise<void> }
+export function ReviewFeatureWorkspaces({ active, workspace, onClose, onOpenAsset, pluginWorkspace, pluginPolicy, onNavigate, onPluginCommand }: Props) {
+  if (!active || !workspace.vault) return null
+  const vaultId = workspace.vault.id
+  const createNote = async (title: string, markdown: string) => {
+    const path = await workspace.createNote(title, markdown, { requireMissing: true })
+    if (!path) throw new Error('Note could not be created. Choose a unique title and try again.')
+  }
+  return <ErrorBoundary key={`${active}:${vaultId}`} name={`${active}-workspace`} fallback={<PanelErrorFallback title="Workspace" onDismiss={onClose} />}>
+    <Suspense fallback={<PanelFallback />}>
+      {active === 'collaboration' && <CollaborationPanel key={workspace.activePath} path={workspace.activePath} vaultId={vaultId} onClose={onClose} onApplied={() => workspace.refreshVault()} />}
+      {active === 'diagram' && <DiagramStudioPanel onClose={onClose} onSave={createNote} />}
+      {active === 'runtime' && <RuntimeConsolePanel vaultId={vaultId} onClose={onClose} />}
+      {active === 'semantic' && <SemanticInspectorPanel vaultId={vaultId} onClose={onClose} onOpenNote={path => void workspace.openNote(path)} />}
+      {active === 'assets' && <AssetDeckWorkspace vaultId={vaultId} onClose={onClose} onOpenAsset={onOpenAsset} onOpenNote={path => void workspace.openNote(path)} onCreateNote={createNote} />}
+      {active === 'plugin' && pluginWorkspace && <UnifiedPanelShell title={pluginWorkspace.title} ariaLabel={pluginWorkspace.title} helpTopic="plugins" onClose={onClose} wide>
+        {pluginPolicy ? <PluginWorkspaceHost definition={pluginWorkspace} policy={pluginPolicy} vaultId={vaultId} onNavigate={onNavigate} onCommand={commandId => onPluginCommand(pluginWorkspace.pluginId, commandId)} /> : <p role="alert">Plugin workspace is unavailable because its consent was removed.</p>}
+      </UnifiedPanelShell>}
+    </Suspense>
+  </ErrorBoundary>
+}

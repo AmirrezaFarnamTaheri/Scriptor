@@ -17,6 +17,9 @@ use commands::canvas::{
     canvas_save_document, canvas_snapshot, canvas_template_dry_run,
 };
 use commands::code_chunk::code_chunk_run;
+use commands::collaboration::{
+    collaboration_connect, collaboration_disconnect, collaboration_read, collaboration_write,
+};
 use commands::daemon::{
     daemon_backlinks, daemon_endpoint, daemon_export_cancel, daemon_export_job_status,
     daemon_export_run_markdown, daemon_export_run_note, daemon_export_start_note,
@@ -42,7 +45,9 @@ use commands::google_calendar::{
     google_gmail_get_message, google_gmail_list_messages, google_gmail_modify_message,
     google_gmail_send_message, google_gmail_start_auth, google_gmail_trash_message,
 };
+use commands::google_calendar::{google_planner_write_event, google_planner_write_task};
 use commands::history::vault_restore_note_history_revision;
+use commands::indexer::indexer_asset_usage;
 use commands::indexer::{
     indexer_apply_filesystem_changes, indexer_backlinks, indexer_batch_note_meta,
     indexer_evaluate_view, indexer_execute_dql, indexer_graph, indexer_health_diagnostics,
@@ -62,7 +67,9 @@ use commands::reader::{
 use commands::resources::{
     resource_apply_plan, resource_create_dedup_plan, resource_create_plan, resource_inventory,
 };
-use commands::semantic::{semantic_search, semantic_sync};
+use commands::semantic::{
+    semantic_delete_api_key, semantic_inspect, semantic_search, semantic_set_api_key, semantic_sync,
+};
 use commands::system::{
     ai_provider_delete_api_key, ai_provider_has_api_key, ai_provider_propose_draft,
     ai_provider_set_api_key, copy_text_to_clipboard, diagnostics_append_event,
@@ -178,6 +185,10 @@ pub fn run() {
             indexer_graph,
             semantic_search,
             semantic_sync,
+            indexer_asset_usage,
+            semantic_inspect,
+            semantic_set_api_key,
+            semantic_delete_api_key,
             export_discover,
             export_run_note,
             export_run_markdown,
@@ -265,6 +276,12 @@ pub fn run() {
             system_info,
             vault_export_audit_log,
             google_calendar_start_auth,
+            google_planner_write_event,
+            google_planner_write_task,
+            collaboration_connect,
+            collaboration_disconnect,
+            collaboration_read,
+            collaboration_write,
             google_gmail_start_auth,
             google_gmail_disconnect,
             google_gmail_get_authed_email,

@@ -80,6 +80,9 @@ pub enum RpcMethod {
     EmbeddingsSync {
         api_key: Option<String>,
     },
+    EmbeddingsInspect {
+        limit: u32,
+    },
     ReadNote {
         path: String,
     },

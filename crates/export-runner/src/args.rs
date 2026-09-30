@@ -72,7 +72,14 @@ pub fn build_pandoc_args(
         }
         ExportFormat::Pdf => {
             args.push("-t".into());
-            args.push("pdf".into());
+            args.push(
+                if extra_args.iter().any(|arg| arg == "--pdf-engine=typst") {
+                    "typst"
+                } else {
+                    "pdf"
+                }
+                .into(),
+            );
         }
         ExportFormat::Docx => {
             args.push("-t".into());

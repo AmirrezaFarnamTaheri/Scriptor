@@ -430,7 +430,7 @@ export function useVaultWorkspace(options?: {
     }
   }, [abortVaultReplacement, clearSearch, finishVaultReplacement, loadBacklinks, prepareForVaultReplacement, refreshGit, refreshVault, refreshVaultConfig, refreshVaultEntries, refreshVaultSnippets, runSearch, searchQuery, setBacklinks, setHealthDiagnostics])
 
-  const rename = useWorkspaceRename({ activePath, setError, logActivity, refreshVault, openNote, loadGraph })
+  const rename = useWorkspaceRename({ activePath, setError, logActivity, refreshVault, openNote, loadGraph, flushAllPendingSaves: editor.flushAllPendingSaves, runNoteMutation: editor.runNoteMutation })
 
   useWorkspaceFilesystemSync({
     vault,

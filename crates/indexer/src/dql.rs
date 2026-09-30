@@ -103,6 +103,31 @@ fn execute_single_clause(
     let trimmed = query.trim();
     let lower = trimmed.to_ascii_lowercase();
 
+    // Canvas relations use explicit endpoints and retain board/connector provenance.
+    if lower.starts_with("canvas:") {
+        let path = trimmed["canvas:".len()..].trim();
+        let relative = scriptor_vault::RelativeVaultPath::parse(path)?;
+        let conn = cache.connection()?;
+        let mut statement = conn.prepare("SELECT n.path, n.title, r.board_id || ' / ' || r.connector_block_id || ': ' || r.label FROM canvas_relations r JOIN notes n ON n.vault_id=r.vault_id AND n.path=r.target_path WHERE r.vault_id=?1 AND r.source_path=?2 ORDER BY n.path, r.board_id, r.relation_id LIMIT ?3")?;
+        let rows = statement
+            .query_map(
+                params![
+                    session.descriptor.id,
+                    relative.as_str(),
+                    DQL_CANDIDATE_FETCH
+                ],
+                |row| {
+                    Ok(DqlResultRow {
+                        path: row.get(0)?,
+                        title: row.get(1)?,
+                        snippet: row.get(2)?,
+                    })
+                },
+            )?
+            .collect::<Result<Vec<_>, _>>()?;
+        return ensure_candidate_bound(rows, "canvas");
+    }
+
     // ── W3-3: compact operator syntax ────────────────────────────────────────
     // `path:<substring>` — notes whose vault-relative path contains the value.
     if lower.starts_with("path:") {

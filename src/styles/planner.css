@@ -1,0 +1,20 @@
+.planner-workspace { border-block: 1px solid var(--border); padding-block: 16px; }
+.planner-week { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 4px; margin-block: 12px; }
+.planner-day { position: relative; min-height: 320px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.planner-day h4 { margin: 0; padding: 8px 4px; font-size: 11px; background: var(--surface-raised); }
+.planner-day__timeline {position:relative;height:576px;}
+.planner-day__hours { position:absolute; inset: 0; display:grid; grid-template-rows: repeat(4,1fr); pointer-events:none; font-size: 9px; color: var(--ink-muted); }
+.planner-day__timeline .planner-block {position:absolute;min-height:32px;overflow:auto;}
+.planner-day__hours span {border-block-start: 1px solid var(--border);padding: 3px;}
+.planner-day__entries {position:relative;display:flex;flex-direction:column;gap:4px;padding:20px 3px 3px;}
+.planner-block {display:flex;flex-direction:column;gap:3px;min-width:0;width:100%;padding:6px;border:1px solid var(--primary);background:var(--surface-raised);border-radius:4px;font-size:10px;text-align:start;overflow-wrap:anywhere;color:var(--ink);}
+.planner-block--remote {border-color:var(--border);}
+.planner-due {padding:4px;font-size:10px;overflow-wrap:anywhere;text-align:start;}
+.planner-schedule {display:flex;flex-wrap:wrap;align-items:end;gap:10px;margin-block:16px;}
+.planner-schedule label {display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12px;flex:1 1 140px;}
+.planner-schedule input,.planner-schedule select {width:100%;min-width:0;}
+.planner-review__row {padding-block:10px;border-block-end:1px solid var(--border);}
+.planner-review__row>span {margin-inline-start:8px;font-size:12px;}
+.planner-review pre {white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:180px;overflow:auto;}
+.planner-review__actions {display:flex;gap:8px;flex-wrap:wrap;}
+@media(max-width:768px) { .planner-week {grid-template-columns:1fr;} .planner-day {min-height:100px;} .planner-day__hours {display:none;} .planner-day__entries {padding:6px;} .planner-day__timeline {height:auto;display:flex;flex-direction:column;gap:4px;} .planner-day__timeline .planner-block {position:static;width:100%!important;height:auto!important;min-height:44px;} }

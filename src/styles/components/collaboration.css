@@ -1,0 +1,8 @@
+.collaboration-panel { display: grid; gap: 12px; padding: 16px; min-width: 0; overflow: auto; }
+.collaboration-panel label { display: grid; gap: 6px; }
+.collaboration-panel input, .collaboration-panel textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+.collaboration-panel textarea { font-family: var(--font-mono); resize: vertical; }
+.collaboration-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.collaboration-panel button { min-height: 36px; overflow-wrap: anywhere; }
+.collaboration-panel li { margin-block: 6px; }
+.collaboration-panel p { overflow-wrap: anywhere; }

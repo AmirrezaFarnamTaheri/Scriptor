@@ -3,6 +3,7 @@ pub mod backup;
 mod backup_recovery_tests;
 pub mod canvas;
 pub mod code_chunk;
+pub mod collaboration;
 pub mod daemon;
 pub mod export;
 pub mod git;

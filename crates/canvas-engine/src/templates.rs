@@ -162,6 +162,7 @@ pub fn empty_document(vault_id: &str, title: &str) -> CanvasDocument {
             order: 0,
         }],
         blocks: vec![],
+        relations: Vec::new(),
         updated_at: "2026-06-20T00:00:00Z".into(),
     }
 }

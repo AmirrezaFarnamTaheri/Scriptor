@@ -710,7 +710,7 @@ body.is-split-resizing .editor-preview-pane {
 }
 
 .editor-empty small {
-  color: var(--faint);
+  color: var(--muted);
   font-size: 11px;
   letter-spacing: 0.015em;
 }

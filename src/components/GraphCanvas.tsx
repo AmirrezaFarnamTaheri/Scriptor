@@ -206,34 +206,6 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       ctx.restore()
     }
 
-    // Label plates go in their own pass, after the edges and before the nodes.
-    // Drawn inline with the label instead, the plate's top edge reaches y+18 and
-    // would paint over the bottom of the r=22 keyboard focus ring — the one
-    // affordance keyboard navigation depends on.
-    ctx.save()
-    ctx.fillStyle = surfaceColor
-    for (const node of nodes) {
-      const isFocus = node.path === focusPath
-      const isHovered = hoveredId === node.id
-      const isKeyboardFocus = keyboardNode?.id === node.id
-      if (!(nodes.length < 60 || isFocus || isHovered || isKeyboardFocus)) continue
-      const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
-      ctx.font = '11px sans-serif'
-      ctx.textAlign = 'center'
-      const metrics = ctx.measureText(label)
-      const labelY = node.y + 28
-      ctx.beginPath()
-      ctx.roundRect(
-        node.x - metrics.width / 2 - LABEL_PLATE_PAD_X,
-        labelY - LABEL_PLATE_HEIGHT + 2,
-        metrics.width + LABEL_PLATE_PAD_X * 2,
-        LABEL_PLATE_HEIGHT,
-        3,
-      )
-      ctx.fill()
-    }
-    ctx.restore()
-
     for (const node of nodes) {
       const isFocus = node.path === focusPath
       const isHovered = hoveredId === node.id
@@ -262,13 +234,25 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
         ctx.stroke()
       }
 
-      const showLabel = nodes.length < 60 || isFocus || isHovered || isKeyboardFocus
+    }
+
+    // Paint labels after every node so later nodes cannot obscure earlier
+    // glyphs. The plate starts below even the 26px keyboard focus ring.
+    for (const node of nodes) {
+      const showLabel = nodes.length < 60 || node.path === focusPath || hoveredId === node.id || keyboardNode?.id === node.id
       if (showLabel) {
         const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
         ctx.font = '11px sans-serif'
         ctx.textAlign = 'center'
+        const metrics = ctx.measureText(label)
+        const labelY = node.y + 38
+        ctx.fillStyle = surfaceColor
+        ctx.beginPath()
+        ctx.roundRect(node.x - metrics.width / 2 - LABEL_PLATE_PAD_X, labelY - LABEL_PLATE_HEIGHT + 2,
+          metrics.width + LABEL_PLATE_PAD_X * 2, LABEL_PLATE_HEIGHT, 3)
+        ctx.fill()
         ctx.fillStyle = inkColor
-        ctx.fillText(label, node.x, node.y + 28)
+        ctx.fillText(label, node.x, labelY)
       }
     }
 

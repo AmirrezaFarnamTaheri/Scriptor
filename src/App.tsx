@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, Suspense } from 'react'
+import { ReviewFeatureWorkspaces } from './components/app/ReviewFeatureWorkspaces'
+import { useReviewFeatureWorkspaces } from './hooks/useReviewFeatureWorkspaces'
+import { createPluginWorkspaceHandlers } from './lib/pluginWorkspaceHandlers'
 import type { PluginRuntimePolicy } from '@scriptor/plugin-api'
-import { applyRendererExtensions } from '@scriptor/renderer'
 import { indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
@@ -59,6 +61,7 @@ import { useScreenshotAutoOpen } from './screenshot/useScreenshotAutoOpen'
 import { useResizablePanel } from './hooks/useResizablePanel'
 import { useSplitPaneResize } from './hooks/useSplitPaneResize'
 import { useCiteprocPreview } from './hooks/useCiteprocPreview'
+import { useCitationPostProcess } from './hooks/useRenderedCitationPreview'
 import { useWorkspaceMode, type WorkspaceMode } from './hooks/useWorkspaceMode'
 import { DEFAULT_WORKSPACE_CHROME, useWorkspaceChrome } from './hooks/useWorkspaceChrome'
 import {
@@ -320,6 +323,7 @@ function App() {
     hibernateWatcher,
     hibernateGit,
   })
+  const reviewFeatures = useReviewFeatureWorkspaces(nativeReady && Boolean(workspace.vault), plugins.contributions.workspaces)
   const deleteNoteController = useDeleteNoteController({
     enabled: nativeReady,
     closeTab: workspace.closeTab,
@@ -437,10 +441,6 @@ function App() {
   const { saveApiKey: aiSaveApiKey, clearApiKey: aiClearApiKey } = ai
   const diagnostics = useDiagnosticsSettings(Boolean(workspace.vault))
   const rendererExtensions = plugins.contributions.rendererExtensions
-  const previewPostProcess = useCallback(
-    (html: string) => applyRendererExtensions(html, rendererExtensions),
-    [rendererExtensions],
-  )
   const {
     headlessEngine,
     setHeadlessEngine,
@@ -473,6 +473,7 @@ function App() {
     () => (workspace.vault && nativeReady ? bibliographyRaw : []),
     [bibliographyRaw, nativeReady, workspace.vault],
   )
+  const previewPostProcess = useCitationPostProcess(workspace.draftMarkdown, bibliography, rendererExtensions, t('inspector.citationUnresolved'))
   const showSplitPreview = splitPreviewActive && Boolean(workspace.activePath)
   const {
     editorWidth: splitEditorWidth,
@@ -809,6 +810,11 @@ function App() {
     await deleteNoteController.deleteNote(workspace.activePath)
   }, [deleteNoteController, nativeReady, workspace.activePath])
 
+  const pluginWorkspaceHandlers = createPluginWorkspaceHandlers({ commands: pluginCommandEntries, canExecute: canExecutePluginCommand, runtime: pluginCommandRuntime, activePath: workspace.activePath,
+    close: reviewFeatures.close, openNote: workspace.openNote, openGraph: () => setGraphOpen(true), openCanvas: () => setCanvasOpen(true),
+    openKnowledge: () => openKnowledgeWorkbench('discover'), openTasks: () => setTasksOpen(true), openExport: () => setPublishCenterOpen(true),
+    openRuntime: () => reviewFeatures.commands.find(command => command.id === 'open-runtime-console')?.run() })
+
   const bibliographyKeys = useMemo(() => new Set(bibliography.map((entry) => entry.key)), [bibliography])
 
   const inboxPaths = useMemo(
@@ -832,7 +838,7 @@ function App() {
 
   const paletteCommands = useMemo(
     () =>
-      buildPaletteCommands({
+      [...buildPaletteCommands({
         workspace: {
           ...workspace,
           reopenClosedTab: workspace.reopenClosedTab,
@@ -897,8 +903,9 @@ function App() {
         setHibernateGit,
         hibernateSpellcheck,
         setHibernateSpellcheck,
-      }),
+      }), ...reviewFeatures.commands],
     [
+      reviewFeatures.commands,
       ai,
       canExecutePluginCommand,
       chrome.inspectorCollapsed,
@@ -1010,13 +1017,13 @@ function App() {
       ? '—'
       : cacheStatusLabel(t, workspace.health.cache_status)
     return [
-      [t('inspector.health.brokenLinks'), String(workspace.health?.broken_links ?? 0)],
-      [t('inspector.health.orphanAssets'), String(workspace.health?.orphan_assets ?? 0)],
-      [t('inspector.health.duplicateTitles'), String(workspace.health?.duplicate_titles ?? 0)],
-      [t('inspector.health.invalidFrontmatter'), String(workspace.health?.invalid_frontmatter ?? 0)],
-      [t('inspector.health.missingCitations'), String(workspace.health?.unresolved_citations ?? 0)],
-      [t('inspector.health.indexedNotes'), String(workspace.health?.indexed_notes ?? 0)],
-      [t('inspector.health.vaultWords'), (workspace.health?.total_words ?? 0).toLocaleString()],
+      [t('inspector.health.brokenLinks'), String(workspace.health?.broken_links ?? '—')],
+      [t('inspector.health.orphanAssets'), String(workspace.health?.orphan_assets ?? '—')],
+      [t('inspector.health.duplicateTitles'), String(workspace.health?.duplicate_titles ?? '—')],
+      [t('inspector.health.invalidFrontmatter'), String(workspace.health?.invalid_frontmatter ?? '—')],
+      [t('inspector.health.missingCitations'), String(workspace.health?.unresolved_citations ?? '—')],
+      [t('inspector.health.indexedNotes'), String(workspace.health?.indexed_notes ?? '—')],
+      [t('inspector.health.vaultWords'), workspace.health?.total_words.toLocaleString() ?? '—'],
       [t('inspector.health.cache'), cacheStatus],
     ] as Array<[string, string]>
   }, [t, workspace.health])
@@ -1595,7 +1602,7 @@ function App() {
           isNoteDirty={isNoteDirty}
           inspectorPreset={inspectorPreset}
           onInspectorPresetChange={setInspectorPreset}
-          showInspectorHealth={chrome.showInspectorHealth}
+          showInspectorHealth={chrome.showInspectorHealth && Boolean(workspace.vault)}
           onOpenKnowledgeWorkbench={handleOpenKnowledgeWorkbenchRepair}
           onOpenPublishCenter={handleOpenPublishCenter}
           onOpenGraph={handleOpenGraph}
@@ -1707,6 +1714,9 @@ function App() {
         promptText={promptText}
       />
 
+      <ReviewFeatureWorkspaces active={reviewFeatures.active} workspace={workspace} onClose={reviewFeatures.close} onOpenAsset={handleOpenReaderDocument}
+        pluginWorkspace={reviewFeatures.pluginWorkspace} pluginPolicy={reviewFeatures.pluginWorkspace ? plugins.pluginPolicies[reviewFeatures.pluginWorkspace.pluginId] ?? null : null}
+        {...pluginWorkspaceHandlers} />
       {commandPalette.open ? (
         <CommandPalette
           onClose={handleCloseCommandPalette}

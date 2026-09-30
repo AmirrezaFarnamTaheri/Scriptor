@@ -2,6 +2,137 @@
   "schemaVersion": 1,
   "commands": [
     {
+      "name": "indexer_asset_usage",
+      "owner": "apps/desktop/src-tauri/src/commands/indexer.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "none",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "degraded",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "google_planner_write_event",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_calendar_write",
+      "authorizationVariant": "GoogleCalendarWrite",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "google_planner_write_task",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_task_write",
+      "authorizationVariant": "GoogleTaskWrite",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_inspect",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "none",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_set_api_key",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "keychain_write",
+      "authorizationVariant": "KeychainWrite",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_delete_api_key",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "keychain_delete",
+      "authorizationVariant": "KeychainDelete",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_connect",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_drive_auth",
+      "authorizationVariant": "GoogleDriveAuth",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_disconnect",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "keychain_delete",
+      "authorizationVariant": "KeychainDelete",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_read",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_drive_read",
+      "authorizationVariant": "GoogleDriveRead",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_write",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_drive_write",
+      "authorizationVariant": "GoogleDriveWrite",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
       "name": "ai_provider_delete_api_key",
       "owner": "apps/desktop/src-tauri/src/commands/system.rs",
       "authorizationClass": "brokered-sensitive",

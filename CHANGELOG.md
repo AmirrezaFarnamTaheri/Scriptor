@@ -2,7 +2,26 @@
 
 ## Unreleased
 
+### Added
+
+- Add bounded, permission-gated declarative plugin workspaces and first-party Diagram Studio, Asset Deck, Runtime Console, and Semantic Inspector entry points. Research notes preserve their source links; asset usage comes from the derived link index with explicit partial-result reporting.
+- Add measured embedding diagnostics and PCA projections, provider/model provenance checks, opt-in reindexing, and secure semantic credential controls.
+- Add explicit Canvas note relations with board/connector provenance, graph and DQL visibility, transactional reconciliation, and undo/redo editing.
+- Add reviewed weekly task/event planning, Google provider revision checks, and vault-content checks before applying imported task changes.
+- Add an opt-in Typst PDF export profile and bounded compiler preflight through the shared process broker.
+- Add Google Drive collaboration transport with separate read/write consent, immutable revisions, conservative three-way merge previews, and stale-checked local application. Live account verification remains pending.
+- Add the offline mobile kernel and touch-oriented mobile application; see `docs/validation/REVIEW-PR-STATUS.md` for platform verification status.
+
 ### Fixed
+
+- Use the installed CSL processor's string-return contract for complete citations, preserve narrative/grouped citation semantics, and map bibliography entries correctly after sorting without repeatedly regenerating the bibliography. Invalidate stale formatting when references change.
+- Preserve the distinguishing part of long note filenames and expose folders for duplicate basenames in the note rail.
+
+- Preserve pending editor drafts before note, tag, section, and block renames; refresh rewritten active backlinks and keep failed rename dialogs open.
+- Bound activity-history reads and compact oversized histories; keep each rename recovery backup immutable instead of overwriting earlier versions.
+- Correct report-confirmed Canvas, Kanban, snippet, graph-label, collection-state, settings, status, RTL navigation, tag-count, and inspector-metric presentation defects. Record current-source dispositions for both review reports in `docs/validation/REPORT-REVIEW.md`.
+- Format resolved bracket citations in rendered output while preserving missing keys and literal code examples; suppress unopened-vault health metrics and display unknown measurements honestly.
+- Keep custom theme values readable on narrow screens, improve empty-editor text contrast, align triage metrics, and draw writing-history values at their final scale from the first frame.
 
 - Stop reporting Scriptor's own extended task markers (`[/]`, `[-]`, `[>]`) as missing link references. The reference lint only recognised GFM's `[ ]` and `[x]`, so every note using an in-progress, cancelled, or forwarded task showed a `Problems 1` warning that no diagnostic could explain — the vault was healthy, the workbench queues were empty, and the single "problem" was a task the app had written itself.
 - Stop the Split and Preview surfaces eating the brackets of `[/]` task lines. The Markdown parser read the extended markers as shortcut link references, and the WYSIWYG view then hid the brackets as link syntax, rendering `- / Draft methodology` instead of the authored `- [/] Draft methodology`.
