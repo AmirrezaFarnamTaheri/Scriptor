@@ -10,13 +10,33 @@ export interface SharedRevision {
 
 const fields = ['schema', 'id', 'document', 'peer_id', 'base_markdown', 'markdown', 'created_at']
 const identity = /^[A-Za-z0-9_-]{1,200}$/
+/** An initial share has no common ancestor. Using its own content as the base
+ * would classify every incoming first share as an unchanged remote revision. */
+export function sharedRevisionBase(known: { path: string; markdown: string } | null, path: string): string {
+  return known?.path === path ? known.markdown : ''
+}
+
+export interface CollaborationMapping { schema: 'scriptor.collaboration.mapping.v1'; vaultId: string; folderId: string; path: string; peerId: string; markdown: string }
+export function collaborationMappingKey(vaultId: string, folderId: string, path: string): string {
+  return `scriptor:collaboration:${JSON.stringify([vaultId, folderId, path])}`
+}
+export function parseCollaborationMapping(raw: string, vaultId: string, folderId: string, path: string): CollaborationMapping {
+  if (raw.length > 2 * 1024 * 1024) throw new Error('Saved collaboration mapping exceeds its limit')
+  const value: unknown = JSON.parse(raw)
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid saved collaboration mapping')
+  const item = value as Record<string, unknown>
+  if (Object.keys(item).length !== 6 || item.schema !== 'scriptor.collaboration.mapping.v1' || item.vaultId !== vaultId || item.folderId !== folderId || item.path !== path
+    || typeof item.peerId !== 'string' || !identity.test(item.peerId) || typeof item.markdown !== 'string' || new TextEncoder().encode(item.markdown).length > 1_572_864) throw new Error('Saved collaboration mapping does not match this note and folder')
+  parseSharedRevision({ schema: 'scriptor.collaboration.v1', id: 'mapping-validation', document: path, peer_id: item.peerId, base_markdown: '', markdown: item.markdown, created_at: '2026-01-01T00:00:00Z' })
+  return item as unknown as CollaborationMapping
+}
 export function parseSharedRevision(value: unknown): SharedRevision {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid shared revision')
   const record = value as Record<string, unknown>
   if (Object.keys(record).length !== fields.length || fields.some(key => typeof record[key] !== 'string')) throw new Error('Invalid shared revision fields')
   const result = record as unknown as SharedRevision
   if (result.schema !== 'scriptor.collaboration.v1' || !identity.test(result.id) || !identity.test(result.peer_id)
-    || result.document.length > 1024 || !result.document.endsWith('.md') || /[\\\0:]/.test(result.document)
+    || result.document.length > 1024 || !result.document.endsWith('.md') || /[\\\x00-\x1f:]/.test(result.document)
     || result.document.split('/').some(part => !part || part === '.' || part === '..')
     || result.created_at.length > 64 || !Number.isFinite(Date.parse(result.created_at))
     || new TextEncoder().encode(result.base_markdown + result.markdown).length > 3 * 1024 * 1024) {

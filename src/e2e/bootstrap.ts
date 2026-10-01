@@ -20,6 +20,8 @@ import {
   e2eUpdateTask,
 } from './state.ts'
 import { installE2eMcpHarness } from './mcp.harness.ts'
+import { createResearchHarness } from './research.harness'
+import { assetMediaHarness } from './assetMedia.harness'
 
 const DEFAULT_CONFIG = {
   daily_note: {
@@ -183,7 +185,12 @@ export function installE2eBridge(): void {
   if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) {
     window.__TAURI_INTERNALS__ = {}
   }
+  const researchHarness=createResearchHarness()
   mockIPC((cmd, payload) => {
+    const media = assetMediaHarness(cmd, payload)
+    if (media.handled) return media.value
+    const research=researchHarness(cmd,payload)
+    if(research.handled)return research.value
     switch (cmd) {
       case 'vault_open':
         if (window.sessionStorage.getItem('e2e:slow-vault') === '1') {

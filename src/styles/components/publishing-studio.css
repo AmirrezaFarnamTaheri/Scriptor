@@ -1,0 +1,8 @@
+.publishing-studio { max-width: 1200px; }
+.publishing-studio table { width: 100%; border-collapse: collapse; margin-block: 12px; }
+.publishing-studio th, .publishing-studio td { text-align: start; padding: 8px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.publishing-studio td button { margin-inline: 4px; }
+.publishing-studio pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow: auto; }
+.publishing-studio .research-controls input { max-width: 100%; }
+.publishing-studio details { margin-block: 12px; }
+@media (max-width: 600px) { .publishing-studio table { font-size: 0.85rem; } .publishing-studio td button { display: block; margin-block: 6px; } }

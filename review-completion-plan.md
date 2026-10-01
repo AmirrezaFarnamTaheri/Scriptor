@@ -4,7 +4,7 @@ User scope confirmed on 2026-09-30: include all proposed features as well as rem
 
 ## Delivery contract
 
-Markdown files stay authoritative. New operations validate payloads and permissions at the native boundary. Remote operations require explicit in-product consent; credentials remain in the keychain. All external processes use the process broker. Conflicts preserve both sides; stale previews cannot apply. Experiments remain labeled until native and release evidence supports graduation. No commit, push, deployment, or remote resource mutation is authorized by this local implementation task.
+Markdown files stay authoritative. New operations validate payloads and permissions at the native boundary. Remote operations require explicit in-product consent; credentials remain in the keychain. All external processes use the process broker. Conflicts preserve both sides; stale previews cannot apply. Experiments remain labeled until native and release evidence supports graduation. The user subsequently authorized committing changes and opening a pull request; draft PR #151 contains the earlier verified snapshot. Live deployment and remote product resource mutations remain outside this implementation request.
 
 ## Work inventory and acceptance
 
@@ -25,9 +25,9 @@ Markdown files stay authoritative. New operations validate payloads and permissi
 | Runtime console | Authorized broker sessions, bounded output/cancel, environment review and plot assets; persistent kernels only with process ownership | Pending |
 | Publishing studio | Eligibility toggles, local preview and logs; explicit configured deployment/domain adapters | Pending |
 | Drive collaboration | OAuth transport, scoped remote mapping, bounded change polling, optimistic revisions and recoverable three-way conflicts; optional loss-aware Docs translation | Pending |
-| Mobile | In-process kernel adapter, mobile storage/scope lifecycle, working build configuration and mobile verification where SDK available | Pending |
+| Mobile | In-process kernel adapter, mobile storage/scope lifecycle, working build configuration and mobile verification where SDK available | Kernel, frontend and Android ARM64 debug APK implemented/verified; device, iOS and release checks remain |
 | Canvas semantic relations | Explicit note endpoint semantics, bounded extraction, separate provenance, deletion/rebuild correctness and DQL/graph visibility | Implemented; focused native/browser tests pass; cross-cutting gates pending |
-| Alternative export | Opt-in Typst backend through broker with bounded work and capability preflight | Implemented; 57 export-runner tests pass; installed compiler artifact verification pending |
+| Alternative export | Opt-in brokered Typst profile plus an in-process Rust PDF backend suitable for mobile/sandboxed hosts | Brokered profile and real compiler artifact verified; in-process backend remains pending |
 | Native verification | Product/engine Rust tests, full clippy, daemon/MCP/process/backup stress and package integrity checks; disclose unavailable credentials/platforms | Pending |
 
 ## Coordination
@@ -35,3 +35,7 @@ Markdown files stay authoritative. New operations validate payloads and permissi
 Root owns composition (`src/App.tsx`, shell orchestration), contracts, shared translations, top-level docs/changelog, collaboration/mobile integrations and final verification. Specialists own scoped new modules and existing subsystem files assigned in their task messages. They report integration requirements rather than racing on shared composition. The architecture remains the existing Rust/Tauri/React workspace.
 
 Work is staged: characterize existing seams; implement tested vertical workflows; compose and exercise each surface; run cross-cutting gates; update the assessment and evidence. Placeholder interfaces and future-design documents are not completion evidence.
+
+The [2026-10-01 complete reread](docs/validation/REVIEW-REREAD-2026-10-01.md) expands the remaining acceptance checklist, including health repair cards, broader media previews, original-source capture preview, workspace docking, vocabulary evolution, persistent runtimes, Drive polling/Docs translation and in-process PDF export. These remain in the accepted scope.
+
+The [2026-10-02 checkpoint](docs/validation/REVIEW-CHECKPOINT-2026-10-02.md) records completed Database/Reference/Capture workflows, raster/audio previews, Help localization, deployment snapshots and verification. The initial-status table above is historical; the checkpoint and reread acceptance gaps govern current remaining work. Health repair helpers alone do not complete repair workflows.

@@ -61,8 +61,15 @@ use commands::indexer::{
 use commands::latex::{latex_cancel_compile, latex_compile, latex_discover_tectonic};
 use commands::plugin_state::{plugin_state_get, plugin_state_set_enabled};
 use commands::publish::{vault_publish_apply_starlight, vault_publish_plan_starlight};
+use commands::publishing::{
+    publishing_build_site, publishing_cancel_job, publishing_configure_domain,
+    publishing_deploy_site,
+};
 use commands::reader::{
     reader_load_annotations, reader_read_document, reader_save_annotations, reader_viewer_location,
+};
+use commands::research_capture::{
+    capture_extract_preview, reference_usage_preview, zotero_import_preview,
 };
 use commands::resources::{
     resource_apply_plan, resource_create_dedup_plan, resource_create_plan, resource_inventory,
@@ -187,6 +194,13 @@ pub fn run() {
             semantic_sync,
             indexer_asset_usage,
             semantic_inspect,
+            capture_extract_preview,
+            zotero_import_preview,
+            reference_usage_preview,
+            publishing_build_site,
+            publishing_deploy_site,
+            publishing_cancel_job,
+            publishing_configure_domain,
             semantic_set_api_key,
             semantic_delete_api_key,
             export_discover,

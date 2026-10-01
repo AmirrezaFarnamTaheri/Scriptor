@@ -276,12 +276,14 @@ function WorkspaceDialogLayersImpl({
         >
           <Suspense fallback={<PanelFallback />}>
             <KnowledgeWorkbench
+              key={workspace.vault?.id ?? 'no-vault'}
               vaultOpen={Boolean(workspace.vault)}
               vaultId={workspace.vault?.id}
               initialTab={knowledgeWorkbenchTab}
               activePath={workspace.activePath}
               onClose={onCloseKnowledgeWorkbench}
               onOpenNote={onOpenNoteFromWorkbench}
+              runSourceNoteMutation={workspace.runNoteMutation}
               onOpenGraph={onOpenGraphFromWorkbench}
               onCreateNoteFromWikilink={onCreateNoteFromWikilink}
               onInsertTag={onInsertTagFromWorkbench}

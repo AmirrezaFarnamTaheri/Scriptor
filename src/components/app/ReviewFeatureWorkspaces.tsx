@@ -8,11 +8,15 @@ import '../../styles/components/collaboration.css'
 import type { PluginRuntimePolicy, PluginWorkspaceDefinition, PluginWorkspaceRoute } from '@scriptor/plugin-api'
 import { PluginWorkspaceHost } from '../plugins/PluginWorkspaceHost'
 import { UnifiedPanelShell } from '../chrome/UnifiedPanelShell'
+import { plantumlRender } from '../../bridge/commands/system'
 const CollaborationPanel = lazy(() => import('../CollaborationPanel'))
 const DiagramStudioPanel = lazy(() => import('../DiagramStudioPanel').then(module => ({ default: module.DiagramStudioPanel })))
 const RuntimeConsolePanel = lazy(() => import('../plugins/RuntimeConsolePanel').then(module => ({ default: module.RuntimeConsolePanel })))
 const SemanticInspectorPanel = lazy(() => import('../SemanticInspectorPanel').then(module => ({ default: module.SemanticInspectorPanel })))
 const AssetDeckWorkspace = lazy(() => import('../AssetDeckWorkspace').then(module => ({ default: module.AssetDeckWorkspace })))
+const PublishingStudioPanel = lazy(() => import('../PublishingStudioPanel').then(module => ({ default: module.PublishingStudioPanel })))
+const DatabaseStudioPanel = lazy(() => import('../DatabaseStudioPanel').then(module => ({ default: module.DatabaseStudioPanel })))
+const CaptureReviewerPanel = lazy(() => import('../CaptureReviewerPanel').then(module => ({ default: module.CaptureReviewerPanel })))
 
 interface Props { active: ReviewFeature | null; workspace: ReturnType<typeof useVaultWorkspace>; onClose(): void; onOpenAsset(path: string): void;
   pluginWorkspace: PluginWorkspaceDefinition | null; pluginPolicy: PluginRuntimePolicy | null; onNavigate(route: PluginWorkspaceRoute): void | Promise<void>; onPluginCommand(pluginId: string, commandId: string): Promise<void> }
@@ -25,11 +29,14 @@ export function ReviewFeatureWorkspaces({ active, workspace, onClose, onOpenAsse
   }
   return <ErrorBoundary key={`${active}:${vaultId}`} name={`${active}-workspace`} fallback={<PanelErrorFallback title="Workspace" onDismiss={onClose} />}>
     <Suspense fallback={<PanelFallback />}>
-      {active === 'collaboration' && <CollaborationPanel key={workspace.activePath} path={workspace.activePath} vaultId={vaultId} onClose={onClose} onApplied={() => workspace.refreshVault()} />}
-      {active === 'diagram' && <DiagramStudioPanel onClose={onClose} onSave={createNote} />}
+      {active === 'collaboration' && <CollaborationPanel key={workspace.activePath} path={workspace.activePath} vaultId={vaultId} onClose={onClose} onApplied={() => workspace.refreshVault()} runSourceNoteMutation={workspace.runNoteMutation} />}
+      {active === 'diagram' && <DiagramStudioPanel onClose={onClose} onSave={createNote} renderPlantUmlLocal={async source => (await plantumlRender(source)).svg} onOpenNote={path => void workspace.openNote(path)} />}
       {active === 'runtime' && <RuntimeConsolePanel vaultId={vaultId} onClose={onClose} />}
+      {active === 'publishing' && <PublishingStudioPanel vaultId={vaultId} onClose={onClose} onOpenNote={path => void workspace.openNote(path)} runSourceNoteMutation={workspace.runNoteMutation} />}
+      {active === 'database' && <DatabaseStudioPanel vaultOpen vaultId={vaultId} onClose={onClose} onOpenNote={path => void workspace.openNote(path)} runSourceNoteMutation={workspace.runNoteMutation} />}
+      {active === 'capture' && <CaptureReviewerPanel vaultOpen vaultId={vaultId} onClose={onClose} onSaved={() => void workspace.refreshVault()} />}
       {active === 'semantic' && <SemanticInspectorPanel vaultId={vaultId} onClose={onClose} onOpenNote={path => void workspace.openNote(path)} />}
-      {active === 'assets' && <AssetDeckWorkspace vaultId={vaultId} onClose={onClose} onOpenAsset={onOpenAsset} onOpenNote={path => void workspace.openNote(path)} onCreateNote={createNote} />}
+      {active === 'assets' && <AssetDeckWorkspace vaultId={vaultId} vaultRoot={workspace.vault.root_path} onClose={onClose} onOpenAsset={onOpenAsset} onOpenNote={path => void workspace.openNote(path)} onCreateNote={createNote} />}
       {active === 'plugin' && pluginWorkspace && <UnifiedPanelShell title={pluginWorkspace.title} ariaLabel={pluginWorkspace.title} helpTopic="plugins" onClose={onClose} wide>
         {pluginPolicy ? <PluginWorkspaceHost definition={pluginWorkspace} policy={pluginPolicy} vaultId={vaultId} onNavigate={onNavigate} onCommand={commandId => onPluginCommand(pluginWorkspace.pluginId, commandId)} /> : <p role="alert">Plugin workspace is unavailable because its consent was removed.</p>}
       </UnifiedPanelShell>}

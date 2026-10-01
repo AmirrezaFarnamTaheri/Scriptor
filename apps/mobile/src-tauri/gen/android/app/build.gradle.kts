@@ -24,6 +24,15 @@ android {
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
+    // Optional project-owned debug signing; never replaces the user's global keystore.
+    providers.gradleProperty("scriptor.debugKeystore").orNull?.let { debugStore ->
+        signingConfigs.getByName("debug") {
+            storeFile = file(debugStore)
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"

@@ -354,6 +354,10 @@ export interface BibliographyEntry {
   entry_type: string
   author?: string
   year?: string
+  abstract_text?: string | null
+  doi?: string | null
+  url?: string | null
+  file?: string | null
 }
 
 export interface BacklinkHit {

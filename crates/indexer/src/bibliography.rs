@@ -21,6 +21,14 @@ pub struct BibliographyEntry {
     pub author: String,
     #[serde(default)]
     pub year: String,
+    #[serde(default)]
+    pub abstract_text: Option<String>,
+    #[serde(default)]
+    pub doi: Option<String>,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub file: Option<String>,
 }
 
 pub fn sync_vault_bibliography(
@@ -141,6 +149,10 @@ fn bibliography_entry_from_excerpt(
     }
 
     BibliographyEntry {
+        abstract_text: excerpt.abstract_text,
+        doi: excerpt.doi,
+        url: excerpt.url,
+        file: excerpt.file,
         title: excerpt.title.unwrap_or_else(|| excerpt.key.clone()),
         source_path: source_path.to_string(),
         entry_type,
@@ -162,6 +174,36 @@ pub fn default_bibliography_paths(vault_root: &Path) -> Vec<String> {
         }
     }
     paths
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReferenceUsage {
+    pub key: String,
+    pub path: String,
+    pub line: u32,
+    pub valid: bool,
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReferenceUsageReport {
+    pub rows: Vec<ReferenceUsage>,
+    pub truncated: bool,
+}
+/// A bounded indexed snapshot; callers must not infer unused entries from a truncated report.
+pub fn list_reference_usage(cache: &IndexCache) -> Result<ReferenceUsageReport, IndexerError> {
+    let conn = cache.connection()?;
+    let mut statement=conn.prepare_cached("SELECT c.key,n.path,c.line,c.valid FROM citation_refs c JOIN notes n ON n.id=c.note_id ORDER BY n.path,c.line,c.key LIMIT 5001")?;
+    let rows = statement.query_map([], |row| {
+        Ok(ReferenceUsage {
+            key: row.get(0)?,
+            path: row.get(1)?,
+            line: row.get(2)?,
+            valid: row.get::<_, i64>(3)? != 0,
+        })
+    })?;
+    let mut rows = rows.collect::<Result<Vec<_>, _>>()?;
+    let truncated = rows.len() > 5000;
+    rows.truncate(5000);
+    Ok(ReferenceUsageReport { rows, truncated })
 }
 
 #[cfg(test)]

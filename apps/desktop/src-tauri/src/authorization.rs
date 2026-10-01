@@ -41,9 +41,13 @@ pub enum SensitiveOperation {
     PdfTranslation,
     PlantUmlExecution,
     PublishSite,
+    PublishBuild,
+    PublishDeploy,
     ResourceSync,
     RestoreBackup,
     RestoreHistory,
+    WebClip,
+    ZoteroRead,
 }
 
 impl SensitiveOperation {
@@ -66,6 +70,8 @@ impl SensitiveOperation {
                 | Self::RestoreHistory
                 | Self::GoogleDriveRead
                 | Self::GoogleDriveWrite
+                | Self::PublishBuild
+                | Self::PublishDeploy
         )
     }
 
@@ -99,14 +105,30 @@ impl SensitiveOperation {
             Self::PdfTranslation => "Run the configured PDF translation tool",
             Self::PlantUmlExecution => "Run a local PlantUML renderer",
             Self::PublishSite => "Publish this vault as a site",
+            Self::PublishBuild => "Build the reviewed local site",
+            Self::PublishDeploy => "Deploy the reviewed site or configure its domain",
             Self::ResourceSync => "Apply the reviewed agent resource sync plan",
             Self::RestoreBackup => "Replace vault contents from a snapshot",
             Self::RestoreHistory => "Replace a note with a historical revision",
+            Self::WebClip => "Preview content from this web page",
+            Self::ZoteroRead => "Preview your Zotero library",
         }
     }
 
     fn impact(self) -> &'static str {
         match self {
+            Self::PublishBuild => {
+                "The selected managed site project will run its build through the process broker. It may install locked dependencies and download packages; output is bounded and cancellable."
+            }
+            Self::PublishDeploy => {
+                "The reviewed built site will be uploaded to the selected Cloudflare Pages project, or the selected custom domain will be attached to that project. This changes the configured external resource."
+            }
+            Self::WebClip => {
+                "The selected public HTTPS page will be fetched for a bounded local preview. No note is written until you review and save it."
+            }
+            Self::ZoteroRead => {
+                "The provided read key will fetch a bounded page of reference metadata from the official Zotero API. No library item is changed; import requires a separate local review."
+            }
             Self::GoogleCalendarWrite => {
                 "The selected event will be created or updated in Google Calendar after the reviewed change and revision check. No other calendar event is changed."
             }

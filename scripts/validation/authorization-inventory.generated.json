@@ -2,6 +2,98 @@
   "schemaVersion": 1,
   "commands": [
     {
+      "name": "publishing_build_site",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "publish_build",
+      "authorizationVariant": "PublishBuild",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "publishing_deploy_site",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "publish_deploy",
+      "authorizationVariant": "PublishDeploy",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "publishing_configure_domain",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "publish_deploy",
+      "authorizationVariant": "PublishDeploy",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "publishing_cancel_job",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "reference_usage_preview",
+      "owner": "apps/desktop/src-tauri/src/commands/research_capture.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "none",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "degraded",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "capture_extract_preview",
+      "owner": "apps/desktop/src-tauri/src/commands/research_capture.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "web_clip",
+      "authorizationVariant": "WebClip",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "zotero_import_preview",
+      "owner": "apps/desktop/src-tauri/src/commands/research_capture.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "zotero_read",
+      "authorizationVariant": "ZoteroRead",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
       "name": "indexer_asset_usage",
       "owner": "apps/desktop/src-tauri/src/commands/indexer.rs",
       "authorizationClass": "read-only",

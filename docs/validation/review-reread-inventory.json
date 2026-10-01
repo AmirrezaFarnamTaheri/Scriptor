@@ -1,0 +1,946 @@
+{
+  "date": "2026-10-01",
+  "sources": [
+    {
+      "path": "Gemini-Review.md",
+      "bytes": 63038,
+      "lines": 767,
+      "sha256": "a5def86a81b0a957d0911e4f9868b005e22d3ac9942f71741a667fc9e9ff5186",
+      "observations": 0
+    },
+    {
+      "path": "Visual Review.txt",
+      "bytes": 380911,
+      "lines": 2989,
+      "sha256": "7544d39f352628715e399e48fef213de69a832774520db5a734081368f35e7fc",
+      "observations": 231
+    }
+  ],
+  "scope": "Complete source content screened. Observation entries preserve reviewer uncertainty, duplicates and withdrawn claims; they are not independent verified defects.",
+  "visualObservations": [
+    {
+      "line": 25,
+      "text": "1. **[MAJOR] visual-settings-workspace.png** — \"Split preview\" and \"Show sticky notes layer\" checkboxes collide with zero spacing (second checkbox touches the first label's last character; zoom-verified)."
+    },
+    {
+      "line": 26,
+      "text": "2. **[MINOR] visual-theme-customizer.png** — \"BORDER HIGHLIGHT\" input clips its value mid-token: `rgba(148, 163, 184,` with no ellipsis, full color value unreadable."
+    },
+    {
+      "line": 27,
+      "text": "3. **[MINOR] visual-layout-presets-bottom.png** — scrolled content ghosts through in the sliver above the sticky \"Inspector / Rendered output / Tools\" bar (zoom-verified)."
+    },
+    {
+      "line": 28,
+      "text": "4. **[MINOR] visual-layout-presets.png** — the identical preset feature is styled differently than Settings → Workspace: teal-outline \"Apply\" buttons vs gray-border ones, and two opposite active-state treatments (\"Tools\" white pill vs \"Layouts\" dark teal pill) in adjacent rows."
+    },
+    {
+      "line": 29,
+      "text": "5. **[MINOR] visual-color-palettes.png** — white swatch in the \"Light Modern\" card survives only on a hairline border and reads as an empty slot on the white card."
+    },
+    {
+      "line": 30,
+      "text": "6. **[MINOR] visual-settings-appearance.png** — action buttons (\"Manage color palettes\", \"Reset appearance defaults\") sit ~20px below the field above but nearly touch the next label, making them look attached to unrelated rows (same rhythm flaw in daemon-operations and backups)."
+    },
+    {
+      "line": 31,
+      "text": "7. **[MINOR] visual-settings-shortcuts.png** — every keybinding field has a teal accent border (even rows marked \"Default\") while the search input is gray; plus \"COMMAND\"/\"SHORTCUT\" headers are offset from their content while \"ACTIONS\" is flush right."
+    },
+    {
+      "line": 32,
+      "text": "8. **[MINOR] visual-settings-advanced.png / release-quality.png** — section heading \"startup\" is lowercase vs sentence-case siblings, and metric cards mix \"—\" and \"0\" empty states."
+    },
+    {
+      "line": 33,
+      "text": "9. **[MINOR] visual-settings-backups.png** — \"Backup Now\" breaks the sentence-case button convention, and its checkbox row is crammed against the help paragraph."
+    },
+    {
+      "line": 34,
+      "text": "10. **[SUSPECT] visual-settings-dark.png** — \"Inbox period\" is clipped exactly at the sticky footer edge with its input invisible; verify scroll clearance or the last field is unreachable."
+    },
+    {
+      "line": 47,
+      "text": "1. [MAJOR] `visual-mobile-touch-320.png` — format toolbar overflows 320px: link icon sliced mid-glyph at x=319, \"T/+/more\" off-screen with no scroll/overflow affordance."
+    },
+    {
+      "line": 48,
+      "text": "2. [MAJOR] `visual-mobile-320.png` — same toolbar overflow, trailing glyph sliced at the right edge (pixel-proved ink at x=319)."
+    },
+    {
+      "line": 49,
+      "text": "3. [MAJOR] `visual-mobile-320.png` — top-right action pill (moon/gear/help/sliders) clipped at the right viewport edge, rounded corner sliced (structure to x=318/320; ~10px margin at 390px proves overflow)."
+    },
+    {
+      "line": 50,
+      "text": "4. [MAJOR] `visual-mobile-touch-320.png` — same header pill corner-slice clip at 320px."
+    },
+    {
+      "line": 51,
+      "text": "5. [MAJOR] `visual-vault-loading.png` — \"Vault health\" tiles show definitive \"0\" values while the chip reads \"→ Loading…\"; no skeleton/spinner anywhere."
+    },
+    {
+      "line": 52,
+      "text": "6. [MINOR] `visual-mobile-rtl-fa-390.png` — history nav order is mirrored but chevrons aren't: back still points left (\"<\") in RTL; should point right."
+    },
+    {
+      "line": 53,
+      "text": "7. [MINOR] `visual-vault-loading.png` — \"Vault health\" title wraps to \"Vault\" / \"health\" beside the wider \"→ Loading…\" chip (one line in every other shot)."
+    },
+    {
+      "line": 54,
+      "text": "8. [MINOR] `visual-help-mobile-390.png` — guide line \"Open Vault chooses a folder, an open vault appears in\" sliced mid-glyph at the scroll clip line above the \"Reset guide progress\" footer, no fade/scroll cue."
+    },
+    {
+      "line": 55,
+      "text": "9. [MINOR] `visual-inspector-metrics-1024.png` — wrapped labels (\"Invalid frontmatter\", \"Unresolved citations\") misalign values within metric rows 2–3."
+    },
+    {
+      "line": 56,
+      "text": "10. [MINOR] `visual-quick-capture.png` — trash button adjacent to \"To note\" (destructive next to persist), plus ~250px dead space below \"Add sticky note\"."
+    },
+    {
+      "line": 71,
+      "text": "1. [MAJOR] visual-canvas-empty — empty state hugs the top (~48px gap) with ~447px of dead board below the `Add first card` CTA; not centered."
+    },
+    {
+      "line": 72,
+      "text": "2. [MAJOR] visual-kanban-workspace — kanban columns span only x≈220–906 of a modal body to x≈1240; right third is blank dead space."
+    },
+    {
+      "line": 73,
+      "text": "3. [MAJOR] visual-graph-first-open-guidance — the edge line and arrowhead strike through the `Methodology` node label."
+    },
+    {
+      "line": 74,
+      "text": "4. [MINOR] visual-kanban-populated + kanban-workspace — move-button disabled state inconsistent: `Todo`'s `‹` looks fully enabled while `Done`'s `›` is disabled and nearly invisible."
+    },
+    {
+      "line": 75,
+      "text": "5. [MINOR] visual-knowledge-tags — count mis-pluralized: `1 tags`."
+    },
+    {
+      "line": 76,
+      "text": "6. [MINOR] visual-canvas-export-menu — raw internal UUID exposed in the panel footer: `Added sticky-note. 4c3e60e1-7696-4f4d-af84-9337633c5cfe`."
+    },
+    {
+      "line": 77,
+      "text": "7. [MINOR] visual-canvas-empty — empty-state copy promises a template picker (`choose a template or tool above`) that doesn't exist in the toolbar."
+    },
+    {
+      "line": 78,
+      "text": "8. [MINOR] visual-knowledge-triage-populated — ~600px dead middle band in every triage card, metrics column misaligned across cards, and the sequential `Next` control embedded in card 1's row only."
+    },
+    {
+      "line": 79,
+      "text": "9. [MINOR] visual-graph-dense-120 — nodes merge into blobs in the dense cluster and only the focus node is labeled (declutter policy unconfirmed — SUSPECT)."
+    },
+    {
+      "line": 80,
+      "text": "10. [MINOR] visual-knowledge-collections — duplicated empty-result messaging and a play-triangle ▷ icon on the `Refresh` button."
+    },
+    {
+      "line": 113,
+      "text": "- [SUSPECT] graph canvas (all regions) — every node label except the focus node's is dropped/hidden at this density: only \"Research Plan\" is labeled across ~120 nodes. This reads as intentional decluttering (it does keep the view legible), but if the design intends labels-on-hover or labels above a zoom threshold, that behavior isn't visible in a static frame → confirm the label-declutter policy is intentional; if not, add progressive label reveal (zoom/hover)."
+    },
+    {
+      "line": 114,
+      "text": "- [MINOR] focus node label (\"Research Plan\", lower-left) — the label text sits directly against the bottom edge of the cyan focus node and an edge line passes through/behind the label, so the dark text touches both the node halo and a teal edge → add a small background pill or offset the label a few px further below the node."
+    },
+    {
+      "line": 115,
+      "text": "- [MINOR] center-right dense cluster (~x 620–1030, y 280–520) — several indigo nodes touch or slightly overlap each other (e.g. nodes around the vertical middle of the cluster), making individual node boundaries merge into blobs → increase collision radius / repulsion in the force layout at high node counts."
+    },
+    {
+      "line": 116,
+      "text": "- [SUSPECT] legend swatch (\"Current note\", legend strip) — the legend dot is dark green/teal, while the actual current-note node is bright cyan with a dark ring; the fill-vs-outline distinction the legend implies is carried by an unshown outline variant, and swatch color doesn't match the rendered node → align the legend swatch with the focus node's cyan fill + ring styling."
+    },
+    {
+      "line": 117,
+      "text": "- [POLISH] \"Graph depth\" slider value \"2\" (top-right) — the numeric value floats detached at the far right past the slider track's end, with a large gap between track and number → place the value adjacent to the slider end or in a fixed-width readout."
+    },
+    {
+      "line": 131,
+      "text": "- [SUSPECT] Left frame edge, at the divider between header and body (~1/3 down the left edge) — a small blue/teal fragment is visible at the very edge of the frame, next to the horizontal rule; unclear whether it's a clipped UI accent (e.g. an edge tab or highlight bar) or a JPEG re-encode artifact. (\"\") → Confirm against the source PNG `visual-graph-disabled-recovery.png`: if it's a real element, keep it inside the panel bounds or clip it intentionally; if it's only an artifact of the small re-encode, ignore."
+    },
+    {
+      "line": 132,
+      "text": "- [SUSPECT] Body sub-copy, muted gray on white — \"Enable the Graph module for this vault to explore note relationships.\" — contrast looks lighter than the heading; at this 520x218 size it's readable to me but I can't measure the ratio from a JPEG. → Verify the muted text token meets ≥4.5:1 against the panel background (it likely does if it's the standard gray-500-ish token)."
+    },
+    {
+      "line": 147,
+      "text": "- [MAJOR] canvas area vertical composition — empty state is not centered in the canvas area; it hugs the top while a ~370px-tall tinted board panel below is pure dead space. Measured: ~48px from toolbar bottom to the icon top vs ~447px from the \"Add first card\" button bottom down to the status bar; the empty state block sits in the top ~25% of the surface. → Center the icon/copy/CTA block within the actual board panel (or within the full canvas viewport), so top and bottom margins to the surface edges are roughly equal; move the zoom cluster to overlay the panel rather than sit above it."
+    },
+    {
+      "line": 149,
+      "text": "- [MINOR] empty-state sub-copy — the instruction points at a control that does not exist in this frame: \"Add a card now, or choose a template or tool above.\" The toolbar above contains only \"New board\", \"0 blocks\", \"Undo\", \"Redo\", \"Export\", \"Link to active note\" — no template picker is visible anywhere. → Add the template entry point to the toolbar/empty state, or reword to only name actions that are actually reachable (e.g. \"Add a card now, or link the canvas to an active note.\")."
+    },
+    {
+      "line": 151,
+      "text": "- [SUSPECT] empty-state muted text + status text — \"Add a card now, or choose a template or tool above.\", \"0 blocks\", and \"New board ready.\" are light gray on white and appear near the readable/low boundary; the thin-stroke \"+\" icon is similarly faint. → Verify against 4.5:1 (body) / 3:1 (icon) and darken the muted token if it fails."
+    },
+    {
+      "line": 153,
+      "text": "- [POLISH] primary CTA — \"Add first card\" is styled as a quiet outline button identical in weight to \"Reset view\", so the single most important action reads as a secondary control in an otherwise empty screen. → Give it the primary treatment (filled/accent) so it anchors the empty state."
+    },
+    {
+      "line": 155,
+      "text": "- [POLISH] zoom toolbar — \"−\", \"100%\", \"+\", \"Reset view\" is fully present at far-left on an empty board (\"0 blocks\"), where zoom/reset have nothing to act on and visually detach from the centered empty state. → Dim/disable while empty, or float the cluster over the board panel bottom-left so it reads as belonging to the surface."
+    },
+    {
+      "line": 170,
+      "text": "- [MINOR] Canvas interior — large dead-space band across the full middle of the board and an empty lower-left quadrant; the 5 cards form a sparse top row + bottom row cluster with a ~130px-tall empty horizontal gap and no content left of \"Methodology.md\" (\"Research question\", \"Evidence\", \"Synthesis\" top row; \"Methodology.md\", \"Research Plan.md\" bottom row) → tighten default card placement (e.g. pack cards into a grid or reduce vertical gaps) or auto-fit view to content bounds."
+    },
+    {
+      "line": 171,
+      "text": "- [MINOR] Bottom-row cards vs canvas bottom edge — \"Methodology.md\" and \"Research Plan.md\" sit flush against (or a hair past) the canvas surface's bottom boundary with no breathing room, while the top row has a visible ~10px inset from the canvas top → give cards a consistent margin from the canvas edges or clamp placement inside a padding inset."
+    },
+    {
+      "line": 172,
+      "text": "- [POLISH] Bottom-row card pair vs canvas centering — \"Methodology.md\" + \"Research Plan.md\" span roughly x=358–1157 while the canvas spans the full width, so the pair reads slightly right-of-center relative to the centered top row → center the row on the canvas midpoint."
+    },
+    {
+      "line": 173,
+      "text": "- [POLISH] Card size vs content — all five cards are large boxes with only a single title line and entirely empty bodies (\"Research question\", \"Evidence\", \"Synthesis\", \"Methodology.md\", \"Research Plan.md\"); the two note cards are also visibly wider (~365px) than the three sticky cards (~300px) despite identical content depth → size cards to content or add body/preview text to justify the footprint."
+    },
+    {
+      "line": 174,
+      "text": "- [SUSPECT] Canvas — no connector lines at all, although the card set reads as a workflow (\"Research question\" → \"Evidence\" → \"Synthesis\" with \"Methodology.md\"/\"Research Plan.md\" below); if connectors are expected on a populated board this is a missing-feature gap, otherwise nothing to fix → confirm whether connectors are supposed to render in this fixture."
+    },
+    {
+      "line": 212,
+      "text": "- [MINOR] canvas panel footer — raw internal identifier shown to the user: \"Added sticky-note. 4c3e60e1-7696-4f4d-af84-9337633c5cfe\" → replace the UUID with a friendly label (e.g. note title, \"just now\", or a short id in a tooltip) in the status message."
+    },
+    {
+      "line": 213,
+      "text": "- [SUSPECT] export menu overlay vs canvas card — the open menu's bottom edge cuts across the card title \"Research Plan\", slicing the tops of the glyphs mid-character (menu spans roughly x 417–636, bottom edge ~y 238; the title sits at y ~220–248). Popovers normally overlay content, so this may be accepted behavior, but the cut lands exactly on the only content block's title and reads as truncation while the menu is open → if this is deemed a defect, offset the menu or reduce its height/width so the card title stays legible; otherwise no change."
+    },
+    {
+      "line": 214,
+      "text": "- [POLISH] export menu item rows — menu panel is ~220px wide while the longest label \"Export PNG\" occupies only ~80px, leaving a large empty right area with no icons, separators, or shortcut column to justify the width → either narrow the menu to content width or add right-aligned keyboard hints (e.g. Ctrl+Shift+S) to balance the row."
+    },
+    {
+      "line": 215,
+      "text": "- [SUSPECT] menu placement vs trigger — the menu's left edge sits a few pixels left of the \"Export ⌄\" trigger button's left edge (menu ~x417 vs trigger ~x423), and the menu extends well past the trigger's right edge (~x521 → menu ~x636). Alignment is close enough that this may be a measurement artifact of the JPEG re-encode; if real, anchor the menu flush to the trigger's left edge."
+    },
+    {
+      "line": 279,
+      "text": "- [MAJOR] Modal body, right region — the three columns (`Todo`/`Doing`/`Done`) span only x≈220–906 of a modal body running to x≈1240; roughly the right third (~330px) of the board area is blank dead space, so the board reads as unfinished/wrong-sized → make columns flex to fill the modal width (or size the modal to the board)."
+    },
+    {
+      "line": 280,
+      "text": "- [MINOR] Cards, all three columns — large dead vertical space inside each card: one-line title at the top (`Draft release notes`, `Verify panel mounts`, `Wire palette command`) and the `<` `>` buttons pinned to the bottom leaves ~40px empty middle band in every card → collapse card height to content or move buttons inline with the title."
+    },
+    {
+      "line": 281,
+      "text": "- [MINOR] Cards, all columns — no drag affordance visible: no grip handle, drag dots, or hover hint anywhere on the cards; the only move mechanism on screen is the `<` `>` buttons → if drag-and-drop is supported, add a visible grip handle (aligned consistently, e.g. top-left) or cursor/hover affordance."
+    },
+    {
+      "line": 282,
+      "text": "- [MINOR] Move buttons, all cards — icon-only `<` `>` with no label/tooltip/aria text visible anywhere; placement is consistent (bottom-right, ~7px inset) but the meaning of each chevron is not discoverable from the screen → add tooltips/accessible names (\"Move left\"/\"Move right\")."
+    },
+    {
+      "line": 283,
+      "text": "- [SUSPECT] Move buttons, `Todo` card vs `Done` card — disabled presentation looks inconsistent: `Done`'s `>` is visibly lighter/gray (plausibly the disabled state), while `Todo`'s `<` (which should be disabled — nothing is left of Todo) renders white with a dark chevron, indistinguishable from the enabled `>` beside it → verify disabled styling is applied to both ends of the board; JPEG contrast makes me unsure of the exact fill."
+    },
+    {
+      "line": 284,
+      "text": "- [SUSPECT] Left sidebar — labels read `New from t…` and `Today · 202…` where the modal's left edge (x≈185) cuts across them; the `…` suggests real ellipsis truncation, but the modal occlusion means I cannot confirm whether it is a truncation defect or just overlap → check these rows in an unobstructed capture."
+    },
+    {
+      "line": 285,
+      "text": "- [SUSPECT] Board framing — the kanban surface is a floating modal (~1070×325 at frame center) over the markdown editor (`kanban-plugin: basic` visible behind it), not a docked workspace surface; margins are symmetric and the modal is vertically centered, so it looks deliberate, but if the intended design is an embedded board pane this presentation is wrong → confirm intended placement."
+    },
+    {
+      "line": 311,
+      "text": "- [MINOR] Column 1 \"Todo\" card (\"Draft release notes\") — its \"‹\" move button renders fully enabled (solid border, dark chevron) even though the leftmost column has nowhere to move left, while the mirror case is handled in \"Done\" where \"›\" is visibly disabled → apply the same disabled styling/behavior to \"‹\" in the first column as to \"›\" in the last."
+    },
+    {
+      "line": 312,
+      "text": "- [MINOR] Column 3 \"Done\" card (\"Wire palette command\") — the disabled \"›\" button is nearly invisible (border gone, chevron almost matches the background), so it reads as a missing control rather than a disabled one → keep a visible border and use a clear disabled tint (e.g. ~50% opacity on border + icon) plus `aria-disabled`."
+    },
+    {
+      "line": 313,
+      "text": "- [MINOR] All three cards (\"Draft release notes\", \"Verify panel mounts\", \"Wire palette command\") — dead space: the title sits on the top row and the move buttons float at bottom-right, leaving an empty band roughly 35–45px tall between them for a single-line title → move the \"‹\" \"›\" buttons up onto the title row (right-aligned) or shrink the card height to fit its content."
+    },
+    {
+      "line": 314,
+      "text": "- [MINOR] Board area right of the \"Done\" column and beneath the columns — the three columns fill only ~two-thirds of the frame width and stop ~60px above the panel's bottom edge, leaving an L-shaped empty region in this short/wide 1080x316 frame → let columns stretch to fill the panel width (or distribute the slack) and size the panel to the board's height."
+    },
+    {
+      "line": 315,
+      "text": "- [SUSPECT] Cards — no drag grip handles (⋮⋮ or similar) are visible anywhere; the only move affordance is the \"‹\" \"›\" buttons → if drag-to-move is supported, add a grip handle so the affordance is discoverable; if buttons are the sole mechanism, this is fine."
+    },
+    {
+      "line": 329,
+      "text": "1. [MAJOR] visual-canvas-empty — empty state hugs the top (~48px gap) with ~447px of dead board below the `Add first card` CTA; not centered."
+    },
+    {
+      "line": 330,
+      "text": "2. [MAJOR] visual-kanban-workspace — kanban columns span only x≈220–906 of a modal body to x≈1240; right third is blank dead space."
+    },
+    {
+      "line": 331,
+      "text": "3. [MAJOR] visual-graph-first-open-guidance — the edge line and arrowhead strike through the `Methodology` node label."
+    },
+    {
+      "line": 332,
+      "text": "4. [MINOR] visual-kanban-populated + kanban-workspace — move-button disabled state inconsistent: `Todo`'s `‹` looks fully enabled while `Done`'s `›` is disabled and nearly invisible."
+    },
+    {
+      "line": 333,
+      "text": "5. [MINOR] visual-knowledge-tags — count mis-pluralized: `1 tags`."
+    },
+    {
+      "line": 334,
+      "text": "6. [MINOR] visual-canvas-export-menu — raw internal UUID exposed in the panel footer: `Added sticky-note. 4c3e60e1-7696-4f4d-af84-9337633c5cfe`."
+    },
+    {
+      "line": 335,
+      "text": "7. [MINOR] visual-canvas-empty — empty-state copy promises a template picker (`choose a template or tool above`) that doesn't exist in the toolbar."
+    },
+    {
+      "line": 336,
+      "text": "8. [MINOR] visual-knowledge-triage-populated — ~600px dead middle band in every triage card, metrics column misaligned across cards, and the sequential `Next` control embedded in card 1's row only."
+    },
+    {
+      "line": 337,
+      "text": "9. [MINOR] visual-graph-dense-120 — nodes merge into blobs in the dense cluster and only the focus node is labeled (declutter policy unconfirmed — SUSPECT)."
+    },
+    {
+      "line": 338,
+      "text": "10. [MINOR] visual-knowledge-collections — duplicated empty-result messaging and a play-triangle ▷ icon on the `Refresh` button."
+    },
+    {
+      "line": 367,
+      "text": "1. **[MAJOR] visual-settings-workspace.png** — \"Split preview\" and \"Show sticky notes layer\" checkboxes collide with zero spacing (second checkbox touches the first label's last character; zoom-verified)."
+    },
+    {
+      "line": 368,
+      "text": "2. **[MINOR] visual-theme-customizer.png** — \"BORDER HIGHLIGHT\" input clips its value mid-token: `rgba(148, 163, 184,` with no ellipsis, full color value unreadable."
+    },
+    {
+      "line": 369,
+      "text": "3. **[MINOR] visual-layout-presets-bottom.png** — scrolled content ghosts through in the sliver above the sticky \"Inspector / Rendered output / Tools\" bar (zoom-verified)."
+    },
+    {
+      "line": 370,
+      "text": "4. **[MINOR] visual-layout-presets.png** — the identical preset feature is styled differently than Settings → Workspace: teal-outline \"Apply\" buttons vs gray-border ones, and two opposite active-state treatments (\"Tools\" white pill vs \"Layouts\" dark teal pill) in adjacent rows."
+    },
+    {
+      "line": 371,
+      "text": "5. **[MINOR] visual-color-palettes.png** — white swatch in the \"Light Modern\" card survives only on a hairline border and reads as an empty slot on the white card."
+    },
+    {
+      "line": 372,
+      "text": "6. **[MINOR] visual-settings-appearance.png** — action buttons (\"Manage color palettes\", \"Reset appearance defaults\") sit ~20px below the field above but nearly touch the next label, making them look attached to unrelated rows (same rhythm flaw in daemon-operations and backups)."
+    },
+    {
+      "line": 373,
+      "text": "7. **[MINOR] visual-settings-shortcuts.png** — every keybinding field has a teal accent border (even rows marked \"Default\") while the search input is gray; plus \"COMMAND\"/\"SHORTCUT\" headers are offset from their content while \"ACTIONS\" is flush right."
+    },
+    {
+      "line": 374,
+      "text": "8. **[MINOR] visual-settings-advanced.png / release-quality.png** — section heading \"startup\" is lowercase vs sentence-case siblings, and metric cards mix \"—\" and \"0\" empty states."
+    },
+    {
+      "line": 375,
+      "text": "9. **[MINOR] visual-settings-backups.png** — \"Backup Now\" breaks the sentence-case button convention, and its checkbox row is crammed against the help paragraph."
+    },
+    {
+      "line": 376,
+      "text": "10. **[SUSPECT] visual-settings-dark.png** — \"Inbox period\" is clipped exactly at the sticky footer edge with its input invisible; verify scroll clearance or the last field is unreachable."
+    },
+    {
+      "line": 390,
+      "text": "1. [MAJOR] `visual-mobile-touch-320.png` — format toolbar overflows 320px: link icon sliced mid-glyph at x=319, \"T/+/more\" off-screen with no scroll/overflow affordance."
+    },
+    {
+      "line": 391,
+      "text": "2. [MAJOR] `visual-mobile-320.png` — same toolbar overflow, trailing glyph sliced at the right edge (pixel-proved ink at x=319)."
+    },
+    {
+      "line": 392,
+      "text": "3. [MAJOR] `visual-mobile-320.png` — top-right action pill (moon/gear/help/sliders) clipped at the right viewport edge, rounded corner sliced (structure to x=318/320; ~10px margin at 390px proves overflow)."
+    },
+    {
+      "line": 393,
+      "text": "4. [MAJOR] `visual-mobile-touch-320.png` — same header pill corner-slice clip at 320px."
+    },
+    {
+      "line": 394,
+      "text": "5. [MAJOR] `visual-vault-loading.png` — \"Vault health\" tiles show definitive \"0\" values while the chip reads \"→ Loading…\"; no skeleton/spinner anywhere."
+    },
+    {
+      "line": 395,
+      "text": "6. [MINOR] `visual-mobile-rtl-fa-390.png` — history nav order is mirrored but chevrons aren't: back still points left (\"<\") in RTL; should point right."
+    },
+    {
+      "line": 396,
+      "text": "7. [MINOR] `visual-vault-loading.png` — \"Vault health\" title wraps to \"Vault\" / \"health\" beside the wider \"→ Loading…\" chip (one line in every other shot)."
+    },
+    {
+      "line": 397,
+      "text": "8. [MINOR] `visual-help-mobile-390.png` — guide line \"Open Vault chooses a folder, an open vault appears in\" sliced mid-glyph at the scroll clip line above the \"Reset guide progress\" footer, no fade/scroll cue."
+    },
+    {
+      "line": 398,
+      "text": "9. [MINOR] `visual-inspector-metrics-1024.png` — wrapped labels (\"Invalid frontmatter\", \"Unresolved citations\") misalign values within metric rows 2–3."
+    },
+    {
+      "line": 399,
+      "text": "10. [MINOR] `visual-quick-capture.png` — trash button adjacent to \"To note\" (destructive next to persist), plus ~250px dead space below \"Add sticky note\"."
+    },
+    {
+      "line": 415,
+      "text": "1. [MAJOR] visual-graph-dense-120.png — \"Research Plan\" focus label overlapped on both ends by neighboring nodes (nodes render above labels)."
+    },
+    {
+      "line": 416,
+      "text": "2. [MAJOR] visual-canvas-empty.png — empty state (\"Start your research board\" / \"Add first card\") sits above the canvas surface; the actual board is a blank gray box with no affordance."
+    },
+    {
+      "line": 417,
+      "text": "3. [MAJOR] visual-kanban-populated.png — columns fill only the left ~55% of the board; right 45% is dead space."
+    },
+    {
+      "line": 418,
+      "text": "4. [MAJOR] visual-kanban-populated.png — Done column's \"‹ ›\" both greyed: a completed card can't move back, disabled state on the wrong control (should be \"›\" only)."
+    },
+    {
+      "line": 419,
+      "text": "5. [MINOR] visual-canvas-export-menu.png — status bar leaks an internal UUID: \"Added sticky-note: 4c3e08e1-…-933763c357fce\"."
+    },
+    {
+      "line": 420,
+      "text": "6. [MINOR] visual-knowledge-triage-populated.png — \"Next\" appears only on the first card of \"Triage 1 of 3\" and shifts its \"in 12 · out 4\" metrics out of alignment with the other rows."
+    },
+    {
+      "line": 421,
+      "text": "7. [MINOR] visual-graph-first-open-guidance.png — guidance card overlaps the status strip and clips chips mid-text (\"…Fresh · Gr\"); edges also cross the \"Research Plan\" label."
+    },
+    {
+      "line": 422,
+      "text": "8. [MINOR] visual-knowledge-tags.png / triage — modal has no scrim; underlying document text peeks above the panel (\"…h into graph-assisted curation.\" / \"…ple-facing asset.\"), plus \"1 tags\" pluralization bug."
+    },
+    {
+      "line": 423,
+      "text": "9. [MINOR] visual-knowledge-collections.png — collection rows spaced ~125px apart for single-line chips, query chip misaligned ~18px from its column, \"Refresh\" with a play-triangle icon."
+    },
+    {
+      "line": 424,
+      "text": "10. [MINOR] visual-kanban-workspace.png / canvas shots — bottom-right status chips clipped mid-label (\"…Git · Spe\"); left rail cut mid-word (\"New from t\", \"Today · 202\")."
+    },
+    {
+      "line": 446,
+      "text": "1. [MAJOR] visual-writing-targets.png — bar chart contradicts its own \"Recent history\" list for every day (\"2026-09-19: 620 words\" but the bar sits below 600; \"2026-09-21: 198 words\" bar ≈ 165)."
+    },
+    {
+      "line": 447,
+      "text": "2. [MAJOR] visual-writing-targets.png — dashed \"Target\" line sits at ~450 while \"Daily word target\" reads \"500\"."
+    },
+    {
+      "line": 448,
+      "text": "3. [MAJOR] visual-large-vault-bottom.png — nine sidebar rows all truncate to the identical \"Generated research n...\", making notes indistinguishable."
+    },
+    {
+      "line": 449,
+      "text": "4. [MAJOR] visual-snippets.png — snippet list rhythm broken: ~130px gap between \"literature-note\" and \"method-check\"."
+    },
+    {
+      "line": 450,
+      "text": "5. [MAJOR] visual-mcp-sharing-table.png — third row shows only \"contained copy\" in State; \"Canonical resource\" and \"Target\" cells are empty."
+    },
+    {
+      "line": 451,
+      "text": "6. [MINOR] visual-portal-form.png — sticky chips row slices the pinned card mid-title (\"Criptor docs\") with no seam."
+    },
+    {
+      "line": 452,
+      "text": "7. [MINOR] visual-dock-search-results.png — snippet truncated at both ends without ellipsis (\"tes - Methodology Outline … Dr\") and the match term is never highlighted."
+    },
+    {
+      "line": 453,
+      "text": "8. [MINOR] visual-help-rtl-fa.png — Persian chrome with untranslated English guide values, and right-aligned Persian labels against left-aligned Latin list items in one column."
+    },
+    {
+      "line": 454,
+      "text": "9. [MINOR] visual-snippets.png — Content textarea holds literal `\\n` escapes on one line inside a multiline field."
+    },
+    {
+      "line": 455,
+      "text": "10. [MINOR] visual-cheatsheet.png — SYNTAX snippets sit on plain background while Mermaid/Math use tinted code blocks (pixel-verified 248,251,250 vs 229,239,237)."
+    },
+    {
+      "line": 456,
+      "text": "11. [MINOR] visual-vault-health-dashboard(-720).png — \"Maintenance tools\" heading renders with zero controls beneath it at both widths."
+    },
+    {
+      "line": 457,
+      "text": "12. [SUSPECT] visual-help-direct-answers.png — active query reports \"Matching guides: 104\" while the sidebar list looks unfiltered and only 3 quick answers show."
+    },
+    {
+      "line": 470,
+      "text": "1. [MAJOR] visual-graph-dense-120.png — \"Research Plan\" focus label overlapped on both ends by neighboring nodes (nodes render above labels)."
+    },
+    {
+      "line": 471,
+      "text": "2. [MAJOR] visual-canvas-empty.png — empty state (\"Start your research board\" / \"Add first card\") sits above the canvas surface; the actual board is a blank gray box with no affordance."
+    },
+    {
+      "line": 472,
+      "text": "3. [MAJOR] visual-kanban-populated.png — columns fill only the left ~55% of the board; right 45% is dead space."
+    },
+    {
+      "line": 473,
+      "text": "4. [MAJOR] visual-kanban-populated.png — Done column's \"‹ ›\" both greyed: a completed card can't move back, disabled state on the wrong control (should be \"›\" only)."
+    },
+    {
+      "line": 474,
+      "text": "5. [MINOR] visual-canvas-export-menu.png — status bar leaks an internal UUID: \"Added sticky-note: 4c3e08e1-…-933763c357fce\"."
+    },
+    {
+      "line": 475,
+      "text": "6. [MINOR] visual-knowledge-triage-populated.png — \"Next\" appears only on the first card of \"Triage 1 of 3\" and shifts its \"in 12 · out 4\" metrics out of alignment with the other rows."
+    },
+    {
+      "line": 476,
+      "text": "7. [MINOR] visual-graph-first-open-guidance.png — guidance card overlaps the status strip and clips chips mid-text (\"…Fresh · Gr\"); edges also cross the \"Research Plan\" label."
+    },
+    {
+      "line": 477,
+      "text": "8. [MINOR] visual-knowledge-tags.png / triage — modal has no scrim; underlying document text peeks above the panel (\"…h into graph-assisted curation.\" / \"…ple-facing asset.\"), plus \"1 tags\" pluralization bug."
+    },
+    {
+      "line": 478,
+      "text": "9. [MINOR] visual-knowledge-collections.png — collection rows spaced ~125px apart for single-line chips, query chip misaligned ~18px from its column, \"Refresh\" with a play-triangle icon."
+    },
+    {
+      "line": 479,
+      "text": "10. [MINOR] visual-kanban-workspace.png / canvas shots — bottom-right status chips clipped mid-label (\"…Git · Spe\"); left rail cut mid-word (\"New from t\", \"Today · 202\")."
+    },
+    {
+      "line": 499,
+      "text": "- [POLISH] Row alignment, all 3 rows — Save buttons sit exactly 1px lower than their inputs (button spans y167–202 / 242–277 / 317–352 vs input fills 166–201 / 241–276 / 316–351; identical 1px offset per row) (\"Save\") → snap button box to input box."
+    },
+    {
+      "line": 500,
+      "text": "- [POLISH] Field column, right edge — three identical always-enabled \"Save\" buttons with no dirty-state indication, so it's unclear which field is unsaved (\"Save\", \"Save\", \"Save\") → disable per-row Save until the field is edited, or autosave and drop the buttons."
+    },
+    {
+      "line": 501,
+      "text": "- [SUSPECT] Input fills — fields render in a filled gray-green (rgb 232,242,240) that conventionally signals disabled/read-only, yet each pairs with an active Save (\"Scriptor research\", \"active\", \"research, methods\") → if editable, switch to the standard editable-input style; if read-only, remove Save."
+    },
+    {
+      "line": 502,
+      "text": "- [POLISH] Panel bottom vs top — whitespace below the \"tags\" row measures ~18px to the panel border vs ~28px above the \"Frontmatter\" cap-height; the panel looks bottom-tight (\"tags\" / \"research, methods\") → equalize vertical padding."
+    },
+    {
+      "line": 503,
+      "text": "- [SUSPECT] Bottom-right corner (x≈712–716, y≈365–371) — 2–5px sliver of unrelated dark/gray pixels visible outside the panel's rounded corner → expected if this panel floats over the workspace (behind-content bleed); otherwise crop/mask the corner."
+    },
+    {
+      "line": 511,
+      "text": "- [MAJOR] Vault health card — three contradictory states at once: a \"→ Loading...\" badge, eight tiles already showing final-looking values (\"Broken links 0\", \"Orphan assets 0\", …, \"Vault words 0\"), and global status \"No vault open\". Zeros read as measured data and the loading badge says they're not final yet → show skeletons/blank tiles while loading and replace the card with an explicit \"No vault open\" empty state rather than zeros."
+    },
+    {
+      "line": 512,
+      "text": "- [MAJOR] Empty-state card, tagline line — measured contrast 4.41:1 (rgb 100,116,139 on rgb 243,247,247) at ~12px (\"Local-first · Markdown-native · Your files stay yours\") → below WCAG AA 4.5:1; darken to slate-500/600 or increase size. (Narrow fail — if your release gate treats any AA failure as blocking, escalate to BLOCKER.)"
+    },
+    {
+      "line": 513,
+      "text": "- [MINOR] Vault health tile \"Cache\" — em-dash placeholder \"—\" while all seven sibling tiles show \"0\" (\"Cache —\" vs \"Vault words 0\") → pick one unknown-value convention (all placeholders or all skeletons)."
+    },
+    {
+      "line": 514,
+      "text": "- [MINOR] Publish readiness card + right-panel bottom edge — body is sliced mid-glyph at the container border: only ~6px of the ~12px line is visible before the cut at y≈867 (\"Open a note to review publishing readiness\"), and it sits under a measured 50px empty gap below the \"Publish readiness\" heading (vs 34px heading→content in \"Vault health\"; gap confirmed empty) → tighten the gap and add bottom padding/fade so the line lands fully visible."
+    },
+    {
+      "line": 515,
+      "text": "- [MINOR] Left sidebar — \"Open a vault to browse notes.\" ends at y≈340 and the next content (bottom toolbar) starts at y≈842: ~500px of orphaned empty region with the message stranded at the top (\"Open a vault to browse notes.\") → center the message in the list area or add an inline \"Open vault\" affordance there."
+    },
+    {
+      "line": 516,
+      "text": "- [MINOR] Center editor toolbar — \"Source / Split / Preview\" and the B / I / link / T / + / list / sliders controls render in near-enabled styling while the tab says \"No note open\" → disable/dim the entire toolbar (including the \"Source\" active segment) until a note is open."
+    },
+    {
+      "line": 517,
+      "text": "- [POLISH] Right panel, below filter chips — bare helper sentence with no heading or owner (\"Default inspector layout.\") reads like leftover/debug copy → remove or promote to a labeled section."
+    },
+    {
+      "line": 518,
+      "text": "- [POLISH] Top-right icon cluster — a single filled red heart among 8 monochrome outline icons (the only saturated chrome element) reads as an alert/active state → outline it or give all toggles a consistent active treatment."
+    },
+    {
+      "line": 519,
+      "text": "- [POLISH] Empty-state messaging is stated four ways for one state — \"No note open\", \"Open your writing workspace\", \"Open a vault to browse notes.\", \"No vault open\" → unify into one primary message plus at most one supporting status."
+    },
+    {
+      "line": 520,
+      "text": "- [SUSPECT] Vault health badge — \"→ Loading...\" uses a right-arrow glyph as the loading indicator; arrows imply navigation, not progress → spinner or ellipsis-only pill."
+    },
+    {
+      "line": 534,
+      "text": "1. [MAJOR] visual-settings-workspace.png — checkbox row collision: the \"Show sticky notes layer\" checkbox is flush against \"Split preview\" (\"Split preview☑Show sticky notes layer\", confirmed at 4×)."
+    },
+    {
+      "line": 535,
+      "text": "2. [MAJOR] visual-theme-customizer.png — \"BORDER HIGHLIGHT\" hex input truncated mid-value: \"rgba(148, 163, 184,\" with the closing paren/values cut off."
+    },
+    {
+      "line": 536,
+      "text": "3. [MINOR] visual-settings-dark.png — \"Enable inbox triage (`_organized` frontmatter)\" uses the native blue checkbox, a light-theme leftover in the dark palette (teal accent everywhere else)."
+    },
+    {
+      "line": 537,
+      "text": "4. [MINOR] visual-layout-presets.png + -bottom.png — no current-layout marker: every card shows an identical \"Apply\", while the twin Settings > Workspace list marks its active template (\"Active\")."
+    },
+    {
+      "line": 538,
+      "text": "5. [MINOR] visual-settings-daemon-operations.png — toggle state buried in button labels (\"Backlinks (active)\", \"Graph (active)\") styled identically to plain commands (\"Count notes\")."
+    },
+    {
+      "line": 539,
+      "text": "6. [MINOR] visual-settings-backups.png — \"Backup interval (minutes)\" = \"60\" / \"Max snapshots to keep\" = \"10\" render enabled while \"Enable scheduled backups\" is unchecked."
+    },
+    {
+      "line": 540,
+      "text": "7. [MINOR] visual-settings-advanced.png / -release-quality.png — section heading \"startup\" lowercase vs title-case siblings (\"Updates\", \"Release quality dashboard\"); dividers between sections are inconsistent."
+    },
+    {
+      "line": 541,
+      "text": "8. [MINOR] visual-settings-dark.png — preview strip text \"Today's daily note: daily/2026-09-29.md — title 2026-09-29\" is dim gray on dark, borderline contrast."
+    },
+    {
+      "line": 542,
+      "text": "9. [MINOR] visual-color-palettes.png — \"✓ Installed & Active\" is a low-contrast disabled-looking control next to strong \"Install & Activate Palette\" CTAs; pale swatch chips render borderless."
+    },
+    {
+      "line": 543,
+      "text": "10. [MINOR] visual-settings-shortcuts.png — \"Disabled\" caption rows (\"Open reader\", \"Open tasks panel\") break table row rhythm; shortcut column narrow with a dead gap before \"Default\"."
+    },
+    {
+      "line": 554,
+      "text": "- [MAJOR] Editor surface (center pane, y≈150–790) vs mode control (\"Source | Split | Preview\" in editor toolbar) — the **\"Preview\" segment is selected** (active pill, bold label; measured strokes min-gray 40 vs 83 for inactive \"Source\") yet the editor surface renders **raw Markdown source**: literal `\"# Research Plan\"` (hash marker visible), `\"- [[Field.Notes]]\"`, `\"- [[Methodology]]\"`, `\"- [ ] Collect sources due: 2026-06-30\"`, `\"- [/] Draft methodology\"`. The rendered forms of these exact constructs appear in the right dock's \"Preview\" card (`Research Plan` heading without `#`, bulleted links `Field Notes` / `Methodology`, task checkboxes) — so the renderer works but was not applied to the surface the mode refers to → apply preview/live-preview rendering to the editor surface when \"Preview\" is active, or correct the segment's selected state if the pane is intentionally left in source."
+    },
+    {
+      "line": 555,
+      "text": "- [MAJOR] Right dock \"Preview\" card, body line — citation markup is not rendered: `\"Uses a bibliography citation [@smith2024].\"` shows the raw Pandoc key as plain unstyled text (no link/referencing treatment — measured same ink as body text, unlike the teal links `Field Notes` / `Methodology` in the same card), while the card below claims `\"References in note\"` / `\"1 resolved citation\"` → render the citation inline (author–year/numeric with link) in preview, or visibly mark it unresolved."
+    },
+    {
+      "line": 556,
+      "text": "- [MINOR] Editor toolbar icon group (single bordered container, x≈525–760) — mixed control states in one group: `B`, `I`, link, `T`, `+` render as disabled gray (min-gray 177 on 240 bg ≈ 1.9:1, zero strokes below 170) while `list` and `sliders` in the same group are full-dark (min-gray 82–83). Reads as a partially broken toolbar even if \"formatting off in Preview, view tools on\" is intentional → keep one consistent disabled treatment (and tooltips) across the group."
+    },
+    {
+      "line": 557,
+      "text": "- [MINOR] Bottom status bar chip cluster (x≈866–1420) — three different treatments for peer items: `\"Diagnostics\"` is a muted chip (min-gray 160 on 244 bg ≈ **2.4:1**, fails AA) while carrying an orange status dot; `\"Fresh\"` is bare text with no chip container (min-gray 83, 7.6:1); `\"Graph\"`, `\"MCP\"`, `\"Watch\"`, `\"Git\"`, `\"Spell\"` are chips with green dots and dark text (min-gray 40) → normalize container + label color; if `\"Diagnostics\"` signals a warning, its label must not be the faintest text in the cluster."
+    },
+    {
+      "line": 558,
+      "text": "- [MINOR] Bottom-right status cluster (x≈1320–1430) — stacks on two lines inside the single-row bar (measured ink bands y804–819 = `\"Research Vault\"` with fork icon, y826–839 = an unlabeled green check circle; bar spans y794–853), while every sibling item is single-line → inline the check with the label (`Research Vault ✔`) and give it an accessible name/tooltip."
+    },
+    {
+      "line": 559,
+      "text": "- [POLISH] Right dock \"Preview\" card, task row 2 — asymmetric spacing around the em dash: `\"In progress — Draft methodology\"` measures 8px before vs 4px after the `—` (standard word space in this face is 5px) → normalize to single spaces around the dash (note: partly attributable to the italic `In progress` side bearing)."
+    },
+    {
+      "line": 560,
+      "text": "- [POLISH] Right dock \"Preview\" card, header area — ~50px empty band between the `\"Preview\"` label and the rendered `\"Research Plan\"` heading, large relative to the tight spacing of the content below → tighten the header gap unless it is the document's own top margin."
+    },
+    {
+      "line": 561,
+      "text": "- [SUSPECT] Rendered headings (`Research Plan`, `Outline`) use a monospace/typewriter face while body text is sans — pixel-measured word gap (20px) equals exactly one space in that mono face (letter advance 16.4px), so no double-space bug; but the two-font split may be an unintended font fallback rather than a document theme. Reason: cannot distinguish intended typography from fallback from this capture alone."
+    },
+    {
+      "line": 568,
+      "text": "- [MINOR] Recovery card body + actions — the copy prescribes manual recovery `\"Switching notes or toggling the editor engine will retry.\"` but the only affordance is `\"Switch to CodeMirror\"`; there is no \"Retry\" button despite the message promising a retry → add a primary \"Retry\" (and/or auto-retry with progress) instead of making the user navigate away and back."
+    },
+    {
+      "line": 569,
+      "text": "- [SUSPECT] Button `\"Switch to CodeMirror\"` — presumes the failing engine is not CodeMirror; if this card can appear while CodeMirror is already active, the only action is a no-op. Reason: the capture does not show which engine is currently running."
+    },
+    {
+      "line": 570,
+      "text": "- [POLISH] Body copy — `\"toggling the editor engine\"` is internal jargon in user-facing text; and the card's padding is uneven (left ≈31px, bottom ≈19px, top accent at ≈13px) → use plain wording (\"switching editor mode\") and equalize left/right/bottom padding."
+    },
+    {
+      "line": 579,
+      "text": "- [MINOR] Reorder column, last row `\"Add Row\"` — its **down arrow is fully enabled** (measured: 29 dark glyph pixels + full button box, identical to middle rows) while the first row's up arrow is properly disabled (0 dark pixels, no button box); the list ends flush at \"Add Row\" (row band y660–718 ends at the footer divider with extra bottom padding, no partially visible next row, no scrollbar) → disable ↓ on the final row; if more tools are actually hidden below, add a scroll affordance so the state reads as intentional."
+    },
+    {
+      "line": 580,
+      "text": "- [POLISH] Reorder column, first row `\"Heading 1\"` — the disabled ↑ loses its button background entirely (button-bg pixels 38 vs 841 for enabled arrows) and its glyph is very faint, so one control in the column looks like it is missing its button → keep button chrome at reduced opacity for the disabled state."
+    },
+    {
+      "line": 581,
+      "text": "- [POLISH] Checked checkboxes (`Bold`, `Italic`, `Link`, `Typography`) — fill is pure blue (`rgb(0,117,255)`) while the app's accent elsewhere is teal/green (dark-green `Apply` / `Switch to CodeMirror`, teal tab underline and links) → tint checkboxes to the brand accent or confirm the native-blue is deliberate."
+    },
+    {
+      "line": 582,
+      "text": "- [SUSPECT] Width column, all 13 rows — every input shows gray `\"Auto\"` (min-gray 117 on 250 ≈ 4.3:1, lighter than both the `\"Width\"` label at 83 and row labels at 40), i.e. placeholder styling; unclear whether \"Auto\" is the live default or an empty field with placeholder text. Reason: capture shows only the resting state. → If \"Auto\" is the value, render it as value text; if placeholder, ensure the effective width is explained in the subtitle (it currently says \"set button widths in pixels\")."
+    },
+    {
+      "line": 583,
+      "text": "- [POLISH] Every row — large dead band between the label column (ends ≈x200) and the reorder arrows (start ≈x445) → tighten the label column or right-align the arrow cluster to the width fields for a denser, scannable table."
+    },
+    {
+      "line": 1064,
+      "text": "[MINOR] Bottom status bar right end — vault indicator wraps to two lines with orphaned icon: \"Research Vault\" label on line 1 and the green check circle stacked below-left, overlapping the boundary with the dock row (\"Problems 0 | Output | Search Results 0 | Jobs 0\"). → make the indicator a single horizontal row (icon + name + check inline)."
+    },
+    {
+      "line": 1065,
+      "text": "[POLISH] Inspector bottom — \"Publish readiness\" card heading is cut off at the panel's bottom edge (scroll cut mid-card); add scroll padding or fade affordance. — Hmm, this is just the scroll viewport. I said POLISH."
+    },
+    {
+      "line": 1066,
+      "text": "[POLISH] Editor shows only 13 lines of content leaving a large empty area below line 13 — normal for editors... skip? It's normal. I won't flag (or as dead space it's fine). Skip. Hmm — anything else on image 1? Let me re-verify mentally... The top bar: nav pills \"Writing\"(active) Knowledge Publish Review Automation ✓; search \"Commands and notes\" ✓. Left sidebar fine. Editor fine. Status \"19 words 198 characters 1 min read Markdown ✓\" fine. Inspector: Outline rows \"Research Plan H1 / Outline H2\" with pencil buttons ✓. Vault health 8 cells ✓ \"→ Good\" chip. Chips \"Balanced Research Publishing Cleanup\" ✓. Bottom: \"Background jobs ⌄\", \"✓ Index ready 4 notes\", \"⌀Diagnostics Fresh Graph MCP Watch Git Spell\". Dock tabs ✓. Also: the \"Diagnostics\" chip has an orange dot and looks like a muted chip vs \"Fresh\" plain text — minor. Skip. OK2 findings for image 1."
+    },
+    {
+      "line": 1069,
+      "text": "[MAJOR] Right panel tab row — all three tabs truncated to stubs: \"Inspe…\", \"Gerenderte A…\", \"Werkz…\" (\"Inspektor\", \"Gerenderte Ausgabe\", \"Werkzeuge\") at 1024px width → give the tab row a responsive strategy (wrap, icon-only tabs, or horizontal scroll) so labels stay legible."
+    },
+    {
+      "line": 1070,
+      "text": "[MINOR] Left sidebar search — placeholder truncated: \"Notizen dur…\" (\"Notizen durchsuchen\") with the \"F\" shortcut chip at right → shorten placeholder at compact widths or drop the shortcut hint."
+    },
+    {
+      "line": 1071,
+      "text": "[SUSPECT] Date navigator button shows \"• 2026-09-29\" — the \"Heute\" (Today) label present in the English default (\"Today · 2026-09-29\") appears collapsed to a bullet at compact width; verify intended."
+    },
+    {
+      "line": 1072,
+      "text": "[POLISH] \"Alle Notizen\" button wraps to two lines (\"Alle\" / \"Notizen\") while \"Posteingang\" stays on one — uneven button typography at compact width."
+    },
+    {
+      "line": 1073,
+      "text": "[POLISH] Tresorstatus metric labels wrap inconsistently (\"Verwaiste\" / \"Daten\" two lines vs \"Defekte Links\" one line) making the grid values sit at different heights across a row. — hmm, I checked the values were bottom-aligned... I'll phrase carefully: labels wrap inconsistently."
+    },
+    {
+      "line": 1078,
+      "text": "[MAJOR] Bottom status bar — chip cluster clipped at the right window edge: \"…Graph | MCP | W\" — the \"Watch\" chip is cut in half and \"Git\"/\"Spell\" are pushed off-screen entirely (no wrap/overflow handling at 125% device scale)."
+    },
+    {
+      "line": 1079,
+      "text": "[MINOR] Left sidebar file list — the last row \"Sprint Board.md\" is bisected by the list's bottom edge (glyphs cut mid-row) → add bottom scroll padding so rows are never half-clipped."
+    },
+    {
+      "line": 1080,
+      "text": "[MINOR] Top search field — placeholder truncated to \"Commands and…\" hmm wait — image 3 is German: \"Befehle und Notizen\" was FULL in the first render... hmm. Let me re-check: image 3's search showed \"Befehle und Notizen\" full? The render showed \"Befehle und Notizen\" — full text. Hmm, and image 6 (ui-zoom-125) showed \"Commands and…\" truncated. OK so for image 3, no placeholder truncation. Actually wait — in image 3's render, the search field showed \"Befehle und Notizen\" ✓ full. OK."
+    },
+    {
+      "line": 1081,
+      "text": "[SUSPECT] Nav pill \"Writing\" (image 3 shows \"Schreiben ⌄\" dropdown — no pill issue). Skip. So image 3: findings 1 (chips clipped) + 2 (Sprint Board.md bisected). Hmm — also \"Alle Notizen\" two-line wrap (same as image 2) — mention as consistency: same as de-1024. I'll fold it in as POLISH."
+    },
+    {
+      "line": 1084,
+      "text": "[MAJOR] Editor syntax colors fail high-contrast: markdown headings \"# Research Plan\" / \"## Outline\" and wiki-links \"- [[Field Notes]]\" / \"- [[Methodology]]\" render in muted slate-blue/teal on near-black — noticeably dimmer than body text; line numbers 1-13 are near-invisible dark gray → raise syntax token luminance in the high-contrast theme (near-white or high-luminance hues)."
+    },
+    {
+      "line": 1085,
+      "text": "[MINOR] Status chips at bottom-right (\"Diagnostics\", \"Fresh\") sit on dark gray fills with gray text — low contrast in a high-contrast theme → use white text/high-contrast fills."
+    },
+    {
+      "line": 1086,
+      "text": "[MINOR] Bottom-right vault indicator wrap (\"Research Vault\" + check stacked) — same as image 1."
+    },
+    {
+      "line": 1087,
+      "text": "[POLISH] \"Publish readiness\" card clipped at bottom (scroll cut)."
+    },
+    {
+      "line": 1090,
+      "text": "[SUSPECT] Date navigator shows \"29-09-2026 · امروز\" — the date renders in D-M-Y order (\"29-09-2026\") whereas all other locales show ISO (\"2026-09-29\"); this is either fa date formatting or a bidi ordering artifact of the LTR date run inside RTL text → verify against fa-IR Intl output; if unintended, isolate the date with LRI/PDI or use a locale-correct pattern."
+    },
+    {
+      "line": 1097,
+      "text": "[MAJOR] Bottom status bar chips clipped at right window edge at 125% UI zoom: \"Diagnostics | Fresh | Graph | MCP | W\" — \"Watch\" half-cut, \"Git\"/\"Spell\" invisible; the \"Research Vault\" indicator is pushed off-screen entirely → make the chip cluster wrap/scroll or collapse to an overflow menu at zoom."
+    },
+    {
+      "line": 1098,
+      "text": "[MINOR] Left sidebar — \"Sprint Board.md\" row bisected by the list bottom edge (cut glyphs)."
+    },
+    {
+      "line": 1099,
+      "text": "[MINOR] Search placeholder truncated: \"Commands and…\" at 125% zoom."
+    },
+    {
+      "line": 1100,
+      "text": "[SUSPECT] Top nav pill \"Writing\" shows a small check-like glyph overlapping its left edge at 125% zoom (absent at 100%) — verify (could be the vault-sync indicator escaping into the pill). Hmm — is #4 real? I flagged it earlier from reads 6/7. It appeared in both ui-zoom-125 and ui-zoom-200-editor renders as \"✓Writing\". Hmm — at 125/200 zoom the \"Writing\" pill showed a check at its left edge. Actually — could that be the pill's SELECTED state indicator (a check icon) that's normally hidden at 100%? Or the zoom exposes a mispositioned element? I'll keep as SUSPECT/MINOR."
+    },
+    {
+      "line": 1105,
+      "text": "[MAJOR] Bottom status bar chips clipped at right edge (\"…Graph | MCP | W\" — Watch cut, Git/Spell off-screen) at 200% zoom."
+    },
+    {
+      "line": 1106,
+      "text": "[MINOR] Sidebar \"Sprint Board.md\" row bisected at the list bottom."
+    },
+    {
+      "line": 1107,
+      "text": "[MINOR] Search placeholder \"Commands and…\" truncated."
+    },
+    {
+      "line": 1108,
+      "text": "[SUSPECT] \"✓Writing\" nav pill glyph (same as image 6)."
+    },
+    {
+      "line": 1111,
+      "text": "[MINOR] Inspector content clipped under the fixed bottom tab bar (\"H1\" subtitle and the pencil button of the \"Research Plan\" outline row are bisected by the floating \"Vault | Write | Inspector | Command\" bar) → add bottom padding equal to the bar height so content can scroll clear of it."
+    },
+    {
+      "line": 1112,
+      "text": "[SUSPECT] The command search field is entirely absent in the 200%-zoom header (rows show only vault/nav dropdowns and icon buttons); compare with 125% where search remains → verify whether the search is intentionally hidden at this zoom (discoverability regression). Also the compact 2-row header at 200% — acceptable."
+    },
+    {
+      "line": 1115,
+      "text": "[MINOR] Line numbers 1-13 are dim gray on dark navy (faint vs code text) → raise line-number luminance."
+    },
+    {
+      "line": 1116,
+      "text": "[MINOR] Bottom status chips \"Diagnostics\"/\"Fresh\" render as gray text on dark gray fills — low contrast in dark theme."
+    },
+    {
+      "line": 1117,
+      "text": "[MINOR] Bottom-right \"Research Vault\" + check stacked wrap (same as image 1)."
+    },
+    {
+      "line": 1118,
+      "text": "[POLISH] \"Publish readiness\" clipped at bottom."
+    },
+    {
+      "line": 1119,
+      "text": "[SUSPECT] Cross-theme syntax inconsistency: in this dark capture the markdown heading tokens \"# Research Plan\" / \"## Outline\" render salmon/red while the light capture (codemirror-light) renders them blue-indigo — same document, different hue family per theme; wiki-links are green in both. Verify intended."
+    },
+    {
+      "line": 1122,
+      "text": "[POLISH] Line numbers 1-13 very faint light-gray on white."
+    },
+    {
+      "line": 1123,
+      "text": "[MINOR] Bottom-right \"Research Vault\" + check stacked wrap (same recurring)."
+    },
+    {
+      "line": 1124,
+      "text": "[POLISH] \"Publish readiness\" card heading clipped at the panel bottom (scroll cut)."
+    },
+    {
+      "line": 1125,
+      "text": "[SUSPECT] Heading hue inconsistency vs dark capture (blue here vs salmon in codemirror-dark) — cross-image. Hmm — also image 10's syntax: wiki-links green with dotted underline ✓; checkboxes amber. Fine. Anything truncation? \"Sprint Board.md\" row fully visible ✓. Chips all visible ✓ (1440 wide). Tabs full ✓. So mostly clean + the recurring items."
+    },
+    {
+      "line": 1128,
+      "text": "[MINOR] Editor toolbar at 375px drops the core formatting buttons B / I / link / T entirely (only \"+\", list, settings icons + \"…\" overflow remain) — inline text formatting is unreachable without opening \"…\" → keep at least B/I in the narrow toolbar or promote the overflow."
+    },
+    {
+      "line": 1129,
+      "text": "[POLISH] The header stacks into 5 rows (icons row, \"minimal\" vault dropdown row, \"Writing\" dropdown row, \"Commands and notes\" search row, \"Research Plan\" tab row) consuming roughly a third of the 812px viewport before the editor starts → consider merging vault+mode dropdowns into one row at ≤375px."
+    },
+    {
+      "line": 1130,
+      "text": "[POLISH] Top-left brand \"Scriptor\" is gone at 375px (only toggle+logo icons remain) while4 utility icons (moon/gear/help/sliders) stay — brand disappears before utilities; verify priority. Status bar \"19 words 198 characters 1 min read Markdown ✓\" fits ✓. Bottom nav \"Vault | Write | Inspector | Command\" ✓ good."
+    },
+    {
+      "line": 1133,
+      "text": "[MINOR] Split source pane is narrow (~330px at 1440) so code lines wrap (\"Uses a bibliography citation\" / \"[@smith2024].\" and \"Collect sources due:\" / \"2026-06-30\" break mid-phrase) → give the source pane a min-width or default to a wider split ratio."
+    },
+    {
+      "line": 1134,
+      "text": "[SUSPECT] The rendered preview pane shows task-list items literally as \"- [ ] Collect sources due: 2026-06-30\" / \"- [/] Draft methodology\" with source-syntax amber coloring instead of interactive checkboxes, while wikilinks DO render as links (\"- [Field Notes]\" green underlined) — inconsistent rendering → verify preview's task-list rendering."
+    },
+    {
+      "line": 1135,
+      "text": "[MINOR] Cross-pane/cross-image heading-color inconsistency: source headings blue vs preview headings salmon in this capture, and vs codemirror-dark's salmon source headings → unify the syntax/preview palette across dark surfaces."
+    },
+    {
+      "line": 1136,
+      "text": "[MINOR] \"Diagnostics\" chip low contrast (dark gray on dark gray)."
+    },
+    {
+      "line": 1137,
+      "text": "[MINOR] \"Research Vault\"+check stacked wrap (recurring)."
+    },
+    {
+      "line": 1138,
+      "text": "[POLISH] \"Publish readiness\" clipped at bottom."
+    },
+    {
+      "line": 1147,
+      "text": "[MINOR] Dialog offers only one action (\"Switch to CodeMirror\") — no dismiss/close (\"X\" or \"Cancel\") affordance visible in the 461x161 dialog; a user who doesn't want to switch engines has no way to close the message → add a dismiss/close control."
+    },
+    {
+      "line": 1148,
+      "text": "[POLISH] Internal engine jargon in user-facing copy: \"toggling the editor engine\" and \"Switch to CodeMirror\" expose implementation names → use user-facing terms (\"switch editor\", \"try again\")."
+    },
+    {
+      "line": 1149,
+      "text": "[POLISH] The red accent bar (top-left) sits detached above the title with no icon; consider an error icon for clearer semantics. Hmm — fine as POLISH."
+    },
+    {
+      "line": 1152,
+      "text": "[MINOR] The last visible row \"Add Row\" is bisected by the list's bottom edge (its \"Width [Auto]\" input is cut mid-row) with no visible scrollbar → add scroll padding/scrollbar so rows aren't half-clipped."
+    },
+    {
+      "line": 1153,
+      "text": "[POLISH] \"Width\" inputs show \"Auto\" in light gray — reads like placeholder text; ambiguous whether a value is set → use a distinct value style or an \"Auto\" toggle."
+    },
+    {
+      "line": 1154,
+      "text": "[SUSPECT] In row \"Heading 1\" the ↑ arrow is correctly disabled (faint), but the last row \"Add Row\" shows BOTH arrows enabled (dark ↓ included) — if \"Add Row\" is the final item its ↓ should be disabled; if the list scrolls, the clip hides the rest → verify list length vs arrows' disabled logic."
+    },
+    {
+      "line": 1159,
+      "text": "[MAJOR] With no vault open, the bottom status bar still reports \"✓ Index ready 4 notes\" and shows the vault indicator \"Research Vault\" (+ check) at bottom-right, while the sidebar footer says \"No vault open\" and the center shows the \"Open your writing workspace\" empty state — contradictory state signals → show \"No vault open\"/0 notes in the status bar until a vault is loaded."
+    },
+    {
+      "line": 1160,
+      "text": "[MINOR] The left sidebar shows full browse controls (\"All notes\", \"Inbox\", \"Search notes\", \"Knowledge filters\", \"New from template\", date nav \"Today · 2026-09-29\") alongside the message \"Open a vault to browse notes.\" — controls look active but have nothing to act on → disable or hide these until a vault is open."
+    },
+    {
+      "line": 1161,
+      "text": "[MINOR] \"Vault health\" card shows a \"Loading…\" pill while its eight metric cells already show \"0\" values and \"Cache —\" — mixed loading/data state that reads as real zeros → show placeholder dashes while loading."
+    },
+    {
+      "line": 1162,
+      "text": "[MINOR] Editor shows \"No note open\" yet the mode tabs (\"Source | Split | Preview\") and the full formatting toolbar (B I 🔗 T + ⌗ ⟳ …) render in their normal enabled styling → disable them when no note is open."
+    },
+    {
+      "line": 1163,
+      "text": "[POLISH] \"Publish readiness\" empty-state text \"Open a note to view publishing readiness\" is cut off at the window's bottom edge (card clipped) → allow the panel to scroll/pad so the message is fully readable. — wait, the pixel scan showed text rows ending at 888 in the sidebar... for the inspector \"Publish readiness\" text at bottom — from the render it looked clipped (\"Open a note to view publishing readiness\" bisected at y~597/600 = 895/900). Yes it's cut by the window bottom. POLISH/MINOR."
+    },
+    {
+      "line": 1314,
+      "text": "[MAJOR] Preview surface shows raw markdown syntax (\"#\" on H1, \"[[Field Notes]]\", \"[ ]\") instead of rendered elements (checkboxes/links) — inconsistent with the inspector \"Preview\" card which renders properly. → Fix: make the preview renderer strip/convert these consistently (or clearly label the surface as \"source\"."
+    },
+    {
+      "line": 1536,
+      "text": "[MAJOR] Preview-mode main pane leaks raw markdown syntax (\"#\" on the H1, \"[[Field Notes]]\" brackets, \"- [ ]\" task markers rendered as text) while the inspector's \"Preview\" card renders the same document properly (checkboxes, clean bullets) — inconsistent rendering across preview surfaces; H2's \"##\" is stripped but H1's \"#\" is not, so the leak is also internally inconsistent. → Fix: render task lists as checkboxes and wiki links as clean links in the main preview too (or relabel the surface), and strip heading markers uniformly."
+    },
+    {
+      "line": 1537,
+      "text": "[MINOR] Inspector mini-preview title renders \"Research Plan\" with monospace + double-word spacing while body uses proportional font — inconsistent typography. (SUSPECT-ish: may be intentional \"writable\" text style.) I'll put POLISH/SUSPECT."
+    },
+    {
+      "line": 1538,
+      "text": "[MINOR] The \"References in note\" card is sliced mid-card at the panel fold with its content (\"...avi...\" partial row) half-cut — normal scroll fold; skip? The cut shows a partial row below \"1 resolved citation\" (a row \"…avi…\" cut). It's a scroll fold. Skip."
+    },
+    {
+      "line": 1542,
+      "text": "[MAJOR] same raw-syntax preview leak (shared with13 — I'll cite per image)."
+    },
+    {
+      "line": 1543,
+      "text": "[MINOR] source pane soft-wrap without hanging indent breaks \"due:\"/\"2026-06-30\" and \"citation\"/\"[@smith2024].\" across lines in the ~330px source pane."
+    },
+    {
+      "line": 1544,
+      "text": "[MINOR] status-right two-line wrap."
+    },
+    {
+      "line": 1545,
+      "text": "[POLISH] subtle bg mismatch between source and preview panes (if real — let me verify with pixel sampling... eh, minor; skip to avoid overreach. Actually let me sample quickly later — no, skip; it could be intentional elevation. Drop it.)"
+    },
+    {
+      "line": 2831,
+      "text": "Add: [POLISH] the red heart in the top-right cluster — hmm, minor. Actually let me not bloat. Skip? The brief wants cross-image inconsistency hunting... The heart is a design choice. I'll skip it — too nitpicky and uncertain (could be a brand accent)."
+    }
+  ]
+}

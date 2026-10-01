@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mergeSharedRevision, parseSharedRevision } from './collaboration.ts'
+import { mergeSharedRevision, parseSharedRevision, sharedRevisionBase, parseCollaborationMapping, collaborationMappingKey } from './collaboration.ts'
+
+test('first share preserves incoming content when no common ancestor is known', () => {
+  const base = sharedRevisionBase(null, 'notes/a.md')
+  assert.equal(base, '')
+  assert.deepEqual(mergeSharedRevision(base, '', 'shared content'), { markdown: 'shared content', conflict: false })
+  const conflict = mergeSharedRevision(base, 'existing local', 'shared content')
+  assert.equal(conflict.conflict, true)
+  assert.match(conflict.markdown, /existing local/)
+  assert.match(conflict.markdown, /shared content/)
+  assert.equal(sharedRevisionBase({ path: 'other.md', markdown: 'wrong ancestor' }, 'notes/a.md'), '')
+  assert.equal(sharedRevisionBase({ path: 'notes/a.md', markdown: 'known ancestor' }, 'notes/a.md'), 'known ancestor')
+})
 
 test('independent local and remote edits merge without losing either side', () => {
   assert.deepEqual(mergeSharedRevision('one\ntwo\nthree\n', 'ONE\ntwo\nthree\n', 'one\ntwo\nTHREE\n'),
@@ -23,4 +35,13 @@ test('remote records reject traversal, extra fields and oversized text', () => {
   for (const value of [{ ...record, document: '../a.md' }, { ...record, secret: 'x' }, { ...record, markdown: 'x'.repeat(3 * 1024 * 1024 + 1) }]) {
     assert.throws(() => parseSharedRevision(value))
   }
+})
+
+test('durable collaboration mappings validate scope and retain the exact shared ancestor', () => {
+  const mapping = { schema: 'scriptor.collaboration.mapping.v1', vaultId: 'vault-a', folderId: 'folder-1', path: 'notes/a.md', peerId: 'peer-1', markdown: 'base\r\n' }
+  assert.equal(parseCollaborationMapping(JSON.stringify(mapping), 'vault-a', 'folder-1', 'notes/a.md').markdown, 'base\r\n')
+  for (const value of [{ ...mapping, vaultId: 'vault-b' }, { ...mapping, path: '../outside.md' }, { ...mapping, peerId: '<script>' }, { ...mapping, markdown: 'x'.repeat(1_572_865) }]) {
+    assert.throws(() => parseCollaborationMapping(JSON.stringify(value), 'vault-a', 'folder-1', 'notes/a.md'))
+  }
+  assert.notEqual(collaborationMappingKey('vault-a', 'folder-1', 'notes/a.md'), collaborationMappingKey('vault-b', 'folder-1', 'notes/a.md'))
 })

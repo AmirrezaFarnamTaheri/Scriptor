@@ -10,19 +10,24 @@ export interface DiagramStudioPanelProps {
   onSave: (title: string, markdown: string) => Promise<void>
   initialSource?: string
   renderPlantUmlLocal?: (source: string) => Promise<string | null>
+  onOpenNote?: (path: string) => void
 }
 
-export function DiagramStudioPanel({ onClose, onSave, initialSource = 'flowchart LR\n  Evidence --> Draft\n  Draft --> Review', renderPlantUmlLocal }: DiagramStudioPanelProps) {
+export function DiagramStudioPanel({ onClose, onSave, initialSource = 'flowchart LR\n  Evidence --> Draft\n  Draft --> Review', renderPlantUmlLocal, onOpenNote }: DiagramStudioPanelProps) {
   const [source, setSource] = useState(initialSource)
   const [language, setLanguage] = useState<DiagramLanguage>('mermaid')
   const [title, setTitle] = useState('Research diagram')
   const [zoom, setZoom] = useState(1)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
+  const [noteLinks, setNoteLinks] = useState('')
+  const [rendered, setRendered] = useState({ language: 'mermaid' as DiagramLanguage, source: initialSource })
+  const paths = useMemo(() => noteLinks.split(/\r?\n/).map(path => path.trim()).filter(Boolean), [noteLinks])
   const document = useMemo(() => {
-    try { return { markdown: diagramDocument(language, source), error: '' } }
+    try { return { markdown: diagramDocument(language, source, paths), error: '' } }
     catch (error) { return { markdown: '', error: String(error instanceof Error ? error.message : error) } }
-  }, [language, source])
+  }, [language, source, paths])
+  const preview = useMemo(() => diagramDocument(rendered.language, rendered.source), [rendered])
   const save = async () => {
     if (!document.markdown || !title.trim() || busy) return
     setBusy(true)
@@ -39,10 +44,14 @@ export function DiagramStudioPanel({ onClose, onSave, initialSource = 'flowchart
     <div className="research-split">
       <label className="research-source">Diagram source<textarea value={source} maxLength={65_536} spellCheck={false} disabled={busy} onChange={(event) => { setSource(event.target.value); setStatus('') }} /></label>
       <section className="research-render" aria-label="Live diagram preview">
+        <button type="button" disabled={busy || !!document.error} onClick={() => setRendered({ language, source })}>Render diagram</button>
+        {(rendered.language !== language || rendered.source !== source) && <p role="status">Source changed. Render to refresh the preview.</p>}
         <div className="research-controls"><button type="button" className="icon-button" aria-label="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))}><ZoomOut size={16} /></button><button type="button" className="toolbar-button" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}% · Reset</button><button type="button" className="icon-button" aria-label="Zoom in" disabled={zoom >= 2} onClick={() => setZoom((value) => Math.min(2, value + 0.25))}><ZoomIn size={16} /></button></div>
-        {document.error ? <p role="alert">{document.error}</p> : <div className="research-preview-scroll"><div style={{ zoom }}><MarkdownPreview markdown={document.markdown} renderPlantUmlLocal={renderPlantUmlLocal} /></div></div>}
+        {document.error ? <p role="alert">{document.error}</p> : <div className="research-preview-scroll"><div style={{ zoom }}><MarkdownPreview markdown={preview} renderPlantUmlLocal={renderPlantUmlLocal} /></div></div>}
       </section>
     </div>
+    <label>Related notes (one vault-relative .md path per line)<textarea value={noteLinks} maxLength={8192} disabled={busy} onChange={event => setNoteLinks(event.target.value)} /></label>
+    {!document.error && onOpenNote && <ul>{[...new Set(paths)].map(path => <li key={path}><button onClick={() => onOpenNote(path)}><bdi>{path}</bdi></button></li>)}</ul>}
     {status && <p role="status">{status}</p>}
   </UnifiedPanelShell>
 }

@@ -515,6 +515,62 @@ fn bounded_error_body(response: reqwest::blocking::Response) -> String {
     }
 }
 
+fn refresh_failure(status: reqwest::StatusCode, body: &[u8]) -> String {
+    let permanent = serde_json::from_slice::<serde_json::Value>(body)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("error")
+                .and_then(|error| error.as_str())
+                .map(str::to_owned)
+        })
+        .is_some_and(|error| matches!(error.as_str(), "invalid_grant" | "invalid_client"));
+    if permanent
+        && matches!(
+            status,
+            reqwest::StatusCode::BAD_REQUEST | reqwest::StatusCode::UNAUTHORIZED
+        )
+    {
+        google_auth_required("Google session can no longer be refreshed. Reconnect the account.")
+    } else {
+        format!("Google token refresh failed ({status}). Try again later.")
+    }
+}
+
+fn read_token_body(reader: impl Read) -> Result<Vec<u8>, String> {
+    const MAX_TOKEN_RESPONSE_BYTES: u64 = 16 * 1024;
+    let mut bytes = Vec::new();
+    reader
+        .take(MAX_TOKEN_RESPONSE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "Could not read Google token response.".to_string())?;
+    if bytes.len() as u64 > MAX_TOKEN_RESPONSE_BYTES {
+        return Err("Google token response exceeds the size limit.".to_string());
+    }
+    Ok(bytes)
+}
+
+fn token_expiry_ms(issued_at_ms: u64, expires_in: Option<u64>) -> Result<u64, String> {
+    expires_in
+        .unwrap_or(3600)
+        .checked_mul(1000)
+        .filter(|lifetime| *lifetime > 0)
+        .and_then(|lifetime| issued_at_ms.checked_add(lifetime))
+        .ok_or_else(|| "Google returned an invalid token lifetime.".to_string())
+}
+
+fn parse_token_body(body: &[u8]) -> Result<TokenResponse, String> {
+    let tokens: TokenResponse = serde_json::from_slice(body)
+        .map_err(|_| "Google returned an invalid token response.".to_string())?;
+    for token in std::iter::once(&tokens.access_token).chain(tokens.refresh_token.iter()) {
+        if token.is_empty() || token.len() > 4096 || token.chars().any(char::is_control) {
+            return Err("Google returned an invalid token value.".to_string());
+        }
+    }
+    token_expiry_ms(now_ms(), tokens.expires_in)?;
+    Ok(tokens)
+}
+
 fn exchange_code_for_tokens(
     client: &reqwest::blocking::Client,
     client_id: &str,
@@ -536,13 +592,10 @@ fn exchange_code_for_tokens(
     if !response.status().is_success() {
         let status = response.status();
         return Err(format!(
-            "Google token exchange failed ({status}): {}",
-            bounded_error_body(response)
+            "Google token exchange failed ({status}). Check the account configuration and try again."
         ));
     }
-    response
-        .json::<TokenResponse>()
-        .map_err(|error| format!("Google returned an invalid token response: {error}"))
+    parse_token_body(&read_token_body(response)?)
 }
 
 fn fetch_email(client: &reqwest::blocking::Client, access_token: &str) -> Result<String, String> {
@@ -593,23 +646,13 @@ pub(super) fn refresh_if_needed(
         .map_err(|error| format!("Google token refresh failed: {error}"))?;
     if !response.status().is_success() {
         let status = response.status();
-        let body = bounded_error_body(response);
-        if matches!(
-            status,
-            reqwest::StatusCode::BAD_REQUEST | reqwest::StatusCode::UNAUTHORIZED
-        ) {
-            return Err(google_auth_required(format!(
-                "Google session can no longer be refreshed ({status}). Reconnect the account."
-            )));
-        }
-        return Err(format!("Google token refresh failed ({status}): {body}"));
+        let body = read_token_body(response)?;
+        return Err(refresh_failure(status, &body));
     }
-    let refreshed = response
-        .json::<TokenResponse>()
-        .map_err(|error| format!("Google returned an invalid refresh response: {error}"))?;
+    let refreshed = parse_token_body(&read_token_body(response)?)?;
 
     tokens.access_token = refreshed.access_token.clone();
-    tokens.expiry_ms = now_ms() + refreshed.expires_in.unwrap_or(3600) * 1000;
+    tokens.expiry_ms = token_expiry_ms(now_ms(), refreshed.expires_in)?;
     if let Some(new_refresh) = refreshed.refresh_token {
         tokens.refresh_token = Some(new_refresh);
     }
@@ -846,7 +889,7 @@ pub(super) fn start_google_auth(
         client_id,
         access_token: token.access_token,
         refresh_token: token.refresh_token,
-        expiry_ms: now_ms() + token.expires_in.unwrap_or(3600) * 1000,
+        expiry_ms: token_expiry_ms(now_ms(), token.expires_in)?,
         email: email.clone(),
     };
     save_tokens(keychain_account, &tokens)?;
@@ -1884,10 +1927,10 @@ fn validate_planner_write(request: &PlannerWrite) -> Result<(), String> {
     if title.trim().is_empty() || title.len() > 4096 || title.contains(['\r', '\n']) {
         return Err("Title must be one bounded nonempty line".into());
     }
-    if let Some(etag) = etag {
-        if etag.is_empty() || etag.len() > 512 || etag.chars().any(char::is_control) {
-            return Err("Invalid provider revision".into());
-        }
+    if let Some(etag) = etag
+        && (etag.is_empty() || etag.len() > 512 || etag.chars().any(char::is_control))
+    {
+        return Err("Invalid provider revision".into());
     }
     Ok(())
 }
@@ -2379,6 +2422,63 @@ pub fn google_calendar_delete_task(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn refresh_reconnect_requires_explicit_permanent_oauth_error() {
+        for body in [
+            br#"{"error":"temporarily_unavailable"}"#.as_slice(),
+            br#"{"error":{"message":"invalid_grant"}}"#,
+            br#"{"error":42}"#,
+            b"invalid_grant",
+            b"",
+        ] {
+            assert!(
+                !refresh_failure(reqwest::StatusCode::BAD_REQUEST, body)
+                    .starts_with(GOOGLE_AUTH_REQUIRED_PREFIX)
+            );
+        }
+        for error in ["invalid_grant", "invalid_client"] {
+            let body = format!("{{\"error\":\"{error}\"}}");
+            assert!(
+                refresh_failure(reqwest::StatusCode::BAD_REQUEST, body.as_bytes())
+                    .starts_with(GOOGLE_AUTH_REQUIRED_PREFIX)
+            );
+            for status in [
+                reqwest::StatusCode::TOO_MANY_REQUESTS,
+                reqwest::StatusCode::SERVICE_UNAVAILABLE,
+            ] {
+                assert!(
+                    !refresh_failure(status, body.as_bytes())
+                        .starts_with(GOOGLE_AUTH_REQUIRED_PREFIX)
+                );
+            }
+        }
+        assert!(
+            !refresh_failure(
+                reqwest::StatusCode::BAD_REQUEST,
+                br#"{"error_description":"private-token-value"}"#
+            )
+            .contains("private-token-value")
+        );
+    }
+
+    #[test]
+    fn token_responses_are_bounded_and_reject_invalid_lifetimes() {
+        assert!(read_token_body(std::io::Cursor::new(vec![b'x'; 16 * 1024 + 1])).is_err());
+        assert_eq!(
+            read_token_body(std::io::Cursor::new(vec![b'x'; 16 * 1024]))
+                .unwrap()
+                .len(),
+            16 * 1024
+        );
+        assert_eq!(token_expiry_ms(100, None).unwrap(), 3_600_100);
+        assert!(token_expiry_ms(100, Some(0)).is_err());
+        assert!(token_expiry_ms(100, Some(u64::MAX)).is_err());
+        assert!(token_expiry_ms(u64::MAX, Some(1)).is_err());
+        assert!(parse_token_body(br#"{"access_token":"","expires_in":3600}"#).is_err());
+        assert!(parse_token_body(br#"{"access_token":"token\nvalue"}"#).is_err());
+        assert!(parse_token_body(br#"{"access_token":"valid","expires_in":3600}"#).is_ok());
+    }
 
     #[test]
     fn base64url_matches_known_vector() {

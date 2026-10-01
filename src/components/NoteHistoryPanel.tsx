@@ -10,7 +10,7 @@ import {
 import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { diffLines } from '../lib/lineDiff'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
-import { revisionActivity } from '../lib/researchStudio'
+import { revisionHeatmap, vocabularyMetrics } from '../lib/researchStudio'
 import '../styles/components/research-studio.css'
 
 export interface NoteHistoryRevision {
@@ -142,12 +142,16 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
   }, [loadedHistoryPath, path, selectedId])
 
   const revisions = useMemo(() => loadedHistoryPath === path ? revisionState?.rows ?? [] : [], [loadedHistoryPath, path, revisionState])
-  const activity = useMemo(() => revisionActivity(revisions), [revisions])
+  const activity = useMemo(() => revisionHeatmap(revisions), [revisions])
   const selectedRevision = revisions.find((revision) => revision.id === selectedId) ?? null
   const previewReady = previewState?.path === path && previewState.revisionId === selectedId
   const currentReady = currentState?.path === path
   const preview = previewReady ? previewState.markdown : ''
   const currentMarkdown = currentReady ? currentState.markdown : ''
+  const vocabulary = useMemo(() => {
+    if (!previewReady || !currentReady || preview.length > 3 * 1024 * 1024 || currentMarkdown.length > 3 * 1024 * 1024) return null
+    return { current: vocabularyMetrics(currentMarkdown), revision: vocabularyMetrics(preview) }
+  }, [previewReady, currentReady, preview, currentMarkdown])
   const previewErrorMessage =
     previewError?.path === path && previewError.revisionId === selectedId ? previewError.message : null
   const currentErrorMessage = currentError?.path === path ? currentError.message : null
@@ -207,7 +211,10 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
             <label>Scrub saved revisions
               <input type="range" min={0} max={Math.max(0, revisions.length - 1)} value={Math.max(0, revisions.findIndex((row) => row.id === selectedId))} disabled={busy || revisions.length < 2} onChange={(event) => { setSelectedId(revisions[Number(event.target.value)]?.id ?? null); setConfirmRestore(false) }} aria-valuetext={selectedRevision ? formatRevisionDate(selectedRevision.saved_at) : 'No revision selected'} />
             </label>
-            <ul className="research-activity" aria-label="Saved revisions per UTC day">{activity.map((day) => <li key={day.date} data-level={day.count >= 5 ? 'high' : 'low'}>{day.date}: {day.count} saves</li>)}</ul>
+            <p>Retained saves per UTC day, through {activity.at(-1)?.date}. Empty cells mean no retained revision; they do not prove no editing occurred.</p>
+            <div className="revision-heatmap-scroll"><ul className="revision-heatmap" aria-label="Saved revisions per UTC day">{activity.map((day) => <li key={day.date} data-level={day.count === 0 ? 'none' : day.count >= 5 ? 'high' : 'low'} title={`${day.date}: ${day.count} retained saves`}><span className="sr-only">{day.date}: {day.count} retained saves</span></li>)}</ul></div>
+            <p className="revision-heatmap-legend">Monday to Sunday in each column. Color intensity increases with the number of retained saves.</p>
+            {vocabulary && <details><summary>Vocabulary comparison</summary><p>Measured from the Markdown source, including code and metadata. Distinct word ratio measures repetition; it is not a readability or quality score.</p><table><thead><tr><th>Measure</th><th>Current note</th><th>Selected revision</th></tr></thead><tbody><tr><th>Words</th><td>{vocabulary.current.words}</td><td>{vocabulary.revision.words}</td></tr><tr><th>Distinct words</th><td>{vocabulary.current.uniqueWords}</td><td>{vocabulary.revision.uniqueWords}</td></tr><tr><th>Distinct word ratio</th><td>{vocabulary.current.diversity === null ? 'No words' : `${(vocabulary.current.diversity * 100).toFixed(1)}%`}</td><td>{vocabulary.revision.diversity === null ? 'No words' : `${(vocabulary.revision.diversity * 100).toFixed(1)}%`}</td></tr></tbody></table></details>}
           </section>
           <ul className="note-history-timeline" aria-label="Saved revisions">
             {revisions.map((revision) => (

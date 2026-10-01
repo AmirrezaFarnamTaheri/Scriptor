@@ -4,6 +4,11 @@
 
 ### Added
 
+- Add Database Studio filters, table/list/gallery views, guarded scalar metadata edits, saved view recovery and bounded declarative formulas/aggregates. Add reviewed capture and paginated Zotero imports, citation usage, abstracts and literature note creation.
+- Add vault-scoped raster image and audio previews with type checks, 32 MiB limits and local URL cleanup; PDF/EPUB annotation behavior remains separate. Add real revision heatmaps and descriptive vocabulary comparison.
+- Add Publishing Studio review/build/deployment controls with bounded logs, source receipt checks and immutable deployment snapshots. External deployment remains an explicit configured action; live provider verification is pending.
+- Add passive original-source capture snapshots and complete authored German/Persian Help bodies with localized search, answers and walkthroughs.
+
 - Add bounded, permission-gated declarative plugin workspaces and first-party Diagram Studio, Asset Deck, Runtime Console, and Semantic Inspector entry points. Research notes preserve their source links; asset usage comes from the derived link index with explicit partial-result reporting.
 - Add measured embedding diagnostics and PCA projections, provider/model provenance checks, opt-in reindexing, and secure semantic credential controls.
 - Add explicit Canvas note relations with board/connector provenance, graph and DQL visibility, transactional reconciliation, and undo/redo editing.
@@ -13,6 +18,11 @@
 - Add the offline mobile kernel and touch-oriented mobile application; see `docs/validation/REVIEW-PR-STATUS.md` for platform verification status.
 
 ### Fixed
+
+- Distinguish explicit permanent Google OAuth refresh errors from temporary or malformed responses; bound token response reads, validate token values and expiry arithmetic, and keep raw authentication responses out of error messages.
+- Preserve displayed source revisions in coordinated database edits; reset Zotero previews when account keys change; restore a reload action after interrupted saved-view loading.
+- Bound writing-history sidecars and validate dates; reject ambiguous/structured frontmatter cell edits, retain unique asset recovery copies and restrict diagram processing output and local-file/network access.
+- Decline publication when YAML keys can ambiguously override privacy metadata, and clear article-specific attribution when extracting a different source.
 
 - Use the installed CSL processor's string-return contract for complete citations, preserve narrative/grouped citation semantics, and map bibliography entries correctly after sorting without repeatedly regenerating the bibliography. Invalidate stale formatting when references change.
 - Preserve the distinguishing part of long note filenames and expose folders for duplicate basenames in the note rail.

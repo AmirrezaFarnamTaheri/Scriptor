@@ -6019,6 +6019,7 @@ dependencies = [
  "mimalloc",
  "reqwest",
  "scriptor-canvas-engine",
+ "scriptor-capture",
  "scriptor-daemon",
  "scriptor-export-runner",
  "scriptor-indexer",

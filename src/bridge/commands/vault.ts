@@ -341,9 +341,11 @@ export async function vaultFrontmatterSet(
   path: string,
   field: string,
   value: string,
+  expectedContentHash?: string,
+  expectedVaultId?: string,
 ): Promise<{ path: string; field: string; value: string | null; markdown: string }> {
   requireNative()
-  return invoke('vault_frontmatter_set', { path, field, value })
+  return invoke('vault_frontmatter_set', { path, field, value, expectedContentHash: expectedContentHash ?? null, expectedVaultId: expectedVaultId ?? null })
 }
 
 export async function vaultPublishPlanStarlight(outputPath: string): Promise<StarlightPublishPlanOutput> {

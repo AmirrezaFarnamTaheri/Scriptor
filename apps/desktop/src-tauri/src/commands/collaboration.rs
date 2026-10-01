@@ -33,6 +33,7 @@ impl CollaborationRecord {
             || self.document.is_empty()
             || self.document.len() > 1024
             || self.document.contains(['\\', '\0', ':'])
+            || self.document.chars().any(char::is_control)
             || self.document.starts_with('/')
             || self
                 .document
@@ -362,7 +363,13 @@ mod tests {
         let valid = json!({"schema":"scriptor.collaboration.v1","id":"event-1","document":"notes/a.md","peer_id":"peer-1","base_markdown":"","markdown":"a","created_at":"2026-10-01T00:00:00Z"});
         let record = serde_json::from_value::<CollaborationRecord>(valid.clone()).unwrap();
         assert!(record.validate().is_ok());
-        for path in ["../a.md", "C:/a.md", "/a.md", "notes\\a.md"] {
+        for path in [
+            "../a.md",
+            "C:/a.md",
+            "/a.md",
+            "notes\\a.md",
+            "notes/line\nbreak.md",
+        ] {
             let mut invalid = valid.clone();
             invalid["document"] = json!(path);
             assert!(

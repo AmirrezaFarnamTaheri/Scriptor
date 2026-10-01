@@ -20,6 +20,12 @@ CLI/TUI and MCP
 
 The renderer is not an authority boundary. Native operations validate scope, authorization, runtime payloads, paths, process policy, and cancellation independently of UI state.
 
+Research workspaces compose the existing vault/indexer/native boundaries. Database edits flush the source editor through its mutation coordinator, then retain the revision originally displayed by the table; a changed source requires reload and review. Capture and Zotero imports preview content before a missing-destination, expected-vault write. Credentials used for reviewed imports stay in memory and pagination is reset when the key changes.
+
+Asset previews read through the originating-vault reader boundary. PDF/EPUB documents remain bounded at 128 MiB; raster/audio previews use a separate 32 MiB bound and exclude active SVG/HTML documents. Local image/audio object URLs have explicit MIME checks and are revoked on source changes or unmount. The bundled reader custom protocol serves viewer code, rather than exposing arbitrary filesystem paths.
+
+Publishing build receipts bind output to source/output fingerprints. Deployment copies the bounded output into a private temporary snapshot, verifies that snapshot against the receipt, and passes only the snapshot to the brokered deployment process. Temporary snapshots are removed when the operation ends. These adapters remain experimental pending packaged and live-provider evidence.
+
 Rename composition flushes pending editor saves before applying native mutations. Link rewrites refresh the active note through the editor's revision/navigation guard; failed saves abort the rename and retain the draft. Native stale-source checks remain authoritative. Recovery backup filenames include a unique version identifier so later renames cannot overwrite the content referenced by older patch records.
 
 Activity history reads inspect at most the final 256 KiB and return at most 200 valid records, skipping malformed and oversized records. Appends reject records over 16 KiB and compact histories exceeding 1 MiB while holding the vault update lock. This policy applies to diagnostic activity; rename recovery records are retained separately and are not automatically pruned.

@@ -11,6 +11,50 @@
   },
   "operations": [
     {
+      "name": "publishing_build_site", "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "brokered-sensitive", "authorizationVariant": "PublishBuild", "mutationClass": "sensitive-mutation", "scope": "publish_build",
+      "schemaKind": "native-rust", "outcomePolicy": ["value", "invalid", "failed"]
+    },
+    {
+      "name": "publishing_deploy_site", "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "brokered-sensitive", "authorizationVariant": "PublishDeploy", "mutationClass": "sensitive-mutation", "scope": "publish_deploy",
+      "schemaKind": "native-rust", "outcomePolicy": ["value", "invalid", "failed"]
+    },
+    {
+      "name": "publishing_configure_domain", "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "brokered-sensitive", "authorizationVariant": "PublishDeploy", "mutationClass": "sensitive-mutation", "scope": "publish_deploy",
+      "schemaKind": "native-rust", "outcomePolicy": ["value", "invalid", "failed"]
+    },
+    {
+      "name": "publishing_cancel_job", "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "local-mutation", "mutationClass": "local-mutation", "scope": null,
+      "schemaKind": "native-rust", "outcomePolicy": ["value", "invalid", "failed"]
+    },
+    {
+      "name": "reference_usage_preview", "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/research_capture.rs",
+      "authorizationClass": "read-only", "mutationClass": "none", "scope": null,
+      "schemaKind": "native-rust", "outcomePolicy": ["value", "degraded", "invalid", "failed"]
+    },
+    {
+      "name": "capture_extract_preview", "surface": "tauri",
+      "authorizationVariant": "WebClip",
+      "owner": "apps/desktop/src-tauri/src/commands/research_capture.rs",
+      "authorizationClass": "brokered-sensitive", "mutationClass": "sensitive-mutation", "scope": "web_clip",
+      "schemaKind": "native-rust", "outcomePolicy": ["value", "invalid", "failed"]
+    },
+    {
+      "name": "zotero_import_preview", "surface": "tauri",
+      "authorizationVariant": "ZoteroRead",
+      "owner": "apps/desktop/src-tauri/src/commands/research_capture.rs",
+      "authorizationClass": "brokered-sensitive", "mutationClass": "sensitive-mutation", "scope": "zotero_read",
+      "schemaKind": "native-rust", "outcomePolicy": ["value", "invalid", "failed"]
+    },
+    {
       "name": "indexer_asset_usage", "surface": "tauri",
       "owner": "apps/desktop/src-tauri/src/commands/indexer.rs",
       "authorizationClass": "read-only", "mutationClass": "none", "scope": null,
