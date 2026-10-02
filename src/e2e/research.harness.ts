@@ -39,9 +39,12 @@ export function createResearchHarness() {
         const lines=doc.markdown.split('\n');const index=lines.findIndex(line=>line.startsWith(`${field}:`));if(index<0)lines.splice(1,0,`${field}: ${value}`);else lines[index]=`${field}: ${value}`
         const markdown=lines.join('\n');e2eSaveNote(path,markdown);return reply({path,field,value,markdown})
       }
-      case 'capture_extract_preview':
+      case 'capture_extract_preview':{
         if(sessionStorage.getItem('e2e:capture-failure')==='1')throw new Error('Article extraction unavailable.')
-          return reply({url:String(body.url),title:'Reviewed article',site_name:'Example journal',published_at:'2026-10-01',word_count:6,markdown:'# Article\n\nA useful research finding.',source_html:'<article><h1>Original research finding</h1><p>Source context retained only in this preview.</p><script>window.parent.snapshotExecuted=true</script><img src="https://example.org/tracker.png"><form action="https://example.org/post"><input name="secret"></form><a href="https://example.org/leave">Link text</a></article>'})
+        const result={url:String(body.url),title:'Reviewed article',site_name:'Example journal',published_at:'2026-10-01',word_count:6,markdown:'# Article\n\nA useful research finding.',source_html:'<article><h1>Original research finding</h1><p>Source context retained only in this preview.</p><script>window.parent.snapshotExecuted=true</script><img src="https://example.org/tracker.png"><form action="https://example.org/post"><input name="secret"></form><a href="https://example.org/leave">Link text</a></article>'}
+        if(sessionStorage.getItem('e2e:capture-delay')==='1')return reply(new Promise(resolve=>setTimeout(()=>resolve(result),5000)))
+        return reply(result)
+      }
       case 'zotero_import_preview':return reply({items:body.start===100?[{key:'PAGE2',title:'Second-page paper',creators:[],itemType:'book',date:'2025'}]:[{key:'ZOTERO1',title:'A previewed research paper',abstractNote:'An abstract worth reviewing.',creators:[{firstName:'Jane',lastName:'Smith'}],date:'2026',itemType:'journalArticle',DOI:'10.1/example'}],nextStart:body.start===100?null:100})
       case 'reference_usage_preview':return reply({rows:[{key:'smith2024',path:paths[0],line:8,valid:true},{key:'missing2026',path:paths[1],line:7,valid:false}],truncated:false})
       case 'indexer_list_bibliography':return reply([{key:'smith2024',title:'Research Methods',author:'Smith, Jane',year:'2024',source_path:'references.bib',entry_type:'article',abstract_text:'Methods for careful research.',doi:'10.1/methods'}])

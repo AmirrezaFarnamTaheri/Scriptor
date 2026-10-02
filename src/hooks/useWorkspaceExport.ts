@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import {
   appendCitationExportArgs,
@@ -14,6 +14,7 @@ import {
   exportCancel,
   exportRunMarkdown,
   exportRunNote,
+  exportPdfInprocess,
   pdfTranslate,
   plantumlRender,
   vaultSaveAsset,
@@ -31,6 +32,7 @@ import type {
 import type { ActivityEntry } from './useActivityLog'
 
 interface UseWorkspaceExportOptions {
+  vaultId: string | null
   activePath: string | null
   draftMarkdown: string
   vaultConfig: VaultConfig
@@ -41,6 +43,7 @@ interface UseWorkspaceExportOptions {
 }
 
 export function useWorkspaceExport({
+  vaultId,
   activePath,
   draftMarkdown,
   vaultConfig,
@@ -52,13 +55,17 @@ export function useWorkspaceExport({
   const [exportResult, setExportResult] = useState<ExportJobOutput | null>(null)
   const [exportHistory, setExportHistory] = useState<ExportJobRecord[]>([])
   const [isExporting, setIsExporting] = useState(false)
+  const offlinePending = useRef(false)
 
   const exportProfiles = useMemo(
     () =>
-      mergePluginExportProfiles(
+      [...mergePluginExportProfiles(
         applyVaultExportToProfiles(DEFAULT_EXPORT_PROFILES, vaultConfig.export),
         pluginExportProfiles,
-      ),
+      ), {
+        id: 'pdf-offline', label: 'PDF · Offline', format: 'pdf' as const,
+        outputDirectory: '.scriptor/exports/offline', extraPandocArgs: [],
+      }],
     [pluginExportProfiles, vaultConfig.export],
   )
 
@@ -148,6 +155,44 @@ export function useWorkspaceExport({
       const profile = findExportProfile(exportProfiles, profileId)
       if (!profile) {
         setError(`Unknown export profile: ${profileId}`)
+        return
+      }
+
+      if (profileId === 'pdf-offline') {
+        if (!isNativeBridgeAvailable() || !vaultId) {
+          setError('Offline PDF export requires an open vault in the desktop app.')
+          return
+        }
+        if (offlinePending.current) return
+        if (dryRun) {
+          setError('Offline PDF export creates a document directly; dry run is unavailable.')
+          return
+        }
+        offlinePending.current = true
+        setIsExporting(true)
+        setError(null)
+        const jobId = crypto.randomUUID()
+        setExportHistory(current => [{ id: jobId, profile_label: profile.label, note_path: activePath, status: 'running' as const, finished_at: '' }, ...current].slice(0, 20))
+        try {
+          const pdf = await exportPdfInprocess(activePath, draftMarkdown, vaultId)
+          const result: ExportJobOutput = {
+            job_id: jobId, format: 'pdf', artifact_path: pdf.artifact_path,
+            command: ['in-process Typst'], stdout: `${pdf.page_count} pages. ${pdf.warnings.join('\n')}`,
+            stderr: '', duration_ms: pdf.duration_ms, dry_run: false,
+          }
+          setExportResult(result)
+          setExportHistory(current => current.map(entry => entry.id === jobId ? { ...entry, status: 'success', finished_at: new Date().toISOString(), result } : entry))
+          logActivity('success', 'Offline PDF exported', `${pdf.page_count} pages · ${pdf.artifact_path}${pdf.warnings.length ? ` · ${pdf.warnings.join('; ')}` : ''}`)
+          await refreshGit()
+        } catch (caught) {
+          const message = caught instanceof Error ? caught.message : String(caught)
+          setError(message)
+          setExportHistory(current => current.map(entry => entry.id === jobId ? { ...entry, status: 'error', finished_at: new Date().toISOString(), error: message } : entry))
+          logActivity('error', 'Offline PDF export failed', message)
+        } finally {
+          offlinePending.current = false
+          setIsExporting(false)
+        }
         return
       }
 
@@ -363,10 +408,14 @@ export function useWorkspaceExport({
         setIsExporting(false)
       }
     },
-    [activePath, draftMarkdown, exportProfiles, logActivity, refreshGit, setError],
+    [activePath, draftMarkdown, exportProfiles, logActivity, refreshGit, setError, vaultId],
   )
 
   const cancelExportRequest = useCallback(async () => {
+    if (offlinePending.current) {
+      logActivity('info', 'Offline PDF is still typesetting', 'This in-process compiler finishes its current document before controls unlock.')
+      return
+    }
     try {
       await exportCancel()
       logActivity('info', 'Export cancel requested', 'Stopping Pandoc if running')

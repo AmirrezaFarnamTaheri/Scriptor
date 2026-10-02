@@ -4,6 +4,11 @@
 
 ### Added
 
+- Add vault-owned persistent Python sessions in Runtime console with reviewed environments, per-cell consent, live output, bounded variables/PNG plots and stop/restart. Guard pending startup ownership and require confirmed shutdown before vault changes.
+- Add standalone source editing with byte-preserving save/recovery, reviewed Overleaf source exchange, and opaque Markdown revision hosting through Google Docs. Add local Graphviz DOT rendering with bounded cancellable workers, plus live Mermaid preview and diagram zoom/pan.
+- Add reviewed vault repair plans with immutable recovery receipts, source checks and fail-closed asset reference scans. Add measured vocabulary evolution from retained revision sources and readable search match emphasis.
+- Add bounded offline Markdown-to-PDF typesetting with bundled fonts, local raster snapshots and third-party notices. Add finite, explicitly authorized Drive polling and reviewed Google Docs text-copy workflows.
+
 - Add Database Studio filters, table/list/gallery views, guarded scalar metadata edits, saved view recovery and bounded declarative formulas/aggregates. Add reviewed capture and paginated Zotero imports, citation usage, abstracts and literature note creation.
 - Add vault-scoped raster image and audio previews with type checks, 32 MiB limits and local URL cleanup; PDF/EPUB annotation behavior remains separate. Add real revision heatmaps and descriptive vocabulary comparison.
 - Add Publishing Studio review/build/deployment controls with bounded logs, source receipt checks and immutable deployment snapshots. External deployment remains an explicit configured action; live provider verification is pending.
@@ -18,6 +23,8 @@
 - Add the offline mobile kernel and touch-oriented mobile application; see `docs/validation/REVIEW-PR-STATUS.md` for platform verification status.
 
 ### Fixed
+
+- Keep modal keyboard focus inside expandable sections, constrain header tooltips in narrow RTL layouts, and provide larger database, publishing and collaboration touch controls. Keep capture controls locked while an ignored pending operation finishes.
 
 - Distinguish explicit permanent Google OAuth refresh errors from temporary or malformed responses; bound token response reads, validate token values and expiry arithmetic, and keep raw authentication responses out of error messages.
 - Preserve displayed source revisions in coordinated database edits; reset Zotero previews when account keys change; restore a reload action after interrupted saved-view loading.

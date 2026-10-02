@@ -1,35 +1,29 @@
 # Review implementation PR status
 
-This PR captures the review remediation and feature work at the user's request. It is a draft and does not complete the expanded request to implement every proposed feature. The initial review documents remain the source of that request; `review-completion-plan.md` tracks its acceptance criteria.
+PR #151 is a draft checkpoint of the expanded review remediation request. It includes the initial feature implementations and the subsequently completed vertical workflows. It does not claim every proposed feature or release gate is complete. `review-completion-plan.md` retains the accepted scope.
 
-## Implemented in this snapshot
+## Included behavior
 
-- Review-confirmed presentation fixes, rename draft coordination, immutable recovery backups, bounded history reads, and citation rendering corrections.
-- Full CSL cluster formatting, bibliography identity after sorting, and distinguishing labels for long note names.
-- Declarative plugin workspace registration, permission checks, typed navigation, and first-party workspace composition.
-- Embedding health diagnostics, measured PCA projections, model provenance, secure credentials, and opt-in reindexing.
-- Explicit Canvas note relations, separate index provenance, graph/DQL visibility, and reconciliation.
-- Weekly task/event planning with reviewed provider writes, revision checks, and stale-checked local task updates.
-- Indexed asset usage, annotation note creation, diagram source editing, revision activity, and an authorized one-shot code console.
-- Opt-in Typst PDF profile and brokered compiler preflight.
-- Drive OAuth transport, immutable revisions, conservative three-way merge review, and stale-checked local application.
-- Offline mobile kernel and mobile application source, Android build configuration, and 41 of 104 German/Persian Help guide bodies.
+- Research: Database Studio views/filters/formulas and guarded metadata edits; Reference Desk with reviewed Zotero import and citation usage; passive original-source capture review; raster/audio previews and reader annotations.
+- Writing: full CSL citation formatting, real revision analytics/vocabulary evolution, search match emphasis, complete German/Persian Help bodies, and reviewed vault repairs with immutable recovery receipts.
+- Sync: finite consented Drive polling, immutable remote revisions, reviewed merges, loss-aware Google Docs text copies, and byte-preserving Markdown records hosted by Docs. Reviewed Overleaf source exchange preserves unrelated project files and checks local/remote revisions.
+- Source editing: standalone LaTeX, Python and the supported text formats retain their extension and bytes. Saves check the original hash; close, path changes and vault switches preserve drafts or require a decision. LaTeX compilation remains explicit.
+- Runtime/rendering: persistent Python sessions with reviewed environment, bounded output/plots, Stop/Restart and native vault-transition cleanup; local Graphviz WebAssembly, live Mermaid preview and diagram zoom/pan; external Typst and native offline PDF profiles with bundled notices.
+- Earlier checkpoint: plugin workspace registration/permissions, embedding diagnostics and measured projections, Canvas semantic relations, weekly planner/provider boundaries, publishing snapshots, and mobile application/Android debug build configuration.
 
-## Remaining work
+## Evidence
 
-- Translate the remaining 63 Help guides and compose localized body routing/search; new feature UI copy still needs localization.
-- Complete Reference Desk, Capture Reviewer, Database Studio, and Publishing Studio proposals.
-- Complete persistent runtime kernels, cancellation, environment review, and plot assets. The current console launches a fresh process per run.
-- Complete Drive polling, persistent mapping, and optional loss-aware Google Docs translation; live account tests have not run.
-- Wire and verify local PlantUML rendering, broader asset previews, and expanded browser coverage for the new surfaces.
-- Verify Typst output with an installed compiler, run the full native stress/release verification, and complete mobile device checks.
+Evidence is recorded in `REVIEW-CHECKPOINT-2026-10-02.md`, `REVIEW-INTEGRATION-2026-10-02.md`, the feature validation reports and the recovered visual scratchpad provenance report. All ten recoverable scratchpad versions were read completely. Fresh visual checks cover narrow layouts, RTL, keyboard focus, zoom and touch targets.
 
-## Verification and limits
+The desktop native suite and source/contract gate pass; exact final counts and reviewer outcomes are recorded in the integration report. Renderer type checking, lint and the production build pass. Focused browser checks cover sync/capture/publishing, source-editor navigation, actual diagram rendering, runtime lifecycle, and the forty-eight-case visual matrix.
 
-The production web build passes with 563,859 initial gzip bytes against the existing 921,600-byte budget. Full frontend lint, documentation contracts, locale-key parity (three locales, 1,024 keys), and changelog checks pass. All 422 source tests and a focused run of 36 feature tests pass. Desktop native compilation and workspace Rust formatting pass. Dependency audit reports two low-severity findings and no high-severity findings.
+The patched Wasmtime lockfile removes two fresh advisory findings; the current Rust audit reports zero vulnerabilities. Ten withdrawn GTK advisories were removed from the exception policy, and eight remaining maintenance exceptions were reassessed. Unsoundness and maintenance warnings remain visible and are described in `RUSTSEC-2026-10-02.md`.
 
-Earlier focused checks passed for embeddings (23), daemon (68), export runner (57), Canvas engine (36), indexer relation/usage behavior, and the original review browser fixes. These are subsystem evidence, not a claim that the complete release gate has passed for this snapshot.
+## Remaining scope and verification
 
-Android ARM64 native compilation succeeded. Android packaging reached the signing step but failed because the existing local debug keystore could not be decoded. A prior build attempt exhausted memory; a single-worker bounded-heap retry progressed to signing. No credential was replaced. No APK, device run, iOS build, live Google test, or Typst-produced PDF is claimed.
+- Workspace leaves, docking/tab persistence, activity-bar and plugin-manager composition still need completion.
+- Live Google/Overleaf/provider account checks and mobile Android/iOS device verification have not run.
+- Native packaged WebView, release, full workspace stress and optional backend verification remain separate gates. `cargo-deny` is unavailable in the current local tool environment.
+- New feature copy requires further localization and complete product accessibility/release evidence.
 
-No deployment or release is included. Existing user review files and unrelated desktop schema changes are excluded from this commit.
+No live provider write or deployment was performed during verification.

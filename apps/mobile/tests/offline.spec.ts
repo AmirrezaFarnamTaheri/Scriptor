@@ -19,6 +19,13 @@ test.beforeEach(async ({ page }) => {
         return { metadata: metadata(path, next) }
       }
       if (req.operation === 'history') return []
+      if (req.operation === 'pdf_licenses') return 'Bundled fonts: Libertinus Serif, DejaVu. SIL Open Font License.'
+      if (req.operation === 'export_pdf') {
+        const value = store.get(path)
+        if (!value || value.hash !== req.expected_hash) throw new Error('The note changed; reload before exporting')
+        localStorage.setItem('test:pdf-request', JSON.stringify(req))
+        return { saved: localStorage.getItem('test:cancel-pdf') !== 'yes', filename: 'paper.pdf', page_count: 1, warnings: [] }
+      }
       throw new Error('Unknown command')
     } } })
   })
@@ -58,10 +65,36 @@ test('stale recovered draft remains editable and cannot overwrite disk', async (
 test('RTL layout and controls remain bounded with 200 percent text', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto('/')
+  await page.getByRole('button', { name: 'Paper Research/paper.md' }).click()
   await page.evaluate(() => { document.documentElement.dir = 'rtl'; document.documentElement.style.fontSize = '200%' })
   for (const control of await page.locator('button,input').all()) {
     const rect = await control.boundingBox()
     if (rect) { expect(rect.height).toBeGreaterThanOrEqual(44); expect(rect.x).toBeGreaterThanOrEqual(0); expect(rect.x + rect.width).toBeLessThanOrEqual(375) }
   }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test('PDF export binds saved source and presents cancellation and font notices', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Paper Research/paper.md' }).click()
+  const pdf = page.getByRole('button', { name: 'Save PDF', exact: true })
+  await page.locator('.cm-content').fill('# Paper\nNew evidence')
+  await expect(pdf).toBeDisabled()
+  await expect(page.getByText('Save your current draft before exporting PDF.')).toBeVisible()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await pdf.click()
+  await expect(page.getByRole('region', { name: 'PDF export' })).toContainText('paper.pdf saved')
+  const request = JSON.parse(await page.evaluate(() => localStorage.getItem('test:pdf-request')) ?? '{}') as Record<string, unknown>
+  expect(request).toMatchObject({ operation: 'export_pdf', path: 'Research/paper.md', expected_hash: 'h2' })
+  expect(request).not.toHaveProperty('destination')
+  await page.evaluate(() => localStorage.setItem('test:cancel-pdf', 'yes'))
+  await pdf.click()
+  await expect(page.getByRole('region', { name: 'PDF export' })).toContainText('PDF save cancelled')
+  await page.getByRole('button', { name: 'Font licenses', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'PDF font licenses' })
+  await expect(dialog).toContainText('SIL Open Font License')
+  await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

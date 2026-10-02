@@ -120,4 +120,37 @@ SQLite uses WAL, foreign keys, busy timeouts, current-schema validation, FTS, an
 
 ## Known architecture work
 
+### Reviewed source, sync and rendering workflows
+
+Standalone source files use `commands/source_files.rs` and the source editor,
+with an explicit text-format allowlist, bounded UTF-8 reads, content-hash saves,
+strict creation and immutable recovery. They do not enter Markdown prose
+metadata or history pipelines. Unsaved navigation decisions settle before a
+vault switch; superseded decisions cannot leave a switch waiting indefinitely.
+
+Google collaboration binds remote operations to the originating vault as well
+as the one-time native grant. Drive JSON and opaque Google Docs records share
+the revision/conflict model. The Docs transport verifies a canonical encoded
+envelope and checksum, preserving Markdown bytes; optional rich text conversion
+is a separate reviewed workflow. Media files are not carried by these records.
+
+Overleaf uses the supported fixed-host Git transport through the process
+broker. A fresh isolated repository preserves the full remote index while only
+the selected source blob is materialized. Blob/object checks avoid Git text
+filter transformations. Reviewed head and content checks precede ordinary
+non-force pushes; a local application uses source-file content CAS.
+
+Persistent Python kernels are vault-owned broker processes with finite
+lifetimes, per-cell source-bound permission, bounded output and owned plot
+artifacts. A shared native transition guard prevents late registration during
+vault changes. Opening a vault and restoring a backup stop old kernels before
+replacing the session. Fresh execution of other languages remains separate.
+
+Graphviz is a bundled WebAssembly renderer in a cancellable, deadline-bounded
+worker. Markdown DOT fences and Diagram studio use the same client. SVG output
+is displayed in passive image context. Offline PDF typesetting remains native,
+with confined asset snapshots, bundled notices and unique artifact publication.
+Platform packaging and live provider evidence are tracked in the capability
+ledger rather than inferred from renderer fixtures.
+
 The adapter layer retains a composition root, but quick capture, rename transactions, deletion, telemetry, shortcuts, sidebar actions, auxiliary workspace data, settings vault configuration, MCP tool contracts, daemon command catalog/support, daemon transport tests, CLI command-line schema, and CLI benchmarks have focused owners. Further decomposition proceeds through characterized vertical workflows over typed application services, not a big-bang rewrite. See the capability ledger.

@@ -1,6 +1,17 @@
 export interface Metadata { path: string; title: string; content_hash: string }
 export interface Note { markdown: string; metadata: Metadata }
 export interface Draft { markdown: string; baseHash: string }
+export interface PdfExport { saved: boolean; filename: string; page_count: number; warnings: string[] }
+
+export function parsePdfExport(value: unknown): PdfExport {
+  const item = record(value)
+  const filename = string(item.filename)
+  if (typeof item.saved !== 'boolean' || filename.length > 1024 || !/^[^/\\:\u0000-\u001f]+\.pdf$/u.test(filename)
+    || typeof item.page_count !== 'number' || !Number.isInteger(item.page_count) || item.page_count < 1 || item.page_count > 256
+    || !Array.isArray(item.warnings) || item.warnings.length > 4) throw new Error('Invalid PDF export response')
+  const warnings = item.warnings.map(value => { const text = string(value); if (text.length > 4096) throw new Error('Invalid PDF warning'); return text })
+  return { saved: item.saved, filename, page_count: item.page_count, warnings }
+}
 
 export function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid native response')

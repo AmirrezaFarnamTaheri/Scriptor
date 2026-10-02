@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import { record, parseNote, parseSearch, parseMetadata, string } from './storage'
+import { record, parseNote, parseSearch, parseMetadata, parsePdfExport, string } from './storage'
 
 let scope = 0
 export async function lifecycle(foreground: boolean, cancel = false): Promise<void> {
@@ -11,6 +11,14 @@ async function request(operation: string, fields: Record<string, unknown>): Prom
   return invoke<unknown>('mobile_request', { request: { operation, scope, ...fields } })
 }
 export async function read(path: string) { return parseNote(await request('read', { path })) }
+export async function exportPdf(path: string, expectedHash: string) {
+  return parsePdfExport(await request('export_pdf', { path, expected_hash: expectedHash }))
+}
+export async function pdfLicenses(): Promise<string> {
+  const text = string(await request('pdf_licenses', {}))
+  if (text.length > 128 * 1024) throw new Error('Invalid font license response')
+  return text
+}
 export async function search(query: string) { return parseSearch(await request('search', { query })) }
 export async function save(path: string, markdown: string, expectedHash: string) {
   return parseMetadata(record(await request('save', { path, markdown, expected_hash: expectedHash })).metadata)

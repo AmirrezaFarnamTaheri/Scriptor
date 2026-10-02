@@ -225,6 +225,242 @@
       ]
     },
     {
+      "name": "collaboration_poll_start",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_drive_read",
+      "authorizationVariant": "GoogleDriveRead",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_poll_read",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "vault-bound-finite-poll-lease",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_poll_stop",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "vault-bound-finite-poll-lease",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "health_repair_plan",
+      "owner": "apps/desktop/src-tauri/src/commands/health_repair.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "expected-vault",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "health_repair_receipts",
+      "owner": "apps/desktop/src-tauri/src/commands/health_repair.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "expected-vault",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "health_repair_apply",
+      "owner": "apps/desktop/src-tauri/src/commands/health_repair.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "apply_bulk_fix",
+      "authorizationVariant": "ApplyBulkFix",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "health_repair_restore",
+      "owner": "apps/desktop/src-tauri/src/commands/health_repair.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "restore_history",
+      "authorizationVariant": "RestoreHistory",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "runtime_kernel_start",
+      "owner": "apps/desktop/src-tauri/src/commands/code_chunk/runtime.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "code_execution",
+      "authorizationVariant": "CodeExecution",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "runtime_kernel_run",
+      "owner": "apps/desktop/src-tauri/src/commands/code_chunk/runtime.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "code_execution",
+      "authorizationVariant": "CodeExecution",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "runtime_kernel_status",
+      "owner": "apps/desktop/src-tauri/src/commands/code_chunk/runtime.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "expected-vault-kernel",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "runtime_kernel_stop",
+      "owner": "apps/desktop/src-tauri/src/commands/code_chunk/runtime.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "expected-vault-kernel",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "source_file_read",
+      "owner": "apps/desktop/src-tauri/src/commands/source_files.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "expected-vault-source-file",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "source_file_save",
+      "owner": "apps/desktop/src-tauri/src/commands/source_files.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "expected-vault-content-hash",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "source_file_create",
+      "owner": "apps/desktop/src-tauri/src/commands/source_files.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "expected-vault-create-only",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "overleaf_read",
+      "owner": "apps/desktop/src-tauri/src/commands/overleaf.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "git_pull",
+      "authorizationVariant": "GitPull",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "overleaf_push",
+      "owner": "apps/desktop/src-tauri/src/commands/overleaf.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "git_push",
+      "authorizationVariant": "GitPush",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "export_pdf_inprocess",
+      "owner": "apps/desktop/src-tauri/src/commands/export_pdf.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "expected-vault-export-capability",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "export_pdf_licenses",
+      "owner": "apps/desktop/src-tauri/src/commands/export_pdf.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value"
+      ]
+    },
+    {
       "name": "ai_provider_delete_api_key",
       "owner": "apps/desktop/src-tauri/src/commands/system.rs",
       "authorizationClass": "brokered-sensitive",

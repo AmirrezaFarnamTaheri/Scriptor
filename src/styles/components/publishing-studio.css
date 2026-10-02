@@ -6,3 +6,4 @@
 .publishing-studio .research-controls input { max-width: 100%; }
 .publishing-studio details { margin-block: 12px; }
 @media (max-width: 600px) { .publishing-studio table { font-size: 0.85rem; } .publishing-studio td button { display: block; margin-block: 6px; } }
+@media (max-width:600px) { .publishing-studio input:not([type="checkbox"]),.publishing-studio select {min-height:44px;} }

@@ -19,7 +19,7 @@ use super::daemon::{
 };
 use super::shared::parse_daemon_json;
 
-fn require_export_capability(state: &tauri::State<AppState>) -> Result<(), String> {
+pub(super) fn require_export_capability(state: &tauri::State<AppState>) -> Result<(), String> {
     let session = active_session(state)?;
     let plugin_state = load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;
     if plugin_state.is_enabled("scriptor.export") {

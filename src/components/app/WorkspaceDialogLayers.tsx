@@ -243,6 +243,10 @@ function WorkspaceDialogLayersImpl({
         >
           <Suspense fallback={<PanelFallback />}>
             <VaultHealthDashboard
+              key={workspace.vault?.id}
+              expectedVaultId={workspace.vault?.id}
+              onRepairsApplied={workspace.refreshVault}
+              runSourceNoteMutation={workspace.runNoteMutation}
               diagnostics={workspace.healthDiagnostics}
               inspectorWidgets={plugins.contributions.inspectorWidgets}
               vaultHealthChecks={plugins.contributions.vaultHealthChecks}

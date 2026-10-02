@@ -4,12 +4,16 @@ version = "1.2.8"
 edition = "2024"
 license.workspace = true
 
+[features]
+pdf = ["dep:scriptor-export-runner"]
+
 [dependencies]
 scriptor-vault = { path = "../vault" }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 walkdir = "2"
 chrono.workspace = true
+scriptor-export-runner = { path = "../export-runner", optional = true, features = ["inprocess-pdf"] }
 
 [dev-dependencies]
 tempfile = "3"

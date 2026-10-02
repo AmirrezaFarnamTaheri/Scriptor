@@ -15,6 +15,11 @@ use std::{
 };
 use walkdir::WalkDir;
 
+#[cfg(feature = "pdf")]
+mod pdf;
+#[cfg(feature = "pdf")]
+pub use pdf::MobilePdfSnapshot;
+
 pub const MAX_NOTE_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_SCAN_ENTRIES: usize = 25_000;
 const MAX_SEARCH_BYTES: u64 = 32 * 1024 * 1024;
@@ -32,6 +37,11 @@ pub enum RuntimeError {
     InvalidInput,
     #[error("mobile runtime lock unavailable")]
     Unavailable,
+    #[error("the note changed; reload and review before exporting")]
+    StaleContent,
+    #[cfg(feature = "pdf")]
+    #[error(transparent)]
+    Pdf(#[from] scriptor_export_runner::inprocess_pdf::PdfError),
     #[error(transparent)]
     Vault(#[from] VaultError),
     #[error(transparent)]
@@ -85,6 +95,10 @@ impl MobileRuntime {
             return Err(RuntimeError::Cancelled);
         }
         Ok(())
+    }
+
+    pub fn ensure_scope(&self, scope: u64) -> Result<(), RuntimeError> {
+        self.check(scope)
     }
 
     fn path(path: &str) -> Result<RelativeVaultPath, RuntimeError> {

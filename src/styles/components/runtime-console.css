@@ -1,0 +1,7 @@
+.runtime-console { min-width:0; }
+.runtime-console textarea { width:100%; box-sizing:border-box; font-family:var(--font-mono,monospace); }
+.runtime-console p,.runtime-console td { overflow-wrap:anywhere; }
+.runtime-console pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:280px; overflow:auto; }
+.runtime-console table { width:100%; table-layout:fixed; }
+.runtime-console img { display:block; max-width:100%; max-height:70vh; height:auto; object-fit:contain; }
+.runtime-console figure { margin:12px 0; }

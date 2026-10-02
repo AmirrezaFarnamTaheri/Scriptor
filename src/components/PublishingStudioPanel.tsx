@@ -89,8 +89,8 @@ export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceN
     </div>
     {site && <>
       <label>Find a note<input type="search" value={query} onChange={event => { setQuery(event.target.value); setPage(0) }} /></label>
-      <table><caption>Privacy and eligibility for indexed notes. Exclusions can also come from publication filters.</caption><thead><tr><th>Note</th><th>Included in plan</th><th>Review</th></tr></thead><tbody>{visible.map(row => <tr key={row.path}>
-        <td><bdi>{row.path}</bdi></td><td><input type="checkbox" aria-label={`Publish ${row.path}`} checked={row.eligible} disabled={busy} onChange={event => void action(() => toggle(row.path, event.target.checked, row.contentHash))} /></td>
+      <table><caption>Plan eligibility and publication field actions for indexed notes. Eligibility also depends on publication filters; an excluded note may still have publish: true. Opt in and Opt out explicitly update that field.</caption><thead><tr><th>Note</th><th>Included in plan</th><th>Review</th></tr></thead><tbody>{visible.map(row => <tr key={row.path}>
+        <td><bdi>{row.path}</bdi></td><td><p>{row.eligible ? 'Included in the current plan' : 'Excluded by the current plan'}</p><button aria-label={`Opt in ${row.path}`} disabled={busy} onClick={() => void action(() => toggle(row.path, true, row.contentHash))}>Opt in</button><button aria-label={`Opt out ${row.path}`} disabled={busy} onClick={() => void action(() => toggle(row.path, false, row.contentHash))}>Opt out</button></td>
         <td><button disabled={busy} onClick={() => void action(async () => { const document = await read(row.path); if (mounted.current) setPreview(document) })}>Preview</button><button onClick={() => onOpenNote(row.path)}>Open note</button></td>
       </tr>)}</tbody></table>
       <div className="research-controls"><button disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page + 1} · {filtered.length} indexed notes</span><button disabled={(page + 1) * 50 >= filtered.length} onClick={() => setPage(value => value + 1)}>Next</button></div>

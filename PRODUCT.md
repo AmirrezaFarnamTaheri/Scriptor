@@ -83,6 +83,13 @@ Scriptor is local-first. The renderer is untrusted relative to native authority.
 
 ## Roadmap policy
 
+Experimental source workflows support standalone LaTeX and code text alongside
+Markdown with code chunks and media. Source editing preserves file formats and
+keeps execution explicit. Experimental collaboration can host immutable
+Markdown revisions through Drive or Google Docs, and exchange reviewed source
+files with Overleaf. Capability and verification limits remain recorded in
+`docs/CAPABILITY-MATURITY.md`.
+
 Roadmap documents describe options, not current behavior. A capability graduates only after it has:
 
 - an owner and source entry point;

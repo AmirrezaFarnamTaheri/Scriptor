@@ -38,6 +38,13 @@ pub fn vault_open(
     root_path: String,
 ) -> Result<OpenVaultOutput, String> {
     let _switch = crate::state::lock_recover(&state.vault_switch_lock, "vault switch");
+    let _kernels = super::code_chunk::runtime::vault_transition_guard()?;
+    let previous_vault = crate::state::read_recover(&state.session, "session")
+        .as_ref()
+        .map(|session| session.descriptor.id.clone());
+    if let Some(id) = previous_vault {
+        super::code_chunk::runtime::stop_vault_sessions(&id)?;
+    }
     let path = std::path::Path::new(&root_path);
     if !path.exists() {
         std::fs::create_dir_all(path)
@@ -580,8 +587,10 @@ pub fn vault_read_note_history_revision(
     state: tauri::State<AppState>,
     path: String,
     revision_id: String,
+    expected_vault_id: Option<String>,
 ) -> Result<String, String> {
     let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     read_note_history_revision(&session.root, &path, &revision_id)
         .map_err(|error| error.to_string())
 }

@@ -335,6 +335,9 @@ importers:
       '@scriptor/core':
         specifier: workspace:*
         version: link:../core
+      '@viz-js/viz':
+        specifier: 3.31.0
+        version: 3.31.0
       hast-util-sanitize:
         specifier: ^5.0.2
         version: 5.0.2
@@ -1178,6 +1181,9 @@ packages:
         optional: true
       oxc-transform-react:
         optional: true
+
+  '@viz-js/viz@3.31.0':
+    resolution: {integrity: sha512-r7zlQdRvcwvIpjHGgs+KNWHeE/P5/Dq7k8ZAKaMCbZqomxCBJV78gVuQYaHzFVca+kB0mX0fMW9UFevCOBG50A==}
 
   '@xmldom/xmldom@0.9.12':
     resolution: {integrity: sha512-5AXjrcMClTryPe9LgZrygpB1lj7s0S9E0+W+AHaVKAVyHanafK86iPSvG5xHVSp/jC+VH1UXu0TAEmY279xH7A==}
@@ -3586,6 +3592,8 @@ snapshots:
     dependencies:
       '@rolldown/pluginutils': 1.0.1
       vite: 8.3.0(@types/node@26.6.2)
+
+  '@viz-js/viz@3.31.0': {}
 
   '@xmldom/xmldom@0.9.12': {}
 

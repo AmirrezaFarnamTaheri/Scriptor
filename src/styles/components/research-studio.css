@@ -1,8 +1,5 @@
 .research-studio { max-width: 1100px; }
 .asset-deck-workspace { max-width: 1500px; }
-.asset-deck-workspace .unified-panel-header-actions .custom-tooltip { inset-inline-start: auto; inset-inline-end: 0; transform: translateY(4px); }
-html[dir] .asset-deck-workspace .unified-panel-header-actions .has-custom-tooltip:is(:hover, :focus-visible) .custom-tooltip { transform: translateY(0); }
-.asset-deck-workspace .unified-panel-header-actions .custom-tooltip::before { inset-inline-start: auto; inset-inline-end: 16px; transform: rotate(45deg); }
 .asset-deck-split.has-reader { display: grid; grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1.2fr); gap: 16px; min-height: 500px; }
 .embedded-panel-shell { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .embedded-panel-shell > header { display: flex; align-items: center; gap: 8px; padding: 10px; border-bottom: 1px solid var(--border); }
@@ -11,6 +8,12 @@ html[dir] .asset-deck-workspace .unified-panel-header-actions .has-custom-toolti
 .embedded-panel-body { min-height: 0; flex: 1; overflow: auto; padding: 12px; }
 .embedded-panel-body .reader-webview-container { min-height: 400px; }
 @media (max-width: 800px) { .asset-deck-split.has-reader { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+  .asset-deck-workspace .unified-panel-header-actions button,
+  .asset-deck-workspace .embedded-panel-shell > header button { min-width: 44px; min-height: 44px; }
+  .asset-deck-workspace .research-controls input:not([type='checkbox']) { min-height: 44px; }
+  .asset-deck-workspace .research-controls label:has(input[type='checkbox']) { min-height: 44px; cursor: pointer; }
+}
 .research-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 12px; }
 .research-controls label, .research-source { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .research-controls input, .research-controls select, .research-source textarea { color: var(--ink); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
@@ -18,6 +21,9 @@ html[dir] .asset-deck-workspace .unified-panel-header-actions .has-custom-toolti
 .research-source textarea { min-height: 300px; resize: vertical; font-family: monospace; line-height: 1.6; }
 .research-render { min-width: 0; }
 .research-preview-scroll { overflow: auto; max-height: 55vh; border: 1px solid var(--border); padding: 12px; }
+.diagram-viewport { direction: ltr; cursor: grab; min-height: 180px; }
+.diagram-viewport.is-dragging { cursor: grabbing; user-select: none; }
+.diagram-viewport:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .research-asset-list { list-style: none; padding: 0; max-height: 55vh; overflow: auto; }
 .research-asset-list li { border-bottom: 1px solid var(--border); padding: 12px 0; overflow-wrap: anywhere; }
 .research-asset-list button { min-height: 44px; }
@@ -34,3 +40,17 @@ html[dir] .asset-deck-workspace .unified-panel-header-actions .has-custom-toolti
 .asset-media-image { display: block; max-width: 100%; max-height: 65vh; object-fit: contain; margin-inline: auto; }
 .asset-media-audio { display: block; width: 100%; max-width: 100%; }
 @media (max-width: 768px) { .research-split { grid-template-columns: minmax(0, 1fr); } .research-controls > label { flex: 1 1 180px; } }
+.vocabulary-evolution {min-width:0;display:grid;gap:8px;}
+.vocabulary-evolution button {min-height:44px;}
+.vocabulary-evolution svg {width:100%;height:auto;max-height:220px;color:var(--ink);}
+.vocabulary-evolution svg text {font-size:12px;fill:currentColor;}
+.vocabulary-evolution-table {max-width:100%;overflow:auto;}
+.vocabulary-evolution table {border-collapse:collapse;font-variant-numeric:tabular-nums;}
+.vocabulary-evolution th,.vocabulary-evolution td {padding:6px;text-align:start;border-bottom:1px solid var(--border);}
+.diagram-notices { max-height: 20rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
+.research-language { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+@media (max-width: 600px) {
+  .research-studio .research-controls select,
+  .research-studio details > summary { min-height: 44px; }
+  .research-studio details > summary { display: flex; align-items: center; }
+}

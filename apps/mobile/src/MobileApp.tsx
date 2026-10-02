@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import * as bridge from './bridge'
 import { draftKey, parseDraft } from './storage'
-import type { Metadata } from './storage'
+import type { Metadata, PdfExport } from './storage'
 
 const MarkdownEditor = lazy(() => import('@scriptor/editor/codemirror').then(module => ({ default: module.MarkdownEditor })))
 
@@ -23,6 +23,11 @@ export function MobileApp() {
   const [confirmRestore, setConfirmRestore] = useState(false)
   const [dark, setDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
   const historyDialog = useRef<HTMLDialogElement>(null)
+  const licensesDialog = useRef<HTMLDialogElement>(null)
+  const exporting = useRef(false)
+  const [pdfResult, setPdf] = useState<{ result: PdfExport; path: string; hash: string } | null>(null)
+  const pdf = pdfResult?.path === path && pdfResult.hash === hash ? pdfResult.result : null
+  const [licenses, setLicenses] = useState('')
   const sequence = useRef(0)
   const ready = useRef(false)
   const queryRef = useRef(query)
@@ -100,6 +105,14 @@ export function MobileApp() {
     setNewPath(''); setPath(result.path); setMarkdown('# New note\n'); setHash(result.content_hash); setDirty(false); setStatus('Created on this device')
   })
 
+  const exportPdf = async () => {
+    if (!path || dirty || busy || exporting.current) return
+    exporting.current = true
+    setPdf(null)
+    try { await run(async () => { setPdf({ result: await bridge.exportPdf(path, hash), path, hash }) }) }
+    finally { exporting.current = false }
+  }
+
   return <div className="mobile-app">
     <header><h1>Scriptor</h1><span>Offline writing</span></header>
     <main>
@@ -118,6 +131,11 @@ export function MobileApp() {
         <p className="mobile-note-state">{dirty ? 'Unsaved changes · recovery draft retained' : 'Saved Markdown'}</p>
         <Suspense fallback={<p role="status">Opening editor…</p>}><MarkdownEditor value={markdown} onChange={edit} readOnly={busy} showLineNumbers={false} spellcheck languageTool={false} editorTheme={dark ? 'dark' : 'light'} /></Suspense>
         <button disabled={busy || dirty} title={dirty ? 'Save the current draft before viewing history' : undefined} onClick={() => void run(async () => { setRevisions(await bridge.history(path)); setSelectedRevision(''); setRevisionText(''); setConfirmRestore(false); historyDialog.current?.showModal() })}>Revision history</button>
+        <section aria-label="PDF export">
+          <div className="mobile-pdf-actions"><button disabled={busy || dirty} onClick={() => void exportPdf()}>Save PDF</button><button disabled={busy} onClick={() => void run(async () => { setLicenses(await bridge.pdfLicenses()); licensesDialog.current?.showModal() })}>Font licenses</button></div>
+          <p>{dirty ? 'Save your current draft before exporting PDF.' : 'Create a PDF offline, then choose where to save it.'}</p>
+          {pdf && <div role="status" aria-live="polite"><p dir="auto">{pdf.saved ? `${pdf.filename} saved · ${pdf.page_count} ${pdf.page_count === 1 ? 'page' : 'pages'}` : 'PDF save cancelled'}</p>{pdf.warnings.map((warning, index) => <p key={index}>{warning}</p>)}</div>}
+        </section>
         <details><summary>Export Markdown</summary><p>Select and copy the ordinary Markdown below to another app.</p><textarea aria-label="Export Markdown" readOnly dir="auto" value={markdown} /></details>
       </section>}
       {error && <div role="alert"><p>{error}</p><button disabled={busy} onClick={() => void run(async () => { await bridge.lifecycle(true, true); await refresh(query) })}>Refresh session</button></div>}
@@ -132,5 +150,6 @@ export function MobileApp() {
         void run(async () => { if (!path) return; const metadata = await bridge.restore(path, selectedRevision, hash); setHash(metadata.content_hash); setMarkdown(revisionText); setDirty(false); setStatus('Revision restored; previous content remains in history'); historyDialog.current?.close() })
       }}>{confirmRestore ? 'Confirm restore' : 'Restore selected revision'}</button></>}
     </dialog>
+    <dialog ref={licensesDialog} aria-labelledby="mobile-pdf-licenses"><h2 id="mobile-pdf-licenses">PDF font licenses</h2><button autoFocus onClick={() => licensesDialog.current?.close()}>Close</button><pre>{licenses}</pre></dialog>
   </div>
 }

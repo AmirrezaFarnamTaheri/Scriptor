@@ -6,6 +6,8 @@ pub mod cancel;
 pub mod diagram;
 pub mod diagram_preprocess;
 pub mod error;
+#[cfg(feature = "inprocess-pdf")]
+pub mod inprocess_pdf;
 pub mod job;
 pub mod log;
 pub mod pandoc;

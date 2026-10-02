@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::state::{AppState, active_session};
+pub mod runtime;
 
 const MAX_OUTPUT_BYTES: usize = 256 * 1024;
 const TIMEOUT_SECS: u64 = 30;

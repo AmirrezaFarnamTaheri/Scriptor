@@ -1,9 +1,9 @@
 import type { BibliographyEntry } from '../types/vault.ts'
 
-export type DiagramLanguage = 'mermaid' | 'plantuml'
+export type DiagramLanguage = 'mermaid' | 'plantuml' | 'dot'
 
 export function diagramDocument(language: DiagramLanguage, source: string, notePaths: string[] = []): string {
-  if (!['mermaid', 'plantuml'].includes(language)) throw new Error('Unsupported diagram language')
+  if (!['mermaid', 'plantuml', 'dot'].includes(language)) throw new Error('Unsupported diagram language')
   if (new TextEncoder().encode(source).length > 65_536) throw new Error('Diagram source exceeds 64 KiB')
   if (!source.trim()) throw new Error('Enter diagram source')
   if (/^\s*`{3,}/m.test(source)) throw new Error('Diagram source must not contain a Markdown fence')
@@ -64,7 +64,7 @@ export function revisionHeatmap(rows: Array<{ saved_at: string }>, maximumDays =
 }
 
 export function vocabularyMetrics(markdown: string): { words: number; uniqueWords: number; diversity: number | null } {
-  if (markdown.length > 3 * 1024 * 1024) throw new Error('Vocabulary analysis is limited to 3 MiB of source text')
+  if (markdown.length > 3 * 1024 * 1024 || new TextEncoder().encode(markdown).byteLength > 3 * 1024 * 1024) throw new Error('Vocabulary analysis is limited to 3 MiB of source text')
   const words = markdown.normalize('NFC').toLowerCase().match(/[\p{L}\p{N}]+(?:(?:['-]|\u200c|\u200d)[\p{L}\p{N}]+)*/gu) ?? []
   const uniqueWords = new Set(words).size
   return { words: words.length, uniqueWords, diversity: words.length ? uniqueWords / words.length : null }

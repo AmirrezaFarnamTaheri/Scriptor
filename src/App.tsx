@@ -1,9 +1,11 @@
 import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, Suspense } from 'react'
 import { ReviewFeatureWorkspaces } from './components/app/ReviewFeatureWorkspaces'
+import { SourceFileWorkspace } from './components/app/SourceFileWorkspace'
+import { useSourceFileWorkspace } from './hooks/useSourceFileWorkspace'
 import { useReviewFeatureWorkspaces } from './hooks/useReviewFeatureWorkspaces'
 import { createPluginWorkspaceHandlers } from './lib/pluginWorkspaceHandlers'
 import type { PluginRuntimePolicy } from '@scriptor/plugin-api'
-import { indexerSearch } from './bridge/commands'
+import { usePaletteNoteNavigation } from './hooks/usePaletteNoteNavigation'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
 import { useVisualBlockRenderer } from './hooks/useVisualBlockRenderer'
@@ -324,6 +326,7 @@ function App() {
     hibernateGit,
   })
   const reviewFeatures = useReviewFeatureWorkspaces(nativeReady && Boolean(workspace.vault), plugins.contributions.workspaces)
+  const sourceFiles = useSourceFileWorkspace(workspace.vault?.id ?? null)
   const deleteNoteController = useDeleteNoteController({
     enabled: nativeReady,
     closeTab: workspace.closeTab,
@@ -779,14 +782,8 @@ function App() {
     void applyStarlightPlan(selectedPaths, deleteOrphans)
   }, [applyStarlightPlan])
 
-  const handleCloseCommandPalette = useCallback(() => setCommandPaletteOpen(false), [setCommandPaletteOpen])
-  const handleSearchNotes = useMemo(() => {
-    if (!workspace.vault) return undefined
-    return (query: string) => indexerSearch(query, 12)
-  }, [workspace.vault])
-  const handleOpenNoteFromPalette = useCallback((path: string) => {
-    void openNote(path)
-  }, [openNote])
+  const { handleCloseCommandPalette, handleSearchNotes, handleOpenNoteFromPalette } =
+    usePaletteNoteNavigation(Boolean(workspace.vault), openNote, setCommandPaletteOpen)
 
   const handleCloseQuickCapture = useCallback(() => setQuickCaptureOpen(false), [setQuickCaptureOpen])
   const handleClosePortal = useCallback(() => setPortalOpen(false), [setPortalOpen])
@@ -903,9 +900,10 @@ function App() {
         setHibernateGit,
         hibernateSpellcheck,
         setHibernateSpellcheck,
-      }), ...reviewFeatures.commands],
+      }), ...reviewFeatures.commands, ...sourceFiles.commands],
     [
       reviewFeatures.commands,
+      sourceFiles.commands,
       ai,
       canExecutePluginCommand,
       chrome.inspectorCollapsed,
@@ -1054,6 +1052,7 @@ function App() {
     organizeNote: workspace.organizeNote,
     openNote: workspace.openNote,
     openReaderDocument: handleOpenReaderDocument,
+    openSourceFile: sourceFiles.open,
     refreshVault: workspace.refreshVault,
     importDroppedFiles: workspace.importDroppedFiles,
     deleteNote: deleteNoteController.deleteNote,
@@ -1717,6 +1716,7 @@ function App() {
       <ReviewFeatureWorkspaces active={reviewFeatures.active} workspace={workspace} onClose={reviewFeatures.close} onOpenAsset={handleOpenReaderDocument}
         pluginWorkspace={reviewFeatures.pluginWorkspace} pluginPolicy={reviewFeatures.pluginWorkspace ? plugins.pluginPolicies[reviewFeatures.pluginWorkspace.pluginId] ?? null : null}
         {...pluginWorkspaceHandlers} />
+      <SourceFileWorkspace selection={sourceFiles.selection} onClose={sourceFiles.close} onSaved={workspace.refreshVault} latexConfig={workspace.vaultConfig?.latex} />
       {commandPalette.open ? (
         <CommandPalette
           onClose={handleCloseCommandPalette}
