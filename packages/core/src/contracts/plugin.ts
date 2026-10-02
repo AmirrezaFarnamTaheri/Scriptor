@@ -2,6 +2,7 @@ import type { CanvasBlockKind } from './canvas'
 import type { CommandPermission } from './command'
 import type { ExportFormat } from './export'
 import type { McpMode } from './mcp'
+import type { PluginWorkspaceDefinition } from './plugin-workspace'
 
 export type PluginActivation = 'manual' | 'on-startup' | 'on-vault-open'
 
@@ -15,6 +16,7 @@ export type PluginCapability =
   | 'canvas-tool'
   | 'canvas-block'
   | 'template-pack'
+  | 'workspace'
 
 export interface PluginManifest {
   id: string
@@ -38,6 +40,7 @@ export interface PluginPermission {
 }
 
 export interface PluginContributions {
+  workspaces?: PluginWorkspaceDefinition[]
   commands?: PluginCommandContribution[]
   rendererExtensions?: RendererExtensionContribution[]
   exportProfiles?: ExportProfileContribution[]
@@ -124,4 +127,3 @@ export interface PluginRuntimePolicy {
   networkAccess: 'blocked' | 'allowlist'
   allowlistedHosts: string[]
 }
-

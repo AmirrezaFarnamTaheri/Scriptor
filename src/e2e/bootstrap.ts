@@ -20,6 +20,10 @@ import {
   e2eUpdateTask,
 } from './state.ts'
 import { installE2eMcpHarness } from './mcp.harness.ts'
+import { createResearchHarness } from './research.harness'
+import { assetMediaHarness } from './assetMedia.harness'
+import { createCollaborationHarness } from './collaboration.harness'
+import { createPublishingAuditHarness } from './publishingAudit.harness'
 
 const DEFAULT_CONFIG = {
   daily_note: {
@@ -183,7 +187,18 @@ export function installE2eBridge(): void {
   if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) {
     window.__TAURI_INTERNALS__ = {}
   }
+  const researchHarness=createResearchHarness()
+  const collaborationHarness=createCollaborationHarness()
+  const publishingAuditHarness=createPublishingAuditHarness()
   mockIPC((cmd, payload) => {
+    const collaboration=collaborationHarness(cmd,payload)
+    if(collaboration.handled)return collaboration.value
+    const publishingAudit=publishingAuditHarness(cmd,payload)
+    if(publishingAudit.handled)return publishingAudit.value
+    const media = assetMediaHarness(cmd, payload)
+    if (media.handled) return media.value
+    const research=researchHarness(cmd,payload)
+    if(research.handled)return research.value
     switch (cmd) {
       case 'vault_open':
         if (window.sessionStorage.getItem('e2e:slow-vault') === '1') {

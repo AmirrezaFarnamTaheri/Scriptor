@@ -127,6 +127,9 @@ export const WritingTargetsPanel = memo(function WritingTargetsPanel({
         ],
       },
       options: {
+        // Interpolated bars and target lines report values that never occurred.
+        // Render the recorded history at its final scale on the first frame.
+        animation: false,
         responsive: true,
         maintainAspectRatio: false,
         plugins: {

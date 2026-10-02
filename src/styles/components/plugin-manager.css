@@ -241,8 +241,12 @@
 .plugin-card-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+.plugin-card-actions .toolbar-button { min-height: 44px; }
+.plugin-workspace-unavailable { display: block; max-width: 28ch; color: var(--muted); overflow-wrap: anywhere; }
 
 .toggle-switch {
   position: relative;

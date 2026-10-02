@@ -6,14 +6,23 @@ import type {
   McpToolContribution,
   PluginCommandContribution,
   PluginContributions,
+  PluginRuntimePolicy,
   RendererExtensionContribution,
   TemplatePackContribution,
   VaultHealthCheckContribution,
 } from '@scriptor/core/contracts/plugin'
 
 import type { LoadedPlugin } from './registry.ts'
+import { authorizeWorkspaceView, parsePluginWorkspace, type PluginWorkspaceDefinition } from './workspace.ts'
 
-export function collectContributions(plugins: LoadedPlugin[]): Required<{
+export interface WorkspaceContributionScope {
+  vaultId: string | null
+  policies: Readonly<Record<string, PluginRuntimePolicy | null>>
+  safeMode?: boolean
+}
+
+export function collectContributions(plugins: LoadedPlugin[], scope?: WorkspaceContributionScope): Required<{
+  workspaces: PluginWorkspaceDefinition[]
   commands: PluginCommandContribution[]
   rendererExtensions: RendererExtensionContribution[]
   inspectorWidgets: InspectorWidgetContribution[]
@@ -27,6 +36,17 @@ export function collectContributions(plugins: LoadedPlugin[]): Required<{
   const empty: PluginContributions = {}
   const merged = plugins.reduce((acc, plugin) => {
     const contributes = plugin.manifest.contributes ?? empty
+    if (plugin.enabled && !scope?.safeMode) {
+      for (const input of contributes.workspaces ?? []) {
+        const view = parsePluginWorkspace(input)
+        if (scope) {
+          const policy = scope.policies[view.pluginId]
+          if (!policy) continue
+          try { authorizeWorkspaceView(view, policy, scope.vaultId) } catch { continue }
+        }
+        acc.workspaces.push(view)
+      }
+    }
     acc.commands.push(
       ...(contributes.commands ?? []).map((command) => ({
         ...command,
@@ -51,6 +71,7 @@ export function collectContributions(plugins: LoadedPlugin[]): Required<{
     acc.canvasBlocks.push(...(contributes.canvasBlocks ?? []))
     return acc
   }, {
+    workspaces: [] as PluginWorkspaceDefinition[],
     commands: [] as PluginCommandContribution[],
     rendererExtensions: [] as RendererExtensionContribution[],
     inspectorWidgets: [] as InspectorWidgetContribution[],

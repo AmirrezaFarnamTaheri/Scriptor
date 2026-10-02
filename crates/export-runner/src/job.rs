@@ -193,6 +193,10 @@ pub fn run_export_job_with_cancel(
     progress: Option<ExportProgressCallback>,
 ) -> Result<ExportJobOutput, ExportError> {
     let format = ExportFormat::parse(&input.format)?;
+    let typst_selected = crate::typst::validate_selection(format, &input.extra_pandoc_args)?;
+    if typst_selected && !input.dry_run {
+        crate::typst::preflight()?;
+    }
     let pandoc = match discover_pandoc_with_trusted_hash(input.trusted_pandoc_hash.as_deref()) {
         Ok(found) => found,
         Err(_) if input.dry_run => crate::pandoc::PandocDiscovery {

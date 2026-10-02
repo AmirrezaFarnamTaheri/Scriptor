@@ -34,7 +34,7 @@ pub(crate) fn daemon_rpc(method: RpcMethod) -> Result<RpcPayload, String> {
     }
 }
 
-fn with_verified_vault<T>(
+pub(super) fn with_verified_vault<T>(
     state: &AppState,
     operation: &'static str,
     run: impl FnOnce() -> Result<T, String>,

@@ -116,7 +116,58 @@ pub struct CanvasDocument {
     pub mode: CanvasMode,
     pub layers: Vec<CanvasLayer>,
     pub blocks: Vec<CanvasBlock>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub relations: Vec<CanvasRelation>,
     pub updated_at: String,
+}
+
+/// Explicit note endpoints. Drawing proximity never implies a semantic link.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CanvasRelation {
+    pub id: String,
+    pub connector_block_id: String,
+    pub source_note_path: String,
+    pub target_note_path: String,
+    pub label: String,
+}
+
+pub fn validate_relations(document: &CanvasDocument) -> Result<(), crate::CanvasError> {
+    if document.relations.len() > 5_000 {
+        return Err(crate::CanvasError::InvalidDocument(
+            "At most 5000 relations are allowed".into(),
+        ));
+    }
+    let mut ids = std::collections::HashSet::new();
+    let connectors = document
+        .blocks
+        .iter()
+        .filter(|b| b.kind == CanvasBlockKind::Connector)
+        .map(|b| b.id.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    for relation in &document.relations {
+        if relation.id.is_empty()
+            || relation.id.len() > 128
+            || !ids.insert(&relation.id)
+            || relation.label.trim().is_empty()
+            || relation.label.len() > 128
+            || !connectors.contains(relation.connector_block_id.as_str())
+        {
+            return Err(crate::CanvasError::InvalidDocument(
+                "Invalid relation identity, label or connector".into(),
+            ));
+        }
+        for path in [&relation.source_note_path, &relation.target_note_path] {
+            let relative = scriptor_vault::RelativeVaultPath::parse(path)
+                .map_err(|e| crate::CanvasError::InvalidDocument(e.to_string()))?;
+            if !relative.as_str().ends_with(".md") || relative.as_str() != path.as_str() {
+                return Err(crate::CanvasError::InvalidDocument(
+                    "Relation endpoints must be Markdown paths".into(),
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

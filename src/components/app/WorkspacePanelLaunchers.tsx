@@ -1,4 +1,4 @@
-import { memo, Suspense, useCallback } from 'react'
+import { memo, Suspense, useCallback, useEffect, useRef } from 'react'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
 import type { ReaderPanelProps } from '../reader/ReaderPanel'
@@ -28,6 +28,8 @@ import {
   vaultSaveAsset,
 } from '../../bridge/commands'
 import { gmailImportedNoteTitle } from '../../lib/gmailRfc5322'
+import { literatureNote } from '../../lib/referenceDesk'
+import { referenceUsagePreview } from '../../bridge/commands/research_capture'
 
 export type WorkspacePanelLaunchersProps = {
   workspace: ReturnType<typeof useVaultWorkspace>
@@ -131,6 +133,8 @@ function WorkspacePanelLaunchersImpl({
   onCloseMcp,
   promptText,
 }: WorkspacePanelLaunchersProps) {
+  const currentVaultId = useRef(workspace.vault?.id)
+  useEffect(() => { currentVaultId.current = workspace.vault?.id }, [workspace.vault?.id])
   const gmailEnabled = plugins.activePlugins.some((plugin) => plugin.manifest.id === 'scriptor.gmail-manager')
 
   const gitReadHead = useCallback(async (path: string) => {
@@ -195,6 +199,8 @@ function WorkspacePanelLaunchersImpl({
         >
           <Suspense fallback={<PanelFallback />}>
             <ReaderPanel
+              key={workspace.vault?.id ?? 'no-vault'}
+              vaultId={workspace.vault?.id}
               filePath={readerFilePath}
               vaultRoot={workspace.vault?.root_path ?? null}
               presentation={readerPresentation}
@@ -247,6 +253,7 @@ function WorkspacePanelLaunchersImpl({
         >
           <Suspense fallback={<PanelFallback />}>
             <BibliographyPanel
+              key={workspace.vault?.id ?? 'no-vault'}
               entries={bibliography}
               bibliographyPath={workspace.vaultConfig.export.bibliography_path}
               onClose={() => setBibliographyOpen(false)}
@@ -254,36 +261,24 @@ function WorkspacePanelLaunchersImpl({
                 workspace.insertSnippet(`[@${key}] `)
                 setBibliographyOpen(false)
               }}
-              onImportBibliography={
-                nativeReady
-                  ? async (files) => {
-                      const bibPath = workspace.vaultConfig.export.bibliography_path || 'references.bib'
-                      const file = files[0]
-                      if (!file) return
-                      const bytes = Array.from(new Uint8Array(await file.arrayBuffer()))
-                      await vaultSaveAsset(bibPath, bytes)
-                      await indexerApplyFilesystemChanges([bibPath])
-                      showToast?.(`Bibliography saved to ${bibPath}`)
-                      refreshBibliography?.()
-                    }
-                  : undefined
-              }
-              onImportZotero={
-                nativeReady
-                  ? async (apiKey: string) => {
-                      const { ZoteroConnector } = await import('@scriptor/zotero-connector')
-                      const connector = new ZoteroConnector()
-                      await connector.connect(apiKey)
-                      const bibtex = await connector.exportBibTeX()
-                      const bibPath = workspace.vaultConfig.export.bibliography_path || 'references.bib'
-                      const encoder = new TextEncoder()
-                      await vaultSaveAsset(bibPath, Array.from(encoder.encode(bibtex)))
-                      await indexerApplyFilesystemChanges([bibPath])
-                      showToast?.(`Zotero library imported to ${bibPath}`)
-                      refreshBibliography?.()
-                    }
-                  : undefined
-              }
+              onSaveBibliography={nativeReady && workspace.vault ? async (path, content) => {
+                const vaultId=workspace.vault?.id
+                if(!vaultId||currentVaultId.current!==vaultId)throw new Error('Open the current vault again before importing.')
+                const bytes=new TextEncoder().encode(content)
+                if(!path.endsWith('.bib')||bytes.byteLength>8*1024*1024)throw new Error('Choose a .bib destination and content within the 8 MiB limit.')
+                await vaultSaveAsset(path,Array.from(bytes),true,vaultId)
+                if(currentVaultId.current!==vaultId)return
+                await indexerApplyFilesystemChanges([path])
+                if(currentVaultId.current!==vaultId)return
+                showToast?.(`Bibliography saved to ${path}`);refreshBibliography?.()
+              }:undefined}
+              onInspectUsage={nativeReady && workspace.vault ? () => referenceUsagePreview(workspace.vault!.id) : undefined}
+              onOpenNote={(path)=>{void workspace.openNote(path);setBibliographyOpen(false)}}
+              onCreateLiteratureNote={nativeReady && workspace.vault ? async(entry)=>{
+                const path=await workspace.createNote(`Literature - ${entry.key}`,literatureNote(entry),{requireMissing:true})
+                if(!path)throw new Error('The literature note already exists or could not be saved.')
+                showToast?.(`Created literature note ${path}`)
+              }:undefined}
             />
           </Suspense>
         </ErrorBoundary>

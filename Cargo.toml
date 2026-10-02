@@ -20,6 +20,8 @@ members = [
   "crates/wasm-runtime",
   "crates/xtask",
   "apps/desktop/src-tauri",
+  "crates/mobile-runtime",
+  "apps/mobile/src-tauri",
 ]
 exclude = ["crates/ipc/fuzz"]
 # Supported product crates are the default build graph. Incubating engines stay

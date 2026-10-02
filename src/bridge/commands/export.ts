@@ -9,6 +9,23 @@ export async function exportDiscover(): Promise<PandocDiscovery> {
   return invoke<PandocDiscovery>('export_discover')
 }
 
+export interface OfflinePdfOutput {
+  artifact_path: string
+  page_count: number
+  warnings: string[]
+  duration_ms: number
+}
+
+export async function exportPdfInprocess(notePath: string, sourceMarkdown: string, expectedVaultId: string): Promise<OfflinePdfOutput> {
+  requireNative()
+  return invoke<OfflinePdfOutput>('export_pdf_inprocess', { notePath, sourceMarkdown, expectedVaultId })
+}
+
+export async function exportPdfLicenses(): Promise<string> {
+  requireNative()
+  return invoke<string>('export_pdf_licenses')
+}
+
 export async function exportRunNote(
   notePath: string,
   format: string,

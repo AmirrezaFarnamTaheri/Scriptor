@@ -256,7 +256,7 @@ pub fn build_health_diagnostics(
     Ok(VaultHealthDiagnostics { summary, issues })
 }
 
-fn normalize_asset_reference(note_path: &str, target: &str) -> String {
+pub(crate) fn normalize_asset_reference(note_path: &str, target: &str) -> String {
     let mut parts: Vec<&str> = note_path.split('/').collect();
     parts.pop();
     if target.starts_with('/') {

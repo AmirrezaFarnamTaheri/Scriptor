@@ -24,6 +24,21 @@ use super::daemon::{
 };
 use super::shared::parse_daemon_json;
 
+#[tauri::command]
+pub fn indexer_asset_usage(
+    state: tauri::State<AppState>,
+    expected_vault_id: String,
+) -> Result<scriptor_indexer::asset_usage::AssetUsageReport, String> {
+    let session = active_session(&state)?;
+    crate::commands::vault::validate_expected_vault(
+        &session.descriptor.id,
+        Some(&expected_vault_id),
+    )?;
+    let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
+    scriptor_indexer::asset_usage::list_asset_usage(&cache, &session)
+        .map_err(|error| error.to_string())
+}
+
 fn require_graph_capability<'a>(
     state: &'a tauri::State<'a, AppState>,
 ) -> Result<ActiveSession<'a>, String> {

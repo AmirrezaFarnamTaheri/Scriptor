@@ -64,6 +64,39 @@ pub fn sync_vault_embeddings(
     sync_vault_embeddings_with_store(session, &store, provider, text_for_note)
 }
 
+pub fn sync_configured_vault_embeddings(
+    session: &VaultSession,
+    provider: &dyn EmbedProvider,
+    config: &scriptor_vault::SemanticConfig,
+) -> Result<SyncReport, crate::EmbeddingError> {
+    let store = EmbeddingStore::open(
+        &embeddings_store_path(session.root.root()),
+        provider.dimension(),
+    )?;
+    store.prepare_context(&crate::inspector::configuration_identity(config))?;
+    sync_vault_embeddings_with_store(session, &store, provider, None)
+}
+
+pub fn search_configured_vault_embeddings(
+    session: &VaultSession,
+    provider: &dyn EmbedProvider,
+    config: &scriptor_vault::SemanticConfig,
+    query: &str,
+    limit: usize,
+) -> Result<Vec<SemanticHit>, crate::EmbeddingError> {
+    let store = EmbeddingStore::open(
+        &embeddings_store_path(session.root.root()),
+        provider.dimension(),
+    )?;
+    if !store.context_matches(&crate::inspector::configuration_identity(config))? {
+        return Err(crate::EmbeddingError::Provider(
+            "semantic index has different or unknown model provenance; reindex before searching"
+                .into(),
+        ));
+    }
+    search_vault_embeddings(session, provider, query, limit)
+}
+
 pub fn sync_vault_embeddings_with_store(
     session: &VaultSession,
     store: &EmbeddingStore,

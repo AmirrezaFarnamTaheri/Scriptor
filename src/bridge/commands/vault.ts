@@ -322,9 +322,9 @@ export async function vaultListNoteHistory(path: string): Promise<NoteHistoryRev
   return invoke<NoteHistoryRevision[]>('vault_list_note_history', { path })
 }
 
-export async function vaultReadNoteHistoryRevision(path: string, revisionId: string): Promise<string> {
+export async function vaultReadNoteHistoryRevision(path: string, revisionId: string, expectedVaultId?: string | null): Promise<string> {
   requireNative()
-  return invoke<string>('vault_read_note_history_revision', { path, revisionId })
+  return invoke<string>('vault_read_note_history_revision', { path, revisionId, expectedVaultId: expectedVaultId??null })
 }
 
 export async function vaultRestoreNoteHistoryRevision(path: string, revisionId: string): Promise<SaveNoteOutput> {
@@ -341,9 +341,11 @@ export async function vaultFrontmatterSet(
   path: string,
   field: string,
   value: string,
+  expectedContentHash?: string,
+  expectedVaultId?: string,
 ): Promise<{ path: string; field: string; value: string | null; markdown: string }> {
   requireNative()
-  return invoke('vault_frontmatter_set', { path, field, value })
+  return invoke('vault_frontmatter_set', { path, field, value, expectedContentHash: expectedContentHash ?? null, expectedVaultId: expectedVaultId ?? null })
 }
 
 export async function vaultPublishPlanStarlight(outputPath: string): Promise<StarlightPublishPlanOutput> {

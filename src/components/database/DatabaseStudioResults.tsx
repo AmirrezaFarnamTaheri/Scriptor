@@ -1,0 +1,16 @@
+import { useState } from 'react'
+import type { CellValue, DatabaseColumn, DatabaseView } from '../../lib/databaseStudio'
+import type { DatabaseRow } from '../DatabaseStudioPanel'
+interface Props {rows:DatabaseRow[];columns:DatabaseColumn[];values:CellValue[][];mode:DatabaseView['mode'];busy:boolean;onOpenNote:(path:string)=>void;onEdit:(row:DatabaseRow,key:string,value:CellValue)=>Promise<void>}
+function EditableCell({value,row,column,busy,onEdit}: {value:CellValue;row:DatabaseRow;column:DatabaseColumn;busy:boolean;onEdit:Props['onEdit']}) {
+  const [editing,setEditing]=useState(false); const [draft,setDraft]=useState(''); const [error,setError]=useState<string|null>(null)
+  if(column.formula) return <span>{value === null ? '—' : String(value)}</span>
+  if(!editing)return <button type="button" disabled={busy} aria-label={`Edit ${column.label} in ${row.note.metadata.path}`} onClick={()=>{setDraft(value===null?'null':typeof value==='string'?value:JSON.stringify(value));setEditing(true)}}>{value === null ? '—' : String(value)}</button>
+  return <form onSubmit={event=>{event.preventDefault();let parsed:CellValue=draft;try {const candidate:unknown=JSON.parse(draft);if(candidate===null||typeof candidate==='boolean'||typeof candidate==='number')parsed=candidate}catch{/* plain text is a string */}void onEdit(row,column.key,parsed).then(()=>{setEditing(false);setError(null)}).catch(failure=>setError(String(failure)))}}><label>{column.label}<input autoFocus value={draft} maxLength={4096} disabled={busy} onChange={event=>setDraft(event.target.value)}/></label><button type="submit" disabled={busy}>Save</button><button type="button" onClick={()=>setEditing(false)}>Cancel</button>{error?<p role="alert">{error}</p>:null}</form>
+}
+export function DatabaseStudioResults({rows,columns,values,mode,busy,onOpenNote,onEdit}:Props){
+  if(!rows.length)return <p className="empty-state">No loaded notes. Load the view to see results.</p>
+  const cell=(row:DatabaseRow,index:number,column:DatabaseColumn,columnIndex:number)=><EditableCell key={`${row.note.metadata.path}:${column.key}:${row.note.metadata.content_hash}`} value={values[index][columnIndex]} row={row} column={column} busy={busy} onEdit={onEdit}/>
+  if(mode==='table')return <div className="database-table-scroll"><table><caption>Loaded notes · edit a source field to update YAML</caption><thead><tr><th scope="col">Note</th>{columns.map(column=><th scope="col" key={column.key}>{column.label}</th>)}</tr></thead><tbody>{rows.map((row,index)=><tr key={row.note.metadata.path}><th scope="row"><button type="button" onClick={()=>onOpenNote(row.note.metadata.path)}>{row.note.metadata.title}</button></th>{columns.map((column,columnIndex)=><td key={column.key}>{cell(row,index,column,columnIndex)}</td>)}</tr>)}</tbody></table></div>
+  return <ul className={`database-results database-results-${mode}`}>{rows.map((row,index)=><li key={row.note.metadata.path}><button type="button" onClick={()=>onOpenNote(row.note.metadata.path)}>{row.note.metadata.title}</button><small>{row.note.metadata.path}</small><dl>{columns.map((column,columnIndex)=><div key={column.key}><dt>{column.label}</dt><dd>{cell(row,index,column,columnIndex)}</dd></div>)}</dl></li>)}</ul>
+}

@@ -31,6 +31,13 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.settings-section > .diagnostics-opt-in {
+  display: flex;
+  width: fit-content;
+  margin-block: 10px;
 }
 
 .settings-footer-actions {

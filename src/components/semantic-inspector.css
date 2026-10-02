@@ -1,0 +1,15 @@
+.semantic-inspector-content { padding: 1rem; display: grid; gap: 1rem; min-width: 0; overflow-wrap: anywhere; }
+.semantic-inspector-content fieldset { display: grid; gap: .75rem; border: 1px solid var(--border); padding: .75rem; min-width: 0; }
+.semantic-inspector-content label { display: grid; gap: .35rem; min-width: 0; }
+.semantic-inspector-content input,.semantic-inspector-content select { width: 100%; min-width: 0; background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: .5rem; }
+.semantic-inspector-content button { min-height: 36px; white-space: normal; overflow-wrap: anywhere; }
+.semantic-metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(95px,1fr)); gap: .75rem; margin: 0; }
+.semantic-metrics dd { margin: .25rem 0 0; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.semantic-controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
+.semantic-projection { width: 100%; background: var(--surface); border: 1px solid var(--border); }
+.semantic-projection line { stroke: var(--border); }
+.semantic-projection circle { fill: var(--primary); stroke: var(--ink); stroke-width: 1px; }
+.semantic-projection circle.stale { fill: var(--amber); }
+.semantic-projection g:focus circle { stroke: var(--accent); stroke-width: 4px; }
+.semantic-note-list { max-height: 12rem; overflow: auto; padding-inline-start: 1.5rem; }
+@media (max-width: 520px) { .semantic-controls { grid-template-columns: minmax(0,1fr); } .semantic-inspector-content button { min-height: 44px; } }

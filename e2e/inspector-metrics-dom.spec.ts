@@ -25,6 +25,12 @@ for (const width of [236, 340, 510]) {
         overflow: element.scrollWidth > element.clientWidth,
       }))
       expect(geometry).toEqual({ columns: width < 450 ? 2 : 4, overflow: false })
+      const values = await page.locator('.metric strong').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().bottom))
+      const columns = geometry.columns
+      for (let index = 0; index < values.length; index += columns) {
+        const row = values.slice(index, index + columns)
+        expect(Math.max(...row) - Math.min(...row)).toBeLessThanOrEqual(1)
+      }
     })
   }
 }

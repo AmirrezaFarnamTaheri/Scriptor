@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Palette, Blocks, Plus, X } from 'lucide-react'
-import type { PluginManifest } from '@scriptor/core/contracts/plugin'
+import type { PluginManifest, PluginRuntimePolicy } from '@scriptor/core/contracts/plugin'
+import { runtimeConsoleManifest, type PluginWorkspaceDefinition } from '@scriptor/plugin-api'
+import { pluginWorkspaceUnavailableReason } from '../../lib/pluginWorkspaceAvailability'
+import { applyPluginManagerTransition } from '../../lib/pluginManagerTransition'
 import { canvasPluginManifest } from '@scriptor/canvas'
 import { citationsPluginManifest } from '../inspector/citation-plugin-manifest'
 import { exportPluginManifest } from '@scriptor/export'
@@ -21,6 +24,7 @@ import '../../styles/components/plugin-manager.css'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useI18n } from '../../lib/i18n'
+import { localizedWorkspaceReason, pluginWorkspaceStrings } from '../../lib/i18n/pluginWorkspaceStrings'
 
 const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
   canvasPluginManifest,
@@ -39,6 +43,7 @@ const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
     permissions: [{ permission: 'read', reason: 'Access graph links' }],
   },
   mcpPluginManifest,
+  runtimeConsoleManifest,
 ]
 
 export interface PluginManagerCenterProps {
@@ -50,6 +55,13 @@ export interface PluginManagerCenterProps {
   resolvedAppearance?: ResolvedAppearance
   onThemeChange?: (theme: AppTheme) => void
   onOpenPluginMarketplace?: () => void
+  registeredWorkspaces?: readonly PluginWorkspaceDefinition[]
+  workspacePolicies?: Readonly<Record<string, PluginRuntimePolicy | null>>
+  vaultId?: string | null
+  safeMode?: boolean
+  onOpenPluginWorkspace?: (view: PluginWorkspaceDefinition) => boolean | Promise<boolean>
+  registeredPluginManifests?: readonly PluginManifest[]
+  onSetPluginEnabled?: (id: string, enabled: boolean) => Promise<boolean>
 }
 
 export function PluginManagerCenter({
@@ -60,8 +72,10 @@ export function PluginManagerCenter({
   resolvedAppearance = 'dark',
   onThemeChange,
   onOpenPluginMarketplace,
+  registeredWorkspaces = [], workspacePolicies = {}, vaultId = null, safeMode = false, onOpenPluginWorkspace, registeredPluginManifests = [], onSetPluginEnabled,
 }: PluginManagerCenterProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const workspaceStrings = pluginWorkspaceStrings(locale)
   const {
     enabledPluginIds,
     enablePlugin,
@@ -75,6 +89,13 @@ export function PluginManagerCenter({
   }
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null)
+  const [workspaceOpening, setWorkspaceOpening] = useState(false)
+  const openingRef = useRef(false)
+  const [togglingPlugin, setTogglingPlugin] = useState<string | null>(null)
+  const togglePending = useRef(false)
+  const mounted = useRef(true)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const [themeFilterCategory, setThemeFilterCategory] = useState<'all' | 'light' | 'dark' | 'contrast'>('all')
   const [customizerModalOpen, setCustomizerModalOpen] = useState(false)
   const [pendingProfile, setPendingProfile] = useState<InstallerProfile | null>(null)
@@ -96,6 +117,22 @@ export function PluginManagerCenter({
   )
 
   if (!isOpen) return null
+
+  const openWorkspace = async (view: PluginWorkspaceDefinition) => {
+    if (openingRef.current) return
+    const reason = localizedWorkspaceReason(pluginWorkspaceUnavailableReason(view, registeredWorkspaces, workspacePolicies[view.pluginId], vaultId, safeMode), workspaceStrings)
+    if (reason) { setWorkspaceError(reason); return }
+    openingRef.current = true
+    setWorkspaceOpening(true)
+    setWorkspaceError(null)
+    try {
+      const accepted = await onOpenPluginWorkspace?.(view)
+      if (!mounted.current) return
+      if (accepted) onClose()
+      else setWorkspaceError(workspaceStrings.refused)
+    } catch { if (mounted.current) setWorkspaceError(workspaceStrings.failed) }
+    finally { openingRef.current = false; if (mounted.current) setWorkspaceOpening(false) }
+  }
 
   const handleHoverPreviewStart = (previewId: AppTheme) => {
     applyThemeToElement(document.documentElement, previewId, resolvedAppearance)
@@ -125,19 +162,26 @@ export function PluginManagerCenter({
     return matchesCategory && matchesSearch
   })
 
-  const filteredPlugins = BUILTIN_PLUGIN_MANIFESTS.filter(
+  const pluginManifests = [...new Map([...BUILTIN_PLUGIN_MANIFESTS, ...registeredPluginManifests].map(manifest => [manifest.id, manifest])).values()]
+  const filteredPlugins = pluginManifests.filter(
     (plugin) =>
       plugin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       plugin.description.toLowerCase().includes(searchQuery.toLowerCase()),
   )
   const activeProfile = getMatchingInstallerProfile(enabledPluginIds, knownPluginIds)
 
-  const handleTogglePlugin = (id: string, enable: boolean) => {
-    if (enable) {
-      void enablePlugin(id)
-    } else {
-      void disablePlugin(id)
-    }
+  const handleTogglePlugin = async (id: string, enable: boolean) => {
+    if (togglePending.current) return
+    togglePending.current = true
+    setTogglingPlugin(id)
+    setWorkspaceError(null)
+    try {
+      if (!await applyPluginManagerTransition(id, enable, onSetPluginEnabled, enabled => enabled ? enablePlugin(id) : disablePlugin(id))) {
+        if (mounted.current) setWorkspaceError(workspaceStrings.toggleRefused)
+        return
+      }
+    } catch { if (mounted.current) setWorkspaceError(workspaceStrings.toggleFailed) }
+    finally { togglePending.current = false; if (mounted.current) setTogglingPlugin(null) }
   }
 
   const profileTarget = pendingProfile && pendingProfile !== 'custom'
@@ -155,10 +199,24 @@ export function PluginManagerCenter({
     setPendingProfile(profile)
   }
 
-  const confirmProfile = () => {
-    if (!profileTarget) return
-    replaceEnabledPlugins(profileTarget)
-    setPendingProfile(null)
+  const confirmProfile = async () => {
+    if (!profileTarget || togglePending.current) return
+    togglePending.current = true
+    setTogglingPlugin('profile')
+    setWorkspaceError(null)
+    try {
+      if (onSetPluginEnabled) {
+        for (const id of knownPluginIds) {
+          const enabled = profileTarget.has(id)
+          const currentEnabled = workspacePolicies[id]?.enabled ?? enabledPluginIds.has(id)
+          if (enabled === currentEnabled) continue
+          if (!await applyPluginManagerTransition(id, enabled, onSetPluginEnabled, value => value ? enablePlugin(id) : disablePlugin(id))) { setWorkspaceError(workspaceStrings.toggleRefused); return }
+        }
+      }
+      replaceEnabledPlugins(profileTarget)
+      setPendingProfile(null)
+    } catch { if (mounted.current) setWorkspaceError(workspaceStrings.toggleFailed) }
+    finally { togglePending.current = false; if (mounted.current) setTogglingPlugin(null) }
   }
 
   return (
@@ -186,6 +244,8 @@ export function PluginManagerCenter({
             </button>
           ) : null}
           {scope === 'plugins' && persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
+          {workspaceError ? <p className="error-state" role="alert">{workspaceError}</p> : null}
+          {workspaceOpening ? <p role="status">{workspaceStrings.opening}</p> : null}
 
           {scope === 'plugins' && (
             <div className="plugin-manager-profiles">
@@ -197,6 +257,7 @@ export function PluginManagerCenter({
                     type="button"
                     className={`profile-btn ${activeProfile === profile ? 'active' : ''}`}
                     aria-pressed={activeProfile === profile}
+                    disabled={togglingPlugin !== null}
                     onClick={() => requestProfile(profile)}
                   >
                     {t(`pluginManager.profiles.${profile}`)}
@@ -210,7 +271,7 @@ export function PluginManagerCenter({
                   message={t('pluginManager.applyProfileMessage', { profile: pendingProfile, enable: profileDiff.enable, disable: profileDiff.disable })}
                   confirmLabel={t('pluginManager.applyProfile')}
                   onCancel={() => setPendingProfile(null)}
-                  onConfirm={confirmProfile}
+                  onConfirm={() => { void confirmProfile() }}
                   className="plugin-profile-confirmation"
                 />
               ) : null}
@@ -280,8 +341,12 @@ export function PluginManagerCenter({
                 <PluginCard
                   key={plugin.id}
                   manifest={plugin}
-                  isEnabled={enabledPluginIds.has(plugin.id)}
-                  onToggle={handleTogglePlugin}
+                  isEnabled={workspacePolicies[plugin.id]?.enabled ?? enabledPluginIds.has(plugin.id)}
+                  onToggle={(id, enabled) => { void handleTogglePlugin(id, enabled) }}
+                  toggling={togglingPlugin !== null}
+                  workspaces={(plugin.contributes?.workspaces ?? []).map(view => ({ view, unavailableReason: localizedWorkspaceReason(pluginWorkspaceUnavailableReason(view, registeredWorkspaces, workspacePolicies[view.pluginId], vaultId, safeMode), workspaceStrings) }))}
+                  openingWorkspace={workspaceOpening}
+                  onOpenWorkspace={onOpenPluginWorkspace ? view => { void openWorkspace(view) } : undefined}
                 />
               ))}
             </div>

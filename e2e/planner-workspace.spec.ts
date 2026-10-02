@@ -1,0 +1,26 @@
+import { expect, test } from '@playwright/test'
+import { launchApp, openCommandPalette, runCommand } from './helpers'
+
+test('offline weekly planner maps tasks to time blocks, retains them after restart and removes locally', async({page})=>{
+  await launchApp(page)
+  await openCommandPalette(page);await runCommand(page,'Open tasks panel')
+  const planner = page.getByRole('region',{name:'Weekly planner'})
+  await expect(planner).toBeVisible()
+  await planner.getByLabel('Week containing').fill('2026-10-01')
+  await planner.getByLabel('Vault task',{exact:true}).selectOption({label:'Collect sources'})
+  await planner.getByLabel('Start',{exact:true}).fill('2026-10-01T09:00')
+  await planner.getByLabel('End',{exact:true}).fill('2026-10-01T10:00')
+  await planner.getByRole('button',{name:'Save time block',exact:true}).click()
+  await expect(planner.getByRole('listitem',{name:'2026-10-01'}).getByRole('button',{name:/Collect sources/})).toBeVisible()
+  await expect(planner.getByRole('button',{name:'Review bidirectional sync'})).toBeDisabled()
+  await page.reload();await openCommandPalette(page);await runCommand(page,'Open tasks panel')
+  await planner.getByLabel('Week containing').fill('2026-10-01')
+  await expect(planner.getByRole('listitem',{name:'2026-10-01'}).getByRole('button',{name:/Collect sources/})).toBeVisible()
+  await page.setViewportSize({width:320,height:800})
+  await page.locator('html').evaluate(node=>{node.setAttribute('dir','rtl')})
+  await expect.poll(()=>planner.evaluate(node=>node.scrollWidth-node.clientWidth)).toBeLessThanOrEqual(1)
+  await planner.getByLabel('Vault task',{exact:true}).selectOption({label:'Collect sources'})
+  await planner.getByRole('button',{name:'Remove local block'}).click()
+  await expect(planner.getByText('Local block removed. Its Google event remains unchanged.')).toBeVisible()
+  await expect(planner.locator('.planner-day__timeline .planner-block')).toHaveCount(0)
+})

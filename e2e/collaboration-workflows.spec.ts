@@ -1,0 +1,128 @@
+import { test, expect } from '@playwright/test'
+import { launchApp, openCommandPalette, runCommand } from './helpers'
+import type { Page } from '@playwright/test'
+async function open(page: Page) {
+  await page.addInitScript(() => { sessionStorage.setItem('e2e:research', '1'); sessionStorage.setItem('e2e:collaboration', '1') })
+  await launchApp(page); await openCommandPalette(page); await runCommand(page, 'Drive collaboration')
+  const panel = page.getByRole('region', { name: 'Drive collaboration', exact: true })
+  await panel.getByLabel('Shared folder ID', { exact: true }).fill('shared-folder')
+  return panel
+}
+async function calls(page: Page, cmd: string) {
+  return page.evaluate(command => (JSON.parse(sessionStorage.getItem('e2e:collaboration-calls') ?? '[]') as Array<{cmd: string; payload: Record<string, unknown>}>).filter(call => call.cmd === command), cmd)
+}
+test('polling requires explicit consent and stop prevents late replies or future checks', async ({ page }) => {
+  await page.clock.install()
+  const panel = await open(page)
+  expect(await calls(page, 'collaboration_poll_read')).toHaveLength(0)
+  await expect(panel.getByRole('button', { name: 'Start automatic checks', exact: true })).toBeDisabled()
+  await panel.getByLabel('Allow this bounded read-only polling session for the selected folder').check()
+  await page.evaluate(() => sessionStorage.setItem('e2e:poll-delay', '1'))
+  await panel.getByRole('button', { name: 'Start automatic checks', exact: true }).click()
+  await expect.poll(() => calls(page, 'collaboration_poll_read')).toHaveLength(1)
+  await panel.getByRole('button', { name: 'Stop automatic checks', exact: true }).click()
+  await page.clock.fastForward(60_000)
+  await expect(panel.getByRole('button', { name: 'Shared revision 1', exact: true })).toHaveCount(0)
+  expect(await calls(page, 'collaboration_poll_read')).toHaveLength(1)
+  expect(await calls(page, 'collaboration_poll_stop')).toHaveLength(1)
+  expect(await calls(page, 'collaboration_write')).toHaveLength(0)
+})
+test('polling checks stop when the selected folder changes and do not renew consent', async ({ page }) => {
+  await page.clock.install()
+  const panel = await open(page)
+  await panel.getByLabel('Allow this bounded read-only polling session for the selected folder').check()
+  await panel.getByRole('button', { name: 'Start automatic checks', exact: true }).click()
+  await expect(panel.getByRole('button', { name: 'Shared revision 1', exact: true })).toBeVisible()
+  await panel.getByLabel('Shared folder ID', { exact: true }).fill('another-folder')
+  await page.clock.fastForward(31_000)
+  expect(await calls(page, 'collaboration_poll_read')).toHaveLength(1)
+  await expect(panel.getByRole('button', { name: 'Start automatic checks', exact: true })).toBeDisabled()
+  expect(await calls(page, 'collaboration_poll_stop')).toHaveLength(1)
+})
+test('Google Docs translation previews loss disclosures and writes only after acceptance', async ({ page }) => {
+  const panel = await open(page)
+  await panel.getByText('Optional Google Docs text translation', { exact: true }).click()
+  await panel.getByLabel('Google document ID', { exact: true }).fill('shared-doc')
+  await panel.getByRole('button', { name: 'Preview translated Google document', exact: true }).click()
+  await expect(panel.getByRole('textbox', { name: 'Reviewed translated merge', exact: true })).toHaveValue(/Translated shared text/)
+  await expect(panel.getByText(/Comments, suggestions, revision history/).last()).toBeVisible()
+  expect(await calls(page, 'collaboration_write')).toHaveLength(0)
+  await expect(panel.getByRole('button', { name: 'Create new Google Docs text copy', exact: true })).toBeDisabled()
+  await panel.getByLabel('I reviewed and accept the text conversion losses for this action').check()
+  await panel.getByRole('button', { name: 'Create new Google Docs text copy', exact: true }).click()
+  await expect(panel.getByRole('status')).toContainText('Created new Google document')
+  const writes = await calls(page, 'collaboration_write')
+  expect(writes).toHaveLength(1)
+  const request = writes[0].payload.request as Record<string, unknown>
+  expect(request.kind).toBe('append_docs'); expect(request.folder_id).toBe('shared-folder')
+  expect(request).not.toHaveProperty('file_id')
+  await panel.getByRole('textbox', { name: 'Reviewed translated merge', exact: true }).fill('# Reviewed shared text\n\nBoth edits retained.')
+  await panel.getByLabel('I reviewed and accept the text conversion losses for this action').check()
+  await panel.getByRole('button', { name: 'Apply reviewed translated merge', exact: true }).click()
+  await expect(panel.getByRole('status')).toContainText('Reviewed Google Docs translation saved.')
+  const notes = await page.evaluate(() => (JSON.parse(sessionStorage.getItem('e2e:research-calls') ?? '[]') as Array<{cmd: string; payload: Record<string, unknown>}>).filter(call => call.cmd === 'vault_save_note'))
+  expect(notes.some(call => call.payload.path === 'Research Plan.md' && call.payload.expectedVaultId === 'screenshot-vault' && call.payload.expectedContentHash && call.payload.markdown === '# Reviewed shared text\n\nBoth edits retained.')).toBe(true)
+})
+test('poll failures back off and stop after three errors without sharing or applying', async ({ page }) => {
+  await page.clock.install()
+  const panel = await open(page)
+  await page.evaluate(() => sessionStorage.setItem('e2e:poll-failure', '1'))
+  await panel.getByLabel('Allow this bounded read-only polling session for the selected folder').check()
+  await panel.getByRole('button', { name: 'Start automatic checks', exact: true }).click()
+  await expect(panel.getByRole('status')).toContainText('next attempt in 60 seconds')
+  await page.clock.fastForward(61_000)
+  await expect(panel.getByRole('status')).toContainText('next attempt in 120 seconds')
+  await page.clock.fastForward(121_000)
+  await expect(panel.getByRole('status')).toContainText('three consecutive failures')
+  expect(await calls(page, 'collaboration_poll_read')).toHaveLength(3)
+  expect(await calls(page, 'collaboration_write')).toHaveLength(0)
+})
+
+test('Google Docs opaque transport shares Markdown records and binds polling to the selected host', async ({ page }) => {
+  await page.clock.install()
+  const panel = await open(page)
+  await panel.getByLabel('Revision transport', { exact: true }).selectOption('google_docs')
+  await panel.getByRole('button', { name: 'Share current saved revision', exact: true }).click()
+  const writes = await calls(page, 'collaboration_write')
+  expect(writes).toHaveLength(1)
+  const request = writes[0].payload.request as Record<string, unknown>
+  expect(request.kind).toBe('append_docs_record')
+  expect(request.folder_id).toBe('shared-folder')
+  expect((request.record as Record<string, unknown>).schema).toBe('scriptor.collaboration.v1')
+  await panel.getByLabel('Allow this bounded read-only polling session for the selected folder').check()
+  await panel.getByRole('button', { name: 'Start automatic checks', exact: true }).click()
+  await expect.poll(() => calls(page, 'collaboration_poll_read')).toHaveLength(1)
+  expect((await calls(page, 'collaboration_poll_start'))[0].payload.transport).toBe('google_docs')
+  await panel.getByRole('button', { name: 'Shared revision 1', exact: true }).click()
+  expect(((await calls(page, 'collaboration_read')).at(-1)?.payload.request as Record<string, unknown>).kind).toBe('read_docs_record')
+  await panel.getByLabel('Revision transport', { exact: true }).selectOption('drive_json')
+  await page.clock.fastForward(31_000)
+  expect(await calls(page, 'collaboration_poll_stop')).toHaveLength(1)
+  expect(await calls(page, 'collaboration_poll_read')).toHaveLength(1)
+  await expect(panel.getByRole('button', { name: 'Start automatic checks', exact: true })).toBeDisabled()
+})
+
+test('a deferred collaboration authorization keeps its originating vault in the remote request', async ({ page }) => {
+  await page.clock.install()
+  const panel = await open(page)
+  await page.evaluate(() => {
+    const api = (window as Window & { __TAURI_INTERNALS__?: { invoke?: (command: string, args?: Record<string, unknown>, options?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__
+    if (!api?.invoke) throw new Error('Native fixture unavailable')
+    const original = api.invoke.bind(api)
+    api.invoke = async (command, args = {}, options) => {
+      if (command === 'authorize_sensitive_operation' && args.operation === 'google_drive_write') await new Promise(resolve => setTimeout(resolve, 5000))
+      if (command === 'collaboration_write') {
+        sessionStorage.setItem('e2e:stale-origin-request', JSON.stringify(args))
+        if (args.expectedVaultId !== sessionStorage.getItem('e2e:active-vault')) throw new Error('Vault changed since collaboration started; reopen the panel before reading or sharing')
+      }
+      return original(command, args, options)
+    }
+  })
+  await panel.getByRole('button', { name: 'Share current saved revision', exact: true }).click()
+  await page.evaluate(() => sessionStorage.setItem('e2e:active-vault', 'new-vault'))
+  await page.clock.fastForward(5100)
+  await expect(panel.getByRole('alert')).toContainText('Vault changed since collaboration started')
+  const request = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:stale-origin-request') ?? '{}'))
+  expect(request.expectedVaultId).toBe('screenshot-vault')
+  expect(await calls(page, 'collaboration_write')).toHaveLength(0)
+})

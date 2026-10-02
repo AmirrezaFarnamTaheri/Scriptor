@@ -3,6 +3,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 pub mod error;
+pub mod inspector;
 pub mod ollama_client;
 pub mod provider;
 pub mod vault_ops;
@@ -160,6 +161,52 @@ pub struct EmbeddingStore {
 }
 
 impl EmbeddingStore {
+    pub fn context_matches(&self, identity: &str) -> Result<bool, EmbeddingError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Provider(e.to_string()))?;
+        // Legacy stores have no recorded model provenance.
+        let exists: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='embedding_context')", [], |row| row.get(0))?;
+        if !exists {
+            return Ok(false);
+        }
+        let previous = conn
+            .query_row(
+                "SELECT identity FROM embedding_context LIMIT 1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        Ok(previous.as_deref() == Some(identity))
+    }
+    /// Model identity is part of index validity even when dimensions match.
+    /// Legacy records have unknown provenance and are rebuilt on the first sync.
+    pub fn prepare_context(&self, identity: &str) -> Result<(), EmbeddingError> {
+        let mut conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Provider(e.to_string()))?;
+        let tx = conn.transaction()?;
+        tx.execute_batch("CREATE TABLE IF NOT EXISTS embedding_context (identity TEXT NOT NULL)")?;
+        let previous = tx
+            .query_row(
+                "SELECT identity FROM embedding_context LIMIT 1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if previous.as_deref() != Some(identity) {
+            tx.execute("DELETE FROM embeddings", [])?;
+            tx.execute("DELETE FROM embedding_context", [])?;
+            tx.execute(
+                "INSERT INTO embedding_context (identity) VALUES (?1)",
+                [identity],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
     pub fn open(path: &Path, dimension: usize) -> Result<Self, EmbeddingError> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -205,6 +252,11 @@ impl EmbeddingStore {
         items: &[(&str, Option<&str>, &[f32])],
     ) -> Result<(), EmbeddingError> {
         for (_, _, vec) in items {
+            if vec.iter().any(|v| !v.is_finite()) {
+                return Err(EmbeddingError::Provider(
+                    "embedding vector contains nonfinite values".into(),
+                ));
+            }
             if vec.len() != self.dimension {
                 return Err(EmbeddingError::DimensionMismatch {
                     expected: self.dimension,

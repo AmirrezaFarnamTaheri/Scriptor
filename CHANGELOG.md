@@ -2,7 +2,47 @@
 
 ## Unreleased
 
+### Added
+
+- Add bounded per-vault workspace tabs with main/side docking, ordering, saved references, guarded closure and inert restoration. Preserve source drafts and Python ownership across tab changes; integrate permission-aware plugin workspaces into the module manager and activity navigation.
+
+- Add vault-owned persistent Python sessions in Runtime console with reviewed environments, per-cell consent, live output, bounded variables/PNG plots and stop/restart. Guard pending startup ownership and require confirmed shutdown before vault changes.
+- Add standalone source editing with byte-preserving save/recovery, reviewed Overleaf source exchange, and opaque Markdown revision hosting through Google Docs. Add local Graphviz DOT rendering with bounded cancellable workers, plus live Mermaid preview and diagram zoom/pan.
+- Add reviewed vault repair plans with immutable recovery receipts, source checks and fail-closed asset reference scans. Add measured vocabulary evolution from retained revision sources and readable search match emphasis.
+- Add bounded offline Markdown-to-PDF typesetting with bundled fonts, local raster snapshots and third-party notices. Add finite, explicitly authorized Drive polling and reviewed Google Docs text-copy workflows.
+
+- Add Database Studio filters, table/list/gallery views, guarded scalar metadata edits, saved view recovery and bounded declarative formulas/aggregates. Add reviewed capture and paginated Zotero imports, citation usage, abstracts and literature note creation.
+- Add vault-scoped raster image and audio previews with type checks, 32 MiB limits and local URL cleanup; PDF/EPUB annotation behavior remains separate. Add real revision heatmaps and descriptive vocabulary comparison.
+- Add Publishing Studio review/build/deployment controls with bounded logs, source receipt checks and immutable deployment snapshots. External deployment remains an explicit configured action; live provider verification is pending.
+- Add passive original-source capture snapshots and complete authored German/Persian Help bodies with localized search, answers and walkthroughs.
+
+- Add bounded, permission-gated declarative plugin workspaces and first-party Diagram Studio, Asset Deck, Runtime Console, and Semantic Inspector entry points. Research notes preserve their source links; asset usage comes from the derived link index with explicit partial-result reporting.
+- Add measured embedding diagnostics and PCA projections, provider/model provenance checks, opt-in reindexing, and secure semantic credential controls.
+- Add explicit Canvas note relations with board/connector provenance, graph and DQL visibility, transactional reconciliation, and undo/redo editing.
+- Add reviewed weekly task/event planning, Google provider revision checks, and vault-content checks before applying imported task changes.
+- Add an opt-in Typst PDF export profile and bounded compiler preflight through the shared process broker.
+- Add Google Drive collaboration transport with separate read/write consent, immutable revisions, conservative three-way merge previews, and stale-checked local application. Live account verification remains pending.
+- Add the offline mobile kernel and touch-oriented mobile application; see `docs/validation/REVIEW-PR-STATUS.md` for platform verification status.
+
 ### Fixed
+
+- Keep checkbox text attached to its control, stack narrow plugin headings, theme fresh source/publishing forms, and restore visible focus outlines. Reflow workspace chrome through maximum app zoom while keeping panel fields and tab actions reachable; expand visual regression coverage for populated forms, both appearances and text directions.
+
+- Keep modal keyboard focus inside expandable sections, constrain header tooltips in narrow RTL layouts, and provide larger database, publishing and collaboration touch controls. Keep capture controls locked while an ignored pending operation finishes.
+
+- Distinguish explicit permanent Google OAuth refresh errors from temporary or malformed responses; bound token response reads, validate token values and expiry arithmetic, and keep raw authentication responses out of error messages.
+- Preserve displayed source revisions in coordinated database edits; reset Zotero previews when account keys change; restore a reload action after interrupted saved-view loading.
+- Bound writing-history sidecars and validate dates; reject ambiguous/structured frontmatter cell edits, retain unique asset recovery copies and restrict diagram processing output and local-file/network access.
+- Decline publication when YAML keys can ambiguously override privacy metadata, and clear article-specific attribution when extracting a different source.
+
+- Use the installed CSL processor's string-return contract for complete citations, preserve narrative/grouped citation semantics, and map bibliography entries correctly after sorting without repeatedly regenerating the bibliography. Invalidate stale formatting when references change.
+- Preserve the distinguishing part of long note filenames and expose folders for duplicate basenames in the note rail.
+
+- Preserve pending editor drafts before note, tag, section, and block renames; refresh rewritten active backlinks and keep failed rename dialogs open.
+- Bound activity-history reads and compact oversized histories; keep each rename recovery backup immutable instead of overwriting earlier versions.
+- Correct report-confirmed Canvas, Kanban, snippet, graph-label, collection-state, settings, status, RTL navigation, tag-count, and inspector-metric presentation defects. Record current-source dispositions for both review reports in `docs/validation/REPORT-REVIEW.md`.
+- Format resolved bracket citations in rendered output while preserving missing keys and literal code examples; suppress unopened-vault health metrics and display unknown measurements honestly.
+- Keep custom theme values readable on narrow screens, improve empty-editor text contrast, align triage metrics, and draw writing-history values at their final scale from the first frame.
 
 - Stop reporting Scriptor's own extended task markers (`[/]`, `[-]`, `[>]`) as missing link references. The reference lint only recognised GFM's `[ ]` and `[x]`, so every note using an in-progress, cancelled, or forwarded task showed a `Problems 1` warning that no diagnostic could explain — the vault was healthy, the workbench queues were empty, and the single "problem" was a task the app had written itself.
 - Stop the Split and Preview surfaces eating the brackets of `[/]` task lines. The Markdown parser read the extended markers as shortcut link references, and the WYSIWYG view then hid the brackets as link syntax, rendering `- / Draft methodology` instead of the authored `- [/] Draft methodology`.

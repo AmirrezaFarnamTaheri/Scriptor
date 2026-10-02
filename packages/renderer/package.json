@@ -12,6 +12,7 @@
     "react": "^19.0.0"
   },
   "dependencies": {
+    "@viz-js/viz": "3.31.0",
     "@scriptor/core": "workspace:*",
     "hast-util-sanitize": "^5.0.2",
     "highlight.js": "^11.12.0",

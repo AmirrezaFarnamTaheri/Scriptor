@@ -293,6 +293,10 @@
   overflow-wrap: anywhere;
 }
 
+#inspector-panel-inspector > .widget-card .metric-grid .metric strong {
+  margin-top: auto;
+}
+
 /* A desktop viewport can still contain a narrow inspector. Viewport-only
  * mobile rules run earlier and cannot override the matrix contract above. */
 @container inspector-rail (max-width: 450px) {

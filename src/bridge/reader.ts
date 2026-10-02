@@ -17,8 +17,8 @@ export interface ReaderViewerLocation {
 }
 
 /** Reads a supported document from the native active vault only. */
-export async function readReaderDocument(relPath: string): Promise<Uint8Array> {
-  const response = await invoke<ArrayBuffer>('reader_read_document', { relPath })
+export async function readReaderDocument(relPath: string, expectedVaultId?: string): Promise<Uint8Array> {
+  const response = await invoke<ArrayBuffer>('reader_read_document', { relPath, expectedVaultId: expectedVaultId ?? null })
   return new Uint8Array(response)
 }
 
@@ -30,13 +30,14 @@ export async function getReaderViewerLocation(
 }
 
 /** Annotation records are stored at `.scriptor/reader/annotations.json` in the active vault. */
-export async function loadReaderAnnotations(relPath: string): Promise<ReaderAnnotationRecord[]> {
-  return invoke<ReaderAnnotationRecord[]>('reader_load_annotations', { relPath })
+export async function loadReaderAnnotations(relPath: string, expectedVaultId?: string): Promise<ReaderAnnotationRecord[]> {
+  return invoke<ReaderAnnotationRecord[]>('reader_load_annotations', { relPath, expectedVaultId: expectedVaultId ?? null })
 }
 
 export async function saveReaderAnnotations(
   relPath: string,
   annotations: ReaderAnnotationRecord[],
+  expectedVaultId?: string,
 ): Promise<void> {
-  await invoke('reader_save_annotations', { relPath, annotations })
+  await invoke('reader_save_annotations', { relPath, annotations, expectedVaultId: expectedVaultId ?? null })
 }

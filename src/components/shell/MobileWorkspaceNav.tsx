@@ -62,6 +62,8 @@ function MobileWorkspaceNavImpl({
             key={id}
             type="button"
             className={`mobile-nav-item pressable ${activePane === id ? 'is-active' : ''}`}
+            aria-label={label}
+            title={label}
             aria-current={activePane === id ? 'page' : undefined}
             onClick={() => {
               if (id === 'command') {

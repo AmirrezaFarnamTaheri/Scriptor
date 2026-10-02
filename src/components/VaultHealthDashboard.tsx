@@ -5,6 +5,7 @@ import { useI18n } from '../lib/i18n'
 import { cacheStatusLabel, type Translate } from '../lib/vaultHealth'
 import { summarizeLintIssues } from '../lib/vaultLintSummary'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
+import { HealthRepairCards } from './HealthRepairCards'
 import '../styles/components/health-dashboard.css'
 import type {
   InspectorWidgetContribution,
@@ -24,6 +25,9 @@ interface VaultHealthDashboardProps {
   onOpenWorkbench?: () => void
   onGenerateLinkReferences?: () => void
   isFixingVaultLint?: boolean
+  expectedVaultId?: string
+  onRepairsApplied?: () => Promise<void> | void
+  runSourceNoteMutation?: (path: string, action: () => Promise<void>) => Promise<boolean>
 }
 
 function metricRows(summary: VaultHealthReport, t: Translate) {
@@ -51,6 +55,9 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
   onOpenWorkbench,
   onGenerateLinkReferences,
   isFixingVaultLint = false,
+  expectedVaultId,
+  onRepairsApplied,
+  runSourceNoteMutation,
 }: VaultHealthDashboardProps) {
   const summary = diagnostics?.summary ?? null
   const { t } = useI18n()
@@ -58,6 +65,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
   const vaultWidgets = inspectorWidgets.filter((widget) => widget.placement === 'vault')
   const issueCount = diagnostics?.issues.length ?? 0
   const hasIssues = issueCount > 0
+  const hasMaintenanceActions = Boolean(onOpenWorkbench || onGenerateLinkReferences || onFixVaultLint || onRebuildIndex)
   const cacheIssues =
     diagnostics?.issues.filter((issue) =>
       ['stale_cache', 'corrupt_cache', 'cache_missing'].includes(issue.kind),
@@ -186,19 +194,21 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
             </section>
           ) : null}
 
-          {hasIssues ? (
+          {hasMaintenanceActions && hasIssues ? (
             <section className="health-repair-center" aria-label="Repair actions">
               <strong>Repair actions</strong>
               <p className="health-subtitle">Use these tools after reviewing the issues above.</p>
               {repairActions}
             </section>
-          ) : (
+          ) : hasMaintenanceActions ? (
             <details className="health-repair-center health-maintenance-details">
               <summary>Maintenance tools</summary>
               <p className="health-subtitle">Optional maintenance; no repair is currently required.</p>
               {repairActions}
             </details>
-          )}
+          ) : null}
+
+          {expectedVaultId && diagnostics?.summary.vault_id === expectedVaultId ? <HealthRepairCards expectedVaultId={expectedVaultId} issues={diagnostics.issues} onRepairsApplied={onRepairsApplied} runSourceNoteMutation={runSourceNoteMutation} /> : null}
 
           {cacheIssues.length > 0 && onRebuildIndex ? (
             <div className="health-cache-actions">

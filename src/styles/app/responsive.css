@@ -347,7 +347,7 @@
 @media (max-width: 640px) {
   .topbar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     padding: 8px 10px;
   }
@@ -386,7 +386,9 @@
     grid-column: 2;
     order: 1;
     justify-self: end;
-    max-width: none;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
   }
 
   .workspace-mode-strip {
@@ -454,7 +456,7 @@ html[data-ui-reflow='mobile'] .app-shell {
 
 html[data-ui-reflow='mobile'] .topbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
@@ -495,7 +497,8 @@ html[data-ui-reflow='mobile'] .top-actions {
   grid-column: 2;
   order: 1;
   justify-self: end;
-  max-width: min(52vw, 320px);
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
 }
 
@@ -650,3 +653,48 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-select {
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
   display: none;
 }
+
+/* Container size follows the real available width, including magnification
+   that does not participate in viewport media queries. */
+.app-chrome { container: workspace-chrome / inline-size; }
+.mobile-workspace-chrome { container: mobile-chrome / inline-size; }
+@container mobile-chrome (max-width: 240px) {
+  .mobile-workspace-nav { grid-template-columns: repeat(2, minmax(44px, 1fr)); gap: 2px; padding: 4px; }
+  .mobile-nav-item { min-height: 44px; }
+  .mobile-nav-item > span { display: none; }
+}
+@container workspace-chrome (max-width: 240px) {
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls,
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-strip { grid-column: 1 / -1; min-width: 0; width: 100%; }
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-strip { order: 3; }
+}
+
+/* Magnified controls remain at least 56 physical pixels at 175% zoom, while
+   keeping the navigation chrome smaller than the document it serves. */
+html[data-ui-zoom='high'] .workspace-activity-bar { display:none; }
+html[data-ui-zoom='high'] [data-workspace-header-only='true'] { display:none; }
+html[data-ui-zoom='high'] .workspace-embedded-panel .unified-panel-body { padding:8px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(4,minmax(32px,1fr)); gap:2px; padding:4px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item { min-width:32px; min-height:32px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item > span { display:none; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls button:disabled { display:none; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header { padding:8px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header h2 { font-size:14px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header h2 svg { display:none; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header .health-subtitle { display:none; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .asset-deck-split:not(.has-reader) .embedded-panel-shell > header { display:none; }
+@container mobile-chrome (max-width: 141px) {
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(2,minmax(32px,1fr)); }
+}
+
+/* Three compact rows at magnification: identity/actions, vault, and mode.
+   A 32 CSS-pixel control is at least 56 displayed pixels in this mode. */
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar { padding:4px; gap:4px; min-height:0; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .top-actions { padding:2px; gap:2px; border-radius:6px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .brand { gap:4px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar :is(.icon-button,.action-button,.toolbar-button,.status-button,.jobs-button) { min-width:32px; min-height:32px; width:32px; height:32px; padding:4px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls { padding:0; gap:4px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-switcher { margin:0; gap:4px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-switcher select { min-height:32px; height:32px; padding:4px 6px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-strip { padding:0; border:0; border-radius:0; background:transparent; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-select { min-height:32px; height:32px; padding:4px 6px; border-radius:6px; font-size:12px; }

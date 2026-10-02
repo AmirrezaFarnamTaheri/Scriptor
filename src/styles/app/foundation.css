@@ -410,6 +410,14 @@ svg {
   transform: rotate(180deg);
 }
 
+html[dir='rtl'] .history-controls svg.flip {
+  transform: none;
+}
+
+html[dir='rtl'] .history-controls button:nth-child(2) svg {
+  transform: rotate(180deg);
+}
+
 .command-search {
   min-width: 170px;
   max-width: 460px;

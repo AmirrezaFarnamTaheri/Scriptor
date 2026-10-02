@@ -5,6 +5,7 @@ import type { ExportProfile } from '@scriptor/core/contracts/export'
 import type { DqlResultRow, CodeChunkRunResult } from '@scriptor/renderer'
 
 import { ExportPreflightPreview } from './ExportPreflightPreview'
+import { OfflinePdfNotices } from './OfflinePdfNotices'
 import { ExportPrintPreview } from './ExportPrintPreview'
 import { PublishDiffView } from './PublishDiffView'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
@@ -72,6 +73,7 @@ export const PublishCenter = memo(function PublishCenter({
   onApplyPlan,
 }: PublishCenterProps) {
   const latex = useLatexCompiler({ config: latexConfig ?? undefined })
+  const offlineRunning = isExporting && exportHistory.some(entry => entry.status === 'running' && entry.profile_label === 'PDF · Offline')
   const isTexDocument = Boolean(activePath && /\.(tex|ltx)$/i.test(activePath))
   const handleReplanStarlight = onReplanStarlight ?? onPlanStarlight
   const handleApplyPlan = onApplyPlan ?? (() => {})
@@ -104,7 +106,7 @@ export const PublishCenter = memo(function PublishCenter({
       className="publish-center-panel knowledge-filters-panel"
       wide
       headerActions={
-        isExporting ? (
+        isExporting && !offlineRunning ? (
           <button type="button" className="toolbar-button" onClick={onCancelExport}>
             Cancel export
           </button>
@@ -123,7 +125,7 @@ export const PublishCenter = memo(function PublishCenter({
             Export this note
           </h3>
           <p className="health-subtitle">
-            Create a file with one of the Pandoc profiles configured for this vault.
+            Export with a configured profile, or use the bundled offline PDF compiler.
           </p>
           <ul className="publish-profile-list">
             {exportProfiles.map((profile) => {
@@ -145,7 +147,7 @@ export const PublishCenter = memo(function PublishCenter({
                   <button
                     type="button"
                     className="toolbar-button"
-                    disabled={!activePath || isExporting}
+                    disabled={!activePath || isExporting || profile.id === 'pdf-offline'}
                     title="Validate the export command and inputs without writing an artifact"
                     onClick={() => onExport(profile.id, true)}
                   >
@@ -165,6 +167,8 @@ export const PublishCenter = memo(function PublishCenter({
               )
             })}
           </ul>
+          {exportProfiles.some(profile => profile.id === 'pdf-offline') ? <OfflinePdfNotices /> : null}
+          {offlineRunning ? <p role="status">Typesetting offline PDF. The compiler finishes its current document before controls unlock.</p> : null}
         </section>
 
         <section className="publish-center-section" aria-labelledby="latex-compile-heading">

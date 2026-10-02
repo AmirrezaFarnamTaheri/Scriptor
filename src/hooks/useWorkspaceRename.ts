@@ -21,6 +21,8 @@ interface UseWorkspaceRenameOptions {
   refreshVault: () => Promise<void>
   openNote: (path: string, isCurrent?: () => boolean) => Promise<unknown>
   loadGraph: (focusPath?: string | null) => Promise<void>
+  flushAllPendingSaves: () => Promise<boolean>
+  runNoteMutation: (path: string, mutation: () => Promise<void>) => Promise<boolean>
 }
 
 export function useWorkspaceRename({
@@ -30,11 +32,28 @@ export function useWorkspaceRename({
   refreshVault,
   openNote,
   loadGraph,
+  flushAllPendingSaves,
+  runNoteMutation,
 }: UseWorkspaceRenameOptions) {
   const [renamePreview, setRenamePreview] = useState<RenameNoteDryRunOutput | null>(null)
   const [linkRewritePreview, setLinkRewritePreview] = useState<LinkRewritePreview | null>(null)
   const [isRenaming, setIsRenaming] = useState(false)
   const [isLinkRewriting, setIsLinkRewriting] = useState(false)
+
+  const runRenameMutation = useCallback(async (mutation: () => Promise<void>, movesActiveNote = false) => {
+    if (!(await flushAllPendingSaves())) {
+      throw new Error('Could not save all pending changes. Rename cancelled; drafts retained.')
+    }
+    // Rewrites can touch the active note even when a different note, tag,
+    // section, or block is being renamed. Use the editor's guarded refresh.
+    if (activePath && !movesActiveNote) {
+      if (!(await runNoteMutation(activePath, mutation))) {
+        throw new Error('The editor is saving. Retry the rename after saving finishes.')
+      }
+    } else {
+      await mutation()
+    }
+  }, [activePath, flushAllPendingSaves, runNoteMutation])
 
   const previewRename = useCallback(
     async (toPath: string, updateLinks: boolean, fromPath?: string) => {
@@ -53,7 +72,7 @@ export function useWorkspaceRename({
       setIsRenaming(true)
       setError(null)
       try {
-        await vaultRenameApply(source, toPath, updateLinks)
+        await runRenameMutation(async () => { await vaultRenameApply(source, toPath, updateLinks) }, source === activePath)
         await indexerRebuild()
         await refreshVault()
         setRenamePreview(null)
@@ -66,11 +85,12 @@ export function useWorkspaceRename({
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Rename failed', message)
+        throw caught
       } finally {
         setIsRenaming(false)
       }
     },
-    [activePath, loadGraph, logActivity, openNote, refreshVault, setError],
+    [activePath, loadGraph, logActivity, openNote, refreshVault, runRenameMutation, setError],
   )
 
   const previewTagRename = useCallback(async (oldTag: string, newTag: string) => {
@@ -83,20 +103,22 @@ export function useWorkspaceRename({
       setIsLinkRewriting(true)
       setError(null)
       try {
-        const summary = await vaultRenameTagApply(oldTag, newTag)
+        let edits = 0
+        await runRenameMutation(async () => { edits = (await vaultRenameTagApply(oldTag, newTag)).edits })
         await indexerRebuild()
         await refreshVault()
         setLinkRewritePreview(null)
-        logActivity('success', 'Tag renamed', `#${oldTag} -> #${newTag} (${summary.edits} edits)`)
+        logActivity('success', 'Tag renamed', `#${oldTag} -> #${newTag} (${edits} edits)`)
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Tag rename failed', message)
+        throw caught
       } finally {
         setIsLinkRewriting(false)
       }
     },
-    [logActivity, refreshVault, setError],
+    [logActivity, refreshVault, runRenameMutation, setError],
   )
 
   const previewSectionRename = useCallback(
@@ -112,27 +134,26 @@ export function useWorkspaceRename({
       setIsLinkRewriting(true)
       setError(null)
       try {
-        const summary = await vaultRenameSectionApply(notePath, oldSection, newSection, updateHeading)
+        let edits = 0
+        await runRenameMutation(async () => { edits = (await vaultRenameSectionApply(notePath, oldSection, newSection, updateHeading)).edits })
         await indexerRebuild()
         await refreshVault()
         setLinkRewritePreview(null)
-        if (notePath === activePath) {
-          await openNote(notePath)
-        }
         logActivity(
           'success',
           'Section renamed',
-          `${oldSection} -> ${newSection} (${summary.edits} edits)`,
+          `${oldSection} -> ${newSection} (${edits} edits)`,
         )
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Section rename failed', message)
+        throw caught
       } finally {
         setIsLinkRewriting(false)
       }
     },
-    [activePath, logActivity, openNote, refreshVault, setError],
+    [logActivity, refreshVault, runRenameMutation, setError],
   )
 
   const previewBlockRename = useCallback(
@@ -148,23 +169,22 @@ export function useWorkspaceRename({
       setIsLinkRewriting(true)
       setError(null)
       try {
-        const summary = await vaultRenameBlockApply(notePath, oldBlock, newBlock, updateAnchor)
+        let edits = 0
+        await runRenameMutation(async () => { edits = (await vaultRenameBlockApply(notePath, oldBlock, newBlock, updateAnchor)).edits })
         await indexerRebuild()
         await refreshVault()
         setLinkRewritePreview(null)
-        if (notePath === activePath) {
-          await openNote(notePath)
-        }
-        logActivity('success', 'Block renamed', `${oldBlock} -> ${newBlock} (${summary.edits} edits)`)
+        logActivity('success', 'Block renamed', `${oldBlock} -> ${newBlock} (${edits} edits)`)
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Block rename failed', message)
+        throw caught
       } finally {
         setIsLinkRewriting(false)
       }
     },
-    [activePath, logActivity, openNote, refreshVault, setError],
+    [logActivity, refreshVault, runRenameMutation, setError],
   )
 
   return {

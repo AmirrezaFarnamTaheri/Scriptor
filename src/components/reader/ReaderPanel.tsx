@@ -30,6 +30,7 @@ import {
 import { BookOpen, ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from 'lucide-react'
 
 import { UnifiedPanelShell } from '../chrome/UnifiedPanelShell'
+import { EmbeddedPanelShell } from '../chrome/EmbeddedPanelShell'
 import type { PanelPresentation } from '../../hooks/usePanelPresentation'
 import { useReaderStore, type ReaderAnnotation } from './useReaderStore'
 import { useReaderFile } from './useReaderFile'
@@ -41,6 +42,7 @@ import {
   type ReaderAnnotationRecord,
 } from '../../bridge/reader'
 import { createReaderAnnotationSaveQueue } from './createAnnotationSaveQueue'
+import { createReaderCloseGate } from './readerCloseGate'
 import {
   parseReaderInboundMessage,
   readerUrl,
@@ -51,6 +53,9 @@ import {
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface ReaderPanelProps {
+  embedded?: boolean
+  registerCloseAction?: (action: (() => Promise<boolean>) | null) => void
+  vaultId?: string
   /** Vault-relative path to the PDF or EPUB file to display. */
   filePath: string | null
   /** Absolute vault root — used to resolve `filePath` via the Tauri bridge. */
@@ -83,7 +88,11 @@ export const ReaderPanel = memo(function ReaderPanel({
   presentation = 'dock-right',
   onClose,
   onAnnotationCreate,
+  embedded = false,
+  registerCloseAction,
+  vaultId,
 }: ReaderPanelProps) {
+  const Shell = embedded ? EmbeddedPanelShell : UnifiedPanelShell
   const frameRef = useRef<HTMLIFrameElement>(null)
   // Wrapper state is keyed by the document type it was resolved for: the active
   // location/ready flags are derived from that key instead of being reset from an
@@ -99,6 +108,9 @@ export const ReaderPanel = memo(function ReaderPanel({
   const [annotationsLoadedKey, setAnnotationsLoadedKey] = useState<string | null>(null)
   const [fileReloadGeneration, setFileReloadGeneration] = useState(0)
   const readyTimerRef = useRef<number | null>(null)
+  const persistedCallback = useRef(onAnnotationCreate)
+  useLayoutEffect(() => { persistedCallback.current = onAnnotationCreate }, [onAnnotationCreate])
+  const closeGate = useMemo(createReaderCloseGate, [])
 
   // ── Store ──────────────────────────────────────────────────────────────────
   const {
@@ -124,15 +136,15 @@ export const ReaderPanel = memo(function ReaderPanel({
   const annotationSaveQueue = useMemo(
     () =>
       createReaderAnnotationSaveQueue({
-        saveAnnotations: saveReaderAnnotations,
-        onPersisted: (annotation) => onAnnotationCreate?.(annotation as ReaderAnnotation),
+        saveAnnotations: (path, records) => saveReaderAnnotations(path, records, vaultId),
+        onPersisted: (annotation) => persistedCallback.current?.(annotation as ReaderAnnotation),
         onError: (cause) => setAnnotationError(`Could not save annotation: ${messageFor(cause)}`),
         onPendingChange: (pending) => {
           setHasUnsavedAnnotations(pending)
           if (!pending) setCloseWarning(false)
         },
       }),
-    [onAnnotationCreate],
+    [vaultId],
   )
 
   useEffect(() => {
@@ -162,30 +174,36 @@ export const ReaderPanel = memo(function ReaderPanel({
   }, [])
 
   const handleClose = useCallback(() => {
-    void (async () => {
+    return closeGate.request(async () => {
       if (annotationSaveQueue.hasPending()) {
         setCloseWarning(true)
         const flushed = await annotationSaveQueue.flush()
-        if (!flushed) return
+        if (!flushed) return false
       }
       annotationSaveQueue.reset()
       onClose()
-    })()
-  }, [annotationSaveQueue, onClose])
+      return true
+    })
+  }, [annotationSaveQueue, closeGate, onClose])
+
+  useEffect(() => {
+    registerCloseAction?.(handleClose)
+    return () => registerCloseAction?.(null)
+  }, [handleClose, registerCloseAction])
 
   const retryAnnotationSave = useCallback(() => {
     if (annotationSaveQueue.retry()) setAnnotationError(null)
   }, [annotationSaveQueue])
 
   // ── File I/O ───────────────────────────────────────────────────────────────
-  const fileState = useReaderFile(filePath, vaultRoot, fileReloadGeneration)
+  const fileState = useReaderFile(filePath, vaultRoot, fileReloadGeneration, vaultId)
   const viewerLocation = viewer?.fileType === fileType ? viewer.location : null
   const webviewReady = viewer?.fileType === fileType && viewer.ready
 
   useEffect(() => {
     if (!filePath || !vaultRoot) return
     let cancelled = false
-    void loadReaderAnnotations(filePath)
+    void loadReaderAnnotations(filePath, vaultId)
       .then((saved) => {
         if (!cancelled) {
           setAnnotationError(null)
@@ -197,7 +215,7 @@ export const ReaderPanel = memo(function ReaderPanel({
         if (!cancelled) setAnnotationError(`Could not load annotations: ${messageFor(cause)}`)
       })
     return () => { cancelled = true }
-  }, [filePath, vaultRoot, setAnnotations])
+  }, [filePath, vaultRoot, vaultId, setAnnotations])
 
   // Open file in the store when the prop changes.
   useEffect(() => {
@@ -344,7 +362,7 @@ export const ReaderPanel = memo(function ReaderPanel({
   const fileLabel = filePath ? filePath.split('/').pop() ?? filePath : 'No file open'
 
   return (
-    <UnifiedPanelShell
+    <Shell
       title="Reader"
       subtitle={fileLabel}
       icon={<BookOpen size={18} />}
@@ -486,7 +504,7 @@ export const ReaderPanel = memo(function ReaderPanel({
           </div>
         )}
       </div>
-    </UnifiedPanelShell>
+    </Shell>
   )
 })
 

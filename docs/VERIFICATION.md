@@ -263,3 +263,33 @@ bash scripts/governance/history-audit.sh . .history-audit
 Also run an approved full-history secret scanner and capture branch protection, required reviews, environment protection, tag lineage, and release lineage from the hosting platform.
 
 A passing source-level contract is not proof of a public release. The authoritative completion evidence is the exact-head CI matrix **plus the exact-head Visual review gate**, followed by the production tag workflow and published release assets. Draft PRs intentionally defer heavyweight gates; `ready_for_review` is the synchronization point that triggers the complete exact-head review matrix.
+
+## Review report remediation: 2026-09-30
+
+Scope: assess `Gemini-Review.md` and `Visual Review.txt`, preserve unrelated working-tree changes, and correct source-confirmed defects. Dispositions and residual limits are recorded in [REPORT-REVIEW.md](validation/REPORT-REVIEW.md). These are local working-tree results on Windows, not clean CI, native integration, or release certification.
+
+| Check | Result and scope |
+|---|---|
+| `pnpm check:source` | Pass: operation/source/Rust source/authorization/deep-module/frontend contracts and 388 source tests. Includes rename coordination, citation formatting, and citation sanitizer attributes. |
+| `pnpm check:renderer` | Pass: 159 renderer checks, including 108 XSS fixtures. Three documented renderer gaps remain unchanged. Performance samples: small 4.42 ms, medium 34.85 ms, large 247.8 ms. |
+| `pnpm lint` | Pass, zero warnings. |
+| `pnpm exec tsc -b` and `pnpm build` | Pass. Initial compressed bundle 555,387 bytes, below its 921,600-byte budget; existing large lazy-chunk notices remain. |
+| Docs, changelog, versions, i18n, CSS tokens, package boundaries, action pins | Existing configured checks passed; translation parity is three locales with 1,024 keys. |
+| `cargo fmt --all -- --check` | Pass. |
+| `cargo clippy --locked -p scriptor-vault --all-targets --jobs 2 -- -D warnings` | Pass, zero warnings for the affected native crate and its targets. |
+| `cargo test --locked -p scriptor-vault --lib --jobs 2 -- --test-threads=1` | Pass: 226 tests, including bounded activity reads/compaction and immutable rename backups. Initial parallel execution had 215 passes and 11 encryption failures caused by concurrent memory exhaustion; sequential execution resolves that environment limitation. |
+| Focused browser regression suite | Pass: all 43 tests on the final production changes across report remediation, rename, inspector metrics, single-row status, screenshot-review regressions, graph edge legibility, error recovery, and themes. The report-remediation file also passed independently with all 10 tests. |
+| Full visual capture suite | Pass: 78 scenarios in `e2e/visual-review.spec.ts`, with `--update-snapshots=none`. Covers desktop, narrow mobile, dark, RTL, populated/empty/error surfaces and zoom. No snapshot-baseline replacement or image-diff certification is claimed. |
+| Final chart/triage visual follow-up | Pass: two affected scenarios recaptured after their final changes; images inspected for recorded chart values and aligned metrics. |
+
+Reproduce browser checks:
+
+```powershell
+pnpm exec playwright test --config playwright.e2e.config.ts e2e/report-remediation.spec.ts e2e/rename.spec.ts e2e/inspector-metrics-dom.spec.ts e2e/status-strip-single-row.spec.ts e2e/screenshot-review-regressions.spec.ts e2e/graph-edge-legibility.spec.ts e2e/error-recovery.spec.ts e2e/theme.spec.ts --workers=2
+pnpm exec playwright test --config playwright.visual.config.ts e2e/visual-review.spec.ts --workers=2 --update-snapshots=none
+pnpm exec playwright test --config playwright.visual.config.ts e2e/visual-review.spec.ts --grep 'populated knowledge workbench triage|writing targets evidence' --workers=1 --update-snapshots=none --output test-results/report-followup-visual
+```
+
+The local browser environment initially lacked Playwright's ffmpeg helper; installing that helper enabled the video-configured test suite. No repository dependency or external-service configuration was changed.
+
+Not collected for this task: complete Rust workspace test/clippy matrix, exact-revision hosted CI, supported-OS installer matrix, authenticated OAuth/native Reader/MCP workflows, and cross-platform restore interruption evidence. Current browser mocks do not establish those outcomes. Existing release gates above remain applicable. No commit, push, release, publication, or remote resource mutation occurred.

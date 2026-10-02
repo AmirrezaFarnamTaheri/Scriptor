@@ -40,6 +40,7 @@ import { useWorkspaceNoteFactory } from './useWorkspaceNoteFactory'
 import { useWorkspaceFilesystemSync } from './useWorkspaceFilesystemSync'
 import { useDaemonConfigEvents } from './useDaemonConfigEvents'
 import { buildVaultSections, buildVaultSectionsFromSummaries } from './vault/helpers'
+import { prepareVaultSwitch } from '../lib/vaultSwitchGuard'
 
 type WorkspaceStatus = 'idle' | 'opening' | 'indexing' | 'ready' | 'error'
 
@@ -318,6 +319,7 @@ export function useVaultWorkspace(options?: {
     exportWithProfile,
     cancelExport,
   } = useWorkspaceExport({
+    vaultId: vault?.id ?? null,
     activePath: editor.activePath,
     draftMarkdown: editor.draftMarkdown,
     vaultConfig,
@@ -430,7 +432,7 @@ export function useVaultWorkspace(options?: {
     }
   }, [abortVaultReplacement, clearSearch, finishVaultReplacement, loadBacklinks, prepareForVaultReplacement, refreshGit, refreshVault, refreshVaultConfig, refreshVaultEntries, refreshVaultSnippets, runSearch, searchQuery, setBacklinks, setHealthDiagnostics])
 
-  const rename = useWorkspaceRename({ activePath, setError, logActivity, refreshVault, openNote, loadGraph })
+  const rename = useWorkspaceRename({ activePath, setError, logActivity, refreshVault, openNote, loadGraph, flushAllPendingSaves: editor.flushAllPendingSaves, runNoteMutation: editor.runNoteMutation })
 
   useWorkspaceFilesystemSync({
     vault,
@@ -459,6 +461,7 @@ export function useVaultWorkspace(options?: {
   const openVaultAt = useCallback(
     async (rootPath: string) => {
       const requestId = ++vaultOpenRequestIdRef.current
+      if (!await prepareVaultSwitch() || requestId !== vaultOpenRequestIdRef.current) return
       const saved = await resetNoteNavigation()
       if (!saved || requestId !== vaultOpenRequestIdRef.current) {
         setStatus(vault ? 'ready' : 'idle')

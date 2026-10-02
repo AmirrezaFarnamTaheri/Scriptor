@@ -29,6 +29,15 @@ export const DEFAULT_EXPORT_PROFILES: ExportProfile[] = [
     extraPandocArgs: ['--citeproc'],
   },
   {
+    id: 'pdf-typst',
+    label: 'PDF · Typst',
+    format: 'pdf',
+    outputDirectory: '.scriptor/exports/typst',
+    bibliographyPath: 'references.bib',
+    cslStylePath: 'apa-lite.csl',
+    extraPandocArgs: ['--citeproc', '--pdf-engine=typst'],
+  },
+  {
     id: 'latex-draft',
     label: 'LaTeX',
     format: 'latex',

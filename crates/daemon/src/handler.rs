@@ -117,6 +117,7 @@ impl DaemonState {
                 api_key,
             } => self.embeddings_search(query, limit, api_key),
             RpcMethod::EmbeddingsSync { api_key } => self.embeddings_sync(api_key),
+            RpcMethod::EmbeddingsInspect { limit } => self.embeddings_inspect(limit),
             RpcMethod::ReadNote { path } => self.read_note(path),
             RpcMethod::RebuildIndex => self.rebuild_index(),
             RpcMethod::HealthReport => self.health_report(),
@@ -316,6 +317,9 @@ impl DaemonState {
         limit: u32,
         api_key: Option<String>,
     ) -> Result<RpcPayload, String> {
+        if query.trim().is_empty() || query.chars().count() > 4000 {
+            return Err("semantic query must contain 1 to 4000 characters".into());
+        }
         let session = self.require_session()?.clone();
         let Some(provider) = self.embeddings_provider(api_key)? else {
             return Ok(RpcPayload::Json {
@@ -323,9 +327,14 @@ impl DaemonState {
             });
         };
         let limit = usize::try_from(limit).unwrap_or(25).clamp(1, 100);
-        let hits = scriptor_embeddings::search_vault_embeddings(
+        let config = scriptor_vault::load_vault_config(session.root.root())
+            .map_err(|e| e.to_string())?
+            .semantic
+            .ok_or("semantic config is unavailable")?;
+        let hits = scriptor_embeddings::vault_ops::search_configured_vault_embeddings(
             &session,
             provider.as_provider(),
+            &config,
             &query,
             limit,
         )
@@ -341,11 +350,29 @@ impl DaemonState {
                 json: r#"{"available":false}"#.to_string(),
             });
         };
-        let report =
-            scriptor_embeddings::sync_vault_embeddings(&session, provider.as_provider(), None)
-                .map_err(|error| error.to_string())?;
+        let config = scriptor_vault::load_vault_config(session.root.root())
+            .map_err(|e| e.to_string())?
+            .semantic
+            .ok_or("semantic config is unavailable")?;
+        let report = scriptor_embeddings::vault_ops::sync_configured_vault_embeddings(
+            &session,
+            provider.as_provider(),
+            &config,
+        )
+        .map_err(|error| error.to_string())?;
         let json = serde_json::to_string(&report).map_err(|error| error.to_string())?;
         Ok(RpcPayload::Json { json })
+    }
+
+    fn embeddings_inspect(&self, limit: u32) -> Result<RpcPayload, String> {
+        let report = scriptor_embeddings::inspector::inspect_vault_embeddings(
+            self.require_session()?,
+            limit.clamp(1, 256) as usize,
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(RpcPayload::Json {
+            json: serde_json::to_string(&report).map_err(|e| e.to_string())?,
+        })
     }
 
     fn reload_config(&mut self) -> Result<RpcPayload, String> {

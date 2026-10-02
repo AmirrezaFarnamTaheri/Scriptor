@@ -6,6 +6,11 @@
 
 Scriptor is a local-first Markdown workspace for serious writing and research. It combines writing, evidence management, citations, graph navigation, Git-aware revision, reproducible publishing, and permissioned automation while keeping Markdown files authoritative on disk.
 
+Experimental workspace leaves organize source editors, reviewed tools and
+permissioned plugin workspaces into main and side groups with saved tab references.
+Markdown has one mutable writing editor, with separate side previews. Restoring
+layouts does not execute work or restore unsaved drafts.
+
 ## Operating context
 
 - The Tauri desktop application is the primary product surface.
@@ -82,6 +87,13 @@ The authoritative matrix is [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATU
 Scriptor is local-first. The renderer is untrusted relative to native authority. Tauri commands, daemon RPC, MCP, external processes, Git, keychain access, and backup/restore are explicit boundaries. Local logs and audit records are bounded and redacted; high-integrity mutation records are hash-chained.
 
 ## Roadmap policy
+
+Experimental source workflows support standalone LaTeX and code text alongside
+Markdown with code chunks and media. Source editing preserves file formats and
+keeps execution explicit. Experimental collaboration can host immutable
+Markdown revisions through Drive or Google Docs, and exchange reviewed source
+files with Overleaf. Capability and verification limits remain recorded in
+`docs/CAPABILITY-MATURITY.md`.
 
 Roadmap documents describe options, not current behavior. A capability graduates only after it has:
 

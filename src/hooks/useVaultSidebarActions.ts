@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react'
 
 import { isMarkdownFile } from '../lib/importVaultFiles'
 import { isReaderDocumentPath } from './vault/helpers'
+import { isSourceFilePath } from '../lib/sourceFile'
 
 interface UseVaultSidebarActionsOptions {
   nativeReady: boolean
@@ -15,6 +16,7 @@ interface UseVaultSidebarActionsOptions {
   organizeNote: (path: string) => Promise<unknown> | unknown
   openNote: (path: string) => Promise<unknown> | unknown
   openReaderDocument: (path: string) => void
+  openSourceFile: (path: string) => void
   refreshVault: () => Promise<unknown> | unknown
   importDroppedFiles: (
     files: FileList,
@@ -41,6 +43,7 @@ export function useVaultSidebarActions({
   organizeNote,
   openNote,
   openReaderDocument,
+  openSourceFile,
   refreshVault,
   importDroppedFiles,
   deleteNote,
@@ -79,12 +82,16 @@ export function useVaultSidebarActions({
   )
   const handleOrganizeNote = useCallback((path: string) => void organizeNote(path), [organizeNote])
   const handleOpenNote = useCallback((path: string) => {
+    if (isSourceFilePath(path)) {
+      openSourceFile(path)
+      return
+    }
     if (isReaderDocumentPath(path)) {
       openReaderDocument(path)
       return
     }
     void openNote(path)
-  }, [openNote, openReaderDocument])
+  }, [openNote, openReaderDocument, openSourceFile])
   const handleRenameNote = useCallback((path: string) => openRename(path), [openRename])
   const handleDeleteNote = useCallback((path: string) => void deleteNote(path), [deleteNote])
   const handleImportFiles = useCallback(

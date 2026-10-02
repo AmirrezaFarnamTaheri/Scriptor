@@ -24,7 +24,11 @@ pub enum SensitiveOperation {
     GitPull,
     GitPush,
     GoogleCalendarAuth,
+    GoogleCalendarWrite,
     GoogleCalendarDisconnect,
+    GoogleDriveAuth,
+    GoogleDriveRead,
+    GoogleDriveWrite,
     GoogleGmailAuth,
     GoogleGmailDisconnect,
     GoogleGmailWrite,
@@ -37,9 +41,13 @@ pub enum SensitiveOperation {
     PdfTranslation,
     PlantUmlExecution,
     PublishSite,
+    PublishBuild,
+    PublishDeploy,
     ResourceSync,
     RestoreBackup,
     RestoreHistory,
+    WebClip,
+    ZoteroRead,
 }
 
 impl SensitiveOperation {
@@ -60,11 +68,18 @@ impl SensitiveOperation {
                 | Self::PublishSite
                 | Self::RestoreBackup
                 | Self::RestoreHistory
+                | Self::GoogleDriveRead
+                | Self::GoogleDriveWrite
+                | Self::PublishBuild
+                | Self::PublishDeploy
         )
     }
 
     fn title(self) -> &'static str {
         match self {
+            Self::GoogleDriveAuth => "Connect a Google Drive collaboration account",
+            Self::GoogleDriveRead => "Read the selected Google Drive collaboration folder",
+            Self::GoogleDriveWrite => "Share the reviewed collaboration change with Google Drive",
             Self::AiNetworkRequest => "Send note content to an AI provider",
             Self::ApplyBulkFix => "Apply automated fixes across the current vault",
             Self::ApplyGitConflict => "Replace a conflicted file with merged content",
@@ -76,6 +91,7 @@ impl SensitiveOperation {
             Self::GitPull => "Pull remote Git changes",
             Self::GitPush => "Push local Git commits",
             Self::GoogleCalendarAuth => "Connect your Google account",
+            Self::GoogleCalendarWrite => "Modify the reviewed Google Calendar event",
             Self::GoogleCalendarDisconnect => "Disconnect your Google account",
             Self::GoogleGmailAuth => "Connect Gmail manager",
             Self::GoogleGmailDisconnect => "Disconnect Gmail manager",
@@ -89,14 +105,42 @@ impl SensitiveOperation {
             Self::PdfTranslation => "Run the configured PDF translation tool",
             Self::PlantUmlExecution => "Run a local PlantUML renderer",
             Self::PublishSite => "Publish this vault as a site",
+            Self::PublishBuild => "Build the reviewed local site",
+            Self::PublishDeploy => "Deploy the reviewed site or configure its domain",
             Self::ResourceSync => "Apply the reviewed agent resource sync plan",
             Self::RestoreBackup => "Replace vault contents from a snapshot",
             Self::RestoreHistory => "Replace a note with a historical revision",
+            Self::WebClip => "Preview content from this web page",
+            Self::ZoteroRead => "Preview your Zotero library",
         }
     }
 
     fn impact(self) -> &'static str {
         match self {
+            Self::PublishBuild => {
+                "The selected managed site project will run its build through the process broker. It may install locked dependencies and download packages; output is bounded and cancellable."
+            }
+            Self::PublishDeploy => {
+                "The reviewed built site will be uploaded to the selected Cloudflare Pages project, or the selected custom domain will be attached to that project. This changes the configured external resource."
+            }
+            Self::WebClip => {
+                "The selected public HTTPS page will be fetched for a bounded local preview. No note is written until you review and save it."
+            }
+            Self::ZoteroRead => {
+                "The provided read key will fetch a bounded page of reference metadata from the official Zotero API. No library item is changed; import requires a separate local review."
+            }
+            Self::GoogleCalendarWrite => {
+                "The selected event will be created or updated in Google Calendar after the reviewed change and revision check. No other calendar event is changed."
+            }
+            Self::GoogleDriveAuth => {
+                "Google Drive access is requested in your browser. Credentials stay in the operating-system keychain. Scriptor confines collaboration requests to the folder you approve."
+            }
+            Self::GoogleDriveRead => {
+                "Bounded collaboration records in the selected shared folder will be downloaded. They remain untrusted until validated."
+            }
+            Self::GoogleDriveWrite => {
+                "The reviewed note change will be uploaded as an immutable collaboration record visible to people with access to the shared folder."
+            }
             Self::AiNetworkRequest => {
                 "The selected note content and instruction will be sent to the configured endpoint."
             }

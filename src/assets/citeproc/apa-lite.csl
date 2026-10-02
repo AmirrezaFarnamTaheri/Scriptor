@@ -10,9 +10,13 @@
     <layout prefix="(" suffix=")" delimiter="; ">
       <group delimiter=", ">
         <names variable="author" form="short">
-          <name and="symbol" delimiter=", " initialize-with=". "/>
+          <name form="short" and="symbol" delimiter=", " initialize-with=". "/>
         </names>
         <date variable="issued" form="text" date-parts="year"/>
+        <group delimiter=" ">
+          <label variable="locator" form="short"/>
+          <text variable="locator"/>
+        </group>
       </group>
     </layout>
   </citation>
