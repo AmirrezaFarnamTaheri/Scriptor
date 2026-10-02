@@ -21,7 +21,6 @@ export interface AssetDeckPanelProps {
 }
 
 export function AssetDeckPanel({ assets, onClose, onOpenAsset, onOpenNote, onCreateNote, annotations = [], activeAssetPath, usageComplete = true, embedded = false }: AssetDeckPanelProps) {
-  const Shell = embedded ? EmbeddedPanelShell : UnifiedPanelShell
   const [query, setQuery] = useState('')
   const [onlyUnused, setOnlyUnused] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -37,9 +36,10 @@ export function AssetDeckPanel({ assets, onClose, onOpenAsset, onOpenNote, onCre
     } catch (error) { setStatus(error instanceof Error ? error.message : 'Could not create linked note') }
     finally { setBusyId(null) }
   }
-  return <Shell title="Asset deck" subtitle={`${assets.length} vault assets · source files stay in the vault`} icon={<Files size={18} />} ariaLabel="Asset deck" helpTopic="reader" onClose={onClose} wide className="research-studio">
+  const body = <>
+    {embedded && <p>{assets.length} vault assets · source files stay in the vault</p>}
     <p>Usage reflects the derived link index. Rebuild the vault index after external file changes.{!usageComplete && ' Inventory reached its processing limit; usage counts are partial and unused filtering is unavailable.'}</p>
-    <div className="research-controls"><label>Filter assets<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} /></label><label><span>Unused assets only</span><input type="checkbox" checked={onlyUnused} disabled={!usageComplete} onChange={(event) => setOnlyUnused(event.target.checked)} /></label></div>
+    <div className="research-controls"><label>Filter assets<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} /></label><label className="research-toggle"><input type="checkbox" checked={onlyUnused} disabled={!usageComplete} onChange={(event) => setOnlyUnused(event.target.checked)} /><span>Unused assets only</span></label></div>
     <ul className="research-asset-list">
       {filtered.length === 0 && <li>No assets match. Import a PDF, EPUB, image, or other source into the vault.</li>}
       {filtered.slice(0, 500).map((asset) => <li key={asset.path}>
@@ -51,5 +51,8 @@ export function AssetDeckPanel({ assets, onClose, onOpenAsset, onOpenNote, onCre
     </ul>
     {filtered.length > 500 && <p>Showing the first 500 matches. Narrow the filter to find another source.</p>}
     {status && <p role="status">{status}</p>}
-  </Shell>
+  </>
+  return embedded
+    ? <EmbeddedPanelShell title="Vault assets" ariaLabel="Vault assets" helpTopic="reader" onClose={onClose} className="research-studio" hideHeader>{body}</EmbeddedPanelShell>
+    : <UnifiedPanelShell title="Asset deck" subtitle={`${assets.length} vault assets · source files stay in the vault`} icon={<Files size={18} />} ariaLabel="Asset deck" helpTopic="reader" onClose={onClose} wide className="research-studio">{body}</UnifiedPanelShell>
 }

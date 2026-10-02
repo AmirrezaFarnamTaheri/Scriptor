@@ -3,7 +3,7 @@ import { launchApp, openCommandPalette, runCommand } from './helpers'
 test('a policy-excluded opted-in note can explicitly opt out without confusing eligibility with its field', async ({ page }) => {
   await page.addInitScript(() => { sessionStorage.setItem('e2e:research', '1'); sessionStorage.setItem('e2e:publishing-audit', '1') })
   await launchApp(page); await openCommandPalette(page); await runCommand(page, 'Publishing studio')
-  const panel = page.getByRole('dialog', { name: 'Publishing studio', exact: true })
+  const panel = page.getByRole('region', { name: 'Publishing studio', exact: true })
   await panel.getByLabel('Local site folder', { exact: true }).fill('C:/reviewed-site')
   await panel.getByRole('button', { name: 'Review publication plan', exact: true }).click()
   const row = panel.locator('tbody tr').filter({ hasText: 'Research Plan.md' })

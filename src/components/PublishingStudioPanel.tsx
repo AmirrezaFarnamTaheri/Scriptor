@@ -6,6 +6,7 @@ import { vaultFrontmatterSet, vaultListViewNotes, vaultPublishApplyStarlight, va
 import { publishingCancelJob, publishingConfigureDomain, publishingRunJob } from '../bridge/commands/publishing'
 import { publicationRows, redactPublishingLog, validateDeploymentTarget } from '../lib/publishingStudio'
 import type { NoteDocument, StarlightPublishPlanOutput, ViewNoteHit } from '../types/vault'
+import '../styles/components/research-studio.css'
 import '../styles/components/publishing-studio.css'
 
 export interface PublishingStudioPanelProps { vaultId: string; onClose(): void; onOpenNote(path: string): void; runSourceNoteMutation(sourcePath: string, runMutation: () => Promise<void>): Promise<boolean> }
@@ -84,7 +85,7 @@ export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceN
   return <UnifiedPanelShell title="Publishing studio" ariaLabel="Publishing studio" helpTopic="export" onClose={onClose} wide className="publishing-studio">
     <p>Only notes explicitly opted in with an unambiguous <code>publish: true</code> field enter the local publication plan. Review writes and removals before generating the site.</p>
     <div className="research-controls">
-      <label>Local site folder<input value={output} disabled={busy} maxLength={4096} placeholder="Absolute folder path" onChange={event => setOutput(event.target.value)} /></label>
+      <label>Local site folder<input dir="ltr" value={output} disabled={busy} maxLength={4096} placeholder="Absolute folder path" onChange={event => setOutput(event.target.value)} /></label>
       <button disabled={busy || !output.trim()} onClick={() => void action(replan)}>Review publication plan</button>
     </div>
     {site && <>
@@ -105,10 +106,10 @@ export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceN
       <details><summary>Cloudflare Pages deployment and custom domain</summary>
         <p>Use an existing Pages project and installed Wrangler. The token stays in memory for this action. Domain attachment reports provider status; DNS remains a separate configuration step.</p>
         <div className="research-controls">
-          <label>Account ID<input value={accountId} maxLength={32} disabled={busy} onChange={event => setAccountId(event.target.value.trim())} /></label>
-          <label>Project name<input value={project} maxLength={63} disabled={busy} onChange={event => setProject(event.target.value.trim())} /></label>
-          <label>Custom domain<input value={domain} maxLength={253} disabled={busy} onChange={event => setDomain(event.target.value.trim())} /></label>
-          <label>API token<input type="password" value={apiToken} maxLength={512} disabled={busy} autoComplete="off" onChange={event => setApiToken(event.target.value)} /></label>
+          <label>Account ID<input dir="ltr" value={accountId} maxLength={32} disabled={busy} onChange={event => setAccountId(event.target.value.trim())} /></label>
+          <label>Project name<input dir="ltr" value={project} maxLength={63} disabled={busy} onChange={event => setProject(event.target.value.trim())} /></label>
+          <label>Custom domain<input dir="ltr" value={domain} maxLength={253} disabled={busy} onChange={event => setDomain(event.target.value.trim())} /></label>
+          <label>API token<input dir="ltr" type="password" value={apiToken} maxLength={512} disabled={busy} autoComplete="off" onChange={event => setApiToken(event.target.value)} /></label>
           <button disabled={busy || !apiToken} onClick={() => void action(() => runJob(true))}>Deploy reviewed build</button>
           <button disabled={busy || !apiToken || !domain} onClick={() => void action(async () => {
             const result = await publishingConfigureDomain({ accountId, project, domain }, apiToken, vaultId)

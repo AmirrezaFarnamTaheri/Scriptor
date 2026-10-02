@@ -10,6 +10,6 @@
 .semantic-projection line { stroke: var(--border); }
 .semantic-projection circle { fill: var(--primary); stroke: var(--ink); stroke-width: 1px; }
 .semantic-projection circle.stale { fill: var(--amber); }
-.semantic-projection g:focus circle { stroke: var(--focus-ring); stroke-width: 4px; }
+.semantic-projection g:focus circle { stroke: var(--accent); stroke-width: 4px; }
 .semantic-note-list { max-height: 12rem; overflow: auto; padding-inline-start: 1.5rem; }
 @media (max-width: 520px) { .semantic-controls { grid-template-columns: minmax(0,1fr); } .semantic-inspector-content button { min-height: 44px; } }

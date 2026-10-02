@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test'
 async function open(page: Page) {
   await page.addInitScript(() => { sessionStorage.setItem('e2e:research', '1'); sessionStorage.setItem('e2e:collaboration', '1') })
   await launchApp(page); await openCommandPalette(page); await runCommand(page, 'Drive collaboration')
-  const panel = page.getByRole('dialog', { name: 'Drive collaboration', exact: true })
+  const panel = page.getByRole('region', { name: 'Drive collaboration', exact: true })
   await panel.getByLabel('Shared folder ID', { exact: true }).fill('shared-folder')
   return panel
 }

@@ -4,6 +4,8 @@
 
 ### Added
 
+- Add bounded per-vault workspace tabs with main/side docking, ordering, saved references, guarded closure and inert restoration. Preserve source drafts and Python ownership across tab changes; integrate permission-aware plugin workspaces into the module manager and activity navigation.
+
 - Add vault-owned persistent Python sessions in Runtime console with reviewed environments, per-cell consent, live output, bounded variables/PNG plots and stop/restart. Guard pending startup ownership and require confirmed shutdown before vault changes.
 - Add standalone source editing with byte-preserving save/recovery, reviewed Overleaf source exchange, and opaque Markdown revision hosting through Google Docs. Add local Graphviz DOT rendering with bounded cancellable workers, plus live Mermaid preview and diagram zoom/pan.
 - Add reviewed vault repair plans with immutable recovery receipts, source checks and fail-closed asset reference scans. Add measured vocabulary evolution from retained revision sources and readable search match emphasis.
@@ -23,6 +25,8 @@
 - Add the offline mobile kernel and touch-oriented mobile application; see `docs/validation/REVIEW-PR-STATUS.md` for platform verification status.
 
 ### Fixed
+
+- Keep checkbox text attached to its control, stack narrow plugin headings, theme fresh source/publishing forms, and restore visible focus outlines. Reflow workspace chrome through maximum app zoom while keeping panel fields and tab actions reachable; expand visual regression coverage for populated forms, both appearances and text directions.
 
 - Keep modal keyboard focus inside expandable sections, constrain header tooltips in narrow RTL layouts, and provide larger database, publishing and collaboration touch controls. Keep capture controls locked while an ignored pending operation finishes.
 

@@ -38,7 +38,7 @@ export function ReviewFeatureWorkspaces({ active, workspace, onClose, onOpenAsse
       {active === 'semantic' && <SemanticInspectorPanel vaultId={vaultId} onClose={onClose} onOpenNote={path => void workspace.openNote(path)} />}
       {active === 'assets' && <AssetDeckWorkspace vaultId={vaultId} vaultRoot={workspace.vault.root_path} onClose={onClose} onOpenAsset={onOpenAsset} onOpenNote={path => void workspace.openNote(path)} onCreateNote={createNote} />}
       {active === 'plugin' && pluginWorkspace && <UnifiedPanelShell title={pluginWorkspace.title} ariaLabel={pluginWorkspace.title} helpTopic="plugins" onClose={onClose} wide>
-        {pluginPolicy ? <PluginWorkspaceHost definition={pluginWorkspace} policy={pluginPolicy} vaultId={vaultId} onNavigate={onNavigate} onCommand={commandId => onPluginCommand(pluginWorkspace.pluginId, commandId)} /> : <p role="alert">Plugin workspace is unavailable because its consent was removed.</p>}
+        {pluginPolicy ? <PluginWorkspaceHost hideTitle definition={pluginWorkspace} policy={pluginPolicy} vaultId={vaultId} onNavigate={onNavigate} onCommand={commandId => onPluginCommand(pluginWorkspace.pluginId, commandId)} /> : <p role="alert">Plugin workspace is unavailable because its consent was removed.</p>}
       </UnifiedPanelShell>}
     </Suspense>
   </ErrorBoundary>

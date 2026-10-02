@@ -49,7 +49,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     {snapshot && <>
       <div className="overleaf-comparison"><section aria-label="Saved local source"><h3>Saved local source</h3><pre>{document.content}</pre></section><section aria-label="Reviewed remote source"><h3>Remote source</h3><pre>{snapshot.content ?? 'File absent from remote project.'}</pre></section></div>
       <label>Reviewed source to apply locally or share<textarea aria-label="Reviewed source to apply locally or share" value={reviewed} disabled={busy} spellCheck={false} onChange={event => { setReviewed(event.target.value); setAccepted(false) }}/></label>
-      <label className="overleaf-consent"><input type="checkbox" checked={accepted} disabled={busy} onChange={event => setAccepted(event.target.checked)}/>I compared both copies and reviewed this source for the selected action</label>
+      <label className="overleaf-consent"><input type="checkbox" checked={accepted} disabled={busy} onChange={event => setAccepted(event.target.checked)}/><span>I compared both copies and reviewed this source for the selected action</span></label>
       <button type="button" disabled={busy || !accepted || snapshot.content === null} onClick={() => void run(async () => {
         const current = generation.current; const local = await guard(); const updated = await sourceFileSave(local, reviewed)
         if (current !== generation.current) return

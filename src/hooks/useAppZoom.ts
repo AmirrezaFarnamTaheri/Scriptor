@@ -67,8 +67,8 @@ export function useAppZoom(): void {
     let applyScheduled = false
 
     const apply = () => {
-      if (applyScheduled) return
       updateZoomReflow(factor)
+      if (applyScheduled) return
       applyScheduled = true
       window.setTimeout(() => {
         applyScheduled = false

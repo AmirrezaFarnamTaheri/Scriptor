@@ -21,7 +21,7 @@ The patched Wasmtime lockfile removes two fresh advisory findings; the current R
 
 ## Remaining scope and verification
 
-- Workspace leaves, docking/tab persistence, activity-bar and plugin-manager composition still need completion.
+- Workspace leaves, docking/tab persistence, activity-bar and plugin-manager composition are implemented with guarded restoration and closure. Packaged desktop and complete product accessibility checks remain; the side pane previews Markdown notes while the main editor remains the single mutable Markdown surface.
 - Live Google/Overleaf/provider account checks and mobile Android/iOS device verification have not run.
 - Native packaged WebView, release, full workspace stress and optional backend verification remain separate gates. `cargo-deny` is unavailable in the current local tool environment.
 - New feature copy requires further localization and complete product accessibility/release evidence.

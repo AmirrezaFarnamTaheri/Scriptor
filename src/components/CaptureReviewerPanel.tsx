@@ -5,6 +5,7 @@ import { isNativeBridgeAvailable } from '../bridge/platform'
 import { captureMarkdown, captureTarget } from '../lib/captureReviewer'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { useWorkspaceEmbeddedPanel } from '../context/WorkspacePanelContext'
 import { sanitizeRenderedHtml } from '@scriptor/renderer'
 import '../styles/components/capture-reviewer.css'
 // Template contents are inert: source resources never enter the live document.
@@ -25,12 +26,14 @@ function passiveSourceSnapshot(html:string):string {
 }
 export interface CaptureReviewerPanelProps {vaultOpen:boolean;vaultId:string|null;onClose:()=>void;onSaved?:(path:string)=>void;embedded?:boolean}
 export function CaptureReviewerPanel({vaultOpen,vaultId,onClose,onSaved,embedded=false}:CaptureReviewerPanelProps) {
+  const workspaceEmbedded = useWorkspaceEmbeddedPanel()
+  const inline = workspaceEmbedded || embedded
   const [url,setUrl]=useState('');const [title,setTitle]=useState('');const [author,setAuthor]=useState('');const [published,setPublished]=useState('');const [tags,setTags]=useState('');const [directory,setDirectory]=useState('Inbox');const [markdown,setMarkdown]=useState('');const [source,setSource]=useState('');const [status,setStatus]=useState('Enter a URL to extract and review its content before saving.');const [error,setError]=useState<string|null>(null);const [busy,setBusy]=useState(false)
   const generation=useRef(0);const pending=useRef(false);const dialog=useRef<HTMLDivElement>(null);const editor=useRef<HTMLTextAreaElement>(null)
   const [sourceSnapshot,setSourceSnapshot]=useState('');const [snapshotError,setSnapshotError]=useState<string|null>(null)
   const [ignored,setIgnored]=useState(false)
   const native=vaultOpen&&!!vaultId&&isNativeBridgeAvailable()
-  useEscapeToClose(!embedded,onClose);useFocusTrap(dialog,{active:!embedded})
+  useEscapeToClose(!inline,onClose);useFocusTrap(dialog,{active:!inline})
   useEffect(()=>{generation.current+=1;return()=>{generation.current+=1}},[vaultId])
   const extract=async()=>{
     if(!native||busy||pending.current)return;pending.current=true
@@ -44,7 +47,7 @@ export function CaptureReviewerPanel({vaultOpen,vaultId,onClose,onSaved,embedded
   }
   const highlight=()=>{const input=editor.current;if(!input||input.selectionStart===input.selectionEnd)return;const start=input.selectionStart,end=input.selectionEnd;setMarkdown(markdown.slice(0,start)+'=='+markdown.slice(start,end)+'=='+markdown.slice(end));input.focus()}
   const body=<>
-    <header><h2>Capture reviewer</h2><button type="button" onClick={onClose}>Close capture reviewer</button></header>
+    <header data-workspace-header-only={workspaceEmbedded ? 'true' : undefined}><h2>Capture reviewer</h2>{!workspaceEmbedded && <button type="button" onClick={onClose}>Close capture reviewer</button>}</header>
     <form onSubmit={event=>{event.preventDefault();void extract()}}>
       <label>Article URL<input type="url" required value={url} disabled={busy} onChange={event=>setUrl(event.target.value)} placeholder="https://example.org/article"/></label>
       <button type="submit" disabled={!native||busy||!url.trim()}>Extract preview</button>
@@ -58,7 +61,7 @@ export function CaptureReviewerPanel({vaultOpen,vaultId,onClose,onSaved,embedded
         <label>Author<input value={author} disabled={busy} onChange={event=>setAuthor(event.target.value)}/></label>
         <label>Publication date<input type="date" value={published} disabled={busy} onChange={event=>setPublished(event.target.value)}/></label>
         <label>Tags, separated by commas<input value={tags} disabled={busy} onChange={event=>setTags(event.target.value)}/></label>
-        <label>Vault directory<input value={directory} disabled={busy} onChange={event=>setDirectory(event.target.value)}/></label>
+        <label>Vault directory<input dir="ltr" value={directory} disabled={busy} onChange={event=>setDirectory(event.target.value)}/></label>
       </div>
       <div className="capture-reviewer-split">
         <label>Reviewed Markdown<textarea ref={editor} value={markdown} disabled={busy} onChange={event=>setMarkdown(event.target.value)}/></label>
@@ -73,6 +76,6 @@ export function CaptureReviewerPanel({vaultOpen,vaultId,onClose,onSaved,embedded
     }}>Stop waiting</button>:null}
   </>
   const sourcePreview=source?<section aria-label="Original source snapshot"><h3>Original source snapshot</h3><p>Text and structure from the fetched page. Images, scripts, styling, forms and navigation are removed.</p>{snapshotError?<p role="alert">{snapshotError}</p>:sourceSnapshot?<iframe title="Original source snapshot" sandbox="" referrerPolicy="no-referrer" srcDoc={sourceSnapshot}/>:null}</section>:null
-  if(embedded)return <section className="capture-reviewer" aria-label="Capture reviewer" data-help-topic="capture">{body}{sourcePreview}</section>
+  if(inline)return <section className="capture-reviewer" aria-label="Capture reviewer" data-help-topic="capture">{body}{sourcePreview}</section>
   return <div className="modal-backdrop"><div ref={dialog} className="modal-card capture-reviewer" role="dialog" aria-modal="true" aria-label="Capture reviewer" data-help-topic="capture">{body}{sourcePreview}</div></div>
 }

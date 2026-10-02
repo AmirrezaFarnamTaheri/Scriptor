@@ -24,11 +24,15 @@ export function createPluginWorkspaceHandlers(options: Options) {
       if (!await runPluginCommand(entry.command, options.runtime, { notePath: options.activePath })) throw new Error('Plugin command has no registered handler')
     },
     onNavigate: async (route: PluginWorkspaceRoute) => {
-      options.close()
-      if (route.kind === 'note') { await options.openNote(route.path); return }
+      if (route.kind === 'note') {
+        if (await options.openNote(route.path) === false) throw new Error('Note navigation was cancelled. The workspace is still open.')
+        options.close()
+        return
+      }
       const handlers = { editor: () => {}, graph: options.openGraph, canvas: options.openCanvas, knowledge: options.openKnowledge,
         tasks: options.openTasks, export: options.openExport, 'runtime-console': options.openRuntime }
       handlers[route.workspace]()
+      options.close()
     },
   }
 }

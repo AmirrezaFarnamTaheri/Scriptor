@@ -122,6 +122,16 @@ SQLite uses WAL, foreign keys, busy timeouts, current-schema validation, FTS, an
 
 ### Reviewed source, sync and rendering workflows
 
+The shell's `useWorkspaceComposition` binds runtime-validated per-vault leaf
+references to two dock groups. It restores references without activating owners,
+commits navigation only after owner approval and preserves mounted source/feature
+owners while their tabs are hidden or moved. Nested dialogs block hiding their
+owner. A per-leaf lifecycle registry scopes close decisions, while deferred vault
+guards reveal dirty editors sequentially. The writing editor stays singular;
+side Markdown leaves are read-only snapshots with explicit guarded navigation.
+The module manager registers the canonical runtime manifest, rechecks current
+plugin policy on launch, and applies authority changes before storing preferences.
+
 Standalone source files use `commands/source_files.rs` and the source editor,
 with an explicit text-format allowlist, bounded UTF-8 reads, content-hash saves,
 strict creation and immutable recovery. They do not enter Markdown prose

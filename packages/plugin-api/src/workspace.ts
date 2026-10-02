@@ -1,5 +1,5 @@
 import type { CommandPermission } from '@scriptor/core/contracts/command'
-import type { PluginRuntimePolicy } from '@scriptor/core/contracts/plugin'
+import type { PluginManifest, PluginRuntimePolicy } from '@scriptor/core/contracts/plugin'
 
 import type { PluginWorkspaceRoute, PluginWorkspaceSection, PluginWorkspaceAction, PluginWorkspaceDefinition } from '@scriptor/core/contracts/plugin-workspace'
 export type { PluginWorkspaceRoute, PluginWorkspaceSection, PluginWorkspaceAction, PluginWorkspaceDefinition } from '@scriptor/core/contracts/plugin-workspace'
@@ -95,9 +95,23 @@ export function authorizeWorkspaceAction(view: PluginWorkspaceDefinition, action
 }
 
 export const runtimeConsoleWorkspace: PluginWorkspaceDefinition = {
-  version: 1, pluginId: 'scriptor.runtime-console', id: 'runtime-console', title: 'Runtime console',
-  description: 'Run one bounded code chunk with explicit native authorization. Each run starts a fresh process.',
-  sections: [{ id: 'execution-policy', kind: 'text', text: 'Execution uses the desktop process broker with timeout and output limits. Variables do not persist between runs.' }],
+  version: 1, pluginId: 'scriptor.runtime-console', id: 'runtime-console', title: 'Runtime workspace overview',
+  description: 'Run bounded code chunks with explicit native authorization. Python supports a reviewed persistent session.',
+  sections: [{ id: 'execution-policy', kind: 'text', text: 'Execution uses the desktop process broker with timeout and output limits. Python variables persist within the current vault session; other languages use fresh processes. Every cell requires source-bound authorization.' }],
   actions: [{ id: 'return-to-editor', label: 'Return to writing', kind: 'navigate', route: { kind: 'workspace', workspace: 'editor' } }],
   commands: [],
+}
+
+export const runtimeConsoleManifest: PluginManifest = {
+  id: runtimeConsoleWorkspace.pluginId,
+  capabilityId: 'scriptor.runtime-console',
+  name: runtimeConsoleWorkspace.title,
+  version: '1.0.0',
+  apiVersion: '1.0.0',
+  publisher: 'Scriptor Team',
+  description: runtimeConsoleWorkspace.description,
+  activation: ['manual'],
+  capabilities: ['workspace'],
+  permissions: [{ permission: 'read', reason: 'View runtime workspace in the reviewed vault' }],
+  contributes: { workspaces: [runtimeConsoleWorkspace] },
 }

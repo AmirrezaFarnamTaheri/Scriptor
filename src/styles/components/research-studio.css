@@ -6,6 +6,8 @@
 .embedded-panel-shell > header > div { flex: 1; min-width: 0; }
 .embedded-panel-shell h2 { margin: 0; font-size: 1rem; }
 .embedded-panel-body { min-height: 0; flex: 1; overflow: auto; padding: 12px; }
+.asset-deck-split:not(.has-reader) .embedded-panel-shell { border:0; border-radius:0; }
+.asset-deck-split:not(.has-reader) .embedded-panel-body { padding:0; }
 .embedded-panel-body .reader-webview-container { min-height: 400px; }
 @media (max-width: 800px) { .asset-deck-split.has-reader { grid-template-columns: 1fr; } }
 @media (max-width: 600px) {
@@ -17,8 +19,18 @@
 .research-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 12px; }
 .research-controls label, .research-source { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .research-controls input, .research-controls select, .research-source textarea { color: var(--ink); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+.research-controls input:not([type='checkbox']), .research-controls select { min-inline-size: 0; max-inline-size: 100%; box-sizing: border-box; }
+.research-controls input:not([type='checkbox']) { inline-size: 100%; }
+.research-studio label.research-toggle { display: flex; flex-direction: row; align-items: center; gap: 8px; min-block-size: 44px; cursor: pointer; }
+.research-studio .research-toggle input[type='checkbox'] { flex: 0 0 20px; inline-size: 20px; block-size: 20px; min-inline-size: 20px; min-block-size: 20px; padding: 0; margin: 0; accent-color: var(--primary); }
+.research-toggle > span { min-inline-size: 0; overflow-wrap: normal; word-break: normal; }
+.research-render > button,.research-studio .research-controls > button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; color: var(--ink); background: var(--surface-raised); }
+.research-render > button:disabled,.research-studio .research-controls > button:disabled { opacity: .6; cursor: not-allowed; }
+.research-render > button:focus-visible,.research-studio .research-controls > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.research-studio > .unified-panel-body > label { display:flex; flex-direction:column; gap:6px; }
+.research-studio > .unified-panel-body > label > textarea { width:100%; box-sizing:border-box; min-height:80px; resize:vertical; padding:8px; color:var(--ink); background:var(--bg); border:1px solid var(--border); border-radius:6px; }
 .research-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
-.research-source textarea { min-height: 300px; resize: vertical; font-family: monospace; line-height: 1.6; }
+.research-source textarea { min-height: 300px; resize: vertical; font-family: monospace; line-height: 1.6; direction: ltr; text-align: start; }
 .research-render { min-width: 0; }
 .research-preview-scroll { overflow: auto; max-height: 55vh; border: 1px solid var(--border); padding: 12px; }
 .diagram-viewport { direction: ltr; cursor: grab; min-height: 180px; }

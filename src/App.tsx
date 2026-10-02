@@ -1,8 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, Suspense } from 'react'
-import { ReviewFeatureWorkspaces } from './components/app/ReviewFeatureWorkspaces'
-import { SourceFileWorkspace } from './components/app/SourceFileWorkspace'
-import { useSourceFileWorkspace } from './hooks/useSourceFileWorkspace'
-import { useReviewFeatureWorkspaces } from './hooks/useReviewFeatureWorkspaces'
+import { WorkspaceLeafDock } from './components/shell/WorkspaceLeafDock'
+import { useWorkspaceComposition } from './hooks/useWorkspaceComposition'
 import { createPluginWorkspaceHandlers } from './lib/pluginWorkspaceHandlers'
 import type { PluginRuntimePolicy } from '@scriptor/plugin-api'
 import { usePaletteNoteNavigation } from './hooks/usePaletteNoteNavigation'
@@ -325,8 +323,10 @@ function App() {
     hibernateWatcher,
     hibernateGit,
   })
-  const reviewFeatures = useReviewFeatureWorkspaces(nativeReady && Boolean(workspace.vault), plugins.contributions.workspaces)
-  const sourceFiles = useSourceFileWorkspace(workspace.vault?.id ?? null)
+  const composition = useWorkspaceComposition(workspace, plugins, nativeReady)
+  const { openNote } = composition
+  const reviewFeatures = useMemo(() => ({ commands: composition.commands, close: () => {} }), [composition.commands])
+  const sourceFiles = useMemo(() => ({ open: composition.openSource, commands: composition.sourceCommands }), [composition.openSource, composition.sourceCommands])
   const deleteNoteController = useDeleteNoteController({
     enabled: nativeReady,
     closeTab: workspace.closeTab,
@@ -379,7 +379,6 @@ function App() {
     commitFiles,
     pullRemote,
     pushRemote,
-    openNote,
     rebuildIndex,
     generateLinkReferences,
     createNoteFromWikilink,
@@ -392,7 +391,6 @@ function App() {
     openVaultAt,
     refreshVaultConfig,
     openNoteAt,
-    closeTab,
     updateDraft,
     reloadActiveNoteFromDisk,
     jumpToOutlineHeading,
@@ -808,7 +806,7 @@ function App() {
   }, [deleteNoteController, nativeReady, workspace.activePath])
 
   const pluginWorkspaceHandlers = createPluginWorkspaceHandlers({ commands: pluginCommandEntries, canExecute: canExecutePluginCommand, runtime: pluginCommandRuntime, activePath: workspace.activePath,
-    close: reviewFeatures.close, openNote: workspace.openNote, openGraph: () => setGraphOpen(true), openCanvas: () => setCanvasOpen(true),
+    close: reviewFeatures.close, openNote: composition.openNote, openGraph: () => setGraphOpen(true), openCanvas: () => setCanvasOpen(true),
     openKnowledge: () => openKnowledgeWorkbench('discover'), openTasks: () => setTasksOpen(true), openExport: () => setPublishCenterOpen(true),
     openRuntime: () => reviewFeatures.commands.find(command => command.id === 'open-runtime-console')?.run() })
 
@@ -1050,7 +1048,7 @@ function App() {
     createDailyNote: workspace.createDailyNote,
     createDailyNoteForOffset: workspace.createDailyNoteForOffset,
     organizeNote: workspace.organizeNote,
-    openNote: workspace.openNote,
+    openNote: composition.openNote,
     openReaderDocument: handleOpenReaderDocument,
     openSourceFile: sourceFiles.open,
     refreshVault: workspace.refreshVault,
@@ -1137,7 +1135,7 @@ function App() {
   }, [setSettingsOpen, setSupportOpen])
 
   const handleOpenNoteTab = useCallback((path: string) => void openNote(path), [openNote])
-  const handleCloseNoteTab = useCallback((path: string) => closeTab(path), [closeTab])
+  const handleCloseNoteTab = useCallback((path: string) => composition.closeNote(path), [composition])
   const handleUpdateDraft = useCallback(
     (markdown: string) => {
       journey.markFirstEdit()
@@ -1455,6 +1453,7 @@ function App() {
           onDoubleClick={vaultResizer.onHandleDoubleClick}
         />
 
+        <WorkspaceLeafDock composition={composition} workspace={workspace} plugins={plugins} onOpenAsset={handleOpenReaderDocument} {...pluginWorkspaceHandlers}>
         <EditorWorkspace
           activePath={workspace.activePath}
           onOpenVault={handleChooseVault}
@@ -1551,6 +1550,7 @@ function App() {
           editorSurfaceMode={chrome.editorSurfaceMode}
           onEditorSurfaceModeChange={setEditorSurfaceMode}
         />
+        </WorkspaceLeafDock>
 
         <WorkspacePanelResizer
           collapsed={chrome.inspectorCollapsed}
@@ -1713,10 +1713,6 @@ function App() {
         promptText={promptText}
       />
 
-      <ReviewFeatureWorkspaces active={reviewFeatures.active} workspace={workspace} onClose={reviewFeatures.close} onOpenAsset={handleOpenReaderDocument}
-        pluginWorkspace={reviewFeatures.pluginWorkspace} pluginPolicy={reviewFeatures.pluginWorkspace ? plugins.pluginPolicies[reviewFeatures.pluginWorkspace.pluginId] ?? null : null}
-        {...pluginWorkspaceHandlers} />
-      <SourceFileWorkspace selection={sourceFiles.selection} onClose={sourceFiles.close} onSaved={workspace.refreshVault} latexConfig={workspace.vaultConfig?.latex} />
       {commandPalette.open ? (
         <CommandPalette
           onClose={handleCloseCommandPalette}
@@ -1801,6 +1797,7 @@ function App() {
         obsidianImportOpen={obsidianImportOpen}
         pluginManagerOpen={pluginManagerOpen}
         pluginManagerScope={pluginManagerScope}
+        {...composition.managerProps}
         templates={workspace.templatePaths}
         onCloseTemplatePicker={() => setTemplatePickerOpen(false)}
         onCloseObsidianImport={() => setObsidianImportOpen(false)}

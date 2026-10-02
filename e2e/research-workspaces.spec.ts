@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { launchApp, openCommandPalette, runCommand } from './helpers'
+import { closeWorkspacePanel, workspacePanelCloseButton, launchApp, openCommandPalette, runCommand } from './helpers'
 async function openResearch(page:Page,command:string){await page.addInitScript(()=>sessionStorage.setItem('e2e:research','1'));await launchApp(page);await openCommandPalette(page);await runCommand(page,command)}
 async function calls(page:Page,command:string){return page.evaluate(cmd=>(JSON.parse(sessionStorage.getItem('e2e:research-calls')??'[]') as Array<{cmd:string;payload:Record<string,unknown>}>).filter(row=>row.cmd===cmd),command)}
 
 test('database edit preserves the displayed revision after an external source change', async ({ page }) => {
   await openResearch(page, 'Database studio')
-  const panel = page.getByRole('dialog', { name: 'Database Studio', exact: true })
+  const panel = page.getByRole('region', { name: 'Database Studio', exact: true })
   await panel.getByRole('button', { name: 'Load notes', exact: true }).click()
   await panel.getByRole('button', { name: 'Edit Score in Research Plan.md', exact: true }).click()
   await panel.getByLabel('Score', { exact: true }).fill('24')
@@ -32,7 +32,7 @@ test('changing a Zotero key clears the previous library preview and cursor', asy
 test('stopping initial database preset loading offers a successful reload', async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem('e2e:delay-db-preset', '1'))
   await openResearch(page, 'Database studio')
-  const panel = page.getByRole('dialog', { name: 'Database Studio', exact: true })
+  const panel = page.getByRole('region', { name: 'Database Studio', exact: true })
   await panel.getByRole('button', { name: 'Stop waiting', exact: true }).click()
   await expect(panel.getByRole('button', { name: 'Save view', exact: true })).toBeDisabled()
   const reload = panel.getByRole('button', { name: 'Reload saved views', exact: true })
@@ -44,7 +44,7 @@ test('stopping initial database preset loading offers a successful reload', asyn
 
 test('database metadata filters, inline YAML edits and vault saved views work together',async({page})=>{
   await openResearch(page,'Database studio')
-  const panel=page.getByRole('dialog',{name:'Database Studio',exact:true})
+  const panel=page.getByRole('region',{name:'Database Studio',exact:true})
   await panel.getByRole('button',{name:'Add filter',exact:true}).click()
   await panel.getByRole('combobox',{name:'Filter field',exact:true}).selectOption('metadata')
   await panel.getByLabel('YAML field',{exact:true}).fill('status')
@@ -60,7 +60,7 @@ test('database metadata filters, inline YAML edits and vault saved views work to
   await panel.getByRole('button',{name:'Save view',exact:true}).click()
   await expect(panel.getByRole('status')).toContainText('Saved view in this vault.')
   const saves=await calls(page,'vault_save_asset');expect(saves).toHaveLength(1);expect(saves[0].payload.requireMissing).toBe(true)
-  await panel.getByRole('button',{name:'Close database studio',exact:true}).click()
+  await closeWorkspacePanel(page, panel)
   await openCommandPalette(page);await runCommand(page,'Database studio')
   await expect(page.getByRole('combobox',{name:'Saved view',exact:true}).locator('option')).toHaveCount(2)
 })
@@ -68,7 +68,7 @@ test('database metadata filters, inline YAML edits and vault saved views work to
 test('malformed database presets block save and remain intact',async({page})=>{
   await page.addInitScript(()=>sessionStorage.setItem('e2e:corrupt-db-preset','1'))
   await openResearch(page,'Database studio')
-  const panel=page.getByRole('dialog',{name:'Database Studio',exact:true})
+  const panel=page.getByRole('region',{name:'Database Studio',exact:true})
   await expect(panel.getByRole('alert')).toContainText('Saving is blocked')
   await expect(panel.getByRole('button',{name:'Save view',exact:true})).toBeDisabled()
   await panel.getByRole('button',{name:'Reload saved views',exact:true}).click()
@@ -78,7 +78,7 @@ test('malformed database presets block save and remain intact',async({page})=>{
 
 test('database layouts preserve calculated values and scoped aggregate evidence',async({page})=>{
   await openResearch(page,'Database studio')
-  const panel=page.getByRole('dialog',{name:'Database Studio',exact:true})
+  const panel=page.getByRole('region',{name:'Database Studio',exact:true})
   await panel.getByRole('button',{name:'Add column',exact:true}).click()
   const column=panel.locator('.database-builder-row').last()
   await column.getByRole('textbox',{name:'Field',exact:true}).fill('double_score')
@@ -99,7 +99,7 @@ test('database layouts preserve calculated values and scoped aggregate evidence'
 
 test('capture extraction is explicit and reviewed metadata saves a new scoped note',async({page})=>{
   await openResearch(page,'Capture reviewer')
-  const panel=page.getByRole('dialog',{name:'Capture reviewer',exact:true})
+  const panel=page.getByRole('region',{name:'Capture reviewer',exact:true})
   expect(await calls(page,'capture_extract_preview')).toHaveLength(0)
   await panel.getByLabel('Article URL',{exact:true}).fill('https://example.org/article')
   await panel.getByRole('button',{name:'Extract preview',exact:true}).click()
@@ -174,7 +174,7 @@ test('capture extraction failures remain actionable without writing a note',asyn
   await openResearch(page,'Capture reviewer')
   await page.getByLabel('Article URL',{exact:true}).fill('https://example.org/article')
   await page.getByRole('button',{name:'Extract preview',exact:true}).click()
-  await expect(page.getByRole('dialog',{name:'Capture reviewer',exact:true}).getByRole('alert')).toContainText('Article extraction unavailable')
+  await expect(page.getByRole('region',{name:'Capture reviewer',exact:true}).getByRole('alert')).toContainText('Article extraction unavailable')
   await expect(page.getByRole('button',{name:'Extract preview',exact:true})).toBeEnabled()
   expect(await calls(page,'vault_save_asset')).toHaveLength(0)
 })
@@ -186,7 +186,7 @@ test('research panels fit narrow viewports and remain reachable at 200 percent z
   await expect(page.getByRole('textbox',{name:'Reviewed Markdown',exact:true})).toBeVisible()
   for(const width of [1440,1024,768,375,320]){
     await page.setViewportSize({width,height:900})
-    const panel=page.getByRole('dialog',{name:'Capture reviewer',exact:true})
+    const panel=page.getByRole('region',{name:'Capture reviewer',exact:true})
     expect(await panel.evaluate(element=>getComputedStyle(element).backgroundColor)).not.toMatch(/rgba\([^)]*,\s*0(?:\.|\))/)
     const geometry=await panel.evaluate(element=>({left:element.getBoundingClientRect().left,right:element.getBoundingClientRect().right,scrollWidth:element.scrollWidth,clientWidth:element.clientWidth}))
     expect(geometry.left).toBeGreaterThanOrEqual(0);expect(geometry.right).toBeLessThanOrEqual(width);expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth+1)
@@ -195,25 +195,26 @@ test('research panels fit narrow viewports and remain reachable at 200 percent z
     if(width===1440||width===320)await panel.screenshot({path:testInfo.outputPath(`capture-${width}.png`)})
   }
   await page.setViewportSize({width:768,height:900});await page.locator('html').evaluate(element=>element.style.zoom='2')
-  await page.getByRole('button',{name:'Close capture reviewer',exact:true}).scrollIntoViewIfNeeded()
-  await page.getByRole('button',{name:'Close capture reviewer',exact:true}).click()
-  await expect(page.getByRole('dialog',{name:'Capture reviewer',exact:true})).toHaveCount(0)
+  const capturePanel = page.getByRole('region',{name:'Capture reviewer',exact:true})
+  await (await workspacePanelCloseButton(page, capturePanel)).scrollIntoViewIfNeeded()
+  await closeWorkspacePanel(page, capturePanel)
+  await expect(page.getByRole('region',{name:'Capture reviewer',exact:true})).toHaveCount(0)
   await page.locator('html').evaluate(element=>element.style.zoom='1')
   for(const surface of [{command:'Database studio',name:'Database Studio',close:'Close database studio'},{command:'Browse bibliography',name:'Bibliography',close:'Close bibliography'}]){
     await openCommandPalette(page);await runCommand(page,surface.command)
-    const panel=page.getByRole('dialog',{name:surface.name,exact:true})
+    const panel=page.getByRole(surface.name === 'Bibliography' ? 'dialog' : 'region',{name:surface.name,exact:true})
     expect(await panel.evaluate(element=>getComputedStyle(element).backgroundColor)).not.toMatch(/rgba\([^)]*,\s*0(?:\.|\))/)
     for(const width of [1440,1024,768,375,320]){
       await page.setViewportSize({width,height:900})
       const geometry=await panel.evaluate(element=>({left:element.getBoundingClientRect().left,right:element.getBoundingClientRect().right,scrollWidth:element.scrollWidth,clientWidth:element.clientWidth}))
       expect(geometry.left).toBeGreaterThanOrEqual(0);expect(geometry.right).toBeLessThanOrEqual(width);expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth+1)
-      await panel.getByRole('button',{name:surface.close,exact:true}).scrollIntoViewIfNeeded()
-      await expect(panel.getByRole('button',{name:surface.close,exact:true})).toBeInViewport()
+      await (await workspacePanelCloseButton(page, panel)).scrollIntoViewIfNeeded()
+      await expect((await workspacePanelCloseButton(page, panel))).toBeInViewport()
       if(width===1440||width===320)await panel.screenshot({path:testInfo.outputPath(`${surface.name.toLowerCase().replace(/ /g,'-')}-${width}.png`)})
     }
     await page.setViewportSize({width:768,height:900});await page.locator('html').evaluate(element=>element.style.zoom='2')
-    await panel.getByRole('button',{name:surface.close,exact:true}).scrollIntoViewIfNeeded()
-    await panel.getByRole('button',{name:surface.close,exact:true}).click()
+    await (await workspacePanelCloseButton(page, panel)).scrollIntoViewIfNeeded()
+    await (await workspacePanelCloseButton(page, panel)).click()
     await expect(panel).toHaveCount(0)
     await page.locator('html').evaluate(element=>element.style.zoom='1')
   }

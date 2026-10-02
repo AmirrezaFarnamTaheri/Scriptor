@@ -42,6 +42,14 @@ The [2026-10-02 checkpoint](docs/validation/REVIEW-CHECKPOINT-2026-10-02.md) rec
 
 ## Additional scope confirmed on 2026-10-02
 
+## Current completion status
+
+The historical initial table is superseded by the implementation reports. Research workflows, health repairs, revision/vocabulary analytics, source editing, persistent Python, Drive/Docs hosting, Overleaf exchange, Graphviz and offline PDF are implemented with the scoped evidence recorded in the integration report. Workspace leaves, docking, persisted tab references, activity navigation and permission-aware module-manager launches are now implemented; see `docs/validation/WORKSPACE-COMPOSITION-2026-10-02.md`.
+
+Remaining acceptance concerns live provider accounts, device and packaged desktop behavior, full release/stress/optional-backend gates, broader new-feature localization and product-wide accessibility evidence. The single mutable Markdown editor, transient unsaved drafts, independent media transport and first-party plugin boundaries remain explicit limitations. No signed public marketplace, arbitrary plugin HTML or live deployment is claimed.
+
+### Additional format and synchronization scope
+
 - Google Docs as a Markdown sync host alongside Drive: immutable encoded revision records preserve authored Markdown bytes, with integrity checks, mapped folders, bounded consented polling and reviewed conflict resolution. Optional rich Docs translation remains a separate lossy workflow. Media attachments require their own transport and must not be implied by Markdown record synchronization.
 - Overleaf synchronization through a supported authenticated transport, reviewed pull/push operations, recoverable conflicts, and explicit project mapping. The local boilerplate contains Overleaf implementations and must be reassessed before selecting an adapter. Provider availability and live-account verification are disclosed separately from implementation.
 - Standalone LaTeX and source-code editing (including Python), Markdown with executable code chunks, and Markdown with local media. Preserve the native file extension and bytes; source files must not be rewritten as Markdown notes or indexed as prose. Use file-specific editor modes and keep all execution explicitly authorized.

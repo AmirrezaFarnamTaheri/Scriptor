@@ -3,6 +3,7 @@ import { vaultListViewNotes, vaultReadNote, vaultSaveNote, vaultSaveAsset, vault
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import type { NoteDocument } from '../types/vault'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useWorkspaceEmbeddedPanel } from '../context/WorkspacePanelContext'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { defaultDatabaseView, validateDatabaseView, databaseFilterJson, scalarFields, calculateValue, aggregateColumn, DATABASE_ROW_LIMIT, isMissingDatabasePreset, matchesMetadataFilters } from '../lib/databaseStudio'
 import type { DatabaseView, DatabaseColumn, CellValue } from '../lib/databaseStudio'
@@ -16,6 +17,8 @@ export interface DatabaseRow { note: NoteDocument; values: Record<string, CellVa
 
 /** Local-first view authoring and scalar YAML editing. Calculations never execute source code. */
 export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, embedded = false, runSourceNoteMutation }: Props) {
+  const workspaceEmbedded = useWorkspaceEmbeddedPanel()
+  const inline = workspaceEmbedded || embedded
   const [view, setView] = useState<DatabaseView>(defaultDatabaseView)
   const [savedViews, setSavedViews] = useState<DatabaseView[]>([])
   const [rows, setRows] = useState<DatabaseRow[]>([])
@@ -31,8 +34,8 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
   const presetState = useRef<'loading'|'missing'|'ready'|'failed'>('loading')
   const dialogRef = useRef<HTMLDivElement>(null)
   const native = vaultOpen && !!vaultId && isNativeBridgeAvailable()
-  useEscapeToClose(!embedded, onClose)
-  useFocusTrap(dialogRef, { active: !embedded })
+  useEscapeToClose(!inline, onClose)
+  useFocusTrap(dialogRef, { active: !inline })
 
   useEffect(() => {
     const request = ++generation.current
@@ -132,7 +135,7 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
   const values = useMemo(() => rows.map((row) => loadedColumns.map((column) => column.formula ? calculateValue(column.formula, row.values) : row.values[column.key] ?? null)), [rows, loadedColumns])
   const aggregates = useMemo(() => loadedColumns.map((_, index) => aggregateColumn(values.map((row) => row[index]))), [loadedColumns, values])
   const body = <>
-    <header className="database-studio-header"><h2>Database Studio</h2><button type="button" onClick={onClose}>{embedded ? 'Back to saved views' : 'Close database studio'}</button></header>
+    <header className="database-studio-header" data-workspace-header-only={workspaceEmbedded ? 'true' : undefined}><h2>Database Studio</h2>{!workspaceEmbedded && <button type="button" onClick={onClose}>{embedded ? 'Back to saved views' : 'Close database studio'}</button>}</header>
     <div className="database-studio-body">
       <label>Saved view<select value="" onChange={(event) => { const selected = savedViews.find((item) => item.id === event.target.value); if (selected) { setView(selected); setStatus('View selected. Load notes to apply it.') } }}><option value="">Select a view</option>{savedViews.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
       <DatabaseStudioBuilder view={view} onChange={setView} busy={busy} />
@@ -143,6 +146,6 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
       {rows.length ? <details><summary>Aggregates for loaded rows</summary><dl>{loadedColumns.map((column,index) => <div key={column.key}><dt>{column.label}</dt><dd>Numeric count {aggregates[index].count}; sum {aggregates[index].sum ?? '—'}; average {aggregates[index].average ?? '—'}; min {aggregates[index].min ?? '—'}; max {aggregates[index].max ?? '—'}</dd></div>)}</dl></details> : null}
     </div>
   </>
-  if (embedded) return <section className="database-studio" aria-label="Database Studio" data-help-topic="saved-views">{body}</section>
+  if (inline) return <section className="database-studio" aria-label="Database Studio" data-help-topic="saved-views">{body}</section>
   return <div className="modal-backdrop"><div ref={dialogRef} className="modal-card database-studio" role="dialog" aria-modal="true" aria-label="Database Studio" data-help-topic="saved-views">{body}</div></div>
 }

@@ -3,6 +3,9 @@ import { sourceFileCreate, sourceFileRead, sourceFileSave } from '../bridge/comm
 import { SOURCE_FILE_LIMIT, sourceLanguage, type SourceDocument } from '../lib/sourceFile'
 import { useLatexCompiler, type LatexCompilerConfig } from '../hooks/useLatexCompiler'
 import { OverleafPanel } from './OverleafPanel'
+import { useWorkspaceLeafCloseGuard, useWorkspaceLeafReveal } from '../context/WorkspaceLeafLifecycle'
+import { useWorkspaceEmbeddedPanel } from '../context/WorkspacePanelContext'
+import type { VaultSwitchDetail } from '../lib/vaultSwitchGuard'
 import '../styles/components/source-file-editor.css'
 
 interface Props {
@@ -15,6 +18,7 @@ interface Props {
 }
 type Pending = { path?: string | null; close?: boolean; reload?: boolean; resolve?: (value: boolean) => void }
 export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, latexConfig, onCompileTex }: Props) {
+  const workspaceEmbedded = useWorkspaceEmbeddedPanel()
   const [document, setDocument] = useState<SourceDocument | null>(null)
   const [draft, setDraft] = useState('')
   const [filePath, setFilePath] = useState(path ?? 'main.tex')
@@ -31,12 +35,25 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
   const compiling = compiler.activeJob !== null
   const navigationBusy = busy || compiling || overleafOpen
   const current = useRef({ dirty, busy: navigationBusy, pending, overleafOpen })
+  const ownerApprovedClose = useRef(false)
+  const reveal = useWorkspaceLeafReveal()
   useLayoutEffect(() => { current.current = { dirty, busy: navigationBusy, pending, overleafOpen } }, [dirty, navigationBusy, pending, overleafOpen])
   const replacePending = useCallback((next: Pending) => {
     current.current.pending?.resolve?.(false)
     current.current.pending = next
     setPending(next)
   }, [])
+  const guardClose = useCallback(async (): Promise<boolean> => {
+    if (ownerApprovedClose.current) { ownerApprovedClose.current = false; return true }
+    if (current.current.busy || current.current.pending) {
+      reveal()
+      return false
+    }
+    if (!current.current.dirty) return true
+    reveal()
+    return new Promise<boolean>(resolve => replacePending({ resolve }))
+  }, [replacePending, reveal])
+  useWorkspaceLeafCloseGuard(guardClose)
   useEffect(() => {
     if (pending && !navigationBusy) decisionRef.current?.querySelector<HTMLButtonElement>('button:last-child')?.focus()
   }, [pending, navigationBusy])
@@ -67,16 +84,14 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
     }
     const changeVault = (event: Event) => {
       if (!current.current.dirty && !current.current.busy) return
-      const detail = (event as CustomEvent<{ waitUntil: (promise: Promise<boolean>) => void }>).detail
+      const detail = (event as CustomEvent<VaultSwitchDetail>).detail
       if (!detail?.waitUntil) return
-      if (current.current.overleafOpen) { detail.waitUntil(Promise.resolve(false)); return }
-      if (current.current.pending) { detail.waitUntil(Promise.resolve(false)); return }
-      detail.waitUntil(new Promise<boolean>(resolve => replacePending({ resolve })))
+      detail.waitUntil(guardClose)
     }
     window.addEventListener('beforeunload', unload)
     window.addEventListener('scriptor:vault-change-starting', changeVault)
     return () => { window.removeEventListener('beforeunload', unload); window.removeEventListener('scriptor:vault-change-starting', changeVault) }
-  }, [replacePending])
+  }, [guardClose])
   const save = async (): Promise<boolean> => {
     if (busy || compiling || !sourceLanguage(filePath)) return false
     const epoch = generation.current
@@ -93,13 +108,20 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
   const finishPending = async (decision: 'save' | 'discard' | 'cancel') => {
     const next = current.current.pending
     if (!next || current.current.busy) return
-    if (decision === 'save' && !(await save())) return
+    if (decision === 'save' && !(await save())) {
+      if (next.resolve && current.current.pending === next) {
+        current.current.pending = null
+        setPending(null)
+        next.resolve(false)
+      }
+      return
+    }
     if (current.current.pending !== next) return
     current.current.pending = null
     setPending(null)
     if (decision === 'cancel') { next.resolve?.(false); return }
     next.resolve?.(true)
-    if (next.close) onClose()
+    if (next.close) { ownerApprovedClose.current = true; onClose() }
     else if ('path' in next) void load(next.path ?? null)
     else if (next.reload && document) void load(document.path)
   }
@@ -118,7 +140,7 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
   const lineEnding = document?.content.includes('\r\n') ? '\r\n' : '\n'
   const lastJob = compiler.jobs[0]
   return <section className="source-file-editor" aria-label="Source file editor" data-help-topic="editor">
-    <header><div><h2>Source files</h2><p>Edit LaTeX, code, and text files in your vault.</p></div><button type="button" disabled={Boolean(pending) || overleafOpen} onClick={requestClose}>Close editor</button></header>
+    <header data-workspace-header-only={workspaceEmbedded ? 'true' : undefined}><div><h2>Source files</h2><p>Edit LaTeX, code, and text files in your vault.</p></div>{!workspaceEmbedded && <button type="button" disabled={Boolean(pending) || overleafOpen} onClick={requestClose}>Close editor</button>}</header>
     <div className="source-file-toolbar" inert={Boolean(pending) || overleafOpen}>
       <label>File path<input value={filePath} disabled={Boolean(document) || busy || compiling} onChange={event => { setFilePath(event.target.value); setCompileConfirmed(false) }} placeholder="research/main.tex" /></label>
       <button type="button" disabled={busy || compiling || !sourceLanguage(filePath)} onClick={() => { if (dirty) replacePending({ path: filePath }); else void load(filePath) }}>Open file</button>
@@ -129,7 +151,7 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
     {error && <p role="alert">{error}</p>}
     {status && <p role="status">{status}</p>}
     <label className="source-file-content">File content<textarea aria-label="Source file content" value={draft} disabled={busy || compiling || Boolean(pending) || overleafOpen} spellCheck={false} autoCapitalize="off" autoCorrect="off" wrap="off" dir="ltr" onChange={event => { setDraft(event.target.value.replace(/\r?\n/g, lineEnding)); setCompileConfirmed(false); setStatus('') }} onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); void save() } }} /></label>
-    {document?.language === 'latex' && <fieldset disabled={busy || compiling || dirty || Boolean(pending) || overleafOpen}><legend>Compile saved LaTeX</legend><p>Tectonic runs on the saved file. It may download missing TeX packages.</p><label><input type="checkbox" checked={compileConfirmed} onChange={event => setCompileConfirmed(event.target.checked)} /> I reviewed the saved source and want to compile it.</label><button type="button" disabled={!compileConfirmed} onClick={() => { void compile() }}>Compile PDF</button></fieldset>}
+    {document?.language === 'latex' && <fieldset disabled={busy || compiling || dirty || Boolean(pending) || overleafOpen}><legend>Compile saved LaTeX</legend><p>Tectonic runs on the saved file. It may download missing TeX packages.</p><label><input type="checkbox" checked={compileConfirmed} onChange={event => setCompileConfirmed(event.target.checked)} /><span>I reviewed the saved source and want to compile it.</span></label><button type="button" disabled={!compileConfirmed} onClick={() => { void compile() }}>Compile PDF</button></fieldset>}
     {compiling && <button type="button" onClick={compiler.cancelJob}>Cancel compilation</button>}
     {lastJob && <div aria-live="polite"><p>Compilation: {lastJob.status}{lastJob.outputPath ? ` · ${lastJob.outputPath}` : ''}</p>{lastJob.stderr && <pre>{lastJob.stderr}</pre>}</div>}
     {document && /\.(tex|ltx|bib)$/i.test(document.path) && <button type="button" disabled={dirty || busy || compiling || Boolean(pending) || overleafOpen} onClick={() => setOverleafOpen(true)}>Open Overleaf sync</button>}

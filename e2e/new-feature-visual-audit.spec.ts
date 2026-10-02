@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { launchApp, openCommandPalette, runCommand } from './helpers'
+import { closeWorkspacePanel, workspacePanelCloseButton, launchApp, openCommandPalette, runCommand } from './helpers'
 
 test('new review workspaces expose usable geometry, focus and cancellation controls', async ({ page }, testInfo) => {
   await page.addInitScript(() => {
@@ -18,17 +18,18 @@ test('new review workspaces expose usable geometry, focus and cancellation contr
   ]) {
     await openCommandPalette(page)
     await runCommand(page, surface.command)
-    const panel = page.getByRole('dialog', { name: surface.name, exact: true })
+    const modal = surface.name === 'Bibliography'
+    const panel = surface.name === 'Asset deck' ? page.locator('.asset-deck-workspace[role="region"]') : page.getByRole(modal ? 'dialog' : 'region', { name: surface.name, exact: true })
     await expect(panel).toBeVisible()
     if (surface.command === 'Drive collaboration') {
       const summary = panel.locator('summary').last()
-      const close = panel.getByRole('button', { name: 'Close Drive collaboration', exact: true })
-      await summary.focus(); await page.keyboard.press('Tab'); await expect(close).toBeFocused()
+      await summary.focus(); await page.keyboard.press('Tab'); await expect(summary).not.toBeFocused()
+      expect(await page.evaluate(() => Boolean(document.activeElement?.getClientRects().length))).toBe(true)
       await page.keyboard.press('Shift+Tab'); await expect(summary).toBeFocused()
     }
     for (const direction of ['ltr', 'rtl']) {
       await page.locator('html').evaluate((element, value) => element.setAttribute('dir', value), direction)
-      for (const width of [1440, 768, 375, 320]) {
+      for (const width of [1440, 1024, 768, 375, 320]) {
         await page.setViewportSize({ width, height: 900 })
         const geometry = await panel.evaluate(element => {
           const box = element.getBoundingClientRect()
@@ -43,8 +44,21 @@ test('new review workspaces expose usable geometry, focus and cancellation contr
         expect(geometry.right).toBeLessThanOrEqual(width + 1)
         await testInfo.attach(`${surface.name}-${direction}-${width}`, { body: JSON.stringify(geometry, null, 2), contentType: 'application/json' })
         expect.soft(geometry.overflow, `${surface.name} ${direction} ${width}`).toBeLessThanOrEqual(1)
+        if (surface.name === 'Asset deck') {
+          const cohesion = await panel.locator('label:has(input[type="checkbox"])').evaluate(label => {
+            const input = label.querySelector('input')!.getBoundingClientRect()
+            const text = label.querySelector('span')!.getBoundingClientRect()
+            const bounds = label.getBoundingClientRect()
+            return {centerDifference:Math.abs(input.top + input.height / 2 - text.top - text.height / 2),gap:Math.max(input.left-text.right,text.left-input.right),inputWidth:input.width,labelHeight:bounds.height}
+          })
+          expect(cohesion.centerDifference, `Asset checkbox label alignment ${direction} ${width}`).toBeLessThanOrEqual(2)
+          expect(cohesion.gap).toBeGreaterThanOrEqual(0)
+          expect(cohesion.gap).toBeLessThanOrEqual(12)
+          expect(cohesion.inputWidth).toBeLessThanOrEqual(24)
+          expect(cohesion.labelHeight).toBeGreaterThanOrEqual(44)
+        }
         if (surface.name === 'Asset deck' && width <= 375) {
-          const closeTarget = geometry.controls.find(control => control.label === 'Close Asset deck')
+          const closeTarget = await (await workspacePanelCloseButton(page, panel)).boundingBox()
           expect(closeTarget?.width).toBeGreaterThanOrEqual(43.9)
           expect(closeTarget?.height).toBeGreaterThanOrEqual(43.9)
           for (const button of await panel.locator('.embedded-panel-shell > header button').all()) {
@@ -60,7 +74,7 @@ test('new review workspaces expose usable geometry, focus and cancellation contr
         const beforeFocus = await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 350))
         await page.keyboard.press('Tab')
         const afterFocus = await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 350))
-        expect.soft(await panel.evaluate(element => element.contains(document.activeElement)), `${surface.name} ${direction} ${width} Tab: ${beforeFocus} -> ${afterFocus}`).toBe(true)
+        expect.soft(await panel.evaluate((element, modal) => modal ? element.contains(document.activeElement) : Boolean(document.activeElement?.getClientRects().length), modal), `${surface.name} ${direction} ${width} Tab: ${beforeFocus} -> ${afterFocus}`).toBe(true)
         const close = panel.getByRole('button', { name: new RegExp('^Close', 'i') }).first()
         if (await close.count()) {
           await close.hover()
@@ -76,7 +90,8 @@ test('new review workspaces expose usable geometry, focus and cancellation contr
     }
     await page.setViewportSize({ width: 768, height: 900 })
     await page.locator('html').evaluate(element => { element.style.zoom = '2' })
-    await page.keyboard.press('Escape')
+    if (modal) await page.keyboard.press('Escape')
+    else await closeWorkspacePanel(page, panel)
     await expect(panel).toHaveCount(0)
     await page.locator('html').evaluate(element => { element.style.zoom = '1'; element.dir = 'ltr' })
     await page.setViewportSize({ width: 1440, height: 900 })

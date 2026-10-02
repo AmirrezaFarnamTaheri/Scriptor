@@ -6,6 +6,11 @@
 
 Scriptor is a local-first Markdown workspace for serious writing and research. It combines writing, evidence management, citations, graph navigation, Git-aware revision, reproducible publishing, and permissioned automation while keeping Markdown files authoritative on disk.
 
+Experimental workspace leaves organize source editors, reviewed tools and
+permissioned plugin workspaces into main and side groups with saved tab references.
+Markdown has one mutable writing editor, with separate side previews. Restoring
+layouts does not execute work or restore unsaved drafts.
+
 ## Operating context
 
 - The Tauri desktop application is the primary product surface.

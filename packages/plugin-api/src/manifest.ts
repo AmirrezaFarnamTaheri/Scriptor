@@ -115,6 +115,7 @@ export function validatePluginManifest(manifest: PluginManifest): ManifestValida
       errors.push('workspace contributions must be a bounded array')
     } else {
       if (!capabilities.includes('workspace')) errors.push('workspace contributions require workspace capability')
+      if (manifest.contributes.workspaces.length && !permissions.some(entry => entry.permission === 'read')) errors.push('workspace contributions require declared read permission')
       const ids = new Set<string>()
       for (const input of manifest.contributes.workspaces) {
         try {

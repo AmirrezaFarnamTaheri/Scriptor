@@ -43,7 +43,7 @@ async function openRuntime(page: Page, deferred = false) {
     }
   })
   await openCommandPalette(page); await runCommand(page, 'Runtime console')
-  const panel = page.getByRole('dialog', { name: 'Runtime console', exact: true })
+  const panel = page.getByRole('region', { name: 'Runtime console', exact: true })
   await panel.getByRole('combobox', { name: 'Execution mode', exact: true }).selectOption('persistent')
   await panel.getByLabel('Session environment', { exact: true }).fill('PROJECT=research')
   const start = panel.getByRole('button', { name: 'Review permission and start kernel', exact: true })
@@ -77,7 +77,7 @@ test('failed cancellation during startup blocks switching and keeps ownership fo
   await page.evaluate(() => {
     sessionStorage.setItem('e2e:runtime-stop-fail', '1')
     const waits: Promise<unknown>[] = []
-    window.dispatchEvent(new CustomEvent('scriptor:vault-change-starting', { detail: { waitUntil: (promise: Promise<unknown>) => waits.push(promise) } }))
+    window.dispatchEvent(new CustomEvent('scriptor:vault-change-starting', { detail: { waitUntil: (wait: Promise<unknown> | (() => Promise<unknown>)) => waits.push(typeof wait === 'function' ? wait() : wait) } }))
     void Promise.all(waits).then(result => sessionStorage.setItem('e2e:runtime-vault-result', JSON.stringify(result)))
     ;(window as Window & { releaseRuntimeStart?: () => void }).releaseRuntimeStart?.()
   })
@@ -103,7 +103,7 @@ test('vault changes wait for kernel shutdown and pending shutdown errors remain 
   const panel = await openRuntime(page)
   await page.evaluate(() => {
     const waits: Promise<unknown>[] = []
-    window.dispatchEvent(new CustomEvent('scriptor:vault-change-starting', { detail: { waitUntil: (promise: Promise<unknown>) => waits.push(promise) } }))
+    window.dispatchEvent(new CustomEvent('scriptor:vault-change-starting', { detail: { waitUntil: (wait: Promise<unknown> | (() => Promise<unknown>)) => waits.push(typeof wait === 'function' ? wait() : wait) } }))
     void Promise.all(waits).then(result => sessionStorage.setItem('e2e:runtime-vault-result', JSON.stringify(result)))
   })
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('e2e:runtime-vault-result'))).toBe('[true]')

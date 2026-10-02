@@ -1,7 +1,21 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
 export const E2E_SEARCH_MARKER = 'e2e-workspace-marker'
+
+/** Close an owned workspace through its tab; standalone dialogs own their close. */
+export async function workspacePanelCloseButton(page: Page, panel: Locator) {
+  const group = await panel.evaluate(element => {
+    const owner = element.closest('.workspace-leaf-content')
+    return owner ? (owner.classList.contains('secondary') ? 'secondary' : 'primary') : null
+  })
+  return group
+    ? page.locator(`.workspace-group-heading.${group} .workspace-leaf-actions > button`).last()
+    : panel.getByRole('button', { name: /^Close/i }).first()
+}
+export async function closeWorkspacePanel(page: Page, panel: Locator) {
+  await (await workspacePanelCloseButton(page, panel)).click()
+}
 
 // The production workspace-chrome store is versioned. Seed the same envelope
 // shape in E2E so tests exercise their requested preferences instead of having

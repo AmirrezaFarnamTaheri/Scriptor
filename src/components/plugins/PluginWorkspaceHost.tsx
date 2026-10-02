@@ -17,6 +17,8 @@ export interface PluginWorkspaceHostProps {
   onNavigate: (route: PluginWorkspaceRoute) => void | Promise<void>
   onCommand: (commandId: string) => Promise<void>
   labels?: PluginWorkspaceLabels
+  /** The owning workspace shell already renders this title. */
+  hideTitle?: boolean
 }
 
 export function PluginWorkspaceHost(props: PluginWorkspaceHostProps) {
@@ -34,7 +36,7 @@ export function PluginWorkspaceHost(props: PluginWorkspaceHostProps) {
   return <WorkspaceContent key={`${result.view.pluginId}:${result.view.id}:${props.vaultId}`} {...props} view={result.view} labels={labels} />
 }
 
-function WorkspaceContent({ view, policy, vaultId, onNavigate, onCommand, labels }: PluginWorkspaceHostProps & { view: PluginWorkspaceDefinition; labels: PluginWorkspaceLabels }) {
+function WorkspaceContent({ view, policy, vaultId, onNavigate, onCommand, labels, hideTitle = false }: PluginWorkspaceHostProps & { view: PluginWorkspaceDefinition; labels: PluginWorkspaceLabels }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [completed, setCompleted] = useState(false)
@@ -68,8 +70,8 @@ function WorkspaceContent({ view, policy, vaultId, onNavigate, onCommand, labels
     if (action.kind === 'navigate') await onNavigate(action.route)
     else await onCommand(action.commandId)
   }
-  return <section className="plugin-workspace" aria-label={view.title} aria-busy={pending}>
-    <header><h2>{view.title}</h2><p>{view.description}</p></header>
+  return <section className="plugin-workspace" role="group" aria-label={view.title} aria-busy={pending}>
+    {hideTitle ? <p className="plugin-workspace-description">{view.description}</p> : <header><h2>{view.title}</h2><p>{view.description}</p></header>}
     {!view.sections.length && <p>{labels.empty}</p>}
     {view.sections.map(section => <div key={section.id} className="plugin-workspace-section">
       {section.kind === 'text' && <p className="plugin-workspace-text">{section.text}</p>}

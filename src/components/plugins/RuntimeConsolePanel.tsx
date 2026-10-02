@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { runtimeConsoleWorkspace, type PluginRuntimePolicy } from '@scriptor/plugin-api'
+import { useEffect, useRef, useState } from 'react'
 import { codeChunkRun } from '../../bridge/commands'
 import { UnifiedPanelShell } from '../chrome/UnifiedPanelShell'
-import { PluginWorkspaceHost } from './PluginWorkspaceHost'
 import { parseRuntimeConsoleResult, validateRuntimeConsoleInput, type RuntimeConsoleResult } from './runtime-console'
 import { parseRuntimeEnvironment } from './runtime-kernel'
 import { useRuntimeKernel } from '../../hooks/useRuntimeKernel'
+import { useWorkspaceLeafCloseGuard, useWorkspaceLeafReveal } from '../../context/WorkspaceLeafLifecycle'
+import type { VaultSwitchDetail } from '../../lib/vaultSwitchGuard'
 import '../../styles/components/runtime-console.css'
+import './plugin-workspace.css'
 
 export interface RuntimeConsolePanelProps { vaultId: string; onClose(): void }
 export function RuntimeConsolePanel({ vaultId, onClose }: RuntimeConsolePanelProps) {
-  const policy = useMemo<PluginRuntimePolicy>(() => ({ pluginId: runtimeConsoleWorkspace.pluginId, enabled: true,
-    grantedPermissions: ['read'], allowedVaultIds: [vaultId], networkAccess: 'blocked', allowlistedHosts: [] }), [vaultId])
   const [language, setLanguage] = useState('python')
   const [code, setCode] = useState('print("Hello from Scriptor")')
   const [result, setResult] = useState<RuntimeConsoleResult | null>(null)
@@ -23,13 +22,26 @@ export function RuntimeConsolePanel({ vaultId, onClose }: RuntimeConsolePanelPro
   const kernel = useRuntimeKernel(vaultId)
   const executing = useRef(false)
   const generation = useRef(0)
+  const reveal = useWorkspaceLeafReveal()
+  useWorkspaceLeafCloseGuard(async () => {
+    if (!executing.current) return true
+    reveal()
+    setError('Wait for this fresh process to finish before closing. It has a 30-second time limit.')
+    return false
+  })
   useEffect(() => {
     const preventSwitch = (event: Event) => {
-      if (executing.current) (event as CustomEvent<{ waitUntil: (promise: Promise<boolean>) => void }>).detail?.waitUntil(Promise.resolve(false))
+      if (executing.current) {
+        ;(event as CustomEvent<VaultSwitchDetail>).detail?.waitUntil(async () => {
+          if (!executing.current) return true
+          reveal()
+          return false
+        })
+      }
     }
     window.addEventListener('scriptor:vault-change-starting', preventSwitch)
     return () => { generation.current += 1; window.removeEventListener('scriptor:vault-change-starting', preventSwitch) }
-  }, [])
+  }, [reveal])
   async function execute() {
     if (executing.current) return
     executing.current = true; setBusy(true); setError(''); setResult(null)
@@ -56,15 +68,14 @@ export function RuntimeConsolePanel({ vaultId, onClose }: RuntimeConsolePanelPro
   }
   return <UnifiedPanelShell title="Runtime console" ariaLabel="Runtime console" modalAriaLabel="Runtime console" helpTopic="code-chunks" onClose={() => { void close() }} wide>
     <div className="plugin-workspace runtime-console">
-      {mode === 'fresh' && <PluginWorkspaceHost definition={runtimeConsoleWorkspace} policy={policy} vaultId={vaultId} onNavigate={() => { void close() }} onCommand={async () => { throw new Error('No plugin command is registered in this first-party console') }} />}
       <p>Desktop execution must be enabled. Every start and run asks for native permission. Cells have a 30-second time limit and bounded output.</p>
       <label>Execution mode<select value={mode} disabled={busy || kernel.busy} onChange={event => { void switchMode(event.target.value as 'fresh' | 'persistent') }}><option value="fresh">Fresh process</option><option value="persistent">Persistent Python session</option></select></label>
       {mode === 'fresh' && <><p>Each fresh run starts a new process; variables do not carry over.</p><label>Language<select value={language} disabled={busy} onChange={event => setLanguage(event.target.value)}>
         <option value="python">Python</option><option value="javascript">JavaScript (Node)</option><option value="powershell">PowerShell</option><option value="bash">Shell</option>
       </select></label></>}
       {mode === 'persistent' && <><p>One Python process retains variables between cells for up to 15 minutes. Stop or restart clears its namespace and private artifacts. Network access follows the native execution policy.</p>
-        <label>Session environment<textarea rows={3} value={environment} disabled={kernel.busy || Boolean(kernel.session)} placeholder="PROJECT=research" onChange={event => { setEnvironment(event.target.value); setEnvironmentReviewed(false) }} spellCheck={false} dir="ltr" /></label>
-        {!kernel.session && <><label><input type="checkbox" checked={environmentReviewed} disabled={kernel.busy} onChange={event => setEnvironmentReviewed(event.target.checked)} /> I reviewed the Python session and its environment.</label><button type="button" disabled={kernel.busy || !environmentReviewed} onClick={() => { void startKernel() }}>Review permission and start kernel</button></>}
+        <label>Session environment<textarea className="runtime-environment" rows={3} value={environment} disabled={kernel.busy || Boolean(kernel.session)} placeholder="PROJECT=research" onChange={event => { setEnvironment(event.target.value); setEnvironmentReviewed(false) }} spellCheck={false} dir="ltr" /></label>
+        {!kernel.session && <><label><input type="checkbox" checked={environmentReviewed} disabled={kernel.busy} onChange={event => setEnvironmentReviewed(event.target.checked)} /><span>I reviewed the Python session and its environment.</span></label><button type="button" disabled={kernel.busy || !environmentReviewed} onClick={() => { void startKernel() }}>Review permission and start kernel</button></>}
         {kernel.session && <p>Python {kernel.session.python_version} · {kernel.live?.session.remaining_seconds ?? kernel.session.remaining_seconds}s remaining · Interpreter: {kernel.session.executable}</p>}
         <p role="status">{kernel.status}</p>
       </>}

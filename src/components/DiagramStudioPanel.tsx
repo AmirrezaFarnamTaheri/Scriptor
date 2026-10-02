@@ -52,12 +52,12 @@ export function DiagramStudioPanel({ onClose, onSave, initialSource = 'flowchart
       <div className="research-source"><label htmlFor={sourceId}>Diagram source</label><textarea id={sourceId} value={source} maxLength={65_536} spellCheck={false} disabled={busy} onChange={(event) => { setSource(event.target.value); setStatus('') }} /></div>
       <section className="research-render" aria-label="Live diagram preview">
         <button type="button" disabled={busy || !!document.error} onClick={() => setRendered({ language, source })}>Render diagram</button>
-        <label><input type="checkbox" checked={livePreview} disabled={language === 'plantuml'} onChange={event => setLivePreview(event.target.checked)} />Refresh local preview as I type</label>
+        <label className="research-toggle"><input type="checkbox" checked={livePreview} disabled={language === 'plantuml'} onChange={event => setLivePreview(event.target.checked)} /><span>Refresh local preview as I type</span></label>
         {(rendered.language !== language || rendered.source !== source) && <p role="status">Source changed. Render to refresh the preview.</p>}
         {document.error ? <p role="alert">{document.error}</p> : <DiagramViewport><MarkdownPreview markdown={preview} renderPlantUmlLocal={renderPlantUmlLocal} /></DiagramViewport>}
       </section>
     </div>
-    <label>Related notes (one vault-relative .md path per line)<textarea value={noteLinks} maxLength={8192} disabled={busy} onChange={event => setNoteLinks(event.target.value)} /></label>
+    <label>Related notes (one vault-relative .md path per line)<textarea dir="ltr" value={noteLinks} maxLength={8192} disabled={busy} onChange={event => setNoteLinks(event.target.value)} /></label>
     {!document.error && onOpenNote && <ul>{[...new Set(paths)].map(path => <li key={path}><button onClick={() => onOpenNote(path)}><bdi>{path}</bdi></button></li>)}</ul>}
     {status && <p role="status">{status}</p>}
     <details><summary>Graphviz licenses and source</summary><pre className="diagram-notices">{GRAPHVIZ_NOTICES}</pre></details>

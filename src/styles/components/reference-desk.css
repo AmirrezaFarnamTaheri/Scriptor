@@ -6,7 +6,7 @@
 .reference-desk label {display:grid;gap:4px;min-width:0;}
 .reference-desk input {min-width:0;max-width:100%;padding:8px;background:var(--bg);color:var(--ink);border:1px solid var(--border);}
 .reference-desk button {min-height:44px;padding:8px 12px;color:var(--ink);background:var(--surface-raised);border:1px solid var(--border);}
-.reference-desk :focus-visible {outline:2px solid var(--focus-ring);outline-offset:2px;}
+.reference-desk :focus-visible {outline:2px solid var(--accent);outline-offset:2px;}
 .reference-desk p,.reference-desk li {overflow-wrap:anywhere;}
 .reference-desk pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto;}
 .reference-import-review {display:grid;gap:12px;border-block:1px solid var(--border);padding-block:12px;}

@@ -3,7 +3,8 @@
 .collaboration-panel input, .collaboration-panel textarea, .collaboration-panel select { width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; padding: 8px; background: var(--bg); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; }
 .collaboration-panel label:has(input[type="checkbox"]) { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
 .collaboration-panel input[type="checkbox"] { width: 20px; height: 20px; min-height: 20px; padding: 0; flex: 0 0 20px; }
-.collaboration-panel :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.collaboration-panel input:not([type='checkbox']) { direction:ltr; text-align:start; }
+.collaboration-panel :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .collaboration-panel summary { min-height: 44px; display: list-item; cursor: pointer; padding-block: 10px; box-sizing: border-box; }
 .collaboration-panel textarea { font-family: var(--font-mono); resize: vertical; }
 .collaboration-actions { display: flex; flex-wrap: wrap; gap: 8px; }

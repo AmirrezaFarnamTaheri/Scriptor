@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { runtimeKernelRun, runtimeKernelStart, runtimeKernelStatus, runtimeKernelStop } from '../bridge/commands/runtime_kernel'
 import type { KernelResult, KernelSession, KernelStatus } from '../components/plugins/runtime-kernel'
+import { useWorkspaceLeafCloseGuard, useWorkspaceLeafReveal } from '../context/WorkspaceLeafLifecycle'
+import type { VaultSwitchDetail } from '../lib/vaultSwitchGuard'
 
 export function useRuntimeKernel(vaultId: string) {
   const [session, setSession] = useState<KernelSession | null>(null)
@@ -16,6 +18,7 @@ export function useRuntimeKernel(vaultId: string) {
   const epoch = useRef(0)
   const stopping = useRef<Promise<boolean> | null>(null)
   const pending = useRef<Promise<void> | null>(null)
+  const reveal = useWorkspaceLeafReveal()
   const stop = useCallback((): Promise<boolean> => {
     if (stopping.current) return stopping.current
     const origin = sessionRef.current
@@ -37,6 +40,11 @@ export function useRuntimeKernel(vaultId: string) {
     void operation.finally(() => { if (stopping.current === operation) stopping.current = null })
     return operation
   }, [])
+  useWorkspaceLeafCloseGuard(async () => {
+    const approved = await stop()
+    if (!approved) reveal()
+    return approved
+  })
   const start = useCallback(async (environment: Record<string, string>) => {
     if (busyRef.current || sessionRef.current) return
     busyRef.current = true; setBusy(true); setError(''); setStatus('Starting Python kernel…')
@@ -81,12 +89,12 @@ export function useRuntimeKernel(vaultId: string) {
     mounted.current = true
     const changeVault = (event: Event) => {
       if (!sessionRef.current && !busyRef.current) return
-      const detail = (event as CustomEvent<{ waitUntil: (promise: Promise<boolean>) => void }>).detail
-      detail?.waitUntil(stop())
+      const detail = (event as CustomEvent<VaultSwitchDetail>).detail
+      detail?.waitUntil(() => stop().then(approved => { if (!approved) reveal(); return approved }))
     }
     window.addEventListener('scriptor:vault-change-starting', changeVault)
     return () => { window.removeEventListener('scriptor:vault-change-starting', changeVault); mounted.current = false; void stop() }
-  }, [stop])
+  }, [stop, reveal])
   useEffect(() => {
     if (!session) return
     let disposed = false, polling = false

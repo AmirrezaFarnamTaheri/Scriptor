@@ -6,7 +6,7 @@
 .database-studio label { display:grid; gap:4px; min-width:0; }
 .database-studio input,.database-studio select { width:100%; min-width:0; background:var(--bg); color:var(--ink); border:1px solid var(--border); padding:8px; }
 .database-studio button { min-height:44px; color:var(--ink); background:var(--surface-raised); border:1px solid var(--border); padding:8px 12px; }
-.database-studio :focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
+.database-studio :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .database-table-scroll { overflow:auto; }
 .database-table-scroll table { border-collapse:collapse; width:100%; }
 .database-table-scroll th,.database-table-scroll td { padding:8px; text-align:start; border-bottom:1px solid var(--border); }
