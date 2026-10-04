@@ -250,7 +250,6 @@ jobs:
           node scripts/validation/rustsec-exceptions.mjs
           node --test scripts/release/signing-policy.test.mjs scripts/release/fetch-github-release-asset.test.mjs scripts/validation/rustsec-exceptions.test.mjs scripts/validation/release-hardening-contracts.test.mjs
           node --experimental-strip-types --test packages/mcp/src/audit.test.ts
-          node --experimental-strip-types --test packages/export/src/diagram-render.test.ts
 
       - name: Describe fast validation scope
         shell: pwsh
@@ -259,6 +258,10 @@ jobs:
       - name: Install frozen pnpm dependency graph
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
+
+      - name: Validate diagram source and preparation regressions
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Diagram preparation regressions" -FilePath "node" -ArgumentList @("--experimental-strip-types", "--test", "packages/export/src/diagram-render.test.ts") -TimeoutSeconds 300
 
       - name: Enforce frontend source quality and module-size ratchet
         shell: pwsh

@@ -96,6 +96,12 @@ Implementation and source regressions are being integrated. Current-head hosted
 results, lane report links and any reviewed visual reference changes will be
 recorded here before a final verification claim.
 
+Hosted checks at `dc1cbc0fb` exposed two checkpoint integration errors: the
+exclusive-copy helper needed the `std::io::Read` trait import, and the new
+parser-dependent diagram tests ran before the frozen dependency installation.
+Both are corrected; diagram tests now run through a logged post-install step.
+Those failed/cancelled runs are retained as failure evidence, not runtime passes.
+
 The hosted fast unit step explicitly includes the fifteen diagram-preparation and parsing
 regressions in `packages/export/src/diagram-render.test.ts`, so they cannot be
 silently omitted by a source-library-only test list. The functional browser
