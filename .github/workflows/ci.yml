@@ -213,6 +213,8 @@ jobs:
   validate-fast:
     name: Contracts, automation, and lint
     needs: supply-chain
+    # Audit failures remain fatal to CI but must not hide regression evidence.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -353,6 +355,7 @@ jobs:
   validate-rust:
     name: Contracts, automation, lint, and Rust tests
     needs: supply-chain
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -433,6 +436,7 @@ jobs:
   validate-frontend:
     name: Frontend, accessibility, TUI, and daemon smoke
     needs: supply-chain
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -539,6 +543,7 @@ jobs:
   validate-browser:
     name: Browser E2E
     needs: supply-chain
+    if: ${{ !cancelled() }}
     runs-on: windows-2025
     timeout-minutes: 45
     env:

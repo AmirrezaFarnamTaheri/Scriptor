@@ -49,6 +49,26 @@ comparison retain their existing failure enforcement and evidence artifacts.
 The PR remains a draft until current-head results and remaining review work are
 resolved. No live service operation or release publication is authorized here.
 
+Hosted run `37191312431` reached the dependency audit and failed on maintenance
+advisories for bincode, rustybuzz, ttf-parser and yaml-rust. These are not newly
+suppressed to make CI green. Regression/build jobs execute even after an audit
+failure so evidence is available; the audit still fails the workflow and the
+release/container smoke dependency gates remain unchanged. Compatible migration
+and current upstream status require a separate dependency assessment.
+
+That assessment is recorded in `SUPPLY-CHAIN-2026-10-04.md`: the four findings
+originate in Typst PDF export dependencies; no compatible published fix was
+established. This remains an explicit dependency migration requirement, not an
+owned advisory exception or a claim that all checks passed.
+
+Hosted desktop run `37191312425` compiled all targets successfully on Windows
+and macOS for `888c67b5c4113fe2798e081f9efdf4ef9869b052`. Linux compilation
+also completed, but the job was cancelled during native regression execution
+and did not upload final Linux evidence. Cancellation is not a test pass.
+The first localization run found two architecture documents missing five
+translations each; full translations are added rather than exempting these
+maintained documents from the contract.
+
 The previous localization worker failed because it demanded translations of
 recovered forensic reports. Localization now excludes provenance evidence under
 `docs/validation/`, while maintaining checks for active product documentation.
