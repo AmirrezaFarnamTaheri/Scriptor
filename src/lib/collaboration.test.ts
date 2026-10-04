@@ -45,3 +45,37 @@ test('durable collaboration mappings validate scope and retain the exact shared 
   }
   assert.notEqual(collaborationMappingKey('vault-a', 'folder-1', 'notes/a.md'), collaborationMappingKey('vault-b', 'folder-1', 'notes/a.md'))
 })
+
+test('first shares treat authored whitespace as content rather than an empty side', () => {
+  const whitespace = ' \t\r\n'
+  for (const [local, remote] of [[whitespace, 'incoming'], ['existing', whitespace]]) {
+    const result = mergeSharedRevision('', local, remote)
+    assert.equal(result.conflict, true)
+    assert.ok(result.markdown.includes(local))
+    assert.ok(result.markdown.includes(remote))
+  }
+})
+
+test('shared text preserves BOM, line endings, combining characters and media references exactly', () => {
+  const original = '\uFEFF# فارسی\r\n\r\ne\u0301 🌱\r\n\t![image](assets/pixel.png)  \r\n'
+  const updated = original + '[audio](assets/session.ogg)\r\n'
+  assert.deepEqual(mergeSharedRevision('', original, original), { markdown: original, conflict: false })
+  assert.deepEqual(mergeSharedRevision(original, original, updated), { markdown: updated, conflict: false })
+  assert.deepEqual(mergeSharedRevision(original, updated, original), { markdown: updated, conflict: false })
+})
+
+test('independent insertions retain both additions and the authored line endings', () => {
+  assert.deepEqual(mergeSharedRevision('a\r\nb\r\n', 'a\r\nX\r\nb\r\n', 'a\r\nb\r\nY\r\n'),
+    { markdown: 'a\r\nX\r\nb\r\nY\r\n', conflict: false })
+})
+
+test('concurrent format-only edits remain conflicts rather than silently normalizing either side', () => {
+  const base = '\uFEFFa\r\nb\r\n'
+  const local = 'a\nb\n'
+  const remote = '\uFEFFa\rb\r'
+  const result = mergeSharedRevision(base, local, remote)
+  assert.equal(result.conflict, true)
+  assert.ok(result.markdown.includes(`<<<<<<< Local\n${local}\n`))
+  assert.ok(result.markdown.includes(`||||||| Shared base\n${base}\n`))
+  assert.ok(result.markdown.includes(`=======\n${remote}\n`))
+})

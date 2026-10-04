@@ -69,7 +69,7 @@ test.describe('screenshot geometry contracts', () => {
     expect(new Set(tops).size).toBe(1)
     expect(rounded(geometry.toolbarHeight)).toBeLessThanOrEqual(56)
 
-    const editorRight = await page.locator('.editor-panel').evaluate((panel) => panel.getBoundingClientRect().right)
+    const editorRight = await page.locator('.editor-panel[data-help-topic="editor"]').evaluate((panel) => panel.getBoundingClientRect().right)
     for (const group of geometry.groups) {
       expect(group.right).toBeLessThanOrEqual(editorRight + 1)
       expect(group.width).toBeGreaterThan(0)

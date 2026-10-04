@@ -251,6 +251,17 @@ fn bounded_json(response: reqwest::blocking::Response) -> Result<Value, String> 
         .map_err(|_| "Google Drive returned invalid collaboration JSON".into())
 }
 
+fn existing_revision_file(response: &Value) -> Result<Option<&Value>, String> {
+    let files = response
+        .get("files")
+        .and_then(Value::as_array)
+        .ok_or("Invalid collaboration revision duplicate check")?;
+    if files.len() > 1 {
+        return Err("Shared revision identity has multiple remote records; resolve duplicates before sharing".into());
+    }
+    Ok(files.first())
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum DriveRequest {
@@ -673,28 +684,24 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
                     .send()
                     .map_err(|error| error.to_string())?,
             )?;
-            if let Some(files) = existing.get("files").and_then(Value::as_array) {
-                if let Some(file) = files.first() {
-                    let id = file
-                        .get("id")
-                        .and_then(Value::as_str)
-                        .ok_or("invalid Drive record identity")?;
-                    validate_id(id)?;
-                    let stored = bounded_json(
-                        client
-                            .get(format!("{API}/{id}"))
-                            .bearer_auth(&token)
-                            .query(&[("alt", "media")])
-                            .send()
-                            .map_err(|error| error.to_string())?,
-                    )?;
-                    if stored != serde_json::to_value(&record).map_err(|error| error.to_string())? {
-                        return Err("shared revision identity already has different content".into());
-                    }
-                    return Ok(file.clone());
+            if let Some(file) = existing_revision_file(&existing)? {
+                let id = file
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .ok_or("invalid Drive record identity")?;
+                validate_id(id)?;
+                let stored = bounded_json(
+                    client
+                        .get(format!("{API}/{id}"))
+                        .bearer_auth(&token)
+                        .query(&[("alt", "media")])
+                        .send()
+                        .map_err(|error| error.to_string())?,
+                )?;
+                if stored != serde_json::to_value(&record).map_err(|error| error.to_string())? {
+                    return Err("shared revision identity already has different content".into());
                 }
-            } else {
-                return Err("invalid Drive duplicate check".into());
+                return Ok(file.clone());
             }
             let boundary = format!("scriptor-{}", uuid::Uuid::new_v4());
             let metadata = json!({"name": name, "mimeType": "application/json", "parents": [folder_id], "appProperties": {"scriptorCollaboration": "1"}});
@@ -869,6 +876,17 @@ pub fn collaboration_poll_stop(lease_id: String, expected_vault_id: String) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn immutable_revision_identity_rejects_ambiguous_existing_records() {
+        assert!(existing_revision_file(&json!({"files":[]})).unwrap().is_none());
+        let unique = json!({"files":[{"id":"one","name":"event.json"}]});
+        assert_eq!(
+            existing_revision_file(&unique).unwrap(),
+            unique["files"].as_array().unwrap().first()
+        );
+        assert!(existing_revision_file(&json!({"files":[{"id":"one"},{"id":"two"}]})).is_err());
+        assert!(existing_revision_file(&json!({"files":"invalid"})).is_err());
+    }
     #[test]
     fn stale_origin_is_rejected_before_collaboration_exchange() {
         assert!(validate_origin_vault("vault-a", "vault-a").is_ok());

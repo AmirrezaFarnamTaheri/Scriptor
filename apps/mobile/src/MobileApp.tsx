@@ -23,6 +23,7 @@ export function MobileApp() {
   const [confirmRestore, setConfirmRestore] = useState(false)
   const [dark, setDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
   const historyDialog = useRef<HTMLDialogElement>(null)
+  const historySequence = useRef(0)
   const licensesDialog = useRef<HTMLDialogElement>(null)
   const exporting = useRef(false)
   const [pdfResult, setPdf] = useState<{ result: PdfExport; path: string; hash: string } | null>(null)
@@ -142,9 +143,23 @@ export function MobileApp() {
       {busy && <button onClick={() => { ++sequence.current; void bridge.lifecycle(true, true).then(() => setStatus('Operation cancelled; an atomic save already in progress can finish.')) }}>Cancel operation</button>}
     </main>
     <footer role="status" aria-live="polite">{status}</footer>
-    <dialog ref={historyDialog} aria-labelledby="mobile-history-title"><h2 id="mobile-history-title">Revision history</h2><button autoFocus onClick={() => historyDialog.current?.close()}>Close</button>
+    <dialog ref={historyDialog} aria-labelledby="mobile-history-title" onClose={() => { ++historySequence.current; setSelectedRevision(''); setRevisionText(''); setConfirmRestore(false) }}><h2 id="mobile-history-title">Revision history</h2><button autoFocus onClick={() => historyDialog.current?.close()}>Close</button>
       {!revisions.length && <p>No earlier saved revisions.</p>}
-      <ul>{revisions.map(item => <li key={item.id}><button onClick={() => void run(async () => { setRevisionText(await bridge.revision(path ?? '', item.id)); setSelectedRevision(item.id); setConfirmRestore(false) })}><time>{new Date(item.saved_at).toLocaleString()}</time><small dir="auto">{item.preview}</small></button></li>)}</ul>
+      <ul>{revisions.map(item => <li key={item.id}><button disabled={busy} onClick={() => {
+        if (pending.current > 0 || !path) return
+        const current = ++historySequence.current
+        const notePath = path
+        setSelectedRevision(''); setRevisionText(''); setConfirmRestore(false)
+        void run(async () => {
+          try {
+            const text = await bridge.revision(notePath, item.id)
+            if (current !== historySequence.current || !historyDialog.current?.open) return
+            setRevisionText(text); setSelectedRevision(item.id)
+          } catch (cause) {
+            if (current === historySequence.current && historyDialog.current?.open) throw cause
+          }
+        })
+      }}><time>{new Date(item.saved_at).toLocaleString()}</time><small dir="auto">{item.preview}</small></button></li>)}</ul>
       {selectedRevision && <><pre dir="auto">{revisionText}</pre><button disabled={busy} onClick={() => {
         if (!confirmRestore) { setConfirmRestore(true); return }
         void run(async () => { if (!path) return; const metadata = await bridge.restore(path, selectedRevision, hash); setHash(metadata.content_hash); setMarkdown(revisionText); setDirty(false); setStatus('Revision restored; previous content remains in history'); historyDialog.current?.close() })

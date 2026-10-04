@@ -346,6 +346,17 @@ fn job_spec(
     spec.cancel_slot = Some(cancel);
     Ok(spec)
 }
+fn publication_process_error(
+    error: scriptor_system_bridge::BridgeError,
+    request: &PublicationJob,
+) -> String {
+    let message = error.to_string();
+    if let PublicationJob::Cloudflare { api_token, .. } = request {
+        message.replace(api_token, "[redacted]")
+    } else {
+        message
+    }
+}
 #[tauri::command]
 pub async fn publishing_build_site(
     app: tauri::AppHandle,
@@ -462,7 +473,7 @@ async fn run_publication(
             .as_ref()
             .map_or_else(|| root.clone(), |snapshot| snapshot.root.clone());
         let spec = job_spec(process_root, &request, cancel)?;
-        let result = run_process(spec).map_err(|error| error.to_string())?;
+        let result = run_process(spec).map_err(|error| publication_process_error(error, &request))?;
         if matches!(request, PublicationJob::Build) && result.exit_code == 0 && !result.timed_out {
             if source_hash != fingerprint(&root, true)? {
                 return Err(
@@ -592,6 +603,25 @@ pub async fn publishing_configure_domain(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn deployment_timeout_diagnostics_do_not_expose_api_credentials() {
+        let token = "private_test_token_123456789";
+        let request = PublicationJob::Cloudflare {
+            account_id: "a".repeat(32),
+            project: "notes".into(),
+            api_token: token.into(),
+        };
+        let error = scriptor_system_bridge::BridgeError::ProcessTimeout {
+            program: PathBuf::from("wrangler"),
+            timeout_ms: 300_000,
+            stdout: String::new(),
+            stderr: format!("request rejected using {token}"),
+        };
+        let message = publication_process_error(error, &request);
+        assert!(!message.contains(token));
+        assert!(message.contains("[redacted]"));
+        assert!(message.contains("timed out"));
+    }
     #[test]
     fn targets_reject_argument_and_path_injection() {
         assert!(validate_target(&"a".repeat(32), "notes", &"a".repeat(40)).is_ok());

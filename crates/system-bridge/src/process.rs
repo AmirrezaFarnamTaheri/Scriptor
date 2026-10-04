@@ -519,10 +519,10 @@ fn terminate_process_tree(child: &mut Child) {
     let group = format!("-{}", child.id());
     let _ = Command::new("kill").args(["-TERM", &group]).status();
     thread::sleep(TERMINATION_GRACE);
-    if child.try_wait().ok().flatten().is_none() {
-        let _ = Command::new("kill").args(["-KILL", &group]).status();
-        let _ = child.kill();
-    }
+    // Descendants can ignore TERM even when the leader exits. Keep the leader
+    // unreaped until group escalation so its identity cannot be reused here.
+    let _ = Command::new("kill").args(["-KILL", &group]).status();
+    let _ = child.kill();
 }
 
 #[cfg(windows)]
@@ -700,6 +700,45 @@ mod tests {
             run_process(spec),
             Err(BridgeError::ProcessTimeout { .. })
         ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn timeout_stops_term_ignoring_descendant_after_leader_exits() {
+        let directory = tempfile::tempdir().expect("fixture directory");
+        let ready = directory.path().join("descendant.pid");
+        let heartbeat = directory.path().join("heartbeat");
+        // The leader retains the default TERM disposition. Its descendant
+        // explicitly ignores TERM and keeps the inherited output pipes open.
+        let script = r#"sh -c 'trap "" TERM; printf "%s\n" "$$" > "$1"; n=0; while [ "$n" -lt 500 ]; do printf x >> "$2"; n=$((n + 1)); sleep 0.02; done' descendant "$1" "$2" & wait"#;
+        struct DescendantCleanup(PathBuf);
+        impl Drop for DescendantCleanup {
+            fn drop(&mut self) {
+                if let Ok(pid) = std::fs::read_to_string(&self.0)
+                    && let Ok(pid) = pid.trim().parse::<u32>()
+                {
+                    let _ = Command::new("kill").args(["-KILL", &pid.to_string()]).status();
+                }
+            }
+        }
+        let _cleanup = DescendantCleanup(ready.clone());
+        let result = run_process(
+            ProcessSpec::new("sh")
+                .args([
+                    OsStr::new("-c"),
+                    OsStr::new(script),
+                    OsStr::new("leader"),
+                    ready.as_os_str(),
+                    heartbeat.as_os_str(),
+                ])
+                .timeout(Duration::from_secs(2)),
+        );
+        assert!(matches!(result, Err(BridgeError::ProcessTimeout { .. })));
+        assert!(ready.exists(), "descendant must start before the timeout");
+        let before = std::fs::metadata(&heartbeat).expect("heartbeat").len();
+        thread::sleep(Duration::from_millis(150));
+        let after = std::fs::metadata(&heartbeat).expect("heartbeat").len();
+        assert_eq!(before, after, "descendant continued running after timeout");
     }
 
     #[test]

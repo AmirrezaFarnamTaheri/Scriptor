@@ -90,10 +90,8 @@ jobs:
 
   supply-chain:
     name: Supply-chain and lockfile audit
-    # Draft PRs are intentionally cheap. The ready_for_review event triggers one
-    # complete validation pass, and later synchronize events replace stale runs
-    # through the workflow concurrency group.
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    # Draft changes also need remote verification. Keep expensive work on hosted
+    # workers; a new PR head cancels obsolete validation through concurrency.
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -248,7 +246,8 @@ jobs:
           node scripts/validation/docs-contracts.mjs
           node scripts/validation/source-contracts.mjs
           node scripts/validation/rustsec-exceptions.mjs
-          node --test scripts/release/signing-policy.test.mjs scripts/validation/rustsec-exceptions.test.mjs scripts/validation/release-hardening-contracts.test.mjs
+          node --test scripts/release/signing-policy.test.mjs scripts/release/fetch-github-release-asset.test.mjs scripts/validation/rustsec-exceptions.test.mjs scripts/validation/release-hardening-contracts.test.mjs
+          node --experimental-strip-types --test packages/mcp/src/audit.test.ts
 
       - name: Describe fast validation scope
         shell: pwsh
@@ -578,6 +577,11 @@ jobs:
       - name: Run functional Playwright suite
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Run functional Playwright suite" -FilePath "pnpm" -ArgumentList @("test:e2e") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+
+      - name: Run mobile browser regressions
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run mobile browser regressions" -FilePath "pnpm" -ArgumentList @("--dir", "apps/mobile", "exec", "playwright", "test", "--config", "playwright.config.ts", "--reporter=line") -TimeoutSeconds 600 -HeartbeatSeconds 20
 
       - name: Capture browser validation failure context
         if: failure()

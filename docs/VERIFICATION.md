@@ -4,6 +4,17 @@ This document defines proof for the current source candidate. A release record m
 
 ## Claim vocabulary
 
+Full test/build verification for the 2026-10-04 polish checkpoint runs exclusively
+on GitHub-hosted workers, including draft PRs. No local full suites or builds are
+authorized. Interrupted local runs are not passing evidence. Current-head worker
+results supersede historical counts below. See
+`validation/FINAL-POLISH-2026-10-04.md` for the checkpoint ledger.
+
+Localization enforcement covers maintained product/contributor documentation.
+`docs/validation/` holds provenance-sensitive audit records and recovered source
+reports; these evidence artifacts are excluded from translation requirements,
+as are archived documents. This does not exempt active user guides.
+
 - **Verified:** the stated command executed against this source state and passed.
 - **Statically validated:** source or generated metadata was parsed and checked without compiling or running the full product.
 - **Reviewed:** code and contracts were inspected without executable proof.

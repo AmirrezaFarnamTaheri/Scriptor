@@ -15,7 +15,10 @@ function walk(directory) {
     const absolute = join(directory, entry)
     const rel = relative(root, absolute).replaceAll('\\', '/') 
     if (statSync(absolute).isDirectory()) {
-      if (rel === 'docs/_archived' || rel.startsWith('docs/_archived/')) continue
+      // Audit records retain original evidence and are not localized product
+      // guides. Translating recovered reports would alter their provenance.
+      if (rel === 'docs/_archived' || rel.startsWith('docs/_archived/')
+          || rel === 'docs/validation' || rel.startsWith('docs/validation/')) continue
       files.push(...walk(absolute))
       continue
     }

@@ -4,6 +4,17 @@
 
 ### Added
 
+- Add workspace accessibility audits across light/dark appearance and desktop/narrow RTL layouts, with downloadable violation details. Run full verification on hosted GitHub workers, including draft PRs.
+
+### Fixed
+
+- Preserve recovered IPC frames, reject ambiguous Drive revision identities, redact deployment credentials in timeout errors, and stop Unix descendants that ignore graceful termination.
+- Apply the selected interface font to body text and controls, repair an undefined planner color token, and guard mobile revision previews against late completion after closing history.
+- Keep release-download credentials on their original HTTPS origin and preserve existing binaries until size/digest checks and atomic promotion complete.
+- Bound MCP diagnostic history and redact retained text before truncation. Add sync content-preservation cases from the supplied multi-service archive assessment.
+
+### Added
+
 - Add bounded per-vault workspace tabs with main/side docking, ordering, saved references, guarded closure and inert restoration. Preserve source drafts and Python ownership across tab changes; integrate permission-aware plugin workspaces into the module manager and activity navigation.
 
 - Add vault-owned persistent Python sessions in Runtime console with reviewed environments, per-cell consent, live output, bounded variables/PNG plots and stop/restart. Guard pending startup ownership and require confirmed shutdown before vault changes.

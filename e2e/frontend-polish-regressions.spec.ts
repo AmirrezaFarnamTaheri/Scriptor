@@ -86,10 +86,11 @@ test.describe('Frontend polish regressions', () => {
   test('document tab arrows move focus with selection', async ({ page }) => {
     await launchApp(page)
     await page.getByRole('button', { name: 'Field Notes.md' }).click()
-    const selected = page.getByRole('tab', { name: 'Field Notes', selected: true })
+    const documentTabs = page.getByRole('group', { name: 'Editor tabs', exact: true })
+    const selected = documentTabs.getByRole('tab', { name: 'Field Notes', exact: true, selected: true })
     await selected.focus()
     await selected.press('ArrowLeft')
-    const research = page.getByRole('tab', { name: 'Research Plan', selected: true })
+    const research = documentTabs.getByRole('tab', { name: 'Research Plan', exact: true, selected: true })
     await expect(research).toBeFocused()
   })
 
@@ -276,7 +277,7 @@ test.describe('Frontend polish regressions', () => {
     await waitForWorkspace(page)
 
     const workspace = page.locator('.workspace-grid')
-    const editor = page.locator('.editor-panel')
+    const editor = page.getByRole('region', { name: 'Editor', exact: true })
     const inspector = page.locator('.inspector-panel')
     const status = page.locator('.status-strip')
     const dock = page.locator('.bottom-tabs-wrap')
@@ -366,14 +367,14 @@ test.describe('Frontend polish regressions', () => {
     await expect.poll(() => modeButtons.evaluateAll((buttons) =>
       buttons.every((button) => button.getClientRects().length === 0 || getComputedStyle(button).display === 'none'),
     )).toBe(true)
-    await expect(page.locator('.editor-panel')).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Editor', exact: true })).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeHidden()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await expect(page.locator('.monaco-editor')).toBeVisible()
     await expect.poll(() => page.locator('.monaco-editor').evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(96)
 
     await nav.getByRole('button', { name: 'Inspector' }).click()
-    await expect(page.locator('.editor-panel')).toBeHidden()
+    await expect(page.getByRole('region', { name: 'Editor', exact: true })).toBeHidden()
     await expect(page.locator('.inspector-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeInViewport()
     await expect(page.locator('#inspector-panel-inspector .outline-row').first()).toBeInViewport()
@@ -468,7 +469,7 @@ test.describe('Frontend polish regressions', () => {
     await page.evaluate(() => window.sessionStorage.setItem('e2e:kanban-move-delay', '1'))
     await settleLayout(page)
     await page.getByRole('button', { name: 'Sprint Board.md' }).click()
-    await expect(page.getByRole('tab', { name: 'Sprint Board', selected: true })).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Editor tabs', exact: true }).getByRole('tab', { name: 'Sprint Board', exact: true, selected: true })).toBeVisible()
     await openCommandPalette(page)
     await runCommand(page, OPEN_KANBAN)
 
