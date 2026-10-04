@@ -1,4 +1,5 @@
 import { memo } from 'react'
+import { X } from 'lucide-react'
 import type { TocEntry } from '@scriptor/editor'
 
 interface TocSidebarProps {
@@ -14,7 +15,7 @@ export const TocSidebar = memo(function TocSidebar({ entries, activeLine, onSele
       <header>
         <h3>Outline</h3>
         <button type="button" className="icon-button" onClick={onClose} aria-label="Close outline">
-          ×
+          <X aria-hidden="true" />
         </button>
       </header>
       {entries.length === 0 ? (

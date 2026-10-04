@@ -658,6 +658,11 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
    that does not participate in viewport media queries. */
 .app-chrome { container: workspace-chrome / inline-size; }
 .mobile-workspace-chrome { container: mobile-chrome / inline-size; }
+@container status-chrome (max-width: 1320px) {
+  .status-summary { grid-template-columns: auto auto minmax(120px, 1fr) minmax(0, auto); }
+  .status-summary .repo-state { min-width: 0; flex-wrap: nowrap; overflow: hidden; }
+  .status-summary .repo-vault { display: none; }
+}
 @container workspace-chrome (max-width: 1280px) {
   .brand-wordmark { display: none; }
   .workspace-mode-strip { flex: 0 0 132px; }

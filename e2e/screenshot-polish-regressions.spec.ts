@@ -38,6 +38,7 @@ for (const zoom of [1.25, 1.5, 2]) {
         }))
         return overlaps(groups) || groups.filter(group => group.matches('.brand, .history-controls')).some(group => overlaps([...group.children].filter(visible)))
       })).toBe(false)
+      await expect.poll(() => page.locator('.repo-state').evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
     }
   })
 }

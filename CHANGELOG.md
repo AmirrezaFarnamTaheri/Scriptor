@@ -16,6 +16,7 @@
 - Balance note-tab controls and close-button spacing, separate the health badge from its header divider, and localize first-party activity labels in German and Persian workspaces.
 - Correct history comparison column placement, prevent narrow-rail note-label overlap, preserve calendar-icon geometry, and normalize palette focus clearance, collection spacing, toolbar customization and conflict-dialog controls. Review every hosted image through per-image ledgers and strengthen loaded-PDF and held-loading evidence.
 - Keep Portal Pin attached to its checkbox, theme Portal and planner controls, separate Support/module content from dividers, and prevent header-section overlap at intermediate magnification. Normalize template close icons and retain real newlines in snippet evidence.
+- Use consistent SVG close controls in outline, text-prompt, link-rewrite and external-link dialogs, and allocate footer status space at the available width under magnification.
 - Preserve recovered IPC frames, reject ambiguous Drive revision identities, redact deployment credentials in timeout errors, and stop Unix descendants that ignore graceful termination.
 - Apply the selected interface font to body text and controls, repair an undefined planner color token, and guard mobile revision previews against late completion after closing history.
 - Keep release-download credentials on their original HTTPS origin and preserve existing binaries until size/digest checks and atomic promotion complete.
