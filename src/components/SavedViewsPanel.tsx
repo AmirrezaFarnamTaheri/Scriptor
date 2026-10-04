@@ -318,7 +318,7 @@ export const SavedViewsPanel = memo(function SavedViewsPanel({
   if (studioOpen) return <DatabaseStudioPanel key={vaultId} vaultOpen={vaultOpen} vaultId={vaultId} onClose={() => setStudioOpen(false)} onOpenNote={onOpenNote} embedded={embedded} runSourceNoteMutation={runSourceNoteMutation} />
 
   if (embedded) {
-    return <div className="knowledge-workbench-embed"><button type="button" onClick={() => setStudioOpen(true)}>Open Database Studio</button>{body}</div>
+    return <div className="knowledge-workbench-embed"><button type="button" className="toolbar-button saved-views-studio-action" onClick={() => setStudioOpen(true)}>Open Database Studio</button>{body}</div>
   }
 
   return (
@@ -341,7 +341,7 @@ export const SavedViewsPanel = memo(function SavedViewsPanel({
             <X />
           </button>
         </header>
-        <button type="button" onClick={() => setStudioOpen(true)}>Open Database Studio</button>
+        <button type="button" className="toolbar-button saved-views-studio-action" onClick={() => setStudioOpen(true)}>Open Database Studio</button>
         {body}
       </section>
     </div>

@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import { appendEditorLine, openCommandPalette, runCommand, settleLayout, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers.ts'
 
+const WRITING_EDITOR_PANEL = '.editor-panel[data-help-topic="editor"]'
+
 const RESOURCE_INVENTORY_FIXTURE = {
   generatedAtMs: 1786200000000,
   fingerprint: 'e2e-resource-inventory',
@@ -53,7 +55,7 @@ const RESOURCE_INVENTORY_FIXTURE = {
 }
 
 async function waitForEditorReady(page: Page) {
-  await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible({
+  await expect(page.locator('.workspace-writing-leaf').getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible({
     timeout: 30_000,
   })
   const editor = page.locator('.monaco-editor .view-lines')
@@ -397,7 +399,7 @@ test.describe('visual review states', () => {
     await openMobileWorkspace(page)
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav.getByRole('button', { name: 'Write' })).toHaveAttribute('aria-current', 'page')
-    await expect(page.locator('.editor-panel')).toBeInViewport()
+    await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
 
     await captureVisual(page, 'visual-mobile-editor-390.png')
   })
@@ -551,7 +553,7 @@ test.describe('visual review states', () => {
     await openVisualWorkspace(page)
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'high-contrast')
     await expectNoHorizontalOverflow(page)
-    await expect(page.locator('.editor-panel')).toBeVisible()
+    await expect(page.locator(WRITING_EDITOR_PANEL)).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeVisible()
     await captureVisual(page, 'visual-workspace-high-contrast.png')
   })
@@ -615,8 +617,13 @@ test.describe('visual review states', () => {
     const help = page.getByRole('dialog', { name: 'راهنما و آموزش', exact: true })
     await expect(help).toBeVisible()
     await expect(help).toHaveAttribute('dir', 'rtl')
-    await expect(help.getByText('متن تفصیلی راهنماها فعلاً انگلیسی است.', { exact: false })).toBeVisible()
-    await expect(help.locator('.help-topic [lang="en"][dir="ltr"]').first()).toBeVisible()
+    const heading = help.locator('.help-topic-heading')
+    await expect(heading).toHaveAttribute('lang', 'fa')
+    await expect(heading).toHaveAttribute('dir', 'rtl')
+    await expect(heading.getByRole('heading')).toHaveText(/[\u0600-\u06ff]/)
+    await expect(help.locator('.help-guide-steps')).toHaveAttribute('lang', 'fa')
+    await expect(help.locator('.help-guide-steps')).toHaveAttribute('dir', 'rtl')
+    await expect(help.locator('.help-guide-steps')).toContainText(/[\u0600-\u06ff]/)
     await expect.poll(() => help.evaluate((element) => {
       const rect = element.getBoundingClientRect()
       return rect.left >= 0
@@ -630,8 +637,8 @@ test.describe('visual review states', () => {
     await openMobileWorkspace(page, 320, 720)
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav.getByRole('button')).toHaveCount(4)
-    await expect(page.locator('.editor-panel')).toBeVisible()
-    await expect(page.locator('.editor-panel')).toBeInViewport()
+    await expect(page.locator(WRITING_EDITOR_PANEL)).toBeVisible()
+    await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-mobile-320.png')
@@ -643,7 +650,7 @@ test.describe('visual review states', () => {
     })
     await openMobileWorkspace(page)
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-    await expect(page.locator('.editor-panel')).toBeInViewport()
+    await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-mobile-dark-390.png')
   })
@@ -655,7 +662,7 @@ test.describe('visual review states', () => {
     await openMobileWorkspace(page)
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
-    await expect(page.locator('.editor-panel')).toBeInViewport()
+    await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-mobile-rtl-fa-390.png')
   })
@@ -719,7 +726,7 @@ test.describe('visual review states', () => {
     await settleLayout(page)
     await expect(page.locator('html')).toHaveAttribute('data-ui-reflow', 'stacked')
     await expectNoHorizontalOverflow(page)
-    const editor = await page.locator('.editor-panel').boundingBox()
+    const editor = await page.locator(WRITING_EDITOR_PANEL).boundingBox()
     expect(editor).not.toBeNull()
     expect(editor?.width ?? 0).toBeGreaterThan(240)
     await captureVisual(page, 'visual-workspace-ui-zoom-125.png')
@@ -753,14 +760,15 @@ test.describe('visual review states', () => {
       }
     })
     expect(modeSelectGeometry.height).toBeGreaterThanOrEqual(40)
-    expect(modeSelectGeometry.radius).toBeGreaterThanOrEqual(8)
+    // Compact high-zoom chrome uses a 6px CSS corner, magnified to 12px here.
+    expect(modeSelectGeometry.radius).toBeGreaterThanOrEqual(6)
     expect(modeSelectGeometry.background).not.toBe('rgba(0, 0, 0, 0)')
     const modeButtons = page.locator('.workspace-mode-strip .workspace-mode')
     await expect(modeButtons).toHaveCount(5)
     await expect.poll(() => modeButtons.evaluateAll((buttons) =>
       buttons.every((button) => button.getClientRects().length === 0 || getComputedStyle(button).display === 'none'),
     )).toBe(true)
-    await expect(page.locator('.editor-panel')).toBeVisible()
+    await expect(page.locator(WRITING_EDITOR_PANEL)).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeHidden()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     const [historyBox, modeBox] = await Promise.all([
@@ -776,7 +784,7 @@ test.describe('visual review states', () => {
     await captureVisual(page, 'visual-workspace-ui-zoom-200-editor.png')
 
     await nav.getByRole('button', { name: 'Inspector' }).click()
-    await expect(page.locator('.editor-panel')).toBeHidden()
+    await expect(page.locator(WRITING_EDITOR_PANEL)).toBeHidden()
     await expect(page.locator('.inspector-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeInViewport()
     await expect(page.locator('#inspector-panel-inspector .outline-row').first()).toBeInViewport()
@@ -853,7 +861,7 @@ test.describe('visual review states', () => {
       await scaledPage.goto('/', { waitUntil: 'domcontentloaded' })
       await waitForVisualWorkspace(scaledPage)
       await expectNoHorizontalOverflow(scaledPage)
-      const editor = await scaledPage.locator('.editor-panel').boundingBox()
+      const editor = await scaledPage.locator(WRITING_EDITOR_PANEL).boundingBox()
       expect(editor).not.toBeNull()
       expect(editor?.width ?? 0).toBeGreaterThan(300)
       await captureVisual(scaledPage, 'visual-workspace-device-scale-125.png')
@@ -886,6 +894,7 @@ test.describe('visual review states', () => {
     await page.setViewportSize({ width: 1024, height: 768 })
     await page.addInitScript(() => {
       window.sessionStorage.setItem('e2e:slow-vault', '1')
+      window.sessionStorage.setItem('e2e:hold-vault-open', '1')
     })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     const firstSkeletonRow = page.locator('.vault-skeleton-row').first()
@@ -909,6 +918,11 @@ test.describe('visual review states', () => {
     expect(skeletonGeometry.rowRight).toBeLessThanOrEqual(skeletonGeometry.railRight)
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-vault-loading.png')
+    await expect(firstSkeletonRow).toBeVisible()
+    await page.evaluate(() => {
+      window.sessionStorage.removeItem('e2e:hold-vault-open')
+      window.dispatchEvent(new Event('e2e:release-vault-open'))
+    })
     await waitForWorkspace(page)
     await expect(page.locator('.vault-skeleton-row')).toHaveCount(0)
   })
@@ -1306,6 +1320,16 @@ test.describe('visual review states', () => {
     const tasks = page.getByRole('dialog', { name: 'Tasks', exact: true })
     await expect(tasks).toBeVisible()
     await expect(tasks).toContainText('Collect sources')
+    const weekControl = tasks.getByLabel('Week containing', { exact: true })
+    const weekStyle = await weekControl.evaluate(element => ({
+      height: element.getBoundingClientRect().height,
+      radius: Number.parseFloat(getComputedStyle(element).borderRadius),
+      font: getComputedStyle(element).fontFamily,
+      labelFont: getComputedStyle(element.parentElement!).fontFamily,
+    }))
+    expect(weekStyle.height).toBeGreaterThanOrEqual(44)
+    expect(weekStyle.radius).toBeGreaterThan(0)
+    expect(weekStyle.font).toBe(weekStyle.labelFont)
     await settleLayout(page)
     await captureElement(page, tasks, 'visual-tasks-populated.png')
   })
@@ -1398,7 +1422,7 @@ test.describe('visual review states', () => {
   test('Kanban board evidence', async ({ page }) => {
     await openVisualWorkspace(page)
     await page.getByRole('button', { name: 'Sprint Board.md' }).click()
-    await expect(page.getByRole('tab', { name: 'Sprint Board', selected: true })).toBeVisible()
+    await expect(page.locator('.workspace-writing-leaf').getByRole('tab', { name: 'Sprint Board', selected: true })).toBeVisible()
     await openCommandPalette(page)
     await runCommand(page, 'Open kanban board')
     const board = page.getByRole('dialog', { name: 'Sprint Board', exact: true })
@@ -1415,6 +1439,20 @@ test.describe('visual review states', () => {
     const bibliography = page.getByRole('dialog', { name: 'Bibliography', exact: true })
     await expect(bibliography).toBeVisible()
     await expect(bibliography).toHaveClass(/knowledge-filters-panel/)
+    await expect.poll(() => bibliography.evaluate(element => {
+      const controls = [...element.querySelectorAll<HTMLElement>('button,input:not([type=checkbox])')]
+      const bodyFont = getComputedStyle(document.body).fontFamily
+      return controls.length > 0 && controls.every(control => {
+        const style = getComputedStyle(control)
+        return Number.parseFloat(style.borderRadius) > 0 && style.fontFamily === bodyFont
+      })
+    })).toBe(true)
+    await expect.poll(() => bibliography.locator('input[type=file]').evaluate(element => {
+      const style = getComputedStyle(element, '::file-selector-button')
+      return Number.parseFloat(style.minHeight) >= 32
+        && Number.parseFloat(style.borderRadius) > 0
+        && style.fontFamily === getComputedStyle(document.body).fontFamily
+    })).toBe(true)
     await expect.poll(() => bibliography.evaluate((element) => {
       const background = getComputedStyle(element).backgroundColor
       const rgba = background.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
@@ -1436,7 +1474,7 @@ test.describe('visual review states', () => {
     await expect(snippets.getByRole('button', { name: 'method-check', exact: true })).toBeVisible()
     await expect(snippets.getByLabel('Name', { exact: true })).toHaveValue('literature-note')
     await expect(snippets.getByLabel('Description', { exact: true })).toHaveValue('Structure a literature finding with its source.')
-    await expect(snippets.getByLabel('Content', { exact: true })).toHaveValue(/Source:/)
+    await expect(snippets.getByLabel('Content', { exact: true })).toHaveValue(/Finding}\n\nSource:/)
     await expect.poll(() => snippets.evaluate((element) => {
       const background = getComputedStyle(element).backgroundColor
       const rgba = background.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
@@ -1496,6 +1534,7 @@ test.describe('visual review states', () => {
     await expect(picker).toBeVisible()
     await expect(page.locator('.modal-backdrop').filter({ has: picker })).toBeVisible()
     await expect(picker.getByRole('option', { name: 'Blank note' })).toBeVisible()
+    await expect(picker.getByRole('button', { name: 'Close', exact: true }).locator('svg')).toHaveCount(1)
     const pickerBox = await picker.boundingBox()
     const viewportCenter = await page.evaluate(() => window.innerWidth / 2)
     expect(pickerBox).not.toBeNull()
@@ -1519,6 +1558,10 @@ test.describe('visual review states', () => {
     const support = page.getByRole('dialog', { name: 'Support Scriptor', exact: true })
     await expect(support).toBeVisible()
     await expect(support).toContainText('Licensed under AGPL-3.0-or-later.')
+    expect(await support.evaluate(element =>
+      element.querySelector('.support-panel-body')!.firstElementChild!.getBoundingClientRect().top
+      - element.querySelector('.unified-panel-header')!.getBoundingClientRect().bottom,
+    )).toBeGreaterThanOrEqual(12)
     await captureElement(page, support, 'visual-support.png')
   })
 
@@ -1529,6 +1572,13 @@ test.describe('visual review states', () => {
     const portal = page.locator('.portal-panel')
     await expect(portal).toBeVisible()
     const scrollOwner = portal.locator('.unified-panel-body')
+    const actions = portal.locator('.portal-item-actions button')
+    expect(await actions.count()).toBeGreaterThan(0)
+    for (const button of await actions.all()) {
+      const style = await button.evaluate(element => ({ height: element.getBoundingClientRect().height, radius: Number.parseFloat(getComputedStyle(element).borderRadius) }))
+      expect(style.height).toBeGreaterThanOrEqual(36)
+      expect(style.radius).toBeGreaterThan(0)
+    }
     await expect.poll(() => scrollOwner.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
     await captureElement(page, portal, 'visual-portal.png')
 
@@ -1537,6 +1587,19 @@ test.describe('visual review states', () => {
     const addItem = portal.getByRole('button', { name: 'Add item', exact: true })
     await expect(pinOption).toBeInViewport()
     await expect(addItem).toBeInViewport()
+    const pinGeometry = await portal.locator('.portal-form > .diagnostics-opt-in').evaluate(element => {
+      const checkbox = element.querySelector('input')!.getBoundingClientRect()
+      const text = element.querySelector('span')!.getBoundingClientRect()
+      const label = element.getBoundingClientRect()
+      return { height: label.height, checkboxWidth: checkbox.width, checkboxHeight: checkbox.height,
+        center: Math.abs((checkbox.top + checkbox.bottom - text.top - text.bottom) / 2),
+        gap: text.left - checkbox.right }
+    })
+    expect(pinGeometry.height).toBeGreaterThanOrEqual(44)
+    expect(pinGeometry.checkboxWidth).toBe(16)
+    expect(pinGeometry.checkboxHeight).toBe(16)
+    expect(pinGeometry.center).toBeLessThanOrEqual(1)
+    expect(pinGeometry.gap).toBeGreaterThanOrEqual(8)
     await captureElement(page, portal, 'visual-portal-form.png')
   })
 
@@ -1567,6 +1630,18 @@ test.describe('visual review states', () => {
     const todo = capture.getByRole('textbox', { name: /Todo text:/ }).first()
     await expect(todo).toBeVisible()
     await todo.fill('Review visual evidence before release')
+    await expect.poll(() => todo.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return element.getBoundingClientRect().height >= 36
+        && style.borderRadius !== '0px'
+        && style.fontFamily === getComputedStyle(document.body).fontFamily
+        && style.backgroundColor !== 'transparent'
+    })).toBe(true)
+    await todo.focus()
+    await expect.poll(() => todo.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) >= 2
+    })).toBe(true)
     await todo.evaluate((element) => {
       const input = element as HTMLInputElement
       input.blur()
@@ -1592,6 +1667,11 @@ test.describe('visual review states', () => {
     await todoRow.getByRole('button', { name: 'Mark todo complete', exact: true }).click()
     await expect(todoRow).toHaveClass(/done/)
     await expect.poll(() => todo.evaluate((element) => getComputedStyle(element).textDecorationLine)).toContain('line-through')
+    await page.setViewportSize({ width: 320, height: 900 })
+    await todo.scrollIntoViewIfNeeded()
+    await expect.poll(() => todo.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44)
+    await expect.poll(() => todoRow.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
+    await captureElement(page, capture, 'visual-quick-capture-320.png')
   })
 
   test('sticky-note overlay evidence', async ({ page }) => {
@@ -1639,6 +1719,10 @@ test.describe('visual review states', () => {
     const modules = page.getByRole('dialog', { name: 'Built-in modules', exact: true })
     await expect(modules).toBeVisible()
     await expect(modules.getByText('Installer Profile Preset:')).toBeVisible()
+    expect(await modules.evaluate(element =>
+      element.querySelector('.plugin-marketplace-link')!.getBoundingClientRect().top
+      - element.querySelector('.plugin-manager-header')!.getBoundingClientRect().bottom,
+    )).toBeGreaterThanOrEqual(12)
     await captureElement(page, modules, 'visual-built-in-modules.png')
   })
 
@@ -1824,7 +1908,7 @@ test.describe('visual review states', () => {
     await expect(publish).toBeVisible()
     await publish
       .locator('.publish-profile-list > li')
-      .filter({ hasText: 'PDF' })
+      .filter({ has: page.locator('.publish-profile-title-row > strong').filter({ hasText: /^PDF$/ }) })
       .getByRole('button', { name: 'Preview export', exact: true })
       .click()
 
@@ -1963,7 +2047,12 @@ test.describe('visual review states', () => {
     await openVisualWorkspace(page)
     await page.getByRole('button', { name: 'Research Paper.pdf' }).click()
     const reader = page.locator('.reader-panel')
-    await expect(reader.locator('iframe[title*="Research Paper.pdf"]')).toBeVisible()
+    const frame = reader.locator('iframe[title*="Research Paper.pdf"]')
+    await expect(frame).toBeVisible()
+    const viewer = frame.contentFrame()
+    await expect(viewer.locator('#loading')).toBeHidden({ timeout: 30_000 })
+    await expect(viewer.locator('#text-layer')).toContainText('Scriptor Reader', { timeout: 30_000 })
+    await expect(viewer.locator('#page-shell')).toBeVisible()
     await captureVisual(page, 'visual-reader-pdf-workspace.png')
     await reader.getByRole('button', { name: 'Close' }).click()
 

@@ -64,7 +64,7 @@ export const GitFileRow = React.memo(function GitFileRow({
           </button>
         ) : null}
         {isMarkdown && onPreviewDiff ? (
-          <button type="button" onClick={() => onPreviewDiff(file.path)}>
+          <button type="button" className="toolbar-button" onClick={() => onPreviewDiff(file.path)}>
             {t('git.previewDiff')}
           </button>
         ) : null}

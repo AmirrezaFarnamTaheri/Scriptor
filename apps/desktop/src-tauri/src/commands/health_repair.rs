@@ -381,11 +381,7 @@ fn plan(session: &VaultSession, request: RepairRequest) -> Result<RepairPlan, St
     Ok(output)
 }
 fn write_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
-        .map_err(|e| e.to_string())?;
+    let mut file = scriptor_vault::fs::create_private_file(path).map_err(|e| e.to_string())?;
     file.write_all(bytes).map_err(|e| e.to_string())?;
     file.sync_all().map_err(|e| e.to_string())?;
     sync_directory(path.parent().ok_or("Invalid durable file parent")?)
@@ -437,7 +433,7 @@ fn apply(
     let dir = recovery_dir(session, &id)?;
     fs::create_dir_all(dir.parent().ok_or("Invalid recovery parent")?)
         .map_err(|e| e.to_string())?;
-    fs::create_dir(&dir).map_err(|e| e.to_string())?;
+    scriptor_vault::fs::create_private_directory(&dir).map_err(|e| e.to_string())?;
     let receipt = RepairReceipt {
         id,
         vault_id: session.descriptor.id.clone(),
@@ -694,6 +690,46 @@ mod tests {
             original
         );
     }
+
+    #[cfg(unix)]
+    #[test]
+    fn private_asset_recovery_and_restoration_preserve_confidentiality() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let (dir, s) = session();
+        let asset = dir.path().join("private.png");
+        fs::write(&asset, b"private asset bytes").unwrap();
+        fs::set_permissions(&asset, fs::Permissions::from_mode(0o600)).unwrap();
+        let request = RepairRequest::PruneAsset {
+            path: "private.png".into(),
+        };
+        let reviewed = plan(&s, request.clone()).unwrap();
+        let receipt = apply(&s, request, &reviewed.fingerprint).unwrap();
+        let recovery = recovery_dir(&s, &receipt.id).unwrap();
+        assert_eq!(
+            fs::metadata(&recovery).unwrap().permissions().mode() & 0o077,
+            0
+        );
+        for name in ["before", "receipt.json"] {
+            assert_eq!(
+                fs::metadata(recovery.join(name))
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o077,
+                0
+            );
+        }
+        assert_eq!(
+            fs::read(recovery.join("before")).unwrap(),
+            b"private asset bytes"
+        );
+
+        restore(&s, &receipt.id, Some(&receipt)).unwrap();
+        assert_eq!(fs::read(&asset).unwrap(), b"private asset bytes");
+        assert_eq!(fs::metadata(asset).unwrap().permissions().mode() & 0o077, 0);
+    }
+
     #[test]
     fn prune_rechecks_new_references_and_restores_without_overwriting() {
         let (dir, s) = session();

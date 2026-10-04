@@ -201,6 +201,13 @@ export function installE2eBridge(): void {
     if(research.handled)return research.value
     switch (cmd) {
       case 'vault_open':
+        if (window.sessionStorage.getItem('e2e:hold-vault-open') === '1') {
+          return new Promise((resolve) => {
+            window.addEventListener('e2e:release-vault-open', () => {
+              resolve({ vault: SCREENSHOT_VAULT, scan_job_id: 'e2e-scan' })
+            }, { once: true })
+          })
+        }
         if (window.sessionStorage.getItem('e2e:slow-vault') === '1') {
           return new Promise((resolve) => {
             window.setTimeout(
@@ -328,12 +335,12 @@ export function installE2eBridge(): void {
             {
               name: 'literature-note',
               description: 'Structure a literature finding with its source.',
-              content: '## ${1:Finding}\\n\\nSource: ${2:citation}\\n\\n${3:Notes}',
+              content: '## ${1:Finding}\n\nSource: ${2:citation}\n\n${3:Notes}',
             },
             {
               name: 'method-check',
               description: 'Record a methodology check before synthesis.',
-              content: '- Method: ${1:name}\\n- Evidence: ${2:result}',
+              content: '- Method: ${1:name}\n- Evidence: ${2:result}',
             },
           ]
         }
@@ -372,6 +379,8 @@ export function installE2eBridge(): void {
         return screenshotRebuildSummary()
       case 'indexer_health_diagnostics':
         return JSON.stringify(screenshotHealthDiagnostics())
+      case 'health_repair_receipts':
+        return []
       case 'vault_health':
         return JSON.stringify(screenshotHealthDiagnostics().summary)
       case 'indexer_list_note_summaries':
@@ -448,7 +457,8 @@ export function installE2eBridge(): void {
         return [
           {
             key: 'smith2024',
-            type: 'article',
+            entry_type: window.sessionStorage.getItem('e2e:bibliography-empty-metadata') === '1' ? '' : 'article',
+            source_path: window.sessionStorage.getItem('e2e:bibliography-empty-metadata') === '1' ? '' : 'references.bib',
             title: 'Research Methods',
             author: 'Smith, Jane',
             year: '2024',

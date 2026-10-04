@@ -9,13 +9,28 @@
 
 .smart-collections-sidebar {
   display: grid;
+  align-content: start;
   gap: 8px;
+  min-width: 0;
 }
 
 .smart-collection {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  min-width: 0;
+}
+
+.smart-collection-select {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.smart-collection > .icon-button {
+  flex: none;
 }
 
 .smart-collection.active button:first-child {
@@ -28,12 +43,27 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
   margin-bottom: 8px;
 }
 
 .smart-collection-query {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   font-size: 12px;
   padding: 4px 8px;
   border-radius: 6px;
   background: var(--surface-2);
+}
+
+.smart-collections-main {
+  min-width: 0;
+}
+
+@container unified-panel (max-width: 540px) {
+  .smart-collections-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

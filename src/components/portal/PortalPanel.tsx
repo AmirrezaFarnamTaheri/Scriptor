@@ -144,7 +144,7 @@ export const PortalPanel = memo(function PortalPanel({
                       {item.shortcut ? <small>{formatShortcutLabel(item.shortcut)}</small> : null}
                     </div>
                   </div>
-                  <button type="button" onClick={() => void invokeItem(item)} title="Invoke pinned item">
+                  <button type="button" className="icon-button" onClick={() => void invokeItem(item)} title="Invoke pinned item">
                     <ClipboardCopy size={14} />
                   </button>
                 </li>
@@ -175,13 +175,13 @@ export const PortalPanel = memo(function PortalPanel({
                   </p>
                 </div>
                 <div className="portal-item-actions">
-                  <button type="button" onClick={() => void invokeItem(item)} title="Invoke">
+                  <button type="button" className="icon-button" onClick={() => void invokeItem(item)} title="Invoke">
                     <ClipboardCopy size={14} />
                   </button>
-                  <button type="button" onClick={() => setDraft(item)} title="Edit">
+                  <button type="button" className="toolbar-button" onClick={() => setDraft(item)} title="Edit">
                     Edit
                   </button>
-                  <button type="button" onClick={() => onDeleteItem(item.id)} title="Delete">
+                  <button type="button" className="icon-button" onClick={() => onDeleteItem(item.id)} title="Delete">
                     <Trash2 size={14} />
                   </button>
                 </div>

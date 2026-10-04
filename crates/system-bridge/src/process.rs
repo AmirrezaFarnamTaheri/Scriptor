@@ -717,7 +717,9 @@ mod tests {
                 if let Ok(pid) = std::fs::read_to_string(&self.0)
                     && let Ok(pid) = pid.trim().parse::<u32>()
                 {
-                    let _ = Command::new("kill").args(["-KILL", &pid.to_string()]).status();
+                    let _ = Command::new("kill")
+                        .args(["-KILL", &pid.to_string()])
+                        .status();
                 }
             }
         }

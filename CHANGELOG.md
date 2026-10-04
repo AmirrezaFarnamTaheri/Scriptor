@@ -8,6 +8,14 @@
 
 ### Fixed
 
+- Bind exports and publication plans to their originating vault, serialize competing export profiles, preserve successful exports after auxiliary refresh failures, and keep dry-run diagram previews free of asset writes.
+- Respect enclosing Markdown fences and preserve list/blockquote containers during diagram export, stop on preparation failures, encode generated image destinations, and omit separator-only bibliography metadata rows.
+- Protect source, repair and Python-session recovery content with private Unix storage; refuse linked vault lock storage, ambiguous or incomplete Drive identity searches, and resource-copy destinations containing existing data.
+- Reject URL-shaped local reader paths consistently across platforms, retain recoverable backup state after interrupted rollback, and use the daemon's actual identity for headless export jobs.
+- Reflow asset, diagram and capture content at the available pane width; theme repair and quick-capture inputs and retain attached checkbox text. Expand worker regression coverage for narrow panes and delayed workflow ownership.
+- Balance note-tab controls and close-button spacing, separate the health badge from its header divider, and localize first-party activity labels in German and Persian workspaces.
+- Correct history comparison column placement, prevent narrow-rail note-label overlap, preserve calendar-icon geometry, and normalize palette focus clearance, collection spacing, toolbar customization and conflict-dialog controls. Review every hosted image through per-image ledgers and strengthen loaded-PDF and held-loading evidence.
+- Keep Portal Pin attached to its checkbox, theme Portal and planner controls, separate Support/module content from dividers, and prevent header-section overlap at intermediate magnification. Normalize template close icons and retain real newlines in snippet evidence.
 - Preserve recovered IPC frames, reject ambiguous Drive revision identities, redact deployment credentials in timeout errors, and stop Unix descendants that ignore graceful termination.
 - Apply the selected interface font to body text and controls, repair an undefined planner color token, and guard mobile revision previews against late completion after closing history.
 - Keep release-download credentials on their original HTTPS origin and preserve existing binaries until size/digest checks and atomic promotion complete.

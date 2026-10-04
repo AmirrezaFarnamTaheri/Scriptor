@@ -229,13 +229,14 @@ fn confined_directory(root: &Path, id: &str) -> Result<PathBuf, String> {
             Ok(meta) if meta.is_dir() && !meta.file_type().is_symlink() => {}
             Ok(_) => return Err("Invalid runtime directory".into()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                fs::create_dir(&directory).map_err(|e| e.to_string())?
+                scriptor_vault::fs::create_private_directory(&directory)
+                    .map_err(|e| e.to_string())?;
             }
             Err(e) => return Err(e.to_string()),
         }
     }
     directory.push(id);
-    fs::create_dir(&directory).map_err(|e| e.to_string())?;
+    scriptor_vault::fs::create_private_directory(&directory).map_err(|e| e.to_string())?;
     Ok(directory)
 }
 fn cleanup(kernel: &Kernel) {
@@ -629,6 +630,24 @@ pub async fn runtime_kernel_stop(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
+    #[test]
+    fn runtime_mailbox_is_private_before_sensitive_cell_files_are_written() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let directory = confined_directory(dir.path(), &uuid::Uuid::new_v4().to_string()).unwrap();
+
+        assert_eq!(
+            fs::metadata(&directory).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
+        fs::write(directory.join("request.json"), "private source").unwrap();
+        assert_eq!(
+            fs::read_to_string(directory.join("request.json")).unwrap(),
+            "private source"
+        );
+    }
     #[test]
     fn consent_is_bound_to_environment_code_and_session() {
         let one = BTreeMap::from([("PROJECT".into(), "one".into())]);

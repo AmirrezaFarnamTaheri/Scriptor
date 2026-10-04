@@ -258,6 +258,12 @@ importers:
       mermaid:
         specifier: ^12.0.0
         version: 12.0.0
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
 
   packages/mcp:
     dependencies:

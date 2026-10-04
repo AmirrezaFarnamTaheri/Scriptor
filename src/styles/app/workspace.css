@@ -8,6 +8,7 @@
 }
 
 .vault-panel {
+  container: vault-rail / inline-size;
   display: flex;
   flex-direction: column;
   background: linear-gradient(170deg, var(--sidebar) 0%, color-mix(in oklch, var(--sidebar) 90%, transparent) 100%);
@@ -471,7 +472,32 @@
   flex: 1;
 }
 
-.note-label-prefix { min-width: 0; }
+.daily-note-button > svg {
+  flex: none;
+}
+
+@container vault-rail (max-width: 220px) {
+  .vault-nav-tabs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .daily-note-nav {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .daily-note-button {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+}
+
+.note-label-prefix {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .note-label-identity { flex-shrink: 0; white-space: nowrap; }
 .note-label-folder {
   color: var(--muted);

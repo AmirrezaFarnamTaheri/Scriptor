@@ -1,5 +1,9 @@
 /* Note local history panel */
 
+.note-history-panel .unified-panel-body {
+  padding-block-start: 16px;
+}
+
 .note-history-layout {
   display: grid;
   grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
@@ -7,7 +11,15 @@
   min-height: 280px;
 }
 
+.note-history-activity {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  min-width: 0;
+}
+
 .note-history-timeline {
+  grid-column: 2;
+  grid-row: 1;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -53,6 +65,10 @@
 }
 
 .note-history-preview-pane {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  align-self: start;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
@@ -61,6 +77,7 @@
 
 .note-history-preview-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -70,9 +87,29 @@
 }
 
 .note-history-preview-header > div {
+  flex: 1 1 180px;
   min-width: 0;
   display: grid;
   gap: 2px;
+}
+
+.note-history-vocabulary {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.note-history-vocabulary table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+.note-history-vocabulary :is(th, td) {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
 }
 
 .note-history-preview-header strong {
@@ -228,4 +265,24 @@
   .note-history-timeline {
     max-height: 180px;
   }
+
+  .note-history-activity,
+  .note-history-timeline,
+  .note-history-preview-pane {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+@container unified-panel (max-width: 900px) {
+  .note-history-compare { grid-template-columns: minmax(0, 1fr); }
+  .note-history-markdown { max-height: 240px; }
+}
+
+@container unified-panel (max-width: 720px) {
+  .note-history-layout { grid-template-columns: minmax(0, 1fr); }
+  .note-history-activity,
+  .note-history-timeline,
+  .note-history-preview-pane { grid-column: 1; grid-row: auto; }
+  .note-history-timeline { max-height: 180px; }
 }

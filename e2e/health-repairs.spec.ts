@@ -1,8 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
 import { launchApp, openCommandPalette, runCommand } from './helpers'
 
-async function openRepairs(page: Page) {
-  await launchApp(page)
+async function openRepairs(page: Page, theme: 'light' | 'dark' = 'light') {
+  await launchApp(page, { theme })
+  if (await page.locator('html').getAttribute('data-appearance') !== theme) {
+    await page.locator('header.topbar').getByRole('button', { name: new RegExp(`Switch to ${theme} appearance`) }).click()
+  }
+  await expect(page.locator('html')).toHaveAttribute('data-appearance', theme)
   await page.evaluate(() => {
     const internals = (window as Window & { __TAURI_INTERNALS__?: { invoke?: (command: string, args?: Record<string, unknown>, options?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__
     if (!internals?.invoke) throw new Error('E2E native bridge unavailable')
@@ -37,6 +41,52 @@ async function openRepairs(page: Page) {
 }
 async function calls(page: Page, command: string) {
   return page.evaluate(name => (JSON.parse(sessionStorage.getItem('e2e:health-calls') ?? '[]') as Array<{ command: string; args: Record<string, unknown> }>).filter(row => row.command === name), command)
+}
+
+test('default health evidence does not mistake an invalid recovery response for empty history', async ({ page }) => {
+  await launchApp(page)
+  await openCommandPalette(page)
+  await runCommand(page, 'Open vault health')
+  const panel = page.getByRole('dialog', { name: 'Vault health', exact: true })
+  await panel.getByText('Recovery copies (0)', { exact: true }).click()
+  await expect(panel.getByText('No repair recovery copies yet.', { exact: true })).toBeVisible()
+  await expect(panel.getByRole('alert')).toHaveCount(0)
+})
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`repair paths retain readable themed controls and keyboard focus in ${theme} appearance`, async ({ page }, testInfo) => {
+    const panel = await openRepairs(page, theme)
+    const path = panel.getByLabel('Vault-relative note path', { exact: true })
+    for (const width of [1440, 320]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.locator('html').evaluate((element, direction) => { element.dir = direction }, width === 320 ? 'rtl' : 'ltr')
+      await path.fill('Research/Reviewed repair.md')
+      await path.focus()
+      const control = await path.evaluate(element => {
+        const style = getComputedStyle(element)
+        const label = element.closest('label')!.getBoundingClientRect()
+        const bounds = element.getBoundingClientRect()
+        return {
+          height: bounds.height, left: bounds.left, right: bounds.right,
+          labelLeft: label.left, labelRight: label.right,
+          radius: Number.parseFloat(style.borderRadius),
+          background: style.backgroundColor, foreground: style.color,
+          outline: style.outlineStyle, outlineWidth: Number.parseFloat(style.outlineWidth),
+          font: style.fontFamily, bodyFont: getComputedStyle(document.body).fontFamily,
+        }
+      })
+      expect(control.height).toBeGreaterThanOrEqual(44)
+      expect(control.radius).toBeGreaterThanOrEqual(4)
+      expect(control.background).not.toMatch(/rgba\([^)]*,\s*0(?:\.0+)?\)$/)
+      expect(control.foreground).not.toBe(control.background)
+      expect(control.font).toBe(control.bodyFont)
+      expect(control.outline).not.toBe('none')
+      expect(control.outlineWidth).toBeGreaterThanOrEqual(2)
+      expect(control.left).toBeGreaterThanOrEqual(control.labelLeft - 1)
+      expect(control.right).toBeLessThanOrEqual(control.labelRight + 1)
+      await panel.screenshot({ path: testInfo.outputPath(`repair-path-${theme}-${width}.png`), animations: 'disabled' })
+    }
+  })
 }
 
 test('repair and restore require explicit review and bind displayed source receipts', async ({ page }) => {

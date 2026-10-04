@@ -658,6 +658,12 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
    that does not participate in viewport media queries. */
 .app-chrome { container: workspace-chrome / inline-size; }
 .mobile-workspace-chrome { container: mobile-chrome / inline-size; }
+@container workspace-chrome (max-width: 1280px) {
+  .brand-wordmark { display: none; }
+  .workspace-mode-strip { flex: 0 0 132px; }
+  .workspace-mode-strip .workspace-mode { display: none; }
+  .workspace-mode-select { display: block; width: 100%; min-height: 40px; }
+}
 @container mobile-chrome (max-width: 240px) {
   .mobile-workspace-nav { grid-template-columns: repeat(2, minmax(44px, 1fr)); gap: 2px; padding: 4px; }
   .mobile-nav-item { min-height: 44px; }

@@ -358,6 +358,7 @@ function App() {
     publishPlan,
     publishStarlight,
   } = useStarlightPublishing({
+    vaultId: workspace.vault?.id ?? null,
     promptText,
     showToast,
     openPublishCenter: () => setPublishCenterOpen(true),

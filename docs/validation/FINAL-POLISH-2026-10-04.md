@@ -3,6 +3,11 @@
 Starting revision: `19ff396a27d0c7e289ed82ca3d0b942f23f17c19`.
 This is an ongoing evidence ledger, not exhaustive certification or release approval.
 
+The renewed review from `15b94b13870ca7d8ece9e600c1801cbf12b5768b` is
+tracked in [CROSS-PRODUCT-REVIEW-2026-10-04.md](CROSS-PRODUCT-REVIEW-2026-10-04.md).
+Its later findings and worker results supersede this checkpoint's pending
+dispositions; earlier source assessments are retained as discovery provenance.
+
 ## Implemented corrections
 
 | Boundary | Correction | Regression evidence |

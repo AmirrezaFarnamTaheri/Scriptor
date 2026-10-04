@@ -47,3 +47,14 @@ Every discovered defect has a disposition, test/evidence and residual limits.
 Coverage distinguishes semantic inspection, static scanning, runtime execution,
 inventory-only material and justified exclusions. Passing browser fixtures is
 not live-provider, packaged-device, screen-reader or release certification.
+
+## Cross-product follow-up
+
+The renewed final review starts from
+`15b94b13870ca7d8ece9e600c1801cbf12b5768b`. Trace current native mutation and
+authorization boundaries, renderer lifecycle/data-loss risks, and responsive
+visual/interaction contracts in specialist lanes. The parent owns integration,
+hosted verification failures, release transports, and the combined evidence
+ledger. Preserve user inputs and the worker-only restriction. Confirmed defects
+receive a repair and a meaningful regression where practical; do not equate
+inventory or static coverage with runtime certification.

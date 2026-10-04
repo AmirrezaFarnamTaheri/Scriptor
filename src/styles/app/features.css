@@ -661,6 +661,18 @@
   font-size: 12px;
 }
 
+.saved-views-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 12px;
+}
+
+.saved-views-studio-action {
+  align-self: flex-start;
+  margin-block-end: 8px;
+}
+
 .saved-views-form {
   display: grid;
   gap: 12px;
@@ -915,6 +927,22 @@
   margin: 0 0 8px;
 }
 
+.portal-form > .diagnostics-opt-in {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.portal-form > .diagnostics-opt-in input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
 .quick-capture-panel {
   container-type: inline-size;
 }
@@ -978,6 +1006,22 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.quick-todo-list li > input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px), (pointer: coarse) {
+  .quick-todo-list li > input { min-height: 44px; }
 }
 
 .quick-todo-actions {

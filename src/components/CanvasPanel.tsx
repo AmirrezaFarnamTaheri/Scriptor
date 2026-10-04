@@ -200,7 +200,7 @@ export function CanvasPanel({
               </select>
             </label>
           ) : null}
-          <button type="button" disabled={!vaultOpen} onClick={() => void createBoard()}>
+          <button type="button" className="toolbar-button" disabled={!vaultOpen} onClick={() => void createBoard()}>
             New board
           </button>
         </div>

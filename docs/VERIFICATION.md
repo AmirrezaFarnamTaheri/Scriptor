@@ -8,7 +8,9 @@ Full test/build verification for the 2026-10-04 polish checkpoint runs exclusive
 on GitHub-hosted workers, including draft PRs. No local full suites or builds are
 authorized. Interrupted local runs are not passing evidence. Current-head worker
 results supersede historical counts below. See
-`validation/FINAL-POLISH-2026-10-04.md` for the checkpoint ledger.
+`validation/FINAL-POLISH-2026-10-04.md` for the earlier checkpoint and
+`validation/CROSS-PRODUCT-REVIEW-2026-10-04.md` for the renewed review, hosted
+results and remaining proof.
 
 Localization enforcement covers maintained product/contributor documentation.
 `docs/validation/` holds provenance-sensitive audit records and recovered source

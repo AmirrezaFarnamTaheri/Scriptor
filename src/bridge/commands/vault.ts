@@ -348,15 +348,16 @@ export async function vaultFrontmatterSet(
   return invoke('vault_frontmatter_set', { path, field, value, expectedContentHash: expectedContentHash ?? null, expectedVaultId: expectedVaultId ?? null })
 }
 
-export async function vaultPublishPlanStarlight(outputPath: string): Promise<StarlightPublishPlanOutput> {
+export async function vaultPublishPlanStarlight(outputPath: string, expectedVaultId?: string): Promise<StarlightPublishPlanOutput> {
   requireNative()
-  return invoke<StarlightPublishPlanOutput>('vault_publish_plan_starlight', { outputPath })
+  return invoke<StarlightPublishPlanOutput>('vault_publish_plan_starlight', { outputPath, expectedVaultId: expectedVaultId ?? null })
 }
 
 export async function vaultPublishApplyStarlight(
   outputPath: string,
   toWrite: PublishCandidate[],
   toDelete: string[],
+  expectedVaultId?: string,
 ): Promise<StarlightPublishApplyOutput> {
   requireNative()
   const authorizationScope = `${outputPath} • ${toWrite.length} write(s) • ${toDelete.length} deletion(s)`
@@ -366,6 +367,7 @@ export async function vaultPublishApplyStarlight(
     toWrite,
     toDelete,
     authorizationToken,
+    expectedVaultId: expectedVaultId ?? null,
   })
 }
 

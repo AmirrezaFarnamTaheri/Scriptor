@@ -57,7 +57,7 @@ test('first shares treat authored whitespace as content rather than an empty sid
 })
 
 test('shared text preserves BOM, line endings, combining characters and media references exactly', () => {
-  const original = '\uFEFF# فارسی\r\n\r\ne\u0301 🌱\r\n\t![image](assets/pixel.png)  \r\n'
+  const original = '\uFEFF# فارسی\r\n\r\ne\u0301 \u{1F331}\r\n\t![image](assets/pixel.png)  \r\n'
   const updated = original + '[audio](assets/session.ogg)\r\n'
   assert.deepEqual(mergeSharedRevision('', original, original), { markdown: original, conflict: false })
   assert.deepEqual(mergeSharedRevision(original, original, updated), { markdown: updated, conflict: false })

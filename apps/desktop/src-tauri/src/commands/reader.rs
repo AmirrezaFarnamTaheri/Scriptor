@@ -158,7 +158,7 @@ fn save_annotations_for_document(
 }
 
 fn document_path(raw: &str) -> Result<RelativeVaultPath, String> {
-    let path = RelativeVaultPath::parse(raw).map_err(|error| error.to_string())?;
+    let path = reader_relative_path(raw)?;
     match raw
         .rsplit('.')
         .next()
@@ -168,6 +168,15 @@ fn document_path(raw: &str) -> Result<RelativeVaultPath, String> {
         Some("pdf") | Some("epub") => Ok(path),
         _ => Err("Reader supports only PDF and EPUB files".into()),
     }
+}
+
+fn reader_relative_path(raw: &str) -> Result<RelativeVaultPath, String> {
+    // This wire contract must reject URLs and foreign-platform paths equally
+    // on Unix and Windows; Unix otherwise treats ':' and '\\' as filename bytes.
+    if raw.len() > 1024 || raw.contains([':', '\\']) || raw.chars().any(char::is_control) {
+        return Err("Reader requires a literal vault-relative file path".into());
+    }
+    RelativeVaultPath::parse(raw).map_err(|error| error.to_string())
 }
 
 fn readable_media_path(raw: &str) -> Result<(RelativeVaultPath, u64), String> {
@@ -185,9 +194,7 @@ fn readable_media_path(raw: &str) -> Result<(RelativeVaultPath, u64), String> {
     ) {
         return Err("This media format is not supported for preview".into());
     }
-    RelativeVaultPath::parse(raw)
-        .map(|path| (path, MAX_MEDIA_PREVIEW_BYTES))
-        .map_err(|error| error.to_string())
+    reader_relative_path(raw).map(|path| (path, MAX_MEDIA_PREVIEW_BYTES))
 }
 
 fn load_store(root: &std::path::Path) -> Result<AnnotationStore, String> {
@@ -474,9 +481,14 @@ mod tests {
             "assets/active.html",
             "assets/active.js",
             "https://example.test/a.png",
+            "C:/private.png",
+            "assets\\private.png",
+            "assets/control\n.png",
         ] {
-            assert!(readable_media_path(path).is_err());
+            assert!(readable_media_path(path).is_err(), "accepted {path:?}");
         }
+        assert!(document_path("https://example.test/a.pdf").is_err());
+        assert!(document_path("C:/private.pdf").is_err());
     }
 
     #[test]

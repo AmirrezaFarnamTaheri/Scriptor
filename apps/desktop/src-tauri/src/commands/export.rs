@@ -21,6 +21,14 @@ use super::shared::parse_daemon_json;
 
 pub(super) fn require_export_capability(state: &tauri::State<AppState>) -> Result<(), String> {
     let session = active_session(state)?;
+    validate_export_session(&session, None)
+}
+
+pub(super) fn validate_export_session(
+    session: &VaultSession,
+    expected_vault_id: Option<&str>,
+) -> Result<(), String> {
+    super::vault::validate_expected_vault(&session.descriptor.id, expected_vault_id)?;
     let plugin_state = load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;
     if plugin_state.is_enabled("scriptor.export") {
         Ok(())
@@ -67,12 +75,18 @@ struct DaemonExportProgressReport {
     stderr_log: Option<String>,
 }
 
-pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Result<(), String> {
+pub(crate) fn poll_headless_export_job(
+    app: &AppHandle,
+    job_id: String,
+    expected_vault_id: String,
+) -> Result<(), String> {
     let mut last_event_index = 0u32;
     let mut emitted_stderr = 0usize;
     loop {
         std::thread::sleep(std::time::Duration::from_millis(100));
         let state = app.state::<AppState>();
+        let session = active_session(&state)?;
+        validate_export_session(&session, Some(&expected_vault_id))?;
         let json = bridge_export_job_status(&state)?;
         let report = parse_daemon_json::<DaemonExportProgressReport>(&json)?;
         if report.job_id != job_id {
@@ -245,8 +259,10 @@ pub fn export_run_note(
     dry_run: Option<bool>,
     extra_pandoc_args: Option<Vec<String>>,
     output_subdirectory: Option<String>,
+    expected_vault_id: Option<String>,
 ) -> Result<ExportJobOutput, String> {
-    require_export_capability(&state)?;
+    let session = active_session(&state)?;
+    validate_export_session(&session, expected_vault_id.as_deref())?;
     if use_headless_engine(&state) {
         let json = bridge_export_run_note(
             &state,
@@ -258,7 +274,6 @@ pub fn export_run_note(
         )?;
         return parse_daemon_json(&json);
     }
-    let session = active_session(&state)?;
     let input = build_export_job_input(
         &session,
         &note_path,
@@ -273,6 +288,7 @@ pub fn export_run_note(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // Flat wire arguments include the originating vault.
 pub fn export_run_markdown(
     state: tauri::State<AppState>,
     note_path: String,
@@ -281,8 +297,10 @@ pub fn export_run_markdown(
     dry_run: Option<bool>,
     extra_pandoc_args: Option<Vec<String>>,
     output_subdirectory: Option<String>,
+    expected_vault_id: Option<String>,
 ) -> Result<ExportJobOutput, String> {
-    require_export_capability(&state)?;
+    let session = active_session(&state)?;
+    validate_export_session(&session, expected_vault_id.as_deref())?;
     if use_headless_engine(&state) {
         let json = bridge_export_run_markdown(
             &state,
@@ -295,7 +313,6 @@ pub fn export_run_markdown(
         )?;
         return parse_daemon_json(&json);
     }
-    let session = active_session(&state)?;
     let input = build_export_job_from_markdown(
         &session,
         &note_path,
@@ -311,6 +328,7 @@ pub fn export_run_markdown(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // Flat wire arguments include the originating vault.
 pub async fn export_start_note(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
@@ -319,16 +337,29 @@ pub async fn export_start_note(
     dry_run: Option<bool>,
     extra_pandoc_args: Option<Vec<String>>,
     output_subdirectory: Option<String>,
+    expected_vault_id: Option<String>,
 ) -> Result<ExportJobStarted, String> {
-    require_export_capability(&state)?;
-    let job_id = Uuid::new_v4().to_string();
-    let started = ExportJobStarted {
-        job_id: job_id.clone(),
-        note_path: note_path.clone(),
-        format: format.clone(),
-    };
+    let session = active_session(&state)?;
+    validate_export_session(&session, expected_vault_id.as_deref())?;
 
     if use_headless_engine(&state) {
+        // Start while the originating session lease is held, then use the
+        // daemon's actual job identity for events and status polling.
+        let job_id = bridge_export_start_note(
+            &state,
+            note_path.clone(),
+            format.clone(),
+            dry_run,
+            extra_pandoc_args,
+            output_subdirectory,
+        )?;
+        let started = ExportJobStarted {
+            job_id: job_id.clone(),
+            note_path,
+            format,
+        };
+        let originating_vault_id = session.descriptor.id.clone();
+        drop(session);
         let _ = app.emit("export:started", &started);
         let app_handle = app.clone();
         let poll_job_id = job_id.clone();
@@ -336,16 +367,7 @@ pub async fn export_start_note(
         tauri::async_runtime::spawn(async move {
             let app_for_poll = app_handle.clone();
             let blocking = tauri::async_runtime::spawn_blocking(move || {
-                let state = app_for_poll.state::<AppState>();
-                bridge_export_start_note(
-                    &state,
-                    note_path,
-                    format,
-                    dry_run,
-                    extra_pandoc_args,
-                    output_subdirectory,
-                )?;
-                poll_headless_export_job(&app_for_poll, poll_job_id)
+                poll_headless_export_job(&app_for_poll, poll_job_id, originating_vault_id)
             });
             match blocking.await {
                 Ok(Ok(())) => {}
@@ -372,7 +394,12 @@ pub async fn export_start_note(
         return Ok(started);
     }
 
-    let session = active_session(&state)?;
+    let job_id = Uuid::new_v4().to_string();
+    let started = ExportJobStarted {
+        job_id: job_id.clone(),
+        note_path: note_path.clone(),
+        format: format.clone(),
+    };
     let input = build_export_job_input(
         &session,
         &note_path,
@@ -434,8 +461,12 @@ pub async fn export_start_note(
 }
 
 #[tauri::command]
-pub fn export_cancel(state: tauri::State<AppState>) -> Result<bool, String> {
-    require_export_capability(&state)?;
+pub fn export_cancel(
+    state: tauri::State<AppState>,
+    expected_vault_id: Option<String>,
+) -> Result<bool, String> {
+    let session = active_session(&state)?;
+    validate_export_session(&session, expected_vault_id.as_deref())?;
     if use_headless_engine(&state) {
         bridge_export_cancel(&state, None)?;
         return Ok(true);
@@ -529,4 +560,21 @@ pub fn pdf_translate(
     Ok(PdfTranslateOutput {
         output_path: output.display().to_string(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn export_session_rejects_a_different_origin_before_creating_outputs() {
+        let dir = tempfile::tempdir().unwrap();
+        let session = scriptor_vault::open_vault(dir.path()).unwrap();
+
+        let error = validate_export_session(&session, Some("other-vault")).unwrap_err();
+
+        assert!(error.contains("stale save target"));
+        assert!(!default_export_directory(session.root.root()).exists());
+        assert!(validate_export_session(&session, Some(&session.descriptor.id)).is_ok());
+    }
 }

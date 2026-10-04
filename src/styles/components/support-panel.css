@@ -10,6 +10,7 @@
 .support-panel-body {
   display: grid;
   gap: 16px;
+  padding-block-start: 16px;
 }
 
 .support-actions {

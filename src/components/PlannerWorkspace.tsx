@@ -141,7 +141,7 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
   const shownEvents = events.filter(event => !blocks.some(block => block.eventId === event.id))
   const timed = [...blocks.map(block=>({id:`local:${block.taskId}`,start:block.start,end:block.end,title:block.title,block})),...shownEvents.filter(event=>!event.allDay && event.status!=='cancelled').map(event=>({id:`remote:${event.id}`,start:event.start,end:event.end,title:event.summary,block:undefined}))]
   return <section className="planner-workspace" aria-label="Weekly planner">
-    <div className="section-heading-row"><h3>Weekly planner</h3><label>Week containing <input type="date" value={day} onChange={e=>setDay(e.target.value || formatLocalDate())}/></label></div>
+    <div className="section-heading-row"><h3>Weekly planner</h3><label className="planner-week-control">Week containing <input type="date" value={day} onChange={e=>setDay(e.target.value || formatLocalDate())}/></label></div>
     <p className="health-subtitle">Time blocks are stored on this device. Google Tasks due dates have no time; timed scheduling uses Calendar events. Sync affects only mapped tasks and explicitly mapped events.</p>
     <div className="planner-week" role="list" aria-label="Week time grid">
       {days.map(date => <section role="listitem" className="planner-day" key={date} aria-label={date}>

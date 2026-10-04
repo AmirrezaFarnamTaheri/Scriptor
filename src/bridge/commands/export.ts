@@ -32,6 +32,7 @@ export async function exportRunNote(
   dryRun = false,
   extraPandocArgs: string[] = [],
   outputSubdirectory?: string,
+  expectedVaultId?: string,
 ): Promise<ExportJobOutput> {
   requireNative()
   return invoke<ExportJobOutput>('export_run_note', {
@@ -40,6 +41,7 @@ export async function exportRunNote(
     dryRun,
     extraPandocArgs,
     outputSubdirectory: outputSubdirectory ?? null,
+    expectedVaultId: expectedVaultId ?? null,
   })
 }
 
@@ -49,6 +51,7 @@ export async function exportStartNote(
   dryRun = false,
   extraPandocArgs: string[] = [],
   outputSubdirectory?: string,
+  expectedVaultId?: string,
 ): Promise<ExportJobStarted> {
   requireNative()
   return invoke<ExportJobStarted>('export_start_note', {
@@ -57,12 +60,13 @@ export async function exportStartNote(
     dryRun,
     extraPandocArgs,
     outputSubdirectory: outputSubdirectory ?? null,
+    expectedVaultId: expectedVaultId ?? null,
   })
 }
 
-export async function exportCancel(): Promise<boolean> {
+export async function exportCancel(expectedVaultId?: string): Promise<boolean> {
   requireNative()
-  return invoke<boolean>('export_cancel')
+  return invoke<boolean>('export_cancel', { expectedVaultId: expectedVaultId ?? null })
 }
 
 export interface PdfTranslateOutput {
@@ -93,6 +97,7 @@ export async function exportRunMarkdown(
   dryRun = false,
   extraPandocArgs: string[] = [],
   outputSubdirectory?: string,
+  expectedVaultId?: string,
 ): Promise<ExportJobOutput> {
   requireNative()
   return invoke<ExportJobOutput>('export_run_markdown', {
@@ -102,5 +107,6 @@ export async function exportRunMarkdown(
     dryRun,
     extraPandocArgs,
     outputSubdirectory: outputSubdirectory ?? null,
+    expectedVaultId: expectedVaultId ?? null,
   })
 }

@@ -1,3 +1,6 @@
+import remarkParse from 'remark-parse'
+import { unified } from 'unified'
+
 export type DiagramKind = 'mermaid' | 'plantuml'
 
 export interface DiagramBlock {
@@ -19,30 +22,62 @@ export type DiagramRenderCallback = (
   index: number,
 ) => string | Promise<string>
 
-const DIAGRAM_FENCE = /```(mermaid|plantuml)\r?\n([\s\S]*?)```/gi
+interface MarkdownNode {
+  type: string
+  lang?: string | null
+  value?: string
+  position?: { start: { offset?: number }; end: { offset?: number } }
+  children?: MarkdownNode[]
+}
 
-/** Collect mermaid/plantuml fenced blocks from markdown. */
+const markdownParser = unified().use(remarkParse)
+
+/** Collect actual CommonMark diagram fences, preserving authored list/quote prefixes. */
 export function findDiagramBlocks(markdown: string): DiagramBlock[] {
+  if (!markdown.includes('```') && !markdown.includes('~~~')) return []
   const blocks: DiagramBlock[] = []
-  let match: RegExpExecArray | null
-  const pattern = new RegExp(DIAGRAM_FENCE.source, DIAGRAM_FENCE.flags)
-  while ((match = pattern.exec(markdown)) !== null) {
-    const kind = match[1]?.toLowerCase() as DiagramKind
-    const source = match[2]?.trim() ?? ''
-    if (!source) continue
-    blocks.push({
-      kind,
-      source,
-      start: match.index,
-      end: match.index + match[0].length,
-    })
+  const pending: MarkdownNode[] = [markdownParser.parse(markdown)]
+  while (pending.length) {
+    const node = pending.pop()!
+    if (node.type === 'code') {
+      const kind = node.lang?.toLowerCase()
+      if (kind !== 'mermaid' && kind !== 'plantuml') continue
+      const source = node.value?.trim() ?? ''
+      if (!source) continue
+      const start = node.position?.start.offset
+      const end = node.position?.end.offset
+      if (typeof start !== 'number' || typeof end !== 'number' || start < 0 || end > markdown.length || end <= start) {
+        throw new Error('The Markdown parser did not provide a valid diagram source range')
+      }
+      const openingLine = markdown.slice(start, end).split(/\r\n|\r|\n/, 1)[0] ?? ''
+      const opening = /`{3,}|~{3,}/.exec(openingLine)
+      if (!opening) throw new Error('The Markdown parser did not provide a diagram opening fence')
+      // The AST recognizes container-relative indentation. Keep any original
+      // list marker, indentation or quote prefix before the opening delimiter
+      // outside the replaced range, while node.value supplies de-indented code.
+      blocks.push({ kind, source, start: start + opening.index, end })
+      continue
+    }
+    const children = node.children ?? []
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      pending.push(children[index]!)
+    }
   }
   return blocks
 }
 
 function buildImageMarkdown(ref: DiagramImageRef): string {
   const alt = ref.kind === 'mermaid' ? 'Mermaid diagram' : 'PlantUML diagram'
-  return `![${alt}](${ref.imagePath})`
+  return `![${alt}](${formatDiagramImageDestination(ref.imagePath)})`
+}
+
+/** Represent a raw file path as a Markdown image destination, preserving separators. */
+export function formatDiagramImageDestination(imagePath: string): string {
+  if (!imagePath || /[\u0000-\u001f\u007f]/.test(imagePath)) {
+    throw new Error('A diagram asset path is required and must not contain control characters')
+  }
+  return imagePath.split('/').map(segment => encodeURIComponent(segment)
+    .replace(/[!'()*]/g, character => `%${character.charCodeAt(0).toString(16).toUpperCase()}`)).join('/')
 }
 
 function buildPlaceholderMarkdown(kind: DiagramKind, index: number): string {
@@ -70,17 +105,17 @@ export async function replaceDiagramBlocksWithImages(
     const block = blocks[index]!
     next += markdown.slice(cursor, block.start)
 
-    const imagePath = render
-      ? await render(block.kind, block.source, index)
-      : buildPlaceholderMarkdown(block.kind, index)
-
-    const ref: DiagramImageRef = {
-      kind: block.kind,
-      source: block.source,
-      imagePath,
+    if (render) {
+      const ref: DiagramImageRef = {
+        kind: block.kind,
+        source: block.source,
+        imagePath: await render(block.kind, block.source, index),
+      }
+      next += buildImageMarkdown(ref)
+      diagrams.push(ref)
+    } else {
+      next += buildPlaceholderMarkdown(block.kind, index)
     }
-    diagrams.push(ref)
-    next += buildImageMarkdown(ref)
     cursor = block.end
   }
 
@@ -90,10 +125,12 @@ export async function replaceDiagramBlocksWithImages(
 
 /** Synchronous variant for dry-run / planning without rendering PNGs. */
 export function replaceDiagramBlocksWithPlaceholders(markdown: string): string {
-  return markdown.replace(DIAGRAM_FENCE, (_match, kind: string, source: string) => {
-    const trimmed = source.trim()
-    if (!trimmed) return _match
-    const alt = kind.toLowerCase() === 'mermaid' ? 'Mermaid diagram' : 'PlantUML diagram'
-    return `![${alt}](diagram-${kind.toLowerCase()}-pending.png)`
-  })
+  let output = ''
+  let cursor = 0
+  for (const block of findDiagramBlocks(markdown)) {
+    const alt = block.kind === 'mermaid' ? 'Mermaid diagram' : 'PlantUML diagram'
+    output += markdown.slice(cursor, block.start) + `![${alt}](diagram-${block.kind}-pending.png)`
+    cursor = block.end
+  }
+  return output + markdown.slice(cursor)
 }

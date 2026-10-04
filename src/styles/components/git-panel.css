@@ -59,6 +59,13 @@
   flex-wrap: wrap;
 }
 
+.git-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .git-pull-strategy,
 .git-diff-picker {
   display: flex;

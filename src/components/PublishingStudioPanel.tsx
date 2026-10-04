@@ -49,7 +49,7 @@ export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceN
   async function replan() {
     const requested = output.trim()
     if (!requested) throw new Error('Choose a local site folder')
-    const next = await vaultPublishPlanStarlight(requested)
+    const next = await vaultPublishPlanStarlight(requested, vaultId)
     if (mounted.current) setReview({ requested, site: next })
   }
   async function read(path: string) {
@@ -98,7 +98,7 @@ export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceN
       {preview && <details open><summary>Local note preview: <bdi>{preview.metadata.path}</bdi></summary><MarkdownPreview markdown={preview.markdown} /></details>}
       <PublishDiffView plan={site.plan} requireFrontmatterOptIn applying={busy} onReplan={() => void action(replan)} onApply={(paths, orphans) => void action(async () => {
         const candidates = [...site.plan.new_items, ...site.plan.changed, ...site.plan.unchanged].filter(candidate => paths.includes(candidate.rel_path))
-        const result = await vaultPublishApplyStarlight(site.output, candidates, orphans)
+        const result = await vaultPublishApplyStarlight(site.output, candidates, orphans, vaultId)
         if (mounted.current) setStatus(`Local site updated: ${result.written.length} writes, ${result.deleted.length} reviewed removals.`)
         await replan()
       })} />

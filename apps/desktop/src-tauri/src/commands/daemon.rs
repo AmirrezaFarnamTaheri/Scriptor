@@ -448,7 +448,10 @@ pub fn daemon_export_run_note(
     dry_run: Option<bool>,
     extra_pandoc_args: Option<Vec<String>>,
     output_subdirectory: Option<String>,
+    expected_vault_id: Option<String>,
 ) -> Result<String, String> {
+    let session = crate::state::active_session(&state)?;
+    super::export::validate_export_session(&session, expected_vault_id.as_deref())?;
     bridge_export_run_note(
         &state,
         note_path,
@@ -459,6 +462,7 @@ pub fn daemon_export_run_note(
     )
 }
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // Flat wire arguments include the originating vault.
 pub fn daemon_export_run_markdown(
     state: tauri::State<AppState>,
     note_path: String,
@@ -467,7 +471,10 @@ pub fn daemon_export_run_markdown(
     dry_run: Option<bool>,
     extra_pandoc_args: Option<Vec<String>>,
     output_subdirectory: Option<String>,
+    expected_vault_id: Option<String>,
 ) -> Result<String, String> {
+    let session = crate::state::active_session(&state)?;
+    super::export::validate_export_session(&session, expected_vault_id.as_deref())?;
     bridge_export_run_markdown(
         &state,
         note_path,
@@ -486,7 +493,10 @@ pub fn daemon_export_start_note(
     dry_run: Option<bool>,
     extra_pandoc_args: Option<Vec<String>>,
     output_subdirectory: Option<String>,
+    expected_vault_id: Option<String>,
 ) -> Result<String, String> {
+    let session = crate::state::active_session(&state)?;
+    super::export::validate_export_session(&session, expected_vault_id.as_deref())?;
     bridge_export_start_note(
         &state,
         note_path,
@@ -497,14 +507,22 @@ pub fn daemon_export_start_note(
     )
 }
 #[tauri::command]
-pub fn daemon_export_job_status(state: tauri::State<AppState>) -> Result<String, String> {
+pub fn daemon_export_job_status(
+    state: tauri::State<AppState>,
+    expected_vault_id: Option<String>,
+) -> Result<String, String> {
+    let session = crate::state::active_session(&state)?;
+    super::export::validate_export_session(&session, expected_vault_id.as_deref())?;
     bridge_export_job_status(&state)
 }
 #[tauri::command]
 pub fn daemon_export_cancel(
     state: tauri::State<AppState>,
     job_id: Option<String>,
+    expected_vault_id: Option<String>,
 ) -> Result<(), String> {
+    let session = crate::state::active_session(&state)?;
+    super::export::validate_export_session(&session, expected_vault_id.as_deref())?;
     bridge_export_cancel(&state, job_id)
 }
 

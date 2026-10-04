@@ -151,13 +151,13 @@ fn persist_recovery(session: &VaultSession, before: &SourceDocument) -> Result<(
             Ok(meta) if meta.is_dir() && !meta.file_type().is_symlink() => {}
             Ok(_) => return Err("Invalid source recovery directory".into()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                fs::create_dir(&prefix).map_err(|e| e.to_string())?
+                scriptor_vault::fs::create_private_directory(&prefix).map_err(|e| e.to_string())?;
             }
             Err(e) => return Err(e.to_string()),
         }
     }
     let dir = recovery.join(uuid::Uuid::new_v4().to_string());
-    fs::create_dir(&dir).map_err(|e| e.to_string())?;
+    scriptor_vault::fs::create_private_directory(&dir).map_err(|e| e.to_string())?;
     for (name, bytes) in [
         ("before", before.content.as_bytes().to_vec()),
         (
@@ -165,11 +165,8 @@ fn persist_recovery(session: &VaultSession, before: &SourceDocument) -> Result<(
             serde_json::to_vec(&before).map_err(|e| e.to_string())?,
         ),
     ] {
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(dir.join(name))
-            .map_err(|e| e.to_string())?;
+        let mut file =
+            scriptor_vault::fs::create_private_file(&dir.join(name)).map_err(|e| e.to_string())?;
         file.write_all(&bytes)
             .and_then(|_| file.sync_all())
             .map_err(|e| e.to_string())?;
@@ -271,6 +268,48 @@ pub fn source_file_create(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
+    #[test]
+    fn private_source_recovery_keeps_preimages_and_receipts_private() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let session = scriptor_vault::open_vault(dir.path()).unwrap();
+        let source = dir.path().join("private.py");
+        fs::write(&source, "private preimage\n").unwrap();
+        fs::set_permissions(&source, fs::Permissions::from_mode(0o600)).unwrap();
+        let before = read(&session, "private.py").unwrap();
+
+        save(&session, "private.py", "updated\n", &before.content_hash).unwrap();
+
+        let recovery = fs::read_dir(dir.path().join(".scriptor/source-recovery"))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        assert_eq!(
+            fs::metadata(&recovery).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
+        for name in ["before", "receipt.json"] {
+            assert_eq!(
+                fs::metadata(recovery.join(name))
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o600
+            );
+        }
+        assert_eq!(
+            fs::read_to_string(recovery.join("before")).unwrap(),
+            before.content
+        );
+        let receipt: serde_json::Value =
+            serde_json::from_slice(&fs::read(recovery.join("receipt.json")).unwrap()).unwrap();
+        assert_eq!(receipt["content"], before.content);
+    }
     #[test]
     fn source_creation_is_strictly_missing_and_supports_tex_and_python() {
         let dir = tempfile::tempdir().unwrap();

@@ -21,9 +21,16 @@
 }
 
 .settings-subheading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 14px 0 6px;
   font-size: 13px;
   font-weight: 600;
+}
+
+.settings-subheading > svg {
+  flex: none;
 }
 
 .settings-actions {

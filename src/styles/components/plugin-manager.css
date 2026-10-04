@@ -33,6 +33,12 @@
   border-bottom: 1px solid var(--border);
 }
 
+.plugin-marketplace-link {
+  align-self: flex-start;
+  max-width: calc(100% - 48px);
+  margin: 16px 24px;
+}
+
 .plugin-manager-header h2 {
   min-width: 0;
   font-size: 1.25rem;

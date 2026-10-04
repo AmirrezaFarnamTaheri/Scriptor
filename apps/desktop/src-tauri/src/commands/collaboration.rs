@@ -252,6 +252,17 @@ fn bounded_json(response: reqwest::blocking::Response) -> Result<Value, String> 
 }
 
 fn existing_revision_file(response: &Value) -> Result<Option<&Value>, String> {
+    // Drive may return partial or empty pages before the end of a listing.
+    // A bounded first page cannot prove identity uniqueness in that case.
+    if response
+        .get("nextPageToken")
+        .is_some_and(|value| value.as_str().is_none_or(|token| !token.is_empty()))
+        || response
+            .get("incompleteSearch")
+            .is_some_and(|value| value.as_bool() != Some(false))
+    {
+        return Err("Shared revision identity search is incomplete; retry before sharing".into());
+    }
     let files = response
         .get("files")
         .and_then(Value::as_array)
@@ -505,21 +516,12 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
                     .query(&[
                         ("q", query.as_str()),
                         ("pageSize", "2"),
-                        ("fields", "files(id,name)"),
+                        ("fields", "nextPageToken,incompleteSearch,files(id,name)"),
                     ])
                     .send()
                     .map_err(|error| error.to_string())?,
             )?;
-            let files = existing
-                .get("files")
-                .and_then(Value::as_array)
-                .ok_or("Invalid Docs revision duplicate check")?;
-            if files.len() > 1 {
-                return Err(
-                    "Duplicate Google Docs revision identities; review the shared folder".into(),
-                );
-            }
-            if let Some(file) = files.first() {
+            if let Some(file) = existing_revision_file(&existing)? {
                 let id = file
                     .get("id")
                     .and_then(Value::as_str)
@@ -679,7 +681,7 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
                     .query(&[
                         ("q", query.as_str()),
                         ("pageSize", "2"),
-                        ("fields", "files(id,name)"),
+                        ("fields", "nextPageToken,incompleteSearch,files(id,name)"),
                     ])
                     .send()
                     .map_err(|error| error.to_string())?,
@@ -878,7 +880,11 @@ mod tests {
     use super::*;
     #[test]
     fn immutable_revision_identity_rejects_ambiguous_existing_records() {
-        assert!(existing_revision_file(&json!({"files":[]})).unwrap().is_none());
+        assert!(
+            existing_revision_file(&json!({"files":[]}))
+                .unwrap()
+                .is_none()
+        );
         let unique = json!({"files":[{"id":"one","name":"event.json"}]});
         assert_eq!(
             existing_revision_file(&unique).unwrap(),
@@ -886,6 +892,22 @@ mod tests {
         );
         assert!(existing_revision_file(&json!({"files":[{"id":"one"},{"id":"two"}]})).is_err());
         assert!(existing_revision_file(&json!({"files":"invalid"})).is_err());
+        for files in [json!([]), json!([{"id":"one"}])] {
+            assert!(
+                existing_revision_file(&json!({
+                    "files": files,
+                    "nextPageToken": "another-page"
+                }))
+                .is_err()
+            );
+            assert!(
+                existing_revision_file(&json!({
+                    "files": files,
+                    "incompleteSearch": true
+                }))
+                .is_err()
+            );
+        }
     }
     #[test]
     fn stale_origin_is_rejected_before_collaboration_exchange() {

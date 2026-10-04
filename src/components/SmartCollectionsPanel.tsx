@@ -194,7 +194,7 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
         <aside className="smart-collections-sidebar" aria-label="Collection list">
           {collections.map((collection) => (
             <div key={collection.id} className={activeId === collection.id ? 'smart-collection active' : 'smart-collection'}>
-              <button type="button" onClick={() => setActiveId(collection.id)}>
+              <button type="button" className="toolbar-button smart-collection-select" onClick={() => setActiveId(collection.id)}>
                 {collection.label}
               </button>
               <button

@@ -473,7 +473,8 @@ async fn run_publication(
             .as_ref()
             .map_or_else(|| root.clone(), |snapshot| snapshot.root.clone());
         let spec = job_spec(process_root, &request, cancel)?;
-        let result = run_process(spec).map_err(|error| publication_process_error(error, &request))?;
+        let result =
+            run_process(spec).map_err(|error| publication_process_error(error, &request))?;
         if matches!(request, PublicationJob::Build) && result.exit_code == 0 && !result.timed_out {
             if source_hash != fingerprint(&root, true)? {
                 return Err(

@@ -228,6 +228,11 @@ button {
   cursor: pointer;
 }
 
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--primary);
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
@@ -264,6 +269,7 @@ svg {
 
 .brand {
   min-width: 196px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -306,6 +312,7 @@ svg {
 }
 
 .history-controls {
+  flex-shrink: 0;
   padding: 2px;
 }
 

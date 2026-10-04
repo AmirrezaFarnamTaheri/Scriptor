@@ -1,4 +1,18 @@
 .planner-workspace { border-block: 1px solid var(--border); padding-block: 16px; }
+.planner-week-control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.planner-week-control input,
+.planner-schedule input,
+.planner-schedule select {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
 .planner-week { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 4px; margin-block: 12px; }
 .planner-day { position: relative; min-height: 320px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .planner-day h4 { margin: 0; padding: 8px 4px; font-size: 11px; background: var(--surface-raised); }
