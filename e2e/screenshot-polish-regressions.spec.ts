@@ -3,12 +3,36 @@ import { launchApp, openCommandPalette, runCommand, waitForWorkspace } from './h
 
 async function prepare(page: Page) {
   await launchApp(page)
-  await waitForWorkspace(page)
+  const narrow = (page.viewportSize()?.width ?? 1440) <= 768
+  const magnifiedMobile = await page.locator('html').getAttribute('data-ui-reflow') === 'mobile'
+  await waitForWorkspace(page, { allowHiddenVaultList: narrow || magnifiedMobile })
 }
 
 async function openPanel(page: Page, command: string) {
   await openCommandPalette(page)
   await runCommand(page, command)
+}
+
+for (const panel of [
+  { command: 'Support Scriptor', selector: '.support-panel' },
+  { command: 'Note history timeline', selector: '.note-history-panel' },
+  { command: 'Open portal clipboard', selector: '.portal-panel' },
+]) {
+  test(`${panel.command} keeps its first content clear of the header divider`, async ({ page }) => {
+    await prepare(page)
+    await openPanel(page, panel.command)
+    const shell = page.locator(panel.selector)
+    await expect(shell).toBeVisible()
+    for (const direction of ['ltr', 'rtl']) {
+      await page.locator('html').evaluate((element, value) => { element.dir = value }, direction)
+      await expect.poll(() => shell.evaluate(element => {
+        const body = element.querySelector('.unified-panel-body')!
+        const header = element.querySelector('.unified-panel-header')!
+        const firstContent = body.firstElementChild!
+        return firstContent.getBoundingClientRect().top - header.getBoundingClientRect().bottom
+      })).toBeGreaterThanOrEqual(12)
+    }
+  })
 }
 
 async function controlStyle(control: Locator) {
@@ -22,6 +46,29 @@ async function controlStyle(control: Locator) {
     }
   })
 }
+
+test('expanded desktop footer reserves space for every status control and vault identity', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.addInitScript(() => localStorage.setItem('scriptor:status-dock-collapsed', 'false'))
+  await prepare(page)
+  const summary = page.locator('.status-summary')
+  const repo = summary.locator('.repo-state')
+  await expect(repo).toBeVisible()
+  await expect(repo.locator('.repo-vault')).toBeVisible()
+  for (const direction of ['ltr', 'rtl']) {
+    await page.locator('html').evaluate((element, value) => { element.dir = value }, direction)
+    await expect.poll(() => summary.evaluate(element => {
+      const bounds = element.getBoundingClientRect()
+      const descendants = [...element.querySelectorAll('.repo-state, .repo-state button, .repo-vault, .repo-vault svg')]
+        .filter(target => target.getBoundingClientRect().width > 0)
+      return descendants.every(target => {
+        const box = target.getBoundingClientRect()
+        return box.left >= bounds.left - 1 && box.right <= bounds.right + 1
+      })
+    })).toBe(true)
+    await expect.poll(() => repo.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
+  }
+})
 
 for (const zoom of [1.25, 1.5, 2]) {
   test(`magnified header owners and their controls do not overlap at ${zoom * 100}%`, async ({ page }) => {
@@ -169,7 +216,9 @@ test('Git preview and confirmation actions keep themed bounds and separate targe
   expect(preview.height).toBeGreaterThanOrEqual(32)
   expect(preview.border).toBeGreaterThanOrEqual(1)
   expect(preview.radius).toBeGreaterThan(0)
-  await panel.getByRole('button', { name: 'Commit selected', exact: true }).click()
+  const form = panel.locator('.git-commit-form')
+  await form.getByRole('textbox').fill('test: preview balanced confirmation controls')
+  await form.getByRole('button', { name: 'Commit selected', exact: true }).click()
   const confirmation = panel.getByRole('alertdialog', { name: 'Confirm Git action', exact: true })
   await expect(confirmation).toBeVisible()
   const gap = await confirmation.locator('.git-confirm-actions').evaluate(element => {

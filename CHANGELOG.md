@@ -8,8 +8,11 @@
 
 ### Fixed
 
+- Apply shared panel divider clearance in the loaded stylesheet, preserve desktop footer identity beside progress, normalize diagram renderer line endings, and disambiguate Unix process-group termination arguments. Add hosted geometry regressions without relaxing visual comparisons.
+- Make sticky inspector tabs and template dialogs opaque over underlying text, load visible vault placeholders, capture the top of print pages, and show readable EPUB section labels while retaining precise navigation anchors.
 - Bind exports and publication plans to their originating vault, serialize competing export profiles, preserve successful exports after auxiliary refresh failures, and keep dry-run diagram previews free of asset writes.
 - Respect enclosing Markdown fences and preserve list/blockquote containers during diagram export, stop on preparation failures, encode generated image destinations, and omit separator-only bibliography metadata rows.
+- Rasterize exported Mermaid diagrams with SVG labels so Chromium can save real PNG assets; protect the export label setting from document overrides and restore interactive preview configuration afterward.
 - Protect source, repair and Python-session recovery content with private Unix storage; refuse linked vault lock storage, ambiguous or incomplete Drive identity searches, and resource-copy destinations containing existing data.
 - Reject URL-shaped local reader paths consistently across platforms, retain recoverable backup state after interrupted rollback, and use the daemon's actual identity for headless export jobs.
 - Reflow asset, diagram and capture content at the available pane width; theme repair and quick-capture inputs and retain attached checkbox text. Expand worker regression coverage for narrow panes and delayed workflow ownership.

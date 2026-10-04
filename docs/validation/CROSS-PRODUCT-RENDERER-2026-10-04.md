@@ -21,6 +21,7 @@ execute on GitHub Actions workers before runtime success is claimed.
 | A consumed publication plan remained usable after refresh failed | Site mutation could succeed, but an unsuccessful replan left the previously consumed plan visible for another apply. | Clear the consumed plan immediately after a successful mutation. Report a subsequent refresh failure as a refresh failure and require a new reviewed plan. |
 | Direct daemon Markdown export omitted the switch barrier | Unlike the note-export wrapper, Markdown export could dispatch before a pending renderer-requested daemon vault transition completed. | The wrapper now awaits the same barrier and passes optional expected vault identity. Native daemon adapters validate/capture origin independently; see the native lane evidence. |
 | Diagram preparation hid failures | A renderer, permission, creation-only asset write or cancellation failure was caught and replaced by the original code fence. Native export could then report success despite the missing rendered diagram. | Preparation now rejects with the diagram kind, index and original actionable error. Missing PlantUML adapters also fail explicitly. Package tests cover failed writes, cancellation, stopping before subsequent renders and missing adapters. A real browser workflow rejects the asset write, checks the failed history/error, verifies no native export dispatch and preserves the authored editor draft. |
+| Mermaid export rasterization tainted the browser canvas | Hosted run `37202257167` at `890ac2777f0f1ea78856f2d3bcdeb56c46ce9d1f` failed the real Mermaid export: `toDataURL` rejected because generated HTML/foreignObject labels tainted the canvas. The native fixture did not cause this renderer failure. | Export initialization now uses the root SVG-label setting, protects it from document directives and restores the previous shared configuration after rendering, including parse failure. The browser regression renders flowchart, class, state and sequence diagrams twice; checks PNG signatures, real browser decoding and nonempty colored pixels; checks exact native Markdown references and unchanged authored source; attaches the four generated PNGs; and verifies a subsequent interactive preview retains HTML labels. This repair requires a new hosted run. |
 | Standalone diagram callbacks emitted unescaped destinations and invalid placeholders | Callbacks returning filenames with spaces, brackets, parentheses, apostrophes, percent signs, hashes or query punctuation produced broken Markdown. Omitting a render callback wrapped the documented placeholder comment inside an image destination. | A shared helper encodes raw file path segments while preserving directory separators. Real image metadata retains its raw path. No-renderer replacement emits actual comments and no phantom image records. Package behavioral tests cover both public paths. |
 | Bibliography evidence contained an isolated separator and silently exercised fallback formatting | Both screenshot and E2E bibliography fixtures used `type` instead of required `entry_type` and omitted `source_path`. The metadata row became only ` · `, and CSL conversion failed on the missing type. | Fixtures now match the native bibliography shape. The panel joins populated metadata fields and omits an empty row. Two browser regressions check source/type metadata plus active CSL preview, and blank metadata without a separator-only row. No citation text was stripped to hide the defect. |
 | Authored diagram examples were treated as executable diagrams | The unanchored triple-backtick regex matched shorter Mermaid examples inside longer Markdown code fences, ignored valid tilde diagrams and could close on inline/trailing fence text. A subsequent anchored scanner also skipped valid list-nested diagrams and stripped their opening indentation. | The export module now uses the existing CommonMark parser stack to identify real code nodes, including container-relative list/blockquote fences. Only the opening fence delimiter onward is replaced; the authored list/quote prefix stays outside that range. Renderer source comes from de-indented code-node text. Eight behavior tests cover backtick/tilde fences, longer examples, two-/four-space lists, quotes/nested quoted lists, same-line list markers, literal indented code, closing/info/CRLF/EOF rules, and shared rendering/dry-run paths. |
@@ -102,7 +103,30 @@ in those components was not exhaustively re-audited as part of that diff review.
 The authored regressions are three operation-gate tests, fifteen diagram package
 behavior tests, four export/publication browser workflows in
 `e2e/export-integrity.spec.ts` and two bibliography browser workflows in
-`e2e/bibliography-metadata.spec.ts`. They are pending hosted execution
-at the time of this document. Diff whitespace inspection passed; this is not
-compiler or runtime evidence. Packaged WebView, live providers, devices and
-screen readers are outside this lane's verification claims.
+`e2e/bibliography-metadata.spec.ts`. Hosted browser run `37202257167` executed
+at `890ac2777f0f1ea78856f2d3bcdeb56c46ce9d1f`: the delayed-plan transition,
+rejected asset write and populated bibliography workflows passed. The offline
+workflow reached success but its final assertion matched both latest output and
+history; the blank-metadata workflow's title assertion matched both citation and
+literature-note controls. Their repaired assertions target the actual owners and
+retain both artifact/title behavior checks. The bibliography failure snapshot
+includes the complete title and active CSL preview after formatting settles; no
+citation text or fixture metadata was removed to make the assertion pass.
+
+The same run exposed the real tainted-canvas failure described above. Its log and
+selected failure contexts/images were inspected from
+`artifacts/verification/github-37202257167-browser.log` and
+`artifacts/verification/github-37202257167-browser-evidence/`. Archive byte ranges
+were unsupported; only the selected contexts and PNGs were extracted, without
+opening videos or executing the application locally. All three repairs and the
+expanded PNG/preview assertions are source-reviewed and pending a new hosted
+run. Diff whitespace inspection passed; this is not compiler or runtime evidence.
+Packaged WebView, live providers, devices and screen readers are outside this
+lane's verification claims.
+
+Mermaid's installed type declarations and resolved source were checked against
+the pinned upstream configuration implementation: the root `htmlLabels` setting
+takes precedence over diagram-specific values, and secure keys cannot be changed
+by document directives. See the [configuration schema](https://mermaid.js.org/config/schema-docs/config.html#htmllabels)
+and [the matching upstream implementation](https://github.com/mermaid-js/mermaid/blob/mermaid%4012.0.0/packages/mermaid/src/config.ts).
+The preview renderer itself was not changed.

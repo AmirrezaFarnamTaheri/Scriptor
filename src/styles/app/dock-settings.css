@@ -59,7 +59,7 @@
   min-width: 0;
   display: grid;
   /* jobs | dock-chrome toggle | progress | repo-state */
-  grid-template-columns: auto auto minmax(260px, 620px) minmax(0, 1fr);
+  grid-template-columns: auto auto minmax(260px, 1fr) minmax(0, auto);
   align-items: center;
   gap: 10px;
 }

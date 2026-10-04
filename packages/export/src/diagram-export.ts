@@ -42,7 +42,9 @@ export function findDiagramBlocks(markdown: string): DiagramBlock[] {
     if (node.type === 'code') {
       const kind = node.lang?.toLowerCase()
       if (kind !== 'mermaid' && kind !== 'plantuml') continue
-      const source = node.value?.trim() ?? ''
+      // Rendering engines receive a consistent source representation; the
+      // original Markdown ranges and surrounding line endings stay untouched.
+      const source = node.value?.replace(/\r\n?/g, '\n').trim() ?? ''
       if (!source) continue
       const start = node.position?.start.offset
       const end = node.position?.end.offset

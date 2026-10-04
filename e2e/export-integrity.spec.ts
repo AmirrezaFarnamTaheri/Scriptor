@@ -82,7 +82,11 @@ test('a pending offline export blocks a competing palette profile and vault repl
   await page.evaluate(() => (window as Window & { finishExportFixture: () => void }).finishExportFixture())
   panel = await publishCenter(page)
   await expect(panel.locator('.publish-status-success')).toHaveCount(1)
-  await expect(panel.getByText('C:/vault/completed-offline.pdf', { exact: true })).toBeVisible()
+  const latest = panel.locator('.publish-center-section').filter({ has: page.getByRole('heading', { name: 'Latest file export', exact: true }) })
+  await expect(latest.locator('.publish-artifact')).toHaveText('C:/vault/completed-offline.pdf')
+  await expect(latest.locator('.publish-artifact')).toBeVisible()
+  await expect(panel.locator('.publish-center-history .publish-artifact')).toHaveText('C:/vault/completed-offline.pdf')
+  await expect(panel.locator('.publish-center-history .publish-artifact')).toBeVisible()
   expect((await calls(page, 'export_pdf_inprocess'))[0].args.expectedVaultId).toBe('screenshot-vault')
 })
 
@@ -108,12 +112,19 @@ test('a delayed publication plan cannot reopen or populate the publish center af
   expect((await calls(page, 'vault_publish_plan_starlight'))[0].args.expectedVaultId).toBe('screenshot-vault')
 })
 
-test('previewing a diagram export writes no assets, and repeated exports preserve existing diagram files', async ({ page }) => {
+test('previewing a diagram export writes no assets, and repeated exports preserve existing diagram files', async ({ page }, testInfo) => {
   await installExportFixture(page)
-  await page.evaluate(() => {
+  const diagrams = [
+    { name: 'flowchart', source: '%%{init: {"htmlLabels": true, "flowchart": {"htmlLabels": true}}}%%\nflowchart TD\n A[Draft] -->|Review| B[Published]' },
+    { name: 'class', source: 'classDiagram\n class Draft\n class Published\n Draft --> Published : review' },
+    { name: 'state', source: 'stateDiagram-v2\n [*] --> Draft\n Draft --> Published : Review\n Published --> [*]' },
+    { name: 'sequence', source: 'sequenceDiagram\n Author->>Reviewer: Draft\n Reviewer-->>Author: Publish' },
+  ]
+  const markdown = '# Research Plan\n\n' + diagrams.map(diagram => `\`\`\`mermaid\n${diagram.source}\n\`\`\``).join('\n\n') + '\n'
+  await page.evaluate(value => {
     const editor = (window as Window & { __scriptorE2eEditor: { getModel(): { setValue(value: string): void } } }).__scriptorE2eEditor
-    editor.getModel().setValue('# Research Plan\n\n```mermaid\nflowchart TD\n A[Draft] --> B[Published]\n```\n')
-  })
+    editor.getModel().setValue(value)
+  }, markdown)
   const panel = await publishCenter(page)
   const html = panel.locator('.publish-profile-list > li').filter({ has: page.locator('strong').filter({ hasText: /^HTML$/ }) })
   await html.getByRole('button', { name: 'Preview export', exact: true }).click()
@@ -125,14 +136,56 @@ test('previewing a diagram export writes no assets, and repeated exports preserv
   expect(preview.sourceMarkdown).toContain('```mermaid')
   for (const count of [1, 2]) {
     await html.getByRole('button', { name: 'Export HTML', exact: true }).click()
-    await expect(panel.locator('.publish-status-success')).toHaveCount(count)
+    await expect.poll(async () => ({
+      successes: await panel.locator('.publish-status-success').count(),
+      failures: await panel.locator('.publish-error').allTextContents(),
+    })).toEqual({ successes: count, failures: [] })
   }
   const assets = await calls(page, 'vault_save_asset')
-  expect(assets).toHaveLength(2)
-  expect(new Set(assets.map(row => row.args.relativePath)).size).toBe(2)
+  expect(assets).toHaveLength(diagrams.length * 2)
+  expect(new Set(assets.map(row => row.args.relativePath)).size).toBe(diagrams.length * 2)
   expect(assets.every(row => row.args.requireMissing === true && row.args.expectedVaultId === 'screenshot-vault')).toBe(true)
   expect(assets.every(row => /^assets\/export-[a-f\d-]+-\d+\.png$/.test(String(row.args.relativePath)))).toBe(true)
+  for (let index = 0; index < assets.length; index += 1) {
+    const bytes = assets[index].args.bytes as number[]
+    expect(bytes.slice(0, 8)).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+    const decoded = await page.evaluate(async values => {
+      const bitmap = await createImageBitmap(new Blob([new Uint8Array(values)], { type: 'image/png' }))
+      try {
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+        const context = canvas.getContext('2d')!
+        context.drawImage(bitmap, 0, 0)
+        const pixels = context.getImageData(0, 0, bitmap.width, bitmap.height).data
+        const colors = new Set<string>()
+        for (let offset = 0; offset < pixels.length && colors.size < 2; offset += 4) {
+          if (pixels[offset + 3] > 0) colors.add(Array.from(pixels.slice(offset, offset + 4)).join(','))
+        }
+        return { width: bitmap.width, height: bitmap.height, distinctVisibleColors: colors.size }
+      } finally { bitmap.close() }
+    }, bytes)
+    expect(decoded.width).toBeGreaterThan(1)
+    expect(decoded.height).toBeGreaterThan(1)
+    expect(decoded.distinctVisibleColors).toBe(2)
+    if (index < diagrams.length) await testInfo.attach(`mermaid-${diagrams[index].name}-export.png`, { body: Buffer.from(bytes), contentType: 'image/png' })
+  }
+  const exports = (await calls(page, 'export_run_markdown')).slice(1)
+  expect(exports).toHaveLength(2)
+  exports.forEach((row, index) => {
+    expect(row.args.sourceMarkdown).not.toContain('```mermaid')
+    for (const asset of assets.slice(index * diagrams.length, (index + 1) * diagrams.length)) {
+      expect(row.args.sourceMarkdown).toContain(`![Mermaid diagram](${asset.args.relativePath})`)
+    }
+  })
+  expect(await page.evaluate(() => (window as Window & { __scriptorE2eEditor: { getModel(): { getValue(): string } } }).__scriptorE2eEditor.getModel().getValue())).toBe(markdown)
   expect(await page.evaluate(() => sessionStorage.getItem('e2e:export-user-asset'))).toBe('user-owned diagram')
+  await panel.getByRole('button', { name: /^Close / }).click()
+  await page.locator('.editor-toolbar').getByRole('button', { name: 'Preview', exact: true }).click()
+  const previewSurface = page.locator('.markdown-preview, .preview-surface, .editable-preview-editor').first()
+  const previewDiagrams = previewSurface.locator('.mermaid[data-processed="true"]')
+  await expect(previewDiagrams).toHaveCount(diagrams.length)
+  await expect(previewDiagrams.first().locator('svg')).toContainText('Draft')
+  // Interactive preview retains its usual HTML labels after export finishes.
+  await expect(previewDiagrams.first().locator('foreignObject')).not.toHaveCount(0)
 })
 
 test('a rejected diagram asset fails export visibly without dispatching native export or rewriting the draft', async ({ page }) => {

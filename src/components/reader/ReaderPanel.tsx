@@ -116,6 +116,7 @@ export const ReaderPanel = memo(function ReaderPanel({
   const {
     fileType,
     position,
+    section,
     selection,
     annotations,
     annotationPopoverOpen,
@@ -280,7 +281,7 @@ export const ReaderPanel = memo(function ReaderPanel({
           setLoading(false)
           break
         case 'POSITION':
-          setPosition(msg.position)
+          setPosition(msg.position, msg.section)
           break
         case 'SELECTION':
           setSelection({ anchor: msg.anchor, quote: msg.quote })
@@ -408,7 +409,9 @@ export const ReaderPanel = memo(function ReaderPanel({
               <ZoomIn size={16} />
             </button>
             <span className="reader-panel__position" aria-live="polite" aria-label="Position">
-              {position ?? '—'}
+              {fileType === 'epub'
+                ? section === null ? 'Reading' : `Section ${section}`
+                : position === null ? '—' : `Page ${position}`}
             </span>
           </div>
         ) : null

@@ -517,11 +517,13 @@ fn configure_process_group(_command: &mut Command) {}
 #[cfg(unix)]
 fn terminate_process_tree(child: &mut Child) {
     let group = format!("-{}", child.id());
-    let _ = Command::new("kill").args(["-TERM", &group]).status();
+    // A negative PID is a process-group operand, not another signal option.
+    // Some external kill implementations continue parsing options after -TERM.
+    let _ = Command::new("kill").args(["-TERM", "--", &group]).status();
     thread::sleep(TERMINATION_GRACE);
     // Descendants can ignore TERM even when the leader exits. Keep the leader
     // unreaped until group escalation so its identity cannot be reused here.
-    let _ = Command::new("kill").args(["-KILL", &group]).status();
+    let _ = Command::new("kill").args(["-KILL", "--", &group]).status();
     let _ = child.kill();
 }
 

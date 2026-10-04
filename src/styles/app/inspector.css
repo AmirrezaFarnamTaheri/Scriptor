@@ -27,7 +27,8 @@
   gap: 4px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface-muted);
+  /* A solid themed base stops scrolled text showing through the tinted tabs. */
+  background: linear-gradient(var(--surface-muted), var(--surface-muted)), var(--bg);
 }
 
 .inspector-tabs button {

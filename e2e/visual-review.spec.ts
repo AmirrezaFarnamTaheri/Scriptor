@@ -905,6 +905,7 @@ test.describe('visual review states', () => {
       const rail = element.closest('.vault-panel')?.getBoundingClientRect()
       return {
         rowWidth: row.width,
+        background: getComputedStyle(element).backgroundColor,
         railWidth: rail?.width ?? 0,
         rowLeft: row.left,
         railLeft: rail?.left ?? 0,
@@ -913,6 +914,8 @@ test.describe('visual review states', () => {
       }
     })
     expect(skeletonGeometry.rowWidth).toBeGreaterThan(0)
+    expect(skeletonGeometry.background).not.toBe('rgba(0, 0, 0, 0)')
+    expect(skeletonGeometry.background).not.toBe('transparent')
     expect(skeletonGeometry.rowWidth).toBeLessThan(skeletonGeometry.railWidth)
     expect(skeletonGeometry.rowLeft).toBeGreaterThanOrEqual(skeletonGeometry.railLeft)
     expect(skeletonGeometry.rowRight).toBeLessThanOrEqual(skeletonGeometry.railRight)
@@ -1240,6 +1243,7 @@ test.describe('visual review states', () => {
     const reader = page.locator('.reader-panel')
     await expect(reader).toBeVisible()
     await expect(reader).toContainText('Book Draft.epub')
+    await expect(reader.getByLabel('Position', { exact: true })).toHaveText(/^Section \d+$/)
     const frame = reader.locator('iframe[title*="Book Draft.epub"]')
     await expect(frame).toBeVisible()
 
@@ -1918,8 +1922,18 @@ test.describe('visual review states', () => {
     await captureElement(page, publish, 'visual-publish-preflight.png')
 
     const printPreview = publish.locator('.print-preview-pages')
-    await printPreview.scrollIntoViewIfNeeded()
-    await expect(printPreview.getByLabel('Page 1')).toBeVisible()
+    const firstPage = printPreview.getByLabel('Page 1')
+    await expect(firstPage).toBeVisible()
+    // A whole paper page is taller than this viewport. Align its header,
+    // rather than centering the entire page and cropping the heading above it.
+    await publish.locator('.unified-panel-body').evaluate(body => {
+      const paperHeader = body.querySelector('.print-preview-page-header')!
+      const offset = paperHeader.getBoundingClientRect().top - body.getBoundingClientRect().top
+      body.scrollTop += offset - 16
+    })
+    expect(await firstPage.locator('.print-preview-page-header').evaluate(header =>
+      header.getBoundingClientRect().top - header.closest('.unified-panel-body')!.getBoundingClientRect().top,
+    )).toBeGreaterThanOrEqual(12)
     await captureElement(page, publish, 'visual-publish-print-preview.png')
   })
 

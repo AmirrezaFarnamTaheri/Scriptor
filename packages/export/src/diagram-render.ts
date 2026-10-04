@@ -9,9 +9,27 @@ export interface DiagramRenderResult {
 /** Rasterize mermaid blocks to PNG data URLs (browser) for export preprocessing. */
 export async function renderMermaidDiagramPng(source: string): Promise<string> {
   const { default: mermaid } = await import('mermaid')
-  mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' })
-  const id = `scriptor-mermaid-${crypto.randomUUID()}`
-  const { svg } = await mermaid.render(id, source)
+  const previousConfig = mermaid.mermaidAPI.getSiteConfig()
+  // HTML labels use foreignObject, which taints an SVG-backed browser canvas.
+  // The root setting covers node and edge labels across diagram types, and
+  // securing it prevents a document directive from re-enabling HTML labels.
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'neutral',
+    securityLevel: 'strict',
+    htmlLabels: false,
+    secure: [...new Set([...(previousConfig.secure ?? []), 'htmlLabels'])],
+  })
+  let svg: string
+  try {
+    const id = `scriptor-mermaid-${crypto.randomUUID()}`
+    const rendered = await mermaid.render(id, source)
+    svg = rendered.svg
+  } finally {
+    // Mermaid is shared with interactive previews; export settings must end
+    // with this render, including when the author's diagram fails to parse.
+    mermaid.initialize(previousConfig)
+  }
   const blob = new Blob([svg], { type: 'image/svg+xml' })
   const url = URL.createObjectURL(blob)
   try {

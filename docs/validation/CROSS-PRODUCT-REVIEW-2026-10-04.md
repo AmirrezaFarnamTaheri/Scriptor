@@ -92,9 +92,60 @@ their own evidence. These limitations are retained in capability maturity.
 
 ## Current checkpoint verification
 
-Implementation and source regressions are being integrated. Current-head hosted
-results, lane report links and any reviewed visual reference changes will be
-recorded here before a final verification claim.
+At `890ac2777f0f1ea78856f2d3bcdeb56c46ce9d1f`, the
+[desktop workers](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37202257178)
+passed on Windows, Linux and macOS, including the Linux native regressions.
+The [CI frontend lane](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37202257167)
+passed frontend, accessibility, TUI and daemon smoke checks. The browser lane
+reported 354 passes and ten failures; the separate five mobile checks passed.
+The dependency audit still fails on the documented four
+maintenance advisories; that gate has not been suppressed.
+
+The [fresh visual worker](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37202257159)
+reported 104 passes and four failures: two baseline differences, an ambiguous
+history-word-count locator, and a real Support divider-clearance regression.
+All 110 unique PNGs received a second individual review, recorded in the
+[74-image fresh ledger](VISUAL-IMAGE-LEDGER-FRESH-2026-10-04.md) and
+[36-image peer ledger](VISUAL-IMAGE-LEDGER-FRESH-REVIEWER-2026-10-04.md), with no
+missing or duplicated manifest positions. Fresh tab/health
+images confirm the intended spacing; Support and History still began flush
+under their dividers and the desktop footer still cropped its vault identity.
+The shared body contract now supplies the inset, rather than depending on an
+unused Support stylesheet or a lower-priority History rule. The progress grid
+now yields space to the complete status group. New geometry tests cover these
+recurrences in LTR and RTL. Touch-tab leading/closing insets also differed by
+two pixels; their padding is corrected while retaining the same geometry limits.
+The browser failures also exposed ambiguous bibliography/result locators and
+test setup that required a desktop rail at mobile sizes or attempted a Git
+commit without a message. Those tests now select their intended owners and
+perform the real prerequisite actions. No baseline has been automatically accepted.
+
+The fresh sweep found transparent inspector tabs over scrolling text, template
+dialog text bleed, and a loading screenshot whose skeleton styles were never
+imported. The sticky/tab and dialog backgrounds now have opaque themed bases,
+and the skeleton imports its styles and supplies a visible static background
+even when shimmer animation is disabled. Print evidence aligns the first page
+header rather than centering a page taller than the viewport. EPUB chrome now
+shows a validated one-based spine section, with its exact CFI retained for
+navigation and annotations; the deprecated flat location event no longer
+replaces that position with an empty string. Three protocol tests and a real
+EPUB surface assertion accompany that change. These new repairs still need
+hosted rendering evidence.
+
+Hosted diagram tests passed 14 of 15 cases: CommonMark preserved CRLF inside
+renderer source, violating the existing LF-source contract. Renderer source is
+now normalized while authored offsets and surrounding Markdown remain intact.
+The Rust workspace also found a surviving Unix descendant after timeout. The
+[timeout review](TIMEOUT-REVIEW-2026-10-04.md) records the unchanged regression and
+the explicit process-group operand delimiters. These follow-up corrections
+still require fresh hosted results before being called verified.
+
+The browser export failure was a real rendering defect: Mermaid HTML labels
+inserted SVG `foreignObject` content that tainted the rasterization canvas.
+Export now secures SVG labels for its render and restores the shared preview
+configuration in `finally`. The regression exercises four diagram types,
+an attempted label override, decoded PNG bytes, unique asset paths, preserved
+source and subsequent interactive preview. Its hosted rerun remains pending.
 
 Hosted checks at `dc1cbc0fb` exposed two checkpoint integration errors: the
 exclusive-copy helper needed the `std::io::Read` trait import, and the new

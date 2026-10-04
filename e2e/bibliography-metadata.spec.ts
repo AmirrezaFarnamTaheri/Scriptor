@@ -10,6 +10,7 @@ test('bibliography evidence includes real source metadata and an active CSL prev
   await expect(panel.locator('.bibliography-list > li small')).toHaveText('references.bib · article')
   await expect(panel.locator('header')).toContainText('CSL preview')
   await expect(panel.getByText('smith2024', { exact: true })).toBeVisible()
+  await expect(panel.locator('.bibliography-list > li > button[draggable="true"]')).toContainText('Research Methods')
 })
 
 test('empty bibliography metadata produces no separator-only row', async ({ page }) => {
@@ -21,5 +22,6 @@ test('empty bibliography metadata produces no separator-only row', async ({ page
   const panel = page.getByRole('dialog', { name: 'Bibliography', exact: true })
   await expect(panel.getByText('smith2024', { exact: true })).toBeVisible()
   await expect(panel.locator('.bibliography-list > li small')).toHaveCount(0)
-  await expect(panel.locator('.bibliography-list > li > button')).toContainText('Research Methods')
+  await expect(panel.locator('header')).toContainText('CSL preview')
+  await expect(panel.locator('.bibliography-list > li > button[draggable="true"]')).toContainText('Research Methods')
 })

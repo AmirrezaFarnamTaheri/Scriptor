@@ -1,7 +1,7 @@
 /* ===== Template Picker ===== */
 
 .template-picker-modal {
-  background: var(--surface-elevated);
+  background: var(--dialog-bg, var(--bg-elevated));
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);

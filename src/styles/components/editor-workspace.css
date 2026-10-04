@@ -645,7 +645,7 @@ body.is-split-resizing .editor-preview-pane {
 
 @media (pointer: coarse) {
   html[data-ui-reflow='mobile'] .tab-item .tab {
-    padding-inline: 13px;
+    padding-inline: 15px;
   }
 }
 
