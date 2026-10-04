@@ -92,6 +92,37 @@ their own evidence. These limitations are retained in capability maturity.
 
 ## Current checkpoint verification
 
+At `7f2539bd08bf44249a6a3a45a2adbd8b1bec8800`, the
+[desktop workers](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37206096369)
+again passed Windows, Linux and macOS. The
+[CI workers](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37206096340)
+passed frontend/accessibility/TUI/daemon checks and the Rust workspace lane,
+including the descendant-timeout regression. The source regression lane
+exposed an obsolete expectation that draft PRs skip visual review; its contract
+now requires draft coverage while retaining read-only baseline protections.
+The separate dependency gate continues to report the four maintenance advisories.
+The browser lane finished with 366 of 368 functional cases passing and five
+mobile passes. All diagram-export and bibliography regressions passed. The
+two failures were a Git locator that omitted the visible selection count and
+a real 200% History modal overflow: the shared shell and backdrop ignored the
+effective viewport dimensions already supplied by the zoom hook. The Git
+selector now requires its positive count. Shared modal dimensions now consume
+those viewport variables, and History additionally asserts complete panel and
+heading bounds before exercising the unchanged restoration controls. These
+follow-up corrections require fresh hosted evidence.
+
+The [post-fix visual run](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37206096374)
+passed 104 cases; its four failures are historical MCP, Publish, Health and
+History reference-image differences. Fresh captures confirm the shared divider
+insets, visible skeleton, readable EPUB section, complete print heading and
+footer identity. Its 115-image sweep additionally found two translucent surfaces:
+mobile sticky editor modes and the reader annotation dialog. Both receive opaque
+themed bases and pixel-alpha regression assertions. Those last two changes
+still require hosted recapture; no reference images have yet been refreshed.
+The complete sweep is recorded in the
+[70-image ledger](VISUAL-IMAGE-LEDGER-POSTFIX-2026-10-04.md) and
+[45-image peer ledger](VISUAL-IMAGE-LEDGER-POSTFIX-PEER-2026-10-04.md).
+
 At `890ac2777f0f1ea78856f2d3bcdeb56c46ce9d1f`, the
 [desktop workers](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37202257178)
 passed on Windows, Linux and macOS, including the Linux native regressions.

@@ -12,8 +12,8 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  width: min(560px, calc(100vw - 32px));
-  max-height: calc(100dvh - 48px);
+  width: min(560px, calc(var(--app-viewport-width, 100vw) - 32px));
+  max-height: calc(var(--app-viewport-height, 100dvh) - 48px);
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -23,7 +23,7 @@
 }
 
 .unified-panel-shell.unified-panel-wide[class] {
-  width: min(920px, 94vw);
+  width: min(920px, calc(var(--app-viewport-width, 100vw) - 32px));
 }
 
 .unified-panel-shell .unified-panel-header {
@@ -59,17 +59,17 @@
 /* Task and Kanban intentionally use narrower/taller modal geometry than the
  * generic wide shell. Their inner chrome still follows the shared contract. */
 .task-panel.unified-panel-shell {
-  width: min(720px, calc(100vw - 32px));
-  max-height: min(80dvh, 720px);
+  width: min(720px, calc(var(--app-viewport-width, 100vw) - 32px));
+  max-height: min(calc(var(--app-viewport-height, 100dvh) * 0.8), 720px);
 }
 
 .kanban-panel.unified-panel-shell {
-  width: min(720px, calc(100vw - 32px));
-  max-height: min(80dvh, 720px);
+  width: min(720px, calc(var(--app-viewport-width, 100vw) - 32px));
+  max-height: min(calc(var(--app-viewport-height, 100dvh) * 0.8), 720px);
 }
 
 .kanban-panel.unified-panel-shell.unified-panel-wide {
-  width: min(1080px, calc(100vw - 32px));
+  width: min(1080px, calc(var(--app-viewport-width, 100vw) - 32px));
 }
 
 /* A right dock is a real companion rail on roomy desktops. Scriptor already
@@ -319,8 +319,8 @@ html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
   .task-panel.unified-panel-shell,
   .kanban-panel.unified-panel-shell,
   .kanban-panel.unified-panel-shell.unified-panel-wide {
-    width: calc(100vw - 16px);
-    max-height: calc(100dvh - 16px);
+    width: calc(var(--app-viewport-width, 100vw) - 16px);
+    max-height: calc(var(--app-viewport-height, 100dvh) - 16px);
     border-radius: var(--radius-lg);
   }
 

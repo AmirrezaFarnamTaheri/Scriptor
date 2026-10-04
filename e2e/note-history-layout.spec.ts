@@ -19,6 +19,12 @@ for (const scenario of [
     await runCommand(page, 'Note history timeline')
     const panel = page.locator('.note-history-panel')
     await expect(panel.locator('.note-history-revision-markdown')).toContainText('Previous revision')
+    await expect.poll(() => panel.evaluate(element => {
+      const box = element.getBoundingClientRect()
+      return box.left >= 0 && box.top >= 0
+        && box.right <= window.innerWidth + 1 && box.bottom <= window.innerHeight + 1
+    })).toBe(true)
+    await expect(panel.getByRole('heading', { name: 'Note history', exact: true })).toBeInViewport()
     const geometry = await panel.evaluate(element => {
       const grid = element.querySelector<HTMLElement>('.note-history-layout')!
       const activity = element.querySelector('.note-history-activity')!.getBoundingClientRect()

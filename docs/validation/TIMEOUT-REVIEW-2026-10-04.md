@@ -27,9 +27,11 @@ its 250 ms grace, direct-child fallback, output-drain bounds, and the existing
 heartbeat equality regression remain unchanged. No assertion was weakened and
 no extra delay was added to make the test pass.
 
-The argument-parsing defect is supported by source inspection. Whether it fully
-explains this runner failure requires the next hosted execution; it is not
-reported as a verified runtime fix yet.
+The argument-parsing defect is supported by source inspection. The unchanged
+descendant-heartbeat regression subsequently passed in the Rust workspace lane
+of [CI 37206096340](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37206096340)
+at `7f2539bd08bf44249a6a3a45a2adbd8b1bec8800`. Formatting, checking and Clippy
+also passed there; the separate desktop workers passed on all three platforms.
 
 ## Verification boundary
 

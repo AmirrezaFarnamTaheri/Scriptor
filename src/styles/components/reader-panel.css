@@ -179,7 +179,7 @@
 /* ── AnnotationPopover ────────────────────────────────────────────────────── */
 
 .annotation-popover {
-  background: var(--color-bg-overlay, var(--surface-elevated));
+  background: var(--dialog-bg, var(--bg-elevated));
   border: 1px solid var(--reader-border);
   border-radius: 0.625rem;
   padding: 0.75rem;

@@ -1311,6 +1311,14 @@ test.describe('visual review states', () => {
 
     const annotation = reader.getByRole('dialog', { name: 'Annotate selection', exact: true })
     await expect(annotation).toBeVisible()
+    await expect.poll(() => annotation.evaluate(element => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 1
+      const context = canvas.getContext('2d')!
+      context.fillStyle = getComputedStyle(element).backgroundColor
+      context.fillRect(0, 0, 1, 1)
+      return context.getImageData(0, 0, 1, 1).data[3]
+    })).toBe(255)
     await annotation.getByRole('button', { name: 'Comment (c)', exact: true }).click()
     await expect(annotation.getByPlaceholder('Add a comment…')).toBeVisible()
     await expect.poll(() => annotation.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)

@@ -11,7 +11,9 @@
 
 .modal-backdrop {
   position: fixed;
-  inset: 0;
+  inset: 0 auto auto 0;
+  width: var(--app-viewport-width, 100vw);
+  height: var(--app-viewport-height, 100dvh);
   z-index: var(--comp-modal-z, 40);
   display: grid;
   place-items: center;

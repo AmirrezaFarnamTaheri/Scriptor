@@ -47,6 +47,22 @@ async function controlStyle(control: Locator) {
   })
 }
 
+test('sticky view modes keep an opaque base over scrolling formatting actions', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 })
+  await prepare(page)
+  const modes = page.locator('.editor-view-modes').first()
+  await expect(modes).toBeVisible()
+  await expect.poll(() => modes.evaluate(element => {
+    const style = getComputedStyle(element)
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 1
+    const context = canvas.getContext('2d')!
+    context.fillStyle = style.backgroundColor
+    context.fillRect(0, 0, 1, 1)
+    return { position: style.position, alpha: context.getImageData(0, 0, 1, 1).data[3] }
+  })).toEqual({ position: 'sticky', alpha: 255 })
+})
+
 test('expanded desktop footer reserves space for every status control and vault identity', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.addInitScript(() => localStorage.setItem('scriptor:status-dock-collapsed', 'false'))
@@ -218,7 +234,7 @@ test('Git preview and confirmation actions keep themed bounds and separate targe
   expect(preview.radius).toBeGreaterThan(0)
   const form = panel.locator('.git-commit-form')
   await form.getByRole('textbox').fill('test: preview balanced confirmation controls')
-  await form.getByRole('button', { name: 'Commit selected', exact: true }).click()
+  await form.getByRole('button', { name: /^Commit selected \([1-9]\d*\)$/ }).click()
   const confirmation = panel.getByRole('alertdialog', { name: 'Confirm Git action', exact: true })
   await expect(confirmation).toBeVisible()
   const gap = await confirmation.locator('.git-confirm-actions').evaluate(element => {

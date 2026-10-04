@@ -38,10 +38,11 @@ test('tracked screenshot trees contain no orphaned PNG artifacts', () => {
   assert.deepEqual(trackedGallery, expectedGallery, 'documentation gallery contains stale or missing image artifacts')
 })
 
-test('visual review covers ready PR heads and protected-branch pushes', () => {
+test('visual review covers draft and ready PR heads and protected-branch pushes', () => {
   assert.match(workflow, /pull_request:\s*\n\s*types: \[opened, synchronize, reopened, ready_for_review\]/)
   assert.match(workflow, /push:\s*\n\s*branches: \[main, master\]/)
-  assert.match(workflow, /if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.draft == false/)
+  assert.doesNotMatch(workflow, /github\.event\.pull_request\.draft/,
+    'draft PRs need the same read-only visual evidence before review')
 })
 
 

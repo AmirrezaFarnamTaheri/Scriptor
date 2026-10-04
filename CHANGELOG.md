@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Give the sticky mobile editor mode control and reader annotation dialog opaque themed bases so underlying icons and prose cannot show through them.
+- Bound shared modal surfaces to the effective viewport under app zoom, keeping headers and history restoration actions reachable at 200%.
+
 ### Added
 
 - Add workspace accessibility audits across light/dark appearance and desktop/narrow RTL layouts, with downloadable violation details. Run full verification on hosted GitHub workers, including draft PRs.
