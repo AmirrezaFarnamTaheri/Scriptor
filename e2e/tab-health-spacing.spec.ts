@@ -56,6 +56,9 @@ async function assertTabGeometry(tab: Locator) {
 async function prepare(page: Page, zoom: number, direction: string) {
   await page.addInitScript(value => localStorage.setItem('scriptor:ui-zoom', String(value)), zoom)
   await launchApp(page)
+  await expect.poll(() => page.evaluate(() => Number(document.body.style.zoom))).toBe(zoom)
+  await expect.poll(() => page.evaluate(() => document.body.style.getPropertyValue('--app-viewport-width').replace(/\s/g, ''))).toBe(`calc(100vw/${zoom})`)
+  await expect.poll(() => page.evaluate(() => document.body.style.getPropertyValue('--app-viewport-height').replace(/\s/g, ''))).toBe(`calc(100dvh/${zoom})`)
   await page.locator('html').evaluate((element, value) => { element.dir = value }, direction)
   const tab = page.locator('.workspace-writing-leaf .tab-item.active')
   await expect(tab.locator('.tab-title')).toHaveText('Research Plan')
@@ -79,6 +82,8 @@ for (const scenario of [
     const panel = page.getByRole('dialog', { name: 'Vault health', exact: true })
     const badge = panel.locator('.health-issues.is-healthy > strong')
     await expect(badge).toBeVisible()
+    await expect(panel.locator('.health-intro')).toBeFocused()
+    await expect.poll(() => panel.locator('.unified-panel-body').evaluate(element => element.scrollTop)).toBe(0)
     const geometry = await panel.evaluate(element => {
       const header = element.querySelector('.unified-panel-header')!.getBoundingClientRect()
       const badge = element.querySelector('.health-issues.is-healthy > strong')!.getBoundingClientRect()
@@ -91,6 +96,12 @@ for (const scenario of [
     expect(geometry.left).toBeGreaterThanOrEqual(geometry.panelLeft)
     expect(geometry.right).toBeLessThanOrEqual(geometry.panelRight)
     await panel.screenshot({ path: testInfo.outputPath(`health-divider-${scenario.width}-${scenario.zoom}-${scenario.direction}.png`), animations: 'disabled' })
+    await page.keyboard.press('Tab')
+    await expect(panel.locator('.health-maintenance-details > summary')).toBeFocused()
+    await page.keyboard.press('Shift+Tab')
+    await expect(panel.getByRole('button', { name: /^Close/i })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(panel).toHaveCount(0)
   })
 }
 

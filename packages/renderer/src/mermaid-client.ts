@@ -12,6 +12,8 @@
  * never silently ambiguous prose.
  */
 
+import { createMermaidPreviewRenderer } from './mermaid-coordinator.ts'
+
 /** The subset of Mermaid's API this module needs, so it can be stubbed in tests. */
 export interface MermaidRenderer {
   run(options: { nodes: HTMLElement[] }): Promise<unknown>
@@ -75,11 +77,7 @@ function markFailed(node: HTMLElement, source: string, error: unknown): void {
  */
 export async function renderMermaidDiagrams(
   root: HTMLElement,
-  loadMermaid: () => Promise<MermaidRenderer> = async () => {
-    const { default: mermaid } = await import('mermaid')
-    mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' })
-    return mermaid as unknown as MermaidRenderer
-  },
+  loadMermaid: () => Promise<MermaidRenderer> = async () => createMermaidPreviewRenderer(),
 ): Promise<{ rendered: number; failed: number }> {
   const nodes = Array.from(root.querySelectorAll<HTMLElement>('.mermaid'))
   if (nodes.length === 0) return { rendered: 0, failed: 0 }

@@ -255,9 +255,9 @@ importers:
       '@scriptor/core':
         specifier: workspace:*
         version: link:../core
-      mermaid:
-        specifier: ^12.0.0
-        version: 12.0.0
+      '@scriptor/renderer':
+        specifier: workspace:*
+        version: link:../renderer
       remark-parse:
         specifier: ^11.0.0
         version: 11.0.0

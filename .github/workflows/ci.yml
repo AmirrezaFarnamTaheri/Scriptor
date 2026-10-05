@@ -261,7 +261,7 @@ jobs:
 
       - name: Validate diagram preparation and reader position regressions
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Diagram and reader regressions" -FilePath "node" -ArgumentList @("--experimental-strip-types", "--test", "packages/export/src/diagram-render.test.ts", "src/components/reader/readerProtocol.test.ts") -TimeoutSeconds 300
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Diagram and reader regressions" -FilePath "node" -ArgumentList @("--experimental-strip-types", "--test", "packages/export/src/diagram-render.test.ts", "packages/renderer/src/mermaid-coordinator.test.ts", "src/components/reader/readerProtocol.test.ts") -TimeoutSeconds 300
 
       - name: Enforce frontend source quality and module-size ratchet
         shell: pwsh

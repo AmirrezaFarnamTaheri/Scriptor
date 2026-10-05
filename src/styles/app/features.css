@@ -531,7 +531,7 @@
 .canvas-table-surface th {
   border: 1px solid var(--border);
   padding: 0;
-  background: var(--surface-muted);
+  background: linear-gradient(var(--surface-muted), var(--surface-muted)), var(--bg);
   position: sticky;
   top: 0;
   z-index: 1;

@@ -36,20 +36,40 @@ interface UseWorkspaceExportOptions {
   refreshGit: () => Promise<void>
 }
 
+interface ExportDisplayState {
+  owner: string | null
+  result: ExportJobOutput | null
+  history: ExportJobRecord[]
+}
+
 export function useWorkspaceExport({ vaultId, activePath, draftMarkdown, vaultConfig, pluginExportProfiles, logActivity, setError, refreshGit }: UseWorkspaceExportOptions) {
-  const [exportResult, setExportResult] = useState<ExportJobOutput | null>(null)
-  const [exportHistory, setExportHistory] = useState<ExportJobRecord[]>([])
+  const [display, setDisplay] = useState<ExportDisplayState>(() => ({ owner: vaultId, result: null, history: [] }))
   const [isExporting, setIsExporting] = useState(false)
-  const gate = useRef(new WorkspaceOperationGate(vaultId)).current
+  const [gate] = useState(() => new WorkspaceOperationGate(vaultId))
   const mounted = useRef(false)
   const pending = useRef<{ operation: WorkspaceOperation; profileId: string; cancelled: boolean; phase: 'preparing' | 'submitted' | 'complete' } | null>(null)
+
+  // Reset only workspace-owned display state before React commits children.
+  // A pending native operation survives an owner change and must keep controls
+  // locked until its own finally block releases the gate.
+  if (display.owner !== vaultId) {
+    setDisplay({ owner: vaultId, result: null, history: [] })
+  }
+  const exportResult = display.owner === vaultId ? display.result : null
+  const exportHistory = display.owner === vaultId ? display.history : []
+
+  // Owner checks inside the updater also protect queued updates that React
+  // rebases after a concurrent vault render, before its layout effect commits.
+  const setExportResult = useCallback((result: ExportJobOutput | null) => {
+    setDisplay(current => current.owner === vaultId ? { ...current, result } : current)
+  }, [vaultId])
+  const setExportHistory = useCallback((update: (history: ExportJobRecord[]) => ExportJobRecord[]) => {
+    setDisplay(current => current.owner === vaultId ? { ...current, history: update(current.history) } : current)
+  }, [vaultId])
 
   useLayoutEffect(() => {
     mounted.current = true
     gate.setOwner(vaultId)
-    setExportResult(null)
-    setExportHistory([])
-    setIsExporting(gate.isPending())
     return () => { mounted.current = false; gate.invalidate() }
   }, [gate, vaultId])
 
@@ -173,7 +193,7 @@ export function useWorkspaceExport({ vaultId, activePath, draftMarkdown, vaultCo
       if (pending.current === request) pending.current = null
       if (mounted.current) setIsExporting(gate.isPending())
     }
-  }, [activePath, draftMarkdown, exportProfiles, gate, logActivity, refreshGit, setError, vaultId])
+  }, [activePath, draftMarkdown, exportProfiles, gate, logActivity, refreshGit, setError, setExportHistory, setExportResult, vaultId])
 
   const cancelExportRequest = useCallback(async () => {
     const request = pending.current

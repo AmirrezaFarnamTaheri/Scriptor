@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./mermaid": "./src/mermaid.ts",
     "./preview": "./src/preview.ts",
     "./scroll-sync": "./src/scroll-sync.ts"
   },

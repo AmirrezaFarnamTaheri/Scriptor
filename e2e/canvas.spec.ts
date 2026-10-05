@@ -147,6 +147,14 @@ test.describe('Canvas panel', () => {
     const block = await addTableBlock(panel)
     await expect(block).toHaveAttribute('aria-label', /table:/)
     await expect(panel.locator('.canvas-header')).toContainText('1 block')
+    await expect.poll(() => block.locator('th').first().evaluate(element => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 1
+      const context = canvas.getContext('2d')!
+      context.fillStyle = getComputedStyle(element).backgroundColor
+      context.fillRect(0, 0, 1, 1)
+      return context.getImageData(0, 0, 1, 1).data[3]
+    })).toBe(255)
   })
 
   test('canvas has accessible toolbar', async ({ page }) => {

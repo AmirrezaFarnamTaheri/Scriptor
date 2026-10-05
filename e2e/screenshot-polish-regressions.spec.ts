@@ -36,6 +36,15 @@ for (const panel of [
 }
 
 async function controlStyle(control: Locator) {
+  // Measure the settled target, including transforms animated by its ancestors.
+  await expect.poll(() => control.evaluate(element => {
+    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+      if (ancestor.getAnimations().some(animation =>
+        animation.playState === 'running' && animation.effect?.getTiming().iterations !== Infinity,
+      )) return false
+    }
+    return true
+  })).toBe(true)
   return control.evaluate(element => {
     const style = getComputedStyle(element)
     return {
@@ -84,6 +93,19 @@ test('expanded desktop footer reserves space for every status control and vault 
     })).toBe(true)
     await expect.poll(() => repo.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
   }
+  await page.locator('html').evaluate(element => { element.dir = 'ltr' })
+  const output = page.locator('#dock-tab-output')
+  if (await output.getAttribute('aria-expanded') !== 'true') await output.click()
+  const header = page.locator('#dock-panel-output > header')
+  await expect(header).toBeVisible()
+  await expect.poll(() => header.evaluate(element => {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 1
+    const context = canvas.getContext('2d')!
+    context.fillStyle = getComputedStyle(element).backgroundColor
+    context.fillRect(0, 0, 1, 1)
+    return context.getImageData(0, 0, 1, 1).data[3]
+  })).toBe(255)
 })
 
 for (const zoom of [1.25, 1.5, 2]) {

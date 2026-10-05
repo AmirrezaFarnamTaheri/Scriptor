@@ -12,6 +12,12 @@ results supersede historical counts below. See
 `validation/CROSS-PRODUCT-REVIEW-2026-10-04.md` for the renewed review, hosted
 results and remaining proof.
 
+The 2026-10-05 follow-up is documented in
+`validation/VISUAL-FOLLOWUP-2026-10-05.md`. Revision `45f521f94` passed all desktop
+workers and Rust workspace/frontend smoke lanes, but failed five browser cases
+and the fast lint lane. Its subsequent source repairs require new hosted proof;
+104 visual passes plus four reference differences do not override those failures.
+
 Localization enforcement covers maintained product/contributor documentation.
 `docs/validation/` holds provenance-sensitive audit records and recovered source
 reports; these evidence artifacts are excluded from translation requirements,

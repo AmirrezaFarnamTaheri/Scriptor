@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useRef } from 'react'
 import { Activity, CheckCircle2 } from 'lucide-react'
 
 import { useI18n } from '../lib/i18n'
@@ -61,6 +61,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
 }: VaultHealthDashboardProps) {
   const summary = diagnostics?.summary ?? null
   const { t } = useI18n()
+  const healthIntroRef = useRef<HTMLDivElement>(null)
   const lintSummary = diagnostics ? summarizeLintIssues(diagnostics.issues) : null
   const vaultWidgets = inspectorWidgets.filter((widget) => widget.placement === 'vault')
   const issueCount = diagnostics?.issues.length ?? 0
@@ -105,13 +106,18 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
       helpTopic="diagnostics"
       onClose={onClose}
       className="health-dashboard knowledge-filters-panel"
+      initialFocusRef={healthIntroRef}
       wide
     >
-      {!summary ? (
-        <p className="empty-state">Open a vault to inspect health.</p>
-      ) : (
-        <>
-          <div className={`health-issues${hasIssues ? ' has-issues' : ' is-healthy'}`}>
+      <div
+        ref={healthIntroRef}
+        tabIndex={-1}
+        className={`health-intro${summary ? ` health-issues${hasIssues ? ' has-issues' : ' is-healthy'}` : ''}`}
+      >
+        {!summary ? (
+          <p className="empty-state">{expectedVaultId ? 'Vault diagnostics have not loaded yet.' : 'Open a vault to inspect health.'}</p>
+        ) : (
+          <>
             <strong>
               {hasIssues ? (
                 `${issueCount} issue${issueCount === 1 ? '' : 's'} need attention`
@@ -139,8 +145,11 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
                 ))}
               </ul>
             ) : null}
-          </div>
-
+          </>
+        )}
+      </div>
+      {summary ? (
+        <>
           <div className="metric-grid health-metrics">
             {metricRows(summary, t).map(([label, value]) => (
               <div className="metric" key={label}>
@@ -221,7 +230,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
             </div>
           ) : null}
         </>
-      )}
+      ) : null}
     </UnifiedPanelShell>
   )
 })

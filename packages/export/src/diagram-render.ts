@@ -1,3 +1,4 @@
+import { renderMermaidSvg } from '@scriptor/renderer/mermaid'
 import type { DiagramKind } from './diagram-export.ts'
 import { findDiagramBlocks, formatDiagramImageDestination } from './diagram-export.ts'
 
@@ -7,29 +8,11 @@ export interface DiagramRenderResult {
 }
 
 /** Rasterize mermaid blocks to PNG data URLs (browser) for export preprocessing. */
-export async function renderMermaidDiagramPng(source: string): Promise<string> {
-  const { default: mermaid } = await import('mermaid')
-  const previousConfig = mermaid.mermaidAPI.getSiteConfig()
-  // HTML labels use foreignObject, which taints an SVG-backed browser canvas.
-  // The root setting covers node and edge labels across diagram types, and
-  // securing it prevents a document directive from re-enabling HTML labels.
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: 'neutral',
-    securityLevel: 'strict',
-    htmlLabels: false,
-    secure: [...new Set([...(previousConfig.secure ?? []), 'htmlLabels'])],
-  })
-  let svg: string
-  try {
-    const id = `scriptor-mermaid-${crypto.randomUUID()}`
-    const rendered = await mermaid.render(id, source)
-    svg = rendered.svg
-  } finally {
-    // Mermaid is shared with interactive previews; export settings must end
-    // with this render, including when the author's diagram fails to parse.
-    mermaid.initialize(previousConfig)
-  }
+export async function renderMermaidDiagramPng(
+  source: string,
+  renderSvg: (source: string) => Promise<string> = renderMermaidSvg,
+): Promise<string> {
+  const svg = await renderSvg(source)
   const blob = new Blob([svg], { type: 'image/svg+xml' })
   const url = URL.createObjectURL(blob)
   try {
@@ -83,7 +66,7 @@ export async function preprocessMarkdownDiagramsForExport(
     } catch (error) {
       const label = block.kind === 'mermaid' ? 'Mermaid' : 'PlantUML'
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`Could not prepare ${label} diagram ${index + 1}: ${message}`)
+      throw new Error(`Could not prepare ${label} diagram ${index + 1}: ${message}`, { cause: error })
     }
     cursor = block.end
   }

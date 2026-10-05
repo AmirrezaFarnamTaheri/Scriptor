@@ -269,7 +269,7 @@
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  background: var(--panel);
+  background: linear-gradient(var(--panel), var(--panel)), var(--bg);
 }
 
 .dock-list mark {

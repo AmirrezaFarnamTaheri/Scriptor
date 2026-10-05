@@ -6,6 +6,50 @@ protocols and boilerplate/archive assessments. It challenges earlier conclusions
 against current source and hosted evidence. It does not certify every possible
 runtime state or authorize a release.
 
+## Follow-up checkpoint — 2026-10-05
+
+At `45f521f944459f5c47eb85a43f10516dba7a8f03`, all three
+[desktop workers](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37232299730)
+passed again. The [CI run](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37232299661)
+passed Rust workspace formatting/check/Clippy/tests and frontend/accessibility/TUI/daemon
+smoke. Its functional browser lane reported 364 passes and five failures, followed
+by five mobile passes. These failures remain failed evidence until the repairs
+below execute on a new worker. The fast lane passed the focused diagram/reader
+regressions but failed lint on missing error cause and hook ref/effect usage.
+The four dependency maintenance advisories remain unsuppressed.
+
+Failure PNGs and contexts revealed a bibliography dialog wider than the zoomed
+viewport and an initially focused Maintenance summary scrolling the health body
+enough to halve its divider inset. Bibliography now uses explicit effective
+viewport bounds. Health initially focuses a persistent introduction element,
+retaining the shared focus trap and original clearance limits. The same element
+survives empty-to-healthy/issue diagnostics, preserving focus without reclaiming
+it after the user moves to Close. Four delayed-response regressions cover those
+transitions. Research tests use real app
+keyboard zoom and restored 200% zoom, with complete panel/close bounds. The Git
+control size was sampled during its 180ms entrance transform; its original size
+requirement now waits for finite ancestor animations to finish.
+
+The Mermaid canvas-taint failure recurred despite an earlier passing run. Preview
+initialization could overwrite export settings during asynchronous rendering.
+Both clients now use one renderer-owned configuration/render queue with restoration
+in `finally`, rejection recovery, and a narrow public SVG interface. Seven mocked
+coordinator tests and two rasterization tests join the hosted focused step; the
+real four-diagram PNG/preview regression remains unchanged. The hook lint repair
+stores owner-bound display state and stable operation gates without resetting
+pending operations during vault changes. Caught preparation errors retain their cause.
+These new repairs are source-reviewed, with hosted results pending.
+
+The [visual run](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37232299727)
+again reported 104 passes and four historical reference differences. Focused
+reinspection of six current images confirms the annotation dialog/mobile modes
+are opaque and the MCP, History, Publish and Health surfaces retain their intended
+geometry at ordinary zoom. This is a six-image reinspection following the complete
+115-image review, not a second claim of reviewing all 115 images at this revision.
+No committed reference images have been refreshed. Current image dispositions and
+the five failure-image findings are recorded in
+[the follow-up ledger](VISUAL-FOLLOWUP-2026-10-05.md).
+
 ## Confirmed corrections
 
 | Boundary | Defect and correction | Proof being retained |
@@ -122,6 +166,11 @@ still require hosted recapture; no reference images have yet been refreshed.
 The complete sweep is recorded in the
 [70-image ledger](VISUAL-IMAGE-LEDGER-POSTFIX-2026-10-04.md) and
 [45-image peer ledger](VISUAL-IMAGE-LEDGER-POSTFIX-PEER-2026-10-04.md).
+The subsequent shared-style audit found the same translucent token usage in
+sticky Canvas table headings and output dock headers. Both now retain their
+theme tint over an opaque base; existing Canvas/footer workflows check the
+rendered background alpha. This source-pattern correction is not presented as
+an additional defect independently observed in the 115-image corpus.
 
 At `890ac2777f0f1ea78856f2d3bcdeb56c46ce9d1f`, the
 [desktop workers](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37202257178)

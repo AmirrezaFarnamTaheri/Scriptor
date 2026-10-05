@@ -1,8 +1,29 @@
 import { test, expect } from '@playwright/test'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { closeWorkspacePanel, workspacePanelCloseButton, launchApp, openCommandPalette, runCommand } from './helpers'
 async function openResearch(page:Page,command:string){await page.addInitScript(()=>sessionStorage.setItem('e2e:research','1'));await launchApp(page);await openCommandPalette(page);await runCommand(page,command)}
 async function calls(page:Page,command:string){return page.evaluate(cmd=>(JSON.parse(sessionStorage.getItem('e2e:research-calls')??'[]') as Array<{cmd:string;payload:Record<string,unknown>}>).filter(row=>row.cmd===cmd),command)}
+
+async function expectAppZoom(page: Page, factor: number) {
+  await expect.poll(() => page.evaluate(() => Number(document.body.style.zoom))).toBe(factor)
+  await expect.poll(() => page.evaluate(() => document.body.style.getPropertyValue('--app-viewport-width').replace(/\s/g, ''))).toBe(`calc(100vw/${factor})`)
+  await expect.poll(() => page.evaluate(() => document.body.style.getPropertyValue('--app-viewport-height').replace(/\s/g, ''))).toBe(`calc(100dvh/${factor})`)
+}
+
+async function zoomBeyond200Percent(page: Page) {
+  await page.keyboard.press('Control+Digit0')
+  await expectAppZoom(page, 1)
+  // The app's multiplicative keyboard steps cross 200% at 215%.
+  for (let step = 0; step < 8; step += 1) await page.keyboard.press('Control+Equal')
+  await expectAppZoom(page, 2.15)
+}
+
+async function expectFullViewportBounds(target: Locator) {
+  await expect.poll(() => target.evaluate(element => {
+    const bounds = element.getBoundingClientRect()
+    return Math.max(0, -bounds.left, -bounds.top, bounds.right - window.innerWidth, bounds.bottom - window.innerHeight)
+  })).toBeLessThanOrEqual(1)
+}
 
 test('database edit preserves the displayed revision after an external source change', async ({ page }) => {
   await openResearch(page, 'Database studio')
@@ -179,7 +200,7 @@ test('capture extraction failures remain actionable without writing a note',asyn
   expect(await calls(page,'vault_save_asset')).toHaveLength(0)
 })
 
-test('research panels fit narrow viewports and remain reachable at 200 percent zoom',async({page},testInfo)=>{
+test('research panels fit narrow viewports and remain reachable beyond 200 percent app zoom',async({page},testInfo)=>{
   await openResearch(page,'Capture reviewer')
   await page.getByLabel('Article URL',{exact:true}).fill('https://example.org/article')
   await page.getByRole('button',{name:'Extract preview',exact:true}).click()
@@ -194,13 +215,19 @@ test('research panels fit narrow viewports and remain reachable at 200 percent z
     await expect(panel.getByRole('button',{name:'Save reviewed capture as a new note',exact:true})).toBeInViewport()
     if(width===1440||width===320)await panel.screenshot({path:testInfo.outputPath(`capture-${width}.png`)})
   }
-  await page.setViewportSize({width:768,height:900});await page.locator('html').evaluate(element=>element.style.zoom='2')
+  await page.setViewportSize({width:768,height:900})
+  await zoomBeyond200Percent(page)
   const capturePanel = page.getByRole('region',{name:'Capture reviewer',exact:true})
-  await (await workspacePanelCloseButton(page, capturePanel)).scrollIntoViewIfNeeded()
+  await expectFullViewportBounds(capturePanel)
+  const captureClose = await workspacePanelCloseButton(page, capturePanel)
+  await expectFullViewportBounds(captureClose)
+  await expect(captureClose).toBeInViewport({ ratio: 1 })
+  await capturePanel.screenshot({ path: testInfo.outputPath('capture-app-zoom-215.png') })
   await closeWorkspacePanel(page, capturePanel)
   await expect(page.getByRole('region',{name:'Capture reviewer',exact:true})).toHaveCount(0)
-  await page.locator('html').evaluate(element=>element.style.zoom='1')
-  for(const surface of [{command:'Database studio',name:'Database Studio',close:'Close database studio'},{command:'Browse bibliography',name:'Bibliography',close:'Close bibliography'}]){
+  await page.keyboard.press('Control+Digit0')
+  await expectAppZoom(page, 1)
+  for(const surface of [{command:'Database studio',name:'Database Studio'},{command:'Browse bibliography',name:'Bibliography'}]){
     await openCommandPalette(page);await runCommand(page,surface.command)
     const panel=page.getByRole(surface.name === 'Bibliography' ? 'dialog' : 'region',{name:surface.name,exact:true})
     expect(await panel.evaluate(element=>getComputedStyle(element).backgroundColor)).not.toMatch(/rgba\([^)]*,\s*0(?:\.|\))/)
@@ -212,10 +239,32 @@ test('research panels fit narrow viewports and remain reachable at 200 percent z
       await expect((await workspacePanelCloseButton(page, panel))).toBeInViewport()
       if(width===1440||width===320)await panel.screenshot({path:testInfo.outputPath(`${surface.name.toLowerCase().replace(/ /g,'-')}-${width}.png`)})
     }
-    await page.setViewportSize({width:768,height:900});await page.locator('html').evaluate(element=>element.style.zoom='2')
-    await (await workspacePanelCloseButton(page, panel)).scrollIntoViewIfNeeded()
-    await (await workspacePanelCloseButton(page, panel)).click()
+    await page.setViewportSize({width:768,height:900})
+    await zoomBeyond200Percent(page)
+    await expectFullViewportBounds(panel)
+    const close = await workspacePanelCloseButton(page, panel)
+    await expectFullViewportBounds(close)
+    await expect(close).toBeInViewport({ ratio: 1 })
+    await panel.screenshot({ path: testInfo.outputPath(`${surface.name.toLowerCase().replace(/ /g,'-')}-app-zoom-215.png`) })
+    await close.click()
     await expect(panel).toHaveCount(0)
-    await page.locator('html').evaluate(element=>element.style.zoom='1')
+    await page.keyboard.press('Control+Digit0')
+    await expectAppZoom(page, 1)
   }
+})
+
+test('reference desk and its close control stay fully inside a restored 200 percent app viewport', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 768, height: 900 })
+  await page.addInitScript(() => localStorage.setItem('scriptor:ui-zoom', '2'))
+  await openResearch(page, 'Browse bibliography')
+  await expectAppZoom(page, 2)
+  const panel = page.getByRole('dialog', { name: 'Bibliography', exact: true })
+  await expectFullViewportBounds(panel)
+  expect(await panel.evaluate(element => element.scrollWidth)).toBeLessThanOrEqual(await panel.evaluate(element => element.clientWidth) + 1)
+  const close = panel.getByRole('button', { name: 'Close bibliography', exact: true })
+  await expectFullViewportBounds(close)
+  await expect(close).toBeInViewport({ ratio: 1 })
+  await panel.screenshot({ path: testInfo.outputPath('bibliography-app-zoom-200.png') })
+  await close.click()
+  await expect(panel).toHaveCount(0)
 })

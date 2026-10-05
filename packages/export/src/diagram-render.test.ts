@@ -1,10 +1,100 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { findDiagramBlocks, replaceDiagramBlocksWithImages, replaceDiagramBlocksWithPlaceholders } from './diagram-export.ts'
-import { preprocessMarkdownDiagramsForExport } from './diagram-render.ts'
+import { preprocessMarkdownDiagramsForExport, renderMermaidDiagramPng } from './diagram-render.ts'
 
 const source = '# Authored source\n\n```plantuml\n@startuml\nAlice -> Bob: Hello\n@enduml\n```\n\nKeep this paragraph.\n'
 const rendered = new TextEncoder().encode('<svg></svg>')
+
+test('Mermaid SVG failure propagates before rasterization allocates an image', async () => {
+  const failure = new Error('Invalid Mermaid source')
+  await assert.rejects(renderMermaidDiagramPng('broken', async source => {
+    assert.equal(source, 'broken')
+    throw failure
+  }), error => error === failure)
+})
+
+test('Mermaid rasterization uses the coordinated SVG and releases its object URL after success or failure', async t => {
+  const source = 'flowchart TD\nA --> B'
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="32"><text>A</text></svg>'
+  const allocated: Blob[] = []
+  const revoked: string[] = []
+  const images: unknown[] = []
+  const dimensions: [number, number][] = []
+  let rasterFailure: Error | null = null
+  let imageFailure = false
+  const originalImage = Object.getOwnPropertyDescriptor(globalThis, 'Image')
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
+  t.after(() => {
+    if (originalImage) Object.defineProperty(globalThis, 'Image', originalImage)
+    else Reflect.deleteProperty(globalThis, 'Image')
+    if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument)
+    else Reflect.deleteProperty(globalThis, 'document')
+  })
+  Object.defineProperty(globalThis, 'Image', {
+    configurable: true,
+    value: class {
+      naturalWidth = 64
+      naturalHeight = 32
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      set src(url: string) {
+        assert.equal(url, 'blob:mermaid-export')
+        if (imageFailure) this.onerror?.()
+        else this.onload?.()
+      }
+    },
+  })
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: {
+      createElement(tag: string) {
+        assert.equal(tag, 'canvas')
+        return {
+          width: 0,
+          height: 0,
+          getContext(kind: string) {
+            assert.equal(kind, '2d')
+            return { drawImage(image: unknown, x: number, y: number) {
+              assert.deepEqual([x, y], [0, 0])
+              images.push(image)
+            } }
+          },
+          toDataURL(type: string) {
+            assert.equal(type, 'image/png')
+            dimensions.push([this.width, this.height])
+            if (rasterFailure) throw rasterFailure
+            return 'data:image/png;base64,cG5n'
+          },
+        }
+      },
+    },
+  })
+  t.mock.method(URL, 'createObjectURL', (blob: Blob) => {
+    allocated.push(blob)
+    return 'blob:mermaid-export'
+  })
+  t.mock.method(URL, 'revokeObjectURL', (url: string) => { revoked.push(url) })
+  const renderSvg = async (authored: string) => {
+    assert.equal(authored, source)
+    return svg
+  }
+  assert.equal(await renderMermaidDiagramPng(source, renderSvg), 'data:image/png;base64,cG5n')
+  assert.equal(allocated[0]?.type, 'image/svg+xml')
+  assert.equal(await allocated[0]?.text(), svg)
+  assert.deepEqual(dimensions, [[64, 32]])
+  assert.equal(images.length, 1)
+  assert.deepEqual(revoked, ['blob:mermaid-export'])
+
+  rasterFailure = new Error('Rasterization failed')
+  await assert.rejects(renderMermaidDiagramPng(source, renderSvg), error => error === rasterFailure)
+  assert.deepEqual(revoked, ['blob:mermaid-export', 'blob:mermaid-export'])
+
+  imageFailure = true
+  await assert.rejects(renderMermaidDiagramPng(source, renderSvg), /Failed to load diagram image/)
+  assert.equal(allocated.length, 3)
+  assert.equal(revoked.length, 3, 'image decoding failures must also release the SVG URL')
+})
 
 test('diagram write failure stops preparation and preserves the authored source', async () => {
   const original = source
@@ -27,11 +117,17 @@ test('diagram write failure stops preparation and preserves the authored source'
 
 test('a cancelled renderer rejects instead of quietly exporting a code fence', async () => {
   let writes = 0
+  const cancellation = new Error('Export cancelled')
   await assert.rejects(
     preprocessMarkdownDiagramsForExport(source, async () => { writes += 1; return 'assets/diagram.svg' }, async () => {
-      throw new Error('Export cancelled')
+      throw cancellation
     }),
-    /Could not prepare PlantUML diagram 1: Export cancelled/,
+    error => {
+      assert.ok(error instanceof Error)
+      assert.match(error.message, /Could not prepare PlantUML diagram 1: Export cancelled/)
+      assert.equal(error.cause, cancellation, 'preserve the original renderer error for diagnostics')
+      return true
+    },
   )
   assert.equal(writes, 0)
 })

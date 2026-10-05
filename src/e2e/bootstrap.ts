@@ -378,6 +378,20 @@ export function installE2eBridge(): void {
         }
         return screenshotRebuildSummary()
       case 'indexer_health_diagnostics':
+        if (window.sessionStorage.getItem('e2e:hold-health-diagnostics') === '1') {
+          window.sessionStorage.setItem('e2e:health-diagnostics-pending', '1')
+          return new Promise((resolve) => {
+            window.addEventListener('e2e:release-health-diagnostics', () => {
+              window.sessionStorage.removeItem('e2e:hold-health-diagnostics')
+              const diagnostics = screenshotHealthDiagnostics()
+              if (window.sessionStorage.getItem('e2e:health-diagnostics-result') === 'issues') {
+                diagnostics.summary = { ...diagnostics.summary, broken_links: 1 }
+                diagnostics.issues = [{ kind: 'broken_link', path: 'Research Plan.md', detail: 'unresolved link target: Missing reference', line: 7 }]
+              }
+              resolve(JSON.stringify(diagnostics))
+            }, { once: true })
+          })
+        }
         return JSON.stringify(screenshotHealthDiagnostics())
       case 'health_repair_receipts':
         return []

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Give the sticky mobile editor mode control and reader annotation dialog opaque themed bases so underlying icons and prose cannot show through them.
+- Apply opaque themed bases to Canvas table headings and the output dock header, with rendered alpha checks for the shared sticky-surface pattern.
 - Bound shared modal surfaces to the effective viewport under app zoom, keeping headers and history restoration actions reachable at 200%.
 
 ### Added
@@ -11,6 +12,9 @@
 
 ### Fixed
 
+- Serialize Mermaid configuration and rendering across previews and exports, restore settings after failures, and preserve diagram preparation error causes.
+- Keep bibliography dialogs within the effective zoomed viewport and focus the health summary before its lower maintenance controls can scroll the opening view.
+- Retain export and publication operation ownership through vault transitions without resetting pending locks from effects.
 - Apply shared panel divider clearance in the loaded stylesheet, preserve desktop footer identity beside progress, normalize diagram renderer line endings, and disambiguate Unix process-group termination arguments. Add hosted geometry regressions without relaxing visual comparisons.
 - Make sticky inspector tabs and template dialogs opaque over underlying text, load visible vault placeholders, capture the top of print pages, and show readable EPUB section labels while retaining precise navigation anchors.
 - Bind exports and publication plans to their originating vault, serialize competing export profiles, preserve successful exports after auxiliary refresh failures, and keep dry-run diagram previews free of asset writes.

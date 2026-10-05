@@ -129,4 +129,11 @@ the pinned upstream configuration implementation: the root `htmlLabels` setting
 takes precedence over diagram-specific values, and secure keys cannot be changed
 by document directives. See the [configuration schema](https://mermaid.js.org/config/schema-docs/config.html#htmllabels)
 and [the matching upstream implementation](https://github.com/mermaid-js/mermaid/blob/mermaid%4012.0.0/packages/mermaid/src/config.ts).
-The preview renderer itself was not changed.
+The initial correction did not change the preview renderer. The subsequent
+`45f521f94` browser run reproduced the tainted canvas: preview initialization
+could race the export's asynchronous render. Both clients now coordinate
+initialization, rendering and restoration through one renderer-owned queue.
+The regression covers overlap in both directions, multiple exports, render/import/
+initialization failures and run-only preview test doubles. Hosted execution of
+this later correction remains pending; the earlier single passing browser run
+does not establish that the race was resolved.

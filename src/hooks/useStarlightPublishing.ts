@@ -12,19 +12,29 @@ interface UseStarlightPublishingOptions {
   openPublishCenter: () => void
 }
 
+interface PublishDisplayState {
+  owner: string | null
+  plan: PublishPlan | null
+  outputPath: string | null
+}
+
 export function useStarlightPublishing({ vaultId, promptText, showToast, openPublishCenter }: UseStarlightPublishingOptions) {
-  const [publishPlan, setPublishPlan] = useState<PublishPlan | null>(null)
-  const [publishOutputPath, setPublishOutputPath] = useState<string | null>(null)
+  const [display, setDisplay] = useState<PublishDisplayState>(() => ({ owner: vaultId, plan: null, outputPath: null }))
   const [publishApplying, setPublishApplying] = useState(false)
-  const gate = useRef(new WorkspaceOperationGate(vaultId)).current
+  const [gate] = useState(() => new WorkspaceOperationGate(vaultId))
   const mounted = useRef(false)
+
+  // Plans belong to one vault; reset them before children can see a new vault
+  // with the previous plan. Applying remains busy until the native work ends.
+  if (display.owner !== vaultId) {
+    setDisplay({ owner: vaultId, plan: null, outputPath: null })
+  }
+  const publishPlan = display.owner === vaultId ? display.plan : null
+  const publishOutputPath = display.owner === vaultId ? display.outputPath : null
 
   useLayoutEffect(() => {
     mounted.current = true
     gate.setOwner(vaultId)
-    setPublishPlan(null)
-    setPublishOutputPath(null)
-    setPublishApplying(false)
     return () => { mounted.current = false; gate.invalidate() }
   }, [gate, vaultId])
 
@@ -45,8 +55,7 @@ export function useStarlightPublishing({ vaultId, promptText, showToast, openPub
       if (!requestedOutput || !isCurrent()) return
       const result = await vaultPublishPlanStarlight(requestedOutput, operation.owner)
       if (!isCurrent()) return
-      setPublishOutputPath(result.output)
-      setPublishPlan(result.plan)
+      setDisplay(current => current.owner === operation.owner ? { ...current, plan: result.plan, outputPath: result.output } : current)
       openPublishCenter()
     } catch (error) {
       if (isCurrent()) showToast(error instanceof Error ? error.message : String(error))
@@ -75,11 +84,13 @@ export function useStarlightPublishing({ vaultId, promptText, showToast, openPub
       const result = await vaultPublishApplyStarlight(publishOutputPath, toWrite, deleteOrphans, operation.owner)
       if (!isCurrent()) return
       // The reviewed plan has been consumed even when a later refresh fails.
-      setPublishPlan(null)
+      setDisplay(current => current.owner === operation.owner ? { ...current, plan: null } : current)
       showToast(`Published ${result.written.length} note(s); deleted ${result.deleted.length} managed orphan(s).`)
       try {
         const refreshed = await vaultPublishPlanStarlight(publishOutputPath, operation.owner)
-        if (isCurrent()) { setPublishPlan(refreshed.plan); setPublishOutputPath(refreshed.output) }
+        if (isCurrent()) {
+          setDisplay(current => current.owner === operation.owner ? { ...current, plan: refreshed.plan, outputPath: refreshed.output } : current)
+        }
       } catch (error) {
         if (isCurrent()) showToast(`The site was updated, but its plan could not refresh. Review a new plan before applying again. ${error instanceof Error ? error.message : String(error)}`)
       }
