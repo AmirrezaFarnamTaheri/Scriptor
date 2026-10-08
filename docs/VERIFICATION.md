@@ -4,6 +4,11 @@ This document defines proof for the current source candidate. A release record m
 
 ## Claim vocabulary
 
+The five-integration completion candidate is recorded in
+`validation/GOOGLE-INTEGRATIONS-2026-10-09.md`. New behavior and regression tests
+are authored; execution and formatting belong to hosted workers. This does not
+certify real Google accounts, OAuth app approval, or packaged WebView behavior.
+
 Full test/build verification for the 2026-10-04 polish checkpoint runs exclusively
 on GitHub-hosted workers, including draft PRs. No local full suites or builds are
 authorized. Interrupted local runs are not passing evidence. Current-head worker

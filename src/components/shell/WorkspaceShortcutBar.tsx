@@ -77,7 +77,7 @@ function ShortcutManager({ catalog, preferences, onClose, onSave, locale }: Omit
   }
   return createPortal(
     <div className="modal-backdrop workspace-shortcut-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
-      <form ref={dialogRef} className="unified-panel-shell workspace-shortcut-manager" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} dir={locale === 'fa' ? 'rtl' : 'ltr'} onSubmit={event => {
+      <form ref={dialogRef} className="unified-panel-shell workspace-shortcut-manager" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} data-help-topic="workspace" dir={locale === 'fa' ? 'rtl' : 'ltr'} onSubmit={event => {
         event.preventDefault()
         if (onSave(draft)) onClose()
         else setError(true)

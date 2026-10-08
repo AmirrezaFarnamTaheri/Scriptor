@@ -291,11 +291,15 @@ function WorkspacePanelLaunchersImpl({
         >
           <Suspense fallback={<PanelFallback />}>
             <GmailManagerPanel
+              key={workspace.vault.id}
               defaultClientId={workspace.vaultConfig.calendar_sync?.google_client_id ?? ''}
               onClose={() => setGmailManagerOpen(false)}
-              onImportNote={async (subject, markdown, messageId) => {
+              onImportNote={async (subject, markdown, messageId, importIsCurrent) => {
+                const originatingVaultId = workspace.vault?.id
+                if (!originatingVaultId || currentVaultId.current !== originatingVaultId) throw new Error('Vault changed; reopen Gmail before importing.')
                 const title = gmailImportedNoteTitle(subject, messageId)
-                const path = await workspace.createNote(title, markdown, { requireMissing: true })
+                const path = await workspace.createNote(title, markdown, { requireMissing: true, isCurrent: () => currentVaultId.current === originatingVaultId && importIsCurrent?.() !== false })
+                if (currentVaultId.current !== originatingVaultId || importIsCurrent?.() === false) return
                 if (!path) {
                   throw new Error(`Could not import Gmail message ${messageId}; the target note already exists or could not be saved.`)
                 }

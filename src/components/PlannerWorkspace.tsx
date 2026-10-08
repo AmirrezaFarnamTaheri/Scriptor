@@ -4,9 +4,17 @@ import type { RunSourceNoteMutation } from '../hooks/useTaskStore'
 import { googleCalendarCreateTask, googlePlannerWrite, type CalendarEvent, type GoogleTask } from '../bridge/commands/google_calendar'
 import { vaultReadNote, vaultSaveNote } from '../bridge/commands/vault'
 import { indexerSyncNoteTasks } from '../bridge/commands/indexer'
-import { layoutPlannerDay, planReconciliation, readPlannerBlocks, rewritePlannerTask, taskSourceMarker, weekDays, type PlannerBlock, type PlannerTaskValue } from '../lib/planner'
+import { layoutPlannerDay, planReconciliation, rewritePlannerTask, taskSourceMarker, weekDays, type PlannerBlock, type PlannerTaskValue } from '../lib/planner'
+import { plannerGoogleTaskBaseKey, readGoogleOwnedPlannerBlocks, serializeGoogleOwnedPlannerBlocks } from '../lib/plannerGoogleOwnership'
 import { formatLocalDate } from '@scriptor/core/date'
 import '../styles/planner.css'
+import { useI18n } from '../lib/i18n'
+
+const CALENDAR_WRITE_HELP = {
+  en: 'Calendar writes are unavailable until a writable calendar is confirmed in Google settings. You can still review and import its events.',
+  de: 'Kalenderänderungen sind erst nach Bestätigung eines beschreibbaren Kalenders in den Google-Einstellungen verfügbar. Sie können Ereignisse weiterhin prüfen und importieren.',
+  fa: 'تا تأیید یک تقویم قابل‌ویرایش در تنظیمات گوگل، نوشتن در تقویم در دسترس نیست. همچنان می‌توانید رویدادها را بررسی و وارد کنید.',
+}
 
 export interface PlannerWorkspaceProps {
   vaultId: string
@@ -16,6 +24,8 @@ export interface PlannerWorkspaceProps {
   calendarId: string
   taskListId: string
   connected: boolean
+  googleAccount?: string | null
+  calendarWritable?: boolean
   runSourceNoteMutation?: RunSourceNoteMutation
   onReload: () => void | Promise<void>
   onOpenNote: (path: string) => void
@@ -36,10 +46,12 @@ function readBases(key: string): Record<string,PlannerTaskValue> {
 }
 
 /** Local scheduling stays available offline. Provider changes require review and native consent. */
-export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,taskListId,connected,runSourceNoteMutation,onReload,onOpenNote}: PlannerWorkspaceProps) {
+export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,taskListId,connected,googleAccount = null,calendarWritable = false,runSourceNoteMutation,onReload,onOpenNote}: PlannerWorkspaceProps) {
+  const { locale } = useI18n()
   const storageKey = `scriptor:planner:v1:${encodeURIComponent(vaultId)}`
-  const baseKey = `${storageKey}:tasks:${encodeURIComponent(taskListId)}`
-  const [blocks,setBlocks] = useState<PlannerBlock[]>(() => {try {return readPlannerBlocks(localStorage.getItem(storageKey))} catch {return []}})
+  const owner = googleAccount ? { account: googleAccount, calendarId } : null
+  const baseKey = plannerGoogleTaskBaseKey(vaultId, googleAccount, taskListId)
+  const [blocks,setBlocks] = useState<PlannerBlock[]>(() => {try {return readGoogleOwnedPlannerBlocks(localStorage.getItem(storageKey), owner)} catch {return []}})
   const [bases,setBases] = useState(() => readBases(baseKey))
   const [day,setDay] = useState(formatLocalDate())
   const [taskId,setTaskId] = useState('')
@@ -50,16 +62,27 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
   const [busy,setBusy] = useState(false)
   const [message,setMessage] = useState<string | null>(null)
   const cancelRef = useRef(false)
-  useEffect(()=>()=>{cancelRef.current=true},[])
+  const mountedRef = useRef(false)
+  const contextKey = JSON.stringify([vaultId, googleAccount, calendarId, taskListId])
+  const currentContextRef = useRef(contextKey)
+  currentContextRef.current = contextKey
+  const contextCurrent = () => mountedRef.current && currentContextRef.current === contextKey
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false; cancelRef.current = true }
+  }, [])
   const days = useMemo(() => weekDays(day), [day])
   const saveBlocks = (next: PlannerBlock[]) => {
+    if (!contextCurrent()) return
     if (next.length > 500) throw new Error('Planner supports up to 500 mapped time blocks')
-    localStorage.setItem(storageKey,JSON.stringify(next)); setBlocks(next)
+    localStorage.setItem(storageKey,serializeGoogleOwnedPlannerBlocks(next, owner)); setBlocks(next)
   }
   const saveBase = (id: string,value: PlannerTaskValue) => {
+    if (!contextCurrent()) return
     const next = {...bases,[id]:value}; localStorage.setItem(baseKey,JSON.stringify(next));setBases(next)
   }
   const schedule = () => {
+    if (!contextCurrent()) return
     try {
       const task = tasks.find(row => row.id === taskId)
       if (!task) throw new Error('Choose a vault task to schedule')
@@ -72,6 +95,7 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
     } catch(error) {setMessage(String(error))}
   }
   const prepare = () => {
+    if (!contextCurrent()) return
     const rows: Review[] = []
     const nextBases = {...bases}
     for (const task of tasks) {
@@ -92,7 +116,12 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
     setReview(rows);setMessage(rows.length ? 'Review each change. Conflicts require a direction; nothing is applied automatically.' : 'No differences in the loaded task and event window.')
   }
   const apply = async (row: Review,direction: 'push' | 'pull') => {
-    if (busy) return
+    if (busy || !contextCurrent()) return
+    if (!connected) { setMessage('Refresh the Google connection and prepare this review again.'); return }
+    if (direction === 'push' && row.kind === 'event' && !calendarWritable) {
+      setMessage(CALENDAR_WRITE_HELP[locale])
+      return
+    }
     setBusy(true);cancelRef.current=false;setMessage(null)
     try {
       if (row.kind === 'task') {
@@ -101,10 +130,13 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
           const path = row.task.sourceNotePath
           if (!path) throw new Error('Task has no source note')
           const mutate = async () => {
+            if (!contextCurrent()) return
             const note = await vaultReadNote(path)
+            if (!contextCurrent()) return
             const markdown = rewritePlannerTask(note.markdown,row.task,value)
             if (cancelRef.current) throw new Error('Cancelled before saving')
             await vaultSaveNote(path,markdown,note.metadata.content_hash,false,vaultId)
+            if (!contextCurrent()) return
             await indexerSyncNoteTasks(path)
           }
           if (runSourceNoteMutation) {if (!await runSourceNoteMutation(path,mutate)) throw new Error('Save the source note before importing')}
@@ -115,8 +147,10 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
         } else {
           if (row.direction === 'duplicate mapping') throw new Error('Resolve duplicate provider mappings before syncing')
           await googleCalendarCreateTask({taskListId,title:value.title,notes:taskSourceMarker(vaultId,row.task.id),due:value.due ? `${value.due}T00:00:00Z` : null})
+          if (!contextCurrent()) return
           if (value.done) throw new Error('Task created. Refresh, then review its completed status.')
         }
+        if (!contextCurrent()) return
         saveBase(row.task.id,value)
       } else {
         let block = {...row.block}
@@ -131,18 +165,22 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
           block = {...block,eventId:id}
           saveBlocks(blocks.map(item => item.taskId === block.taskId ? block : item))
           const result = await googlePlannerWrite({kind:'event',calendarId,eventId:id,etag:row.remote?.etag ?? null,title:block.title,start:block.start,end:block.end,create:!row.remote})
+          if (!contextCurrent()) return
           block = {...block,eventId:result.id,base:{title:block.title,start:block.start,end:block.end}}
         }
         saveBlocks(blocks.map(item => item.taskId === block.taskId ? block : item))
       }
-      setReview(null);await onReload();setMessage(cancelRef.current ? 'The active change finished. Review stopped; applied changes remain saved.' : 'Change applied. Refresh and review the remaining differences.')
-    } catch(error) {setMessage(String(error))} finally {setBusy(false)}
+      if (!contextCurrent()) return
+      setReview(null);await onReload()
+      if (contextCurrent()) setMessage(cancelRef.current ? 'The active change finished. Review stopped; applied changes remain saved.' : 'Change applied. Refresh and review the remaining differences.')
+    } catch(error) {if (contextCurrent()) setMessage(String(error))} finally {if (contextCurrent()) setBusy(false)}
   }
   const shownEvents = events.filter(event => !blocks.some(block => block.eventId === event.id))
   const timed = [...blocks.map(block=>({id:`local:${block.taskId}`,start:block.start,end:block.end,title:block.title,block})),...shownEvents.filter(event=>!event.allDay && event.status!=='cancelled').map(event=>({id:`remote:${event.id}`,start:event.start,end:event.end,title:event.summary,block:undefined}))]
   return <section className="planner-workspace" aria-label="Weekly planner">
     <div className="section-heading-row"><h3>Weekly planner</h3><label className="planner-week-control">Week containing <input type="date" value={day} onChange={e=>setDay(e.target.value || formatLocalDate())}/></label></div>
     <p className="health-subtitle">Time blocks are stored on this device. Google Tasks due dates have no time; timed scheduling uses Calendar events. Sync affects only mapped tasks and explicitly mapped events.</p>
+    {connected && !calendarWritable && <p className="health-subtitle" role="note">{CALENDAR_WRITE_HELP[locale]}</p>}
     <div className="planner-week" role="list" aria-label="Week time grid">
       {days.map(date => <section role="listitem" className="planner-day" key={date} aria-label={date}>
         <h4><time dateTime={date}>{new Date(`${date}T12:00:00`).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}</time></h4>
@@ -163,6 +201,6 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
     </form>
     <button type="button" className="toolbar-button" disabled={!connected || busy} onClick={prepare}>Review bidirectional sync</button>
     {message && <p role="status" className="health-subtitle">{message}</p>}
-    {review && <div className="planner-review" aria-label="Sync review"><p>{review.length} changes · Google → vault or vault → Google. Each provider write asks for permission.</p>{review.map((row,index)=><div className="planner-review__row" key={index}><strong dir="auto">{row.kind==='task'?row.task.title:row.block.title}</strong><span>{row.direction}</span><pre>{JSON.stringify(row.kind==='task'?{vault:taskValue(row.task),google:row.remote?remoteValue(row.remote):null}:{vault:row.block,google:row.remote?eventValue(row.remote):null},null,2)}</pre><div className="planner-review__actions"><button type="button" disabled={busy || row.direction==='duplicate mapping'} onClick={()=>void apply(row,'push')}>Use vault → Google</button><button type="button" disabled={busy || !row.remote} onClick={()=>void apply(row,'pull')}>Use Google → vault</button></div></div>)}<button type="button" onClick={()=>{cancelRef.current=true;if(!busy)setReview(null);setMessage(busy?'Stopping after the active change. A sent provider request cannot be recalled.':'Review cancelled. No further changes applied.')}}>Cancel review</button></div>}
+    {review && <div className="planner-review" aria-label="Sync review"><p>{review.length} changes · Google → vault or vault → Google. Each provider write asks for permission.</p>{review.map((row,index)=><div className="planner-review__row" key={index}><strong dir="auto">{row.kind==='task'?row.task.title:row.block.title}</strong><span>{row.direction}</span><pre>{JSON.stringify(row.kind==='task'?{vault:taskValue(row.task),google:row.remote?remoteValue(row.remote):null}:{vault:row.block,google:row.remote?eventValue(row.remote):null},null,2)}</pre><div className="planner-review__actions"><button type="button" disabled={!connected || busy || row.direction==='duplicate mapping' || (row.kind==='event' && !calendarWritable)} onClick={()=>void apply(row,'push')}>Use vault → Google</button><button type="button" disabled={!connected || busy || !row.remote} onClick={()=>void apply(row,'pull')}>Use Google → vault</button></div></div>)}<button type="button" onClick={()=>{cancelRef.current=true;if(!busy)setReview(null);setMessage(busy?'Stopping after the active change. A sent provider request cannot be recalled.':'Review cancelled. No further changes applied.')}}>Cancel review</button></div>}
   </section>
 }

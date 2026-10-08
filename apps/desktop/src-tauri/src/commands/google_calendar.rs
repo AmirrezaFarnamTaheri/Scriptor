@@ -265,7 +265,9 @@ fn validate_google_email(email: &str) -> Result<(), String> {
     if email.is_empty()
         || email.len() > 320
         || !email.contains('@')
-        || email.chars().any(|value| value.is_control() || value.is_whitespace())
+        || email
+            .chars()
+            .any(|value| value.is_control() || value.is_whitespace())
     {
         return Err("Google returned an invalid account email".into());
     }
@@ -274,21 +276,28 @@ fn validate_google_email(email: &str) -> Result<(), String> {
 
 fn parse_stored_tokens(json: &str) -> Result<StoredTokens, String> {
     if json.len() > 16 * 1024 {
-        return Err(google_auth_required("Stored Google credentials exceed the size limit. Reconnect."));
+        return Err(google_auth_required(
+            "Stored Google credentials exceed the size limit. Reconnect.",
+        ));
     }
     let tokens: StoredTokens = serde_json::from_str(json)
         .map_err(|_| google_auth_required("Stored Google credentials are invalid. Reconnect."))?;
     validate_google_client_id(&tokens.client_id)
         .map_err(|_| google_auth_required("Stored Google client ID is invalid. Reconnect."))?;
-    validate_google_email(&tokens.email)
-        .map_err(|_| google_auth_required("Stored Google account identity is invalid. Reconnect."))?;
+    validate_google_email(&tokens.email).map_err(|_| {
+        google_auth_required("Stored Google account identity is invalid. Reconnect.")
+    })?;
     for token in std::iter::once(&tokens.access_token).chain(tokens.refresh_token.iter()) {
         if token.is_empty() || token.len() > 4096 || token.chars().any(char::is_control) {
-            return Err(google_auth_required("Stored Google token values are invalid. Reconnect."));
+            return Err(google_auth_required(
+                "Stored Google token values are invalid. Reconnect.",
+            ));
         }
     }
     if tokens.expiry_ms == 0 {
-        return Err(google_auth_required("Stored Google token lifetime is invalid. Reconnect."));
+        return Err(google_auth_required(
+            "Stored Google token lifetime is invalid. Reconnect.",
+        ));
     }
     Ok(tokens)
 }
@@ -313,7 +322,9 @@ fn google_account_generation(account: &str, advance: bool) -> Result<u64, String
         }
     };
     if advance {
-        generations[index].1 = generations[index].1.checked_add(1)
+        generations[index].1 = generations[index]
+            .1
+            .checked_add(1)
             .ok_or("Google account lifecycle counter exhausted")?;
     }
     Ok(generations[index].1)
@@ -623,7 +634,9 @@ fn provider_failure(status: reqwest::StatusCode, operation: &str) -> String {
     if status == reqwest::StatusCode::UNAUTHORIZED {
         google_auth_required("Google authorization expired. Reconnect the account.")
     } else if status == reqwest::StatusCode::FORBIDDEN {
-        format!("{operation} was denied. Check resource access and reconnect to grant the required service scope.")
+        format!(
+            "{operation} was denied. Check resource access and reconnect to grant the required service scope."
+        )
     } else {
         format!("{operation} failed ({status}). Try again later.")
     }
@@ -647,7 +660,9 @@ fn read_provider_json_bounded<T: serde::de::DeserializeOwned>(
         .read_to_end(&mut bytes)
         .map_err(|_| format!("Could not read {operation} response"))?;
     if bytes.len() as u64 > limit {
-        return Err(format!("{operation} response exceeds the supported size limit"));
+        return Err(format!(
+            "{operation} response exceeds the supported size limit"
+        ));
     }
     serde_json::from_slice(&bytes).map_err(|_| format!("Invalid {operation} response"))
 }
@@ -742,10 +757,15 @@ fn fetch_email(client: &reqwest::blocking::Client, access_token: &str) -> Result
         .send()
         .map_err(|error| format!("failed to fetch Google account email: {error}"))?;
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "failed to fetch Google account email"));
+        return Err(provider_failure(
+            response.status(),
+            "failed to fetch Google account email",
+        ));
     }
     let info: UserInfoResponse = read_provider_json(response, "Google account identity")?;
-    let email = info.email.ok_or("Google account response did not include an email")?;
+    let email = info
+        .email
+        .ok_or("Google account response did not include an email")?;
     validate_google_email(&email)?;
     Ok(email)
 }
@@ -985,7 +1005,10 @@ fn map_task(task: GTask) -> GoogleTask {
 }
 
 fn validate_google_task_id(id: &str) -> Result<(), String> {
-    if id.is_empty() || id.len() > 1024 || id.chars().any(|ch| ch.is_control() || ch.is_whitespace()) {
+    if id.is_empty()
+        || id.len() > 1024
+        || id.chars().any(|ch| ch.is_control() || ch.is_whitespace())
+    {
         return Err("Invalid Google Task identity".into());
     }
     Ok(())
@@ -1019,10 +1042,25 @@ fn validate_task_fields(
 }
 
 fn validate_provider_task(task: GTask) -> Result<GTask, String> {
-    validate_google_task_id(task.id.as_deref().ok_or("Google returned a task without an ID")?)?;
-    let title = task.title.as_deref().ok_or("Google returned a task without a title")?;
-    let status = task.status.as_deref().ok_or("Google returned a task without a status")?;
-    validate_task_fields(title, task.notes.as_deref(), task.due.as_deref(), Some(status))?;
+    validate_google_task_id(
+        task.id
+            .as_deref()
+            .ok_or("Google returned a task without an ID")?,
+    )?;
+    let title = task
+        .title
+        .as_deref()
+        .ok_or("Google returned a task without a title")?;
+    let status = task
+        .status
+        .as_deref()
+        .ok_or("Google returned a task without a status")?;
+    validate_task_fields(
+        title,
+        task.notes.as_deref(),
+        task.due.as_deref(),
+        Some(status),
+    )?;
     Ok(task)
 }
 
@@ -1192,7 +1230,10 @@ fn fetch_gmail_attachment_text(
         .send()
         .map_err(|error| format!("failed to fetch Gmail message attachment: {error}"))?;
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "failed to fetch Gmail message attachment"));
+        return Err(provider_failure(
+            response.status(),
+            "failed to fetch Gmail message attachment",
+        ));
     }
     let attachment: GmailAttachmentResponse = read_provider_json_bounded(
         response,
@@ -1432,7 +1473,9 @@ fn validate_provider_page_token(token: Option<&str>) -> Result<(), String> {
     if token.is_some_and(|token| {
         token.is_empty()
             || token.len() > 2048
-            || token.chars().any(|value| value.is_control() || value.is_whitespace())
+            || token
+                .chars()
+                .any(|value| value.is_control() || value.is_whitespace())
     }) {
         return Err("Google returned an invalid pagination token".into());
     }
@@ -1521,7 +1564,9 @@ fn discover_google_resources<T: GoogleDiscoveredResource>(
         if let Some(token) = page_token.as_deref() {
             request = request.query(&[("pageToken", token)]);
         }
-        let response = request.send().map_err(|_| format!("Could not discover {service}"))?;
+        let response = request
+            .send()
+            .map_err(|_| format!("Could not discover {service}"))?;
         if !response.status().is_success() {
             return Err(provider_failure(response.status(), service));
         }
@@ -1569,7 +1614,9 @@ fn validate_gmail_list_request(
         return Err("Gmail page size must be between 1 and 50".into());
     }
     if query.len() > 512 || query.chars().any(char::is_control) {
-        return Err("Gmail search query must be at most 512 bytes and contain no control characters".into());
+        return Err(
+            "Gmail search query must be at most 512 bytes and contain no control characters".into(),
+        );
     }
     validate_provider_page_token(page_token)
 }
@@ -1627,7 +1674,10 @@ fn gmail_fetch_message(
         .send()
         .map_err(|error| format!("failed to fetch Gmail message: {error}"))?;
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "failed to fetch Gmail message"));
+        return Err(provider_failure(
+            response.status(),
+            "failed to fetch Gmail message",
+        ));
     }
     if format == "metadata" {
         read_provider_json(response, "Gmail message metadata")
@@ -1640,7 +1690,8 @@ fn gmail_fetch_message(
         if bytes.len() > GMAIL_MAX_BODY_BYTES * 2 {
             return Err("Gmail message response exceeds the supported size limit".into());
         }
-        serde_json::from_slice(&bytes).map_err(|_| "Gmail returned an invalid message response".into())
+        serde_json::from_slice(&bytes)
+            .map_err(|_| "Gmail returned an invalid message response".into())
     }
 }
 
@@ -1676,7 +1727,10 @@ fn gmail_batch_get_chunk(
         .send()
         .map_err(|error| format!("failed to send Gmail batch request: {error}"))?;
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "Gmail batch request failed"));
+        return Err(provider_failure(
+            response.status(),
+            "Gmail batch request failed",
+        ));
     }
     let content_type = response
         .headers()
@@ -1840,7 +1894,10 @@ pub fn google_gmail_list_messages_page(
     let list = read_provider_json(response, "Gmail message listing")?;
     let (ids, next_page_token) = validate_gmail_listing(list, max_results, page_token.as_deref())?;
     if ids.is_empty() {
-        return Ok(GmailMessagePage { messages: Vec::new(), next_page_token });
+        return Ok(GmailMessagePage {
+            messages: Vec::new(),
+            next_page_token,
+        });
     }
     let messages = match gmail_batch_get_messages(&client, &access_token, &ids) {
         Ok(messages) => messages,
@@ -1860,12 +1917,21 @@ pub fn google_gmail_list_messages_page(
         if message.id.as_deref() != Some(expected_id.as_str()) {
             return Err("Gmail metadata response did not match the requested message".into());
         }
-        validate_gmail_message_id(message.thread_id.as_deref().ok_or("Gmail returned a message without a thread ID")?)?;
+        validate_gmail_message_id(
+            message
+                .thread_id
+                .as_deref()
+                .ok_or("Gmail returned a message without a thread ID")?,
+        )?;
     }
     let messages = messages.into_iter().map(gmail_preview).collect::<Vec<_>>();
     for message in &messages {
         for value in [&message.subject, &message.from, &message.snippet] {
-            if value.len() > 16 * 1024 || value.chars().any(|ch| ch.is_control() && !matches!(ch, '\n' | '\r' | '\t')) {
+            if value.len() > 16 * 1024
+                || value
+                    .chars()
+                    .any(|ch| ch.is_control() && !matches!(ch, '\n' | '\r' | '\t'))
+            {
                 return Err("Gmail returned invalid message metadata".into());
             }
         }
@@ -1873,7 +1939,10 @@ pub fn google_gmail_list_messages_page(
             return Err("Gmail returned an invalid message date".into());
         }
     }
-    Ok(GmailMessagePage { messages, next_page_token })
+    Ok(GmailMessagePage {
+        messages,
+        next_page_token,
+    })
 }
 
 fn gmail_fetch_messages_parallel(
@@ -1915,11 +1984,19 @@ pub fn google_gmail_get_message(
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?;
     let message = gmail_get_message(&client, &access_token, &id)?;
-    let message_id = message.id.clone().ok_or("Gmail returned a message without an ID")?;
+    let message_id = message
+        .id
+        .clone()
+        .ok_or("Gmail returned a message without an ID")?;
     if message_id != id {
         return Err("Gmail detail did not match the requested message".into());
     }
-    validate_gmail_message_id(message.thread_id.as_deref().ok_or("Gmail returned a message without a thread ID")?)?;
+    validate_gmail_message_id(
+        message
+            .thread_id
+            .as_deref()
+            .ok_or("Gmail returned a message without a thread ID")?,
+    )?;
     let headers = message
         .payload
         .as_ref()
@@ -1986,7 +2063,10 @@ pub fn google_gmail_modify_message(
         .send()
         .map_err(|error| format!("failed to modify Gmail message: {error}"))?;
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "failed to modify Gmail message"));
+        return Err(provider_failure(
+            response.status(),
+            "failed to modify Gmail message",
+        ));
     }
     Ok(())
 }
@@ -2014,7 +2094,10 @@ pub fn google_gmail_trash_message(
         .send()
         .map_err(|error| format!("failed to move Gmail message to trash: {error}"))?;
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "failed to move Gmail message to trash"));
+        return Err(provider_failure(
+            response.status(),
+            "failed to move Gmail message to trash",
+        ));
     }
     Ok(())
 }
@@ -2049,7 +2132,10 @@ pub fn google_gmail_send_message(
         .send()
         .map_err(|error| format!("failed to send Gmail message: {error}"))?;
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "failed to send Gmail message"));
+        return Err(provider_failure(
+            response.status(),
+            "failed to send Gmail message",
+        ));
     }
     Ok(())
 }
@@ -2107,7 +2193,10 @@ pub fn google_calendar_list_events(
             .send()
             .map_err(|error| format!("failed to list Google Calendar events: {error}"))?;
         if !response.status().is_success() {
-            return Err(provider_failure(response.status(), "failed to list Google Calendar events"));
+            return Err(provider_failure(
+                response.status(),
+                "failed to list Google Calendar events",
+            ));
         }
 
         let list: GcalEventList = read_provider_json(response, "Google Calendar events")?;
@@ -2162,7 +2251,10 @@ pub fn google_calendar_list_tasks(task_list_id: String) -> Result<Vec<GoogleTask
             .send()
             .map_err(|error| format!("failed to list Google Tasks: {error}"))?;
         if !response.status().is_success() {
-            return Err(provider_failure(response.status(), "failed to list Google Tasks"));
+            return Err(provider_failure(
+                response.status(),
+                "failed to list Google Tasks",
+            ));
         }
 
         let list: GTaskList = read_provider_json(response, "Google Tasks")?;
@@ -2434,7 +2526,10 @@ fn apply_planner_write(request: PlannerWrite) -> Result<serde_json::Value, Strin
         return Err("Provider changed since review. Refresh and resolve the conflict.".into());
     }
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "Planner provider change"));
+        return Err(provider_failure(
+            response.status(),
+            "Planner provider change",
+        ));
     }
     let mut bytes = Vec::new();
     response
@@ -2498,7 +2593,10 @@ fn create_google_task(
         .send()
         .map_err(|error| format!("failed to create Google Task: {error}"))?;
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "failed to create Google Task"));
+        return Err(provider_failure(
+            response.status(),
+            "failed to create Google Task",
+        ));
     }
     let task = read_provider_json(response, "Google Task creation")?;
     Ok(map_task(validate_provider_task(task)?))
@@ -2511,7 +2609,12 @@ fn update_google_task(
     update: GoogleTaskUpdateInput,
 ) -> Result<GoogleTask, String> {
     validate_google_task_id(&update.task_id)?;
-    validate_task_fields(&update.title, Some(&update.notes), update.due.as_deref(), update.status.as_deref())?;
+    validate_task_fields(
+        &update.title,
+        Some(&update.notes),
+        update.due.as_deref(),
+        update.status.as_deref(),
+    )?;
 
     let url = format!(
         "{TASKS_ENDPOINT}/{}/tasks/{}",
@@ -2539,7 +2642,10 @@ fn update_google_task(
         .send()
         .map_err(|error| format!("failed to update Google Task: {error}"))?;
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "failed to update Google Task"));
+        return Err(provider_failure(
+            response.status(),
+            "failed to update Google Task",
+        ));
     }
     let task = read_provider_json(response, "Google Task update")?;
     Ok(map_task(validate_provider_task(task)?))
@@ -2564,7 +2670,10 @@ fn complete_google_task(
         .send()
         .map_err(|error| format!("failed to complete Google Task: {error}"))?;
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "failed to complete Google Task"));
+        return Err(provider_failure(
+            response.status(),
+            "failed to complete Google Task",
+        ));
     }
     Ok(())
 }
@@ -2763,7 +2872,10 @@ pub fn google_calendar_delete_task(
         .send()
         .map_err(|error| format!("failed to delete Google Task: {error}"))?;
     if !response.status().is_success() {
-        return Err(provider_failure(response.status(), "failed to delete Google Task"));
+        return Err(provider_failure(
+            response.status(),
+            "failed to delete Google Task",
+        ));
     }
     Ok(())
 }
@@ -2780,27 +2892,36 @@ mod tests {
         .unwrap();
         let calendar = validate_calendar_resource(calendar).unwrap();
         assert!(!calendar.writable);
-        assert!(serde_json::from_str::<GoogleCalendarResource>(
-            r#"{"id":"a","summary":"A","accessRole":"unknown"}"#
-        )
-        .is_err());
+        assert!(
+            serde_json::from_str::<GoogleCalendarResource>(
+                r#"{"id":"a","summary":"A","accessRole":"unknown"}"#
+            )
+            .is_err()
+        );
         let mut seen = std::collections::HashSet::new();
         assert_eq!(
             validate_next_page(Some("next".into()), None, &mut seen, 0).unwrap(),
             Some("next".into())
         );
         assert!(validate_next_page(Some("next".into()), None, &mut seen, 1).is_err());
-        assert!(validate_next_page(Some("end".into()), None, &mut seen, GOOGLE_RESOURCE_MAX_PAGES - 1).is_err());
+        assert!(
+            validate_next_page(
+                Some("end".into()),
+                None,
+                &mut seen,
+                GOOGLE_RESOURCE_MAX_PAGES - 1
+            )
+            .is_err()
+        );
         assert!(validate_next_page(Some("".into()), None, &mut seen, 0).is_err());
-        assert!(validate_provider_page_token(Some("bad\n" )).is_err());
+        assert!(validate_provider_page_token(Some("bad\n")).is_err());
     }
 
     #[test]
     fn gmail_pages_preserve_tokens_and_reject_incomplete_metadata() {
-        let list: GmailMessageList = serde_json::from_str(
-            r#"{"messages":[{"id":"abc123"}],"nextPageToken":"next"}"#,
-        )
-        .unwrap();
+        let list: GmailMessageList =
+            serde_json::from_str(r#"{"messages":[{"id":"abc123"}],"nextPageToken":"next"}"#)
+                .unwrap();
         let (ids, next) = validate_gmail_listing(list, 25, None).unwrap();
         assert_eq!(ids, vec!["abc123"]);
         assert_eq!(next.as_deref(), Some("next"));
@@ -2810,7 +2931,10 @@ mod tests {
             r#"{"messages":[{"id":"../a"}]}"#,
             r#"{"messages":[],"nextPageToken":"same"}"#,
         ] {
-            assert!(validate_gmail_listing(serde_json::from_str(body).unwrap(), 25, Some("same")).is_err());
+            assert!(
+                validate_gmail_listing(serde_json::from_str(body).unwrap(), 25, Some("same"))
+                    .is_err()
+            );
         }
         assert!(validate_gmail_list_request("q", 0, None).is_err());
         assert!(validate_gmail_list_request("q", 51, None).is_err());
@@ -2856,18 +2980,19 @@ mod tests {
             r#"{"kind":"delete","taskId":"a"}"#,
         ] {
             let invalid: GoogleTaskSyncMutation = serde_json::from_str(invalid).unwrap();
-            assert!([&valid, &invalid].into_iter().try_for_each(validate_task_sync_mutation).is_err());
+            assert!(
+                [&valid, &invalid]
+                    .into_iter()
+                    .try_for_each(validate_task_sync_mutation)
+                    .is_err()
+            );
         }
         assert!(validate_task_fields("A", Some(&"x".repeat(32 * 1024 + 1)), None, None).is_err());
         assert!(validate_task_fields(&"x".repeat(1025), None, None, None).is_err());
         assert!(validate_task_fields("A", Some(&"x".repeat(8193)), None, None).is_err());
-        assert!(validate_task_fields(
-            &"🦀".repeat(1024),
-            Some(&"🦀".repeat(8192)),
-            None,
-            None,
-        )
-        .is_ok());
+        assert!(
+            validate_task_fields(&"🦀".repeat(1024), Some(&"🦀".repeat(8192)), None, None,).is_ok()
+        );
     }
 
     #[test]
@@ -2879,16 +3004,31 @@ mod tests {
         ] {
             assert!(validate_provider_task(serde_json::from_str(body).unwrap()).is_err());
         }
-        assert!(validate_provider_task(serde_json::from_str(
-            r#"{"id":"a","title":"A","status":"completed"}"#
-        ).unwrap()).is_ok());
+        assert!(
+            validate_provider_task(
+                serde_json::from_str(r#"{"id":"a","title":"A","status":"completed"}"#).unwrap()
+            )
+            .is_ok()
+        );
     }
 
     #[test]
     fn provider_http_expiry_and_response_bounds_are_explicit() {
-        assert!(provider_failure(reqwest::StatusCode::UNAUTHORIZED, "Calendar").starts_with(GOOGLE_AUTH_REQUIRED_PREFIX));
-        assert!(!provider_failure(reqwest::StatusCode::FORBIDDEN, "Calendar").starts_with(GOOGLE_AUTH_REQUIRED_PREFIX));
-        assert!(read_provider_json::<GmailMessageList>(std::io::Cursor::new(vec![b' '; GOOGLE_PROVIDER_PAGE_MAX_BYTES as usize + 1]), "Gmail").is_err());
+        assert!(
+            provider_failure(reqwest::StatusCode::UNAUTHORIZED, "Calendar")
+                .starts_with(GOOGLE_AUTH_REQUIRED_PREFIX)
+        );
+        assert!(
+            !provider_failure(reqwest::StatusCode::FORBIDDEN, "Calendar")
+                .starts_with(GOOGLE_AUTH_REQUIRED_PREFIX)
+        );
+        assert!(
+            read_provider_json::<GmailMessageList>(
+                std::io::Cursor::new(vec![b' '; GOOGLE_PROVIDER_PAGE_MAX_BYTES as usize + 1]),
+                "Gmail"
+            )
+            .is_err()
+        );
     }
 
     #[test]

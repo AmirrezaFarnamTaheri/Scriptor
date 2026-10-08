@@ -40,6 +40,8 @@ interface UseWorkspaceNoteFactoryOptions {
 export interface CreateNoteOptions {
   /** Require the target path not to exist. Prevents silent overwrites. */
   requireMissing?: boolean
+  /** Suppress obsolete post-save navigation after the originating workspace changes. */
+  isCurrent?: () => boolean
 }
 
 export function useWorkspaceNoteFactory({
@@ -199,17 +201,23 @@ export function useWorkspaceNoteFactory({
       try {
         const markdown =
           initialMarkdown ?? (await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, null))
+        if (options.isCurrent?.() === false) return null
         setError(null)
         await vaultSaveNote(path, markdown, options.requireMissing ? '<missing>' : undefined, undefined, vault.id)
+        if (options.isCurrent?.() === false) return path
         await indexerUpdateNote(path)
+        if (options.isCurrent?.() === false) return path
         await refreshVaultCore()
-        await openNote(path)
+        if (options.isCurrent?.() === false) return path
+        await openNote(path, options.isCurrent)
+        if (options.isCurrent?.() === false) return path
         if (vaultConfig.inbox?.enabled !== false) {
           setSidebarView('inbox')
         }
         logActivity('success', 'Note created', path)
         return path
       } catch (caught) {
+        if (options.isCurrent?.() === false) return null
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Failed to create note', message)

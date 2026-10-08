@@ -58,7 +58,7 @@ Scriptor serves writers, researchers, students, technical authors, and knowledge
 | Headless daemon and CLI/TUI | Supported operational surfaces |
 | MCP stdio integration | Supported with scoped tools and durable audit records |
 | Plugin catalog | Manifest-first, restricted, experimental platform |
-| Google Calendar and Tasks | Experimental, opt-in desktop integrations |
+| Google Drive, Docs, Calendar, Tasks and Gmail | Experimental, opt-in desktop integrations; shared public setup and independent credentials |
 | Mobile, encrypted vaults, embeddings, Tantivy, WASM host | Experimental or design-only |
 
 The authoritative matrix is [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md).

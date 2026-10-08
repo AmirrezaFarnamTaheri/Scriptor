@@ -251,6 +251,22 @@ export const OPERATION_CATALOG = {
       ]
     },
     {
+      "name": "collaboration_get_account",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "collaboration_read",
       "surface": "tauri",
       "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
@@ -3645,6 +3661,38 @@ export const OPERATION_CATALOG = {
       ]
     },
     {
+      "name": "google_calendar_list_calendars",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
+      "name": "google_calendar_list_task_lists",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "google_calendar_list_events",
       "surface": "tauri",
       "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
@@ -3759,6 +3807,22 @@ export const OPERATION_CATALOG = {
         "degraded",
         "failed",
         "recovered"
+      ]
+    },
+    {
+      "name": "google_gmail_list_messages_page",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
       ]
     },
     {

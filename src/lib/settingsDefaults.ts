@@ -31,6 +31,8 @@ export const DEFAULT_VAULT_CONFIG: VaultConfig = {
     google_client_id: null,
     google_calendar_id: null,
     google_task_list_id: null,
+    google_drive_folder_id: null,
+    google_drive_transport: 'drive_json',
     lookahead_days: 14,
     show_events_in_tasks: true,
     push_vault_tasks: false,

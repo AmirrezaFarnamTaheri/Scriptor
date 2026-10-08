@@ -103,6 +103,21 @@
   gap: 6px;
 }
 
+.git-panel .unified-panel-body {
+  scroll-padding-block: 8px;
+}
+
+/* Virtual rows end at an exact slot boundary. Leave a small scrollable inset
+   so fractional zoom rounding cannot clip the first or last row. */
+.git-changes > div {
+  padding-block: 2px;
+  scroll-padding-block: 4px;
+}
+
+.git-changes li {
+  scroll-margin-block: 4px;
+}
+
 .git-changes li {
   display: flex;
   align-items: center;

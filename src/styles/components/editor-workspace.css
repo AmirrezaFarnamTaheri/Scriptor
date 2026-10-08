@@ -572,6 +572,14 @@ body.is-split-resizing .editor-preview-pane {
   color: inherit;
 }
 
+/* The global Lucide default is 17px; tab glyphs share a 14px box so the
+   leading inset matches the centered close glyph's trailing inset. */
+.tab-item .tab-main > svg,
+.tab-item .tab-icon-button > svg {
+  width: 14px;
+  height: 14px;
+}
+
 .tab-item .tab:hover,
 .tab-item .tab.active {
   border-color: transparent;

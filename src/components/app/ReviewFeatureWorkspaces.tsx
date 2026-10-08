@@ -29,7 +29,7 @@ export function ReviewFeatureWorkspaces({ active, workspace, onClose, onOpenAsse
   }
   return <ErrorBoundary key={`${active}:${vaultId}`} name={`${active}-workspace`} fallback={<PanelErrorFallback title="Workspace" onDismiss={onClose} />}>
     <Suspense fallback={<PanelFallback />}>
-      {active === 'collaboration' && <CollaborationPanel key={workspace.activePath} path={workspace.activePath} vaultId={vaultId} onClose={onClose} onApplied={() => workspace.refreshVault()} runSourceNoteMutation={workspace.runNoteMutation} />}
+      {active === 'collaboration' && <CollaborationPanel key={`${vaultId}:${workspace.activePath}`} path={workspace.activePath} vaultId={vaultId} googleConfig={workspace.vaultConfig.calendar_sync} onClose={onClose} onApplied={() => Promise.all([workspace.refreshVault(), workspace.refreshVaultConfig()]).then(() => undefined)} runSourceNoteMutation={workspace.runNoteMutation} />}
       {active === 'diagram' && <DiagramStudioPanel onClose={onClose} onSave={createNote} renderPlantUmlLocal={async source => (await plantumlRender(source)).svg} onOpenNote={path => void workspace.openNote(path)} />}
       {active === 'runtime' && <RuntimeConsolePanel vaultId={vaultId} onClose={onClose} />}
       {active === 'publishing' && <PublishingStudioPanel vaultId={vaultId} onClose={onClose} onOpenNote={path => void workspace.openNote(path)} runSourceNoteMutation={workspace.runNoteMutation} />}

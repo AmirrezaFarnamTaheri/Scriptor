@@ -105,6 +105,8 @@ test('workspace shortcut customization cancels drafts and keeps fields reachable
   await expect(cancel).toBeInViewport({ ratio: 1 })
   await testInfo.attach('workspace-shortcuts-zoom', { body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png' })
   await cancel.click()
+  await expect(dialog).toBeHidden()
+  await settleLayout(page)
   const reopened = await customize(page)
   await expect(reopened.locator('[data-shortcut-id="writing"]').getByLabel('Button name', { exact: true })).toHaveValue('')
   await page.keyboard.press('Escape')

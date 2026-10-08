@@ -17,7 +17,7 @@ import {
   googleGmailDisconnect,
   googleGmailGetAuthedEmail,
   googleGmailGetMessage,
-  googleGmailListMessages,
+  googleGmailListMessagesPage,
   googleGmailModifyMessage,
   googleGmailSendMessage,
   googleGmailStartAuth,
@@ -26,7 +26,7 @@ import {
   type GmailMessagePreview,
 } from '../bridge/commands/google_gmail.ts'
 import { isNativeBridgeAvailable } from '../bridge/platform.ts'
-import { buildRfc5322Message, toYamlScalar } from '../lib/gmailRfc5322.ts'
+import { buildGmailMarkdown, buildRfc5322Message } from '../lib/gmailRfc5322.ts'
 import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors.ts'
 import { useI18n } from '../lib/i18n/index.ts'
 import { UnifiedPanelShell, type PanelTab } from './chrome/UnifiedPanelShell.tsx'
@@ -34,7 +34,7 @@ import type { PanelPresentation } from '../hooks/usePanelPresentation.ts'
 
 export interface GmailManagerPanelProps {
   onClose: () => void
-  onImportNote?: (subject: string, markdown: string, messageId: string) => Promise<void>
+  onImportNote?: (subject: string, markdown: string, messageId: string, isCurrent?: () => boolean) => Promise<void>
   presentation?: PanelPresentation
   defaultClientId?: string
 }
@@ -64,7 +64,7 @@ export function GmailManagerPanel({
   const [isAuthed, setIsAuthed] = useState(false)
   const [accountEmail, setAccountEmail] = useState<string | null>(null)
   const [checkingAuth, setCheckingAuth] = useState(nativeReady)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState('in:inbox')
   const [messages, setMessages] = useState<GmailMessagePreview[]>([])
   const [selectedMessage, setSelectedMessage] = useState<GmailMessageContent | null>(null)
   const [loading, setLoading] = useState(false)
@@ -74,11 +74,42 @@ export function GmailManagerPanel({
   const [statusText, setStatusText] = useState<string | null>(null)
   const refreshSequence = useRef(0)
   const selectionSequence = useRef(0)
+  const accountSequence = useRef(0)
+  const operationSequence = useRef(0)
+  const mounted = useRef(true)
+  const queryRef = useRef('in:inbox')
+  const loadedQuery = useRef<string | null>(null)
+  const visitedTokens = useRef(new Set<string>())
+  const messagesRef = useRef<GmailMessagePreview[]>([])
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [limitReached, setLimitReached] = useState(false)
 
   const [composeTo, setComposeTo] = useState('')
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [sending, setSending] = useState(false)
+
+  const clearMessages = useCallback(() => {
+    refreshSequence.current += 1
+    selectionSequence.current += 1
+    visitedTokens.current.clear()
+    loadedQuery.current = null
+    messagesRef.current = []
+    setMessages([])
+    setSelectedMessage(null)
+    setNextPageToken(null)
+    setRefreshing(false)
+    setLoadingMore(false)
+    setLoadingContent(false)
+    setLimitReached(false)
+  }, [])
+
+  const clearAccount = useCallback(() => {
+    clearMessages()
+    setIsAuthed(false)
+    setAccountEmail(null)
+  }, [clearMessages])
 
   const tabs = useMemo<PanelTab[]>(() => [
     { id: 'messages', label: t('integrations.gmail.tabs.messages') },
@@ -87,215 +118,286 @@ export function GmailManagerPanel({
   ], [t])
 
   const loadMessages = useCallback(
-    async (query: string) => {
+    async (query: string, pageToken: string | null = null) => {
       if (!nativeReady) return
+      const normalizedQuery = effectiveGmailQuery(query)
+      if (normalizedQuery !== effectiveGmailQuery(queryRef.current)) return
+      if (!pageToken) clearMessages()
       const sequence = ++refreshSequence.current
-      setRefreshing(true)
+      const account = accountSequence.current
+      const current = () => mounted.current && account === accountSequence.current && sequence === refreshSequence.current
+      if (pageToken) setLoadingMore(true)
+      else {
+        loadedQuery.current = normalizedQuery
+        setRefreshing(true)
+      }
       setError(null)
       try {
-        const items = await googleGmailListMessages(effectiveGmailQuery(query), 25)
-        if (sequence !== refreshSequence.current) return
-        setMessages(items)
+        const page = await googleGmailListMessagesPage(normalizedQuery, Math.min(25, 250 - (pageToken ? messagesRef.current.length : 0)), pageToken)
+        if (!current()) return
+        if (page.nextPageToken && (page.nextPageToken === pageToken || visitedTokens.current.has(page.nextPageToken))) {
+          setNextPageToken(null)
+          setError(t('integrations.gmail.paginationLoop'))
+          return
+        }
+        if (pageToken) visitedTokens.current.add(pageToken)
+        const combined = pageToken ? [...messagesRef.current, ...page.messages] : page.messages
+        const unique = [...new Map(combined.map(item => [item.id, item])).values()].slice(0, 250)
+        messagesRef.current = unique
+        setMessages(unique)
+        const capped = (unique.length >= 250 || visitedTokens.current.size >= 20) && Boolean(page.nextPageToken)
+        setLimitReached(capped)
+        setNextPageToken(capped ? null : page.nextPageToken)
         setIsAuthed(true)
       } catch (err) {
-        if (sequence !== refreshSequence.current) return
+        if (!current()) return
+        // A rejected continuation may contain a repeated or invalid token. Refresh
+        // starts a new traversal without offering the failed continuation again.
+        if (pageToken) setNextPageToken(null)
         if (isGoogleAuthRequiredError(err)) {
-          setIsAuthed(false)
-          setAccountEmail(null)
+          clearAccount()
         } else {
           setError(googleAuthErrorMessage(err))
         }
       } finally {
-        if (sequence === refreshSequence.current) setRefreshing(false)
+        if (current()) {
+          setRefreshing(false)
+          setLoadingMore(false)
+        }
       }
     },
-    [nativeReady],
+    [nativeReady, clearMessages, clearAccount, t],
   )
 
   const handleRefreshMessages = useCallback(
     async (queryOverride?: string) => {
-      await loadMessages(queryOverride !== undefined ? queryOverride : searchQuery)
+      await loadMessages(queryOverride !== undefined ? queryOverride : queryRef.current)
     },
-    [loadMessages, searchQuery],
+    [loadMessages],
   )
+  const loadMessagesRef = useRef(loadMessages)
+  useEffect(() => { loadMessagesRef.current = loadMessages }, [loadMessages])
 
   useEffect(() => {
     if (!nativeReady) return
-    let cancelled = false
-
-    void (async () => {
+    mounted.current = true
+    const check = async () => {
+      const sequence = ++accountSequence.current
       try {
         const email = await googleGmailGetAuthedEmail()
-        if (cancelled) return
+        if (!mounted.current || sequence !== accountSequence.current) return
         setAccountEmail(email)
         setIsAuthed(true)
-        await loadMessages('in:inbox')
+        await loadMessagesRef.current(queryRef.current)
       } catch (err) {
-        if (cancelled) return
+        if (!mounted.current || sequence !== accountSequence.current) return
         if (isGoogleAuthRequiredError(err)) {
-          setIsAuthed(false)
-          setAccountEmail(null)
+          clearAccount()
         } else {
           setError(googleAuthErrorMessage(err))
         }
       } finally {
-        if (!cancelled) setCheckingAuth(false)
+        if (mounted.current && sequence === accountSequence.current) setCheckingAuth(false)
       }
-    })()
+    }
+    void check()
+    const accountChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ service?: string; origin?: string }>).detail
+      if (detail?.service !== 'gmail' || detail.origin === 'gmail-panel') return
+      operationSequence.current += 1
+      clearAccount()
+      setCheckingAuth(true)
+      setLoading(false)
+      setSending(false)
+      setComposeTo('')
+      setComposeSubject('')
+      setComposeBody('')
+      setStatusText(null)
+      void check()
+    }
+    window.addEventListener('scriptor:google-account-changed', accountChanged)
 
     return () => {
-      cancelled = true
+      mounted.current = false
+      accountSequence.current += 1
+      operationSequence.current += 1
       refreshSequence.current += 1
       selectionSequence.current += 1
+      window.removeEventListener('scriptor:google-account-changed', accountChanged)
     }
-  }, [loadMessages, nativeReady])
+  }, [nativeReady, clearAccount])
 
   const handleStartAuth = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!clientId.trim() || !nativeReady) return
+    if (!clientId.trim() || !nativeReady || loading || sending) return
+    const operation = ++operationSequence.current
+    const account = ++accountSequence.current
+    const current = () => mounted.current && operation === operationSequence.current && account === accountSequence.current
+    clearAccount()
     setLoading(true)
     setError(null)
     setStatusText(t('integrations.gmail.status.openingBrowser'))
     try {
       const email = await googleGmailStartAuth(clientId.trim())
+      window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', { detail: { service: 'gmail', origin: 'gmail-panel' } }))
+      if (!current()) return
       setIsAuthed(true)
       setAccountEmail(email)
       setStatusText(t('integrations.gmail.status.connectedAs', { email }))
       setActiveTab('messages')
       await handleRefreshMessages()
     } catch (err) {
+      if (!current()) return
       setError(googleAuthErrorMessage(err))
       setStatusText(null)
     } finally {
-      setLoading(false)
+      if (current()) { setLoading(false); setCheckingAuth(false) }
     }
   }
 
   const handleDisconnect = async () => {
-    if (!nativeReady) return
+    if (!nativeReady || loading || sending) return
+    const operation = ++operationSequence.current
+    const account = ++accountSequence.current
+    const current = () => mounted.current && operation === operationSequence.current && account === accountSequence.current
+    clearMessages()
     setLoading(true)
     setError(null)
+    setStatusText(null)
     try {
       await googleGmailDisconnect()
-      refreshSequence.current += 1
-      selectionSequence.current += 1
-      setIsAuthed(false)
-      setAccountEmail(null)
-      setMessages([])
-      setSelectedMessage(null)
+      window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', { detail: { service: 'gmail', origin: 'gmail-panel' } }))
+      if (!current()) return
+      clearAccount()
+      setComposeTo('')
+      setComposeSubject('')
+      setComposeBody('')
       setStatusText(t('integrations.gmail.status.disconnected'))
     } catch (err) {
+      if (!current()) return
       setError(googleAuthErrorMessage(err))
     } finally {
-      setLoading(false)
+      if (current()) { setLoading(false); setCheckingAuth(false) }
     }
   }
 
   const handleSelectMessage = async (preview: GmailMessagePreview) => {
-    if (!nativeReady) return
+    if (!nativeReady || !isAuthed || loading || refreshing) return
     const sequence = ++selectionSequence.current
+    const account = accountSequence.current
+    const current = () => mounted.current && sequence === selectionSequence.current && account === accountSequence.current
     setLoadingContent(true)
+    setSelectedMessage(null)
     setError(null)
+    setStatusText(null)
     try {
       const full = await googleGmailGetMessage(preview.id)
-      if (sequence !== selectionSequence.current) return
+      if (!current()) return
       setSelectedMessage(full)
     } catch (err) {
-      if (sequence !== selectionSequence.current) return
-      setError(googleAuthErrorMessage(err))
+      if (!current()) return
+      if (isGoogleAuthRequiredError(err)) clearAccount()
+      else setError(googleAuthErrorMessage(err))
     } finally {
-      if (sequence === selectionSequence.current) setLoadingContent(false)
+      if (current()) setLoadingContent(false)
     }
   }
 
   const handleImportToMarkdown = async (message: GmailMessageContent) => {
-    if (!onImportNote) return
+    if (!onImportNote || loading || sending || loadingContent || !isAuthed) return
+    const operation = ++operationSequence.current
+    const account = accountSequence.current
+    const current = () => mounted.current && operation === operationSequence.current && account === accountSequence.current
     setLoading(true)
     setError(null)
+    setStatusText(null)
     try {
       const subject = message.subject || t('integrations.gmail.untitledEmail')
-      const markdown = `---
-title: ${toYamlScalar(subject)}
-from: ${toYamlScalar(message.from || t('integrations.gmail.unknownSender'))}
-date: ${toYamlScalar(message.date || '')}
-gmail_id: ${toYamlScalar(message.id || '')}
-thread_id: ${toYamlScalar(message.threadId || '')}
-tags:
-  - email
-  - gmail
----
-
-# ${subject}
-
-**${t('integrations.gmail.from')}**: ${message.from}
-
-**${t('integrations.gmail.date')}**: ${formatGmailDate(message.date)}
-
----
-
-${message.plainText || message.snippet}
-`
-      await onImportNote(subject, markdown, message.id)
+      const markdown = buildGmailMarkdown(message, { untitled: t('integrations.gmail.untitledEmail'),
+        unknown: t('integrations.gmail.unknownSender'), from: t('integrations.gmail.from'), date: t('integrations.gmail.date') })
+      await onImportNote(subject, markdown, message.id, current)
+      if (!current()) return
       setStatusText(t('integrations.gmail.status.imported', { subject }))
     } catch (err) {
+      if (!current()) return
       setStatusText(null)
       setError(googleAuthErrorMessage(err))
     } finally {
-      setLoading(false)
+      if (current()) setLoading(false)
     }
   }
 
   const handleArchive = async (id: string) => {
-    if (!nativeReady || loadingContent) return
+    if (!nativeReady || !isAuthed || loadingContent || loading || sending) return
+    const operation = ++operationSequence.current
+    const account = accountSequence.current
+    const current = () => mounted.current && operation === operationSequence.current && account === accountSequence.current
     setLoading(true)
     setError(null)
+    setStatusText(null)
     try {
       await googleGmailModifyMessage(id, [], ['INBOX'])
+      if (!current()) return
       selectionSequence.current += 1
       setSelectedMessage(null)
       setStatusText(t('integrations.gmail.status.archived'))
       await handleRefreshMessages()
     } catch (err) {
+      if (!current()) return
+      if (isGoogleAuthRequiredError(err)) clearAccount()
       setError(googleAuthErrorMessage(err))
     } finally {
-      setLoading(false)
+      if (current()) setLoading(false)
     }
   }
 
   const handleTrash = async (id: string) => {
-    if (!nativeReady || loadingContent) return
+    if (!nativeReady || !isAuthed || loadingContent || loading || sending) return
+    const operation = ++operationSequence.current
+    const account = accountSequence.current
+    const current = () => mounted.current && operation === operationSequence.current && account === accountSequence.current
     setLoading(true)
     setError(null)
+    setStatusText(null)
     try {
       await googleGmailTrashMessage(id)
+      if (!current()) return
       selectionSequence.current += 1
       setSelectedMessage(null)
       setStatusText(t('integrations.gmail.status.trashed'))
       await handleRefreshMessages()
     } catch (err) {
+      if (!current()) return
+      if (isGoogleAuthRequiredError(err)) clearAccount()
       setError(googleAuthErrorMessage(err))
     } finally {
-      setLoading(false)
+      if (current()) setLoading(false)
     }
   }
 
   const handleSend = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!composeTo.trim() || !composeSubject.trim() || !nativeReady) return
+    if (!composeTo.trim() || !composeSubject.trim() || !composeBody.trim() || !nativeReady || !isAuthed || loading || sending) return
+    const operation = ++operationSequence.current
+    const account = accountSequence.current
+    const current = () => mounted.current && operation === operationSequence.current && account === accountSequence.current
     setSending(true)
     setError(null)
     setStatusText(null)
     try {
       const raw = buildRfc5322Message(composeTo.trim(), composeSubject.trim(), composeBody)
       await googleGmailSendMessage(raw)
+      if (!current()) return
       setComposeTo('')
       setComposeSubject('')
       setComposeBody('')
       setStatusText(t('integrations.gmail.status.sent'))
     } catch (err) {
+      if (!current()) return
+      if (isGoogleAuthRequiredError(err)) clearAccount()
       setError(googleAuthErrorMessage(err))
     } finally {
-      setSending(false)
+      if (current()) setSending(false)
     }
   }
 
@@ -345,13 +447,20 @@ ${message.plainText || message.snippet}
                     id="gmail-search-input"
                     type="search"
                     value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
+                    onChange={(event) => {
+                      queryRef.current = event.target.value
+                      setSearchQuery(event.target.value)
+                      clearMessages()
+                      setError(null)
+                      setStatusText(null)
+                    }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' && !refreshing) void handleRefreshMessages()
+                      if (event.key === 'Enter' && !refreshing && !loading && !sending) void handleRefreshMessages()
                     }}
                     placeholder={t('integrations.gmail.searchPlaceholder')}
                     aria-label={t('integrations.gmail.searchAria')}
-                    disabled={!nativeReady || checkingAuth || !isAuthed}
+                    maxLength={512}
+                    disabled={!nativeReady || checkingAuth || !isAuthed || loading || sending}
                   />
                   <Search size={16} aria-hidden="true" />
                 </div>
@@ -359,7 +468,7 @@ ${message.plainText || message.snippet}
                   type="button"
                   className="toolbar-button"
                   onClick={() => void handleRefreshMessages()}
-                  disabled={refreshing || !nativeReady || checkingAuth || !isAuthed}
+                  disabled={refreshing || loadingMore || loading || sending || !nativeReady || checkingAuth || !isAuthed}
                   title={t('integrations.gmail.refresh')}
                   aria-label={t('integrations.gmail.refresh')}
                 >
@@ -388,7 +497,8 @@ ${message.plainText || message.snippet}
 
             {!checkingAuth && isAuthed ? (
               <div className={`gmail-manager-message-layout${selectedMessage ? ' gmail-manager-message-layout--detail' : ''}`}>
-                <div className="gmail-manager-message-list" aria-label={t('integrations.gmail.messageListAria')}>
+                <div className="gmail-manager-message-list" aria-label={t('integrations.gmail.messageListAria')} aria-busy={refreshing || loadingMore}>
+                  {refreshing ? <p role="status" className="gmail-manager-page-status">{t('integrations.gmail.loadingMessages')}</p> : null}
                   {messages.length === 0 && !refreshing ? (
                     <div className="gmail-manager-empty">
                       <Inbox size={28} aria-hidden="true" />
@@ -401,7 +511,8 @@ ${message.plainText || message.snippet}
                       key={item.id}
                       type="button"
                       onClick={() => void handleSelectMessage(item)}
-                      disabled={loading}
+                      disabled={loading || sending || refreshing}
+                      aria-pressed={selectedMessage?.id === item.id}
                       className={`gmail-manager-message-row${selectedMessage?.id === item.id ? ' is-selected' : ''}`}
                     >
                       <span className="gmail-manager-message-row-head">
@@ -414,7 +525,21 @@ ${message.plainText || message.snippet}
                       <span className="gmail-manager-message-snippet">{item.snippet}</span>
                     </button>
                   ))}
+                  {nextPageToken ? (
+                    <button type="button" className="action-button gmail-manager-load-more"
+                      onClick={() => {
+                        if (loadedQuery.current === effectiveGmailQuery(queryRef.current) && !loadingMore) {
+                          void loadMessages(queryRef.current, nextPageToken)
+                        }
+                      }}
+                      disabled={loadingMore || refreshing || loading || sending}>
+                      {t(loadingMore ? 'integrations.gmail.loadingMessages' : 'integrations.gmail.loadMore')}
+                    </button>
+                  ) : null}
+                  {limitReached ? <p role="status" className="gmail-manager-page-status">{t('integrations.gmail.resultLimit')}</p> : null}
                 </div>
+
+                {loadingContent ? <div className="gmail-manager-empty" role="status">{t('integrations.gmail.loadingMessage')}</div> : null}
 
                 {selectedMessage ? (
                   <article className="gmail-manager-message-detail">
@@ -427,7 +552,7 @@ ${message.plainText || message.snippet}
                               type="button"
                               className="action-button"
                               onClick={() => void handleImportToMarkdown(selectedMessage)}
-                              disabled={loading || loadingContent}
+                              disabled={loading || sending || loadingContent}
                               title={t('integrations.gmail.importTitle')}
                             >
                               <FileDown size={14} />
@@ -438,7 +563,7 @@ ${message.plainText || message.snippet}
                             type="button"
                             className="toolbar-button"
                             onClick={() => void handleArchive(selectedMessage.id)}
-                            disabled={loading || loadingContent}
+                            disabled={loading || sending || loadingContent}
                             aria-label={t('integrations.gmail.archive')}
                             title={t('integrations.gmail.archive')}
                           >
@@ -448,7 +573,7 @@ ${message.plainText || message.snippet}
                             type="button"
                             className="toolbar-button"
                             onClick={() => void handleTrash(selectedMessage.id)}
-                            disabled={loading || loadingContent}
+                            disabled={loading || sending || loadingContent}
                             aria-label={t('integrations.gmail.trash')}
                             title={t('integrations.gmail.trash')}
                           >
@@ -481,7 +606,8 @@ ${message.plainText || message.snippet}
                 onChange={(event) => setComposeTo(event.target.value)}
                 placeholder="recipient@example.com"
                 required
-                disabled={sending}
+                maxLength={320}
+                disabled={sending || loading || !isAuthed}
               />
             </label>
             <label className="settings-field">
@@ -492,7 +618,8 @@ ${message.plainText || message.snippet}
                 onChange={(event) => setComposeSubject(event.target.value)}
                 placeholder={t('integrations.gmail.subjectPlaceholder')}
                 required
-                disabled={sending}
+                maxLength={1024}
+                disabled={sending || loading || !isAuthed}
               />
             </label>
             <label className="settings-field gmail-manager-compose-body-field">
@@ -502,14 +629,15 @@ ${message.plainText || message.snippet}
                 onChange={(event) => setComposeBody(event.target.value)}
                 placeholder={t('integrations.gmail.bodyPlaceholder')}
                 required
-                disabled={sending}
+                maxLength={500_000}
+                disabled={sending || loading || !isAuthed}
               />
             </label>
             <div className="gmail-manager-compose-actions">
               <button
                 type="submit"
                 className="action-button gmail-manager-inline-action"
-                disabled={sending || !composeTo.trim() || !composeSubject.trim() || !isAuthed}
+                disabled={sending || loading || !composeTo.trim() || !composeSubject.trim() || !composeBody.trim() || !isAuthed}
               >
                 <Send size={14} />
                 <span>{sending ? t('integrations.gmail.sending') : t('integrations.gmail.send')}</span>
@@ -532,7 +660,7 @@ ${message.plainText || message.snippet}
                   type="button"
                   className="toolbar-button gmail-manager-disconnect"
                   onClick={() => void handleDisconnect()}
-                  disabled={loading}
+                  disabled={loading || sending || checkingAuth}
                 >
                   <LogOut size={14} />
                   <span>{t('integrations.gmail.disconnect')}</span>
@@ -547,11 +675,12 @@ ${message.plainText || message.snippet}
                       onChange={(event) => setClientIdOverride(event.target.value)}
                       placeholder="1234567890-abc.apps.googleusercontent.com"
                       required
+                      disabled={loading || sending || checkingAuth}
                     />
                   </label>
                   <p className="gmail-manager-help">{t('integrations.gmail.clientHelp')}</p>
                   <div>
-                    <button type="submit" className="action-button" disabled={loading || !clientId.trim()}>
+                    <button type="submit" className="action-button" disabled={loading || sending || checkingAuth || !nativeReady || !clientId.trim()}>
                       {loading ? t('integrations.gmail.startingAuth') : t('integrations.gmail.connectGoogle')}
                     </button>
                   </div>

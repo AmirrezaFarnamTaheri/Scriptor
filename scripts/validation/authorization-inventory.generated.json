@@ -199,6 +199,20 @@
       ]
     },
     {
+      "name": "collaboration_get_account",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "collaboration_read",
       "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
       "authorizationClass": "brokered-sensitive",
@@ -1387,6 +1401,34 @@
       ]
     },
     {
+      "name": "google_calendar_list_calendars",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
+      "name": "google_calendar_list_task_lists",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "google_calendar_list_events",
       "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
       "authorizationClass": "read-only",
@@ -1487,6 +1529,20 @@
         "degraded",
         "failed",
         "recovered"
+      ]
+    },
+    {
+      "name": "google_gmail_list_messages_page",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
       ]
     },
     {

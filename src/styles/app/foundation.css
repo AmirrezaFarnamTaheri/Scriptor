@@ -842,6 +842,7 @@ html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  scroll-padding-block: 8px;
   touch-action: pan-y;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -885,7 +886,8 @@ html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
 
 .topbar-customize .customize-reset {
   margin-top: 4px;
-  margin-bottom: 2px;
+  /* Keep the final control above the rounded scrollport, including at zoom. */
+  margin-bottom: 8px;
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;

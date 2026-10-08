@@ -4,6 +4,39 @@ import { authorizeSensitiveOperation } from './authorization.ts'
 import { parseSharedRevision, type SharedRevision } from '../../lib/collaboration.ts'
 export type CollaborationTransport = 'drive_json' | 'google_docs'
 
+export async function collaborationGetAccount(): Promise<string | null> {
+  requireNative()
+  const result: unknown = await invoke('collaboration_get_account')
+  if (result === null) return null
+  if (typeof result !== 'string' || !result.trim() || result.length > 320 || /[\r\n\0]/.test(result)) throw new Error('Invalid saved Google account')
+  return result
+}
+
+export async function collaborationListFolders(expectedVaultId: string, pageToken?: string) {
+  requireNative()
+  const authorizationToken = await authorizeSensitiveOperation('google_drive_read', 'drive:folders:list')
+  return parseDriveListing(await invoke('collaboration_read', { request: { kind: 'list_folders', page_token: pageToken ?? null }, expectedVaultId, authorizationToken }))
+}
+
+export async function collaborationCreateFolder(expectedVaultId: string, name: string): Promise<{ id: string; name: string }> {
+  requireNative()
+  const authorizationToken = await authorizeSensitiveOperation('google_drive_write', 'drive:folders:create')
+  return parseCreatedResource(await invoke('collaboration_write', { request: { kind: 'create_folder', name }, expectedVaultId, authorizationToken }))
+}
+
+export async function collaborationListDocs(expectedVaultId: string, folderId: string, pageToken?: string) {
+  requireNative()
+  const authorizationToken = await authorizeSensitiveOperation('google_drive_read', `drive:docs:list:${folderId}`)
+  return parseDriveListing(await invoke('collaboration_read', { request: { kind: 'list_docs', folder_id: folderId, page_token: pageToken ?? null }, expectedVaultId, authorizationToken }))
+}
+
+function parseCreatedResource(value: unknown): { id: string; name: string } {
+  const listing = parseDriveListing({ files: [value] })
+  const resource = listing.files[0]
+  if (!resource) throw new Error('Invalid created Google resource')
+  return resource
+}
+
 export async function collaborationConnect(clientId: string): Promise<string> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('google_drive_auth', 'google-drive-collaboration')
@@ -23,7 +56,8 @@ export async function collaborationList(expectedVaultId: string, folderId: strin
 export function parseDriveListing(value: unknown): { files: Array<{ id: string; name: string }>; nextPageToken?: string } {
   if (!value || typeof value !== 'object') throw new Error('Invalid Drive listing')
   const result = value as Record<string, unknown>
-  if (!Array.isArray(result.files) || result.files.length > 100 || (result.nextPageToken !== undefined && (typeof result.nextPageToken !== 'string' || result.nextPageToken.length > 2048))) throw new Error('Invalid Drive listing')
+  if (result.incompleteSearch === true) throw new Error('Google Drive returned an incomplete search. Retry before selecting resources.')
+  if (!Array.isArray(result.files) || result.files.length > 100 || (result.nextPageToken !== undefined && (typeof result.nextPageToken !== 'string' || !result.nextPageToken || result.nextPageToken.length > 2048 || /[\u0000-\u001f\u007f]/.test(result.nextPageToken)))) throw new Error('Invalid Drive listing')
   const files = result.files.map((file: unknown) => {
     if (!file || typeof file !== 'object') throw new Error('Invalid Drive file')
     const item = file as Record<string, unknown>

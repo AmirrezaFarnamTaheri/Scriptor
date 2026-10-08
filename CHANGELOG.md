@@ -8,11 +8,13 @@
 
 ### Added
 
+- Complete the five existing Google integration setup flows: shared public desktop client configuration, independent Drive/Docs, Calendar/Tasks and Gmail connections, discoverable calendars, task lists, folders and Docs, persisted collaboration bindings, and paginated Gmail browsing. Provider changes retain native approval and reviewed imports.
 - Make workspace shortcuts optional and persistent: compact writing defaults, add/remove and pin-to-row or overflow placement, reordering, custom names, widths and text sizes, with a palette route to restore a hidden row.
 - Add workspace accessibility audits across light/dark appearance and desktop/narrow RTL layouts, with downloadable violation details. Run full verification on hosted GitHub workers, including draft PRs.
 
 ### Fixed
 
+- Guard Google account changes and delayed imports across vault replacement, preserve independent credentials when disconnecting, reject incomplete or cyclic provider listings, support discovered shared-drive resources consistently, and validate Tasks character limits before batch writes. Parse Gmail's actual `mimeType` payload and render imported message text literally.
 - Restrict interface SVG sizing to icons so Mermaid diagrams and mathematical glyphs retain their intended geometry. Reflow tag browsing at the available pane width, with populated tag-action and readable-diagram regressions.
 - Resolve DOM-independent Markdown utilities in preview workers, retaining browser exports in production's main bundle and verifying healthy inspector output alongside editable math diagrams.
 - Reflow Git rows at their actual content width with measured virtual-row spacing, initialize toolbar-menu keyboard focus before painting, and preserve top-bar reset-button clearance. Bound screenshot readiness with stage diagnostics and add paused/running animation regressions.

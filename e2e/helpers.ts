@@ -226,18 +226,35 @@ export async function settleLayout(page: Page) {
         ), 'visible images', () => visibleImages.filter(image => !image.complete || image.naturalWidth === 0)
           .slice(0, 5).map(image => image.currentSrc || image.src).join(', '))
         window.dispatchEvent(new Event('resize'))
-        const finiteAnimations = document.getAnimations().filter((animation) => {
+        const runningFiniteAnimations = () => document.getAnimations().filter((animation) => {
           const endTime = animation.effect?.getComputedTiming().endTime
           return animation.playState === 'running' && animation.playbackRate !== 0
             && typeof endTime === 'number' && Number.isFinite(endTime)
         })
-        await waitForStage(Promise.allSettled(finiteAnimations.map((animation) => animation.finished)), 'running animations', () =>
-          finiteAnimations.slice(0, 5).map(animation => {
-            const target = (animation.effect as KeyframeEffect | null)?.target
-            return JSON.stringify({ target: target instanceof Element ? `${target.tagName}.${target.className}` : null,
-              playState: animation.playState, currentTime: String(animation.currentTime),
-              endTime: animation.effect?.getComputedTiming().endTime, playbackRate: animation.playbackRate })
-          }).join('; '))
+        // A CSS transition can be replaced or cancelled between enumeration
+        // and reading Animation.finished. Its replacement promise then never
+        // settles even though the animation is already idle. Observe current
+        // states over two paint frames instead of retaining stale promises.
+        let animationFrame: number | undefined
+        try {
+          await waitForStage(new Promise<void>((resolve) => {
+            let stableFrames = 0
+            const checkAnimations = () => {
+              stableFrames = runningFiniteAnimations().length === 0 ? stableFrames + 1 : 0
+              if (stableFrames >= 2) resolve()
+              else animationFrame = requestAnimationFrame(checkAnimations)
+            }
+            checkAnimations()
+          }), 'running animations', () =>
+            runningFiniteAnimations().slice(0, 5).map(animation => {
+              const target = (animation.effect as KeyframeEffect | null)?.target
+              return JSON.stringify({ target: target instanceof Element ? `${target.tagName}.${target.className}` : null,
+                playState: animation.playState, currentTime: String(animation.currentTime),
+                endTime: animation.effect?.getComputedTiming().endTime, playbackRate: animation.playbackRate })
+            }).join('; '))
+        } finally {
+          if (animationFrame !== undefined) cancelAnimationFrame(animationFrame)
+        }
         await waitForStage(new Promise<void>((resolve) => {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
         }), 'paint frames')

@@ -9,6 +9,21 @@ import { invoke } from '@tauri-apps/api/core'
 
 import { requireNative } from '../native.ts'
 import { authorizeSensitiveOperation } from './authorization.ts'
+import { parseGoogleCalendars, parseGoogleTaskLists, validateGoogleClientId, validateGoogleResourceId } from '../../lib/googleResourceContracts.ts'
+import type { GoogleCalendarResource, GoogleTaskListResource } from '../../lib/googleResourceContracts.ts'
+
+export type { GoogleCalendarResource, GoogleTaskListResource } from '../../lib/googleResourceContracts.ts'
+
+/** Complete, bounded discovery: a truncated provider list is an error. */
+export async function googleCalendarListCalendars(): Promise<GoogleCalendarResource[]> {
+  requireNative()
+  return parseGoogleCalendars(await invoke<unknown>('google_calendar_list_calendars'))
+}
+
+export async function googleCalendarListTaskLists(): Promise<GoogleTaskListResource[]> {
+  requireNative()
+  return parseGoogleTaskLists(await invoke<unknown>('google_calendar_list_task_lists'))
+}
 
 export interface CalendarEvent {
   id: string
@@ -58,6 +73,9 @@ export async function googleCalendarStartAuth(args: {
   taskListId: string
 }): Promise<string> {
   requireNative()
+  validateGoogleClientId(args.clientId)
+  validateGoogleResourceId(args.calendarId)
+  validateGoogleResourceId(args.taskListId)
   const authorizationToken = await authorizeSensitiveOperation('google_calendar_auth', 'google-calendar-auth')
   return invoke<string>('google_calendar_start_auth', {
     clientId: args.clientId,
@@ -82,11 +100,14 @@ export async function googleCalendarListEvents(
   lookaheadDays: number,
 ): Promise<CalendarEvent[]> {
   requireNative()
+  validateGoogleResourceId(calendarId)
+  if (!Number.isInteger(lookaheadDays) || lookaheadDays < 1 || lookaheadDays > 365) throw new Error('Invalid Calendar lookahead')
   return invoke<CalendarEvent[]>('google_calendar_list_events', { calendarId, lookaheadDays })
 }
 
 export async function googleCalendarListTasks(taskListId: string): Promise<GoogleTask[]> {
   requireNative()
+  validateGoogleResourceId(taskListId)
   return invoke<GoogleTask[]>('google_calendar_list_tasks', { taskListId })
 }
 

@@ -12,3 +12,7 @@
 .collaboration-panel button:disabled { opacity: 0.6; cursor: not-allowed; }
 .collaboration-panel li { margin-block: 6px; }
 .collaboration-panel p { overflow-wrap: anywhere; }
+.collaboration-resources { min-inline-size: 0; display: grid; gap: 8px; margin: 0; padding: 12px 0; border: 0; border-block-end: 1px solid var(--border); }
+.collaboration-resources legend { max-width: 100%; overflow-wrap: anywhere; color: var(--ink-strong); font-weight: 600; }
+.collaboration-resources :is(input, select) { box-sizing: border-box; min-width: 0; width: 100%; max-width: 100%; }
+.collaboration-resources .collaboration-actions button { white-space: normal; overflow-wrap: anywhere; }

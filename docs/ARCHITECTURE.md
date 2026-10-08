@@ -144,6 +144,18 @@ strict creation and immutable recovery. They do not enter Markdown prose
 metadata or history pipelines. Unsaved navigation decisions settle before a
 vault switch; superseded decisions cannot leave a switch waiting indefinitely.
 
+Google collaboration uses a persisted public folder/transport binding in
+`calendar_sync`. That existing
+section also retains the shared public OAuth desktop client ID; old vaults need
+no configuration migration. Drive/Docs, Calendar/Tasks and Gmail credentials
+remain three independent OS-keychain records with service-specific grants.
+Resource discovery validates bounded provider pages, rejects partial results
+and pagination cycles, and preserves calendar write roles. Account-change
+notifications invalidate other mounted consumers and their prepared reviews;
+native OAuth generations prevent a late login from restoring a disconnected
+credential. Removing one local credential does not revoke Google's entire app
+grant. Grant-wide revocation remains an explicit Google-account action.
+
 Google collaboration binds remote operations to the originating vault as well
 as the one-time native grant. Drive JSON and opaque Google Docs records share
 the revision/conflict model. The Docs transport verifies a canonical encoded

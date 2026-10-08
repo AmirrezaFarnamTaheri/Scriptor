@@ -157,6 +157,7 @@ export function useVaultWorkspace(options?: {
   const loadGraphRef = useRef<(focusPath?: string | null) => Promise<void>>(async () => {})
   const exportProfilesRef = useRef<ExportProfile[]>([])
   const vaultOpenRequestIdRef = useRef(0)
+  const configRefreshSequence = useRef(0)
   const logActivity = useCallback((kind: ActivityEntry['kind'], message: string, detail?: string) => {
     const entry = createActivityEntry(kind, message, detail)
     setActivityLog((entries) => [entry, ...entries].slice(0, 100))
@@ -183,15 +184,19 @@ export function useVaultWorkspace(options?: {
   const noteCount = useMemo(() => entries.filter((entry) => entry.kind === 'note').length, [entries])
 
   const refreshVaultConfig = useCallback(async (targetVault = vault) => {
+    const sequence = ++configRefreshSequence.current
+    const requestId = vaultOpenRequestIdRef.current
     if (!targetVault) {
       setVaultConfig(DEFAULT_VAULT_CONFIG)
-      return
+      return false
     }
     try {
-      const loaded = await vaultLoadConfig()
+      const loaded = await vaultLoadConfig(targetVault.id)
+      if (sequence !== configRefreshSequence.current || requestId !== vaultOpenRequestIdRef.current) return false
       setVaultConfig(mergeLoadedVaultConfig(loaded))
+      return true
     } catch {
-      setVaultConfig(DEFAULT_VAULT_CONFIG)
+      return false
     }
   }, [vault])
 

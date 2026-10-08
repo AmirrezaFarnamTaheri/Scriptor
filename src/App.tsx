@@ -50,6 +50,7 @@ import { usePerfMetrics } from './hooks/usePerfMetrics'
 import { useWorkspaceSession } from './hooks/useWorkspaceSession'
 import { usePluginRegistry } from './hooks/usePluginRegistry'
 import { useVaultWorkspace } from './hooks/useVaultWorkspace'
+import { useGoogleWorkspaceLauncher } from './hooks/useGoogleWorkspaceLauncher'
 import { useWorkspaceStore } from './hooks/useWorkspaceStore'
 import { usePortalShortcuts } from './hooks/usePortalShortcuts'
 import { useEditorPreferences } from './hooks/useEditorPreferences'
@@ -324,9 +325,8 @@ function App() {
     hibernateGit,
   })
   const composition = useWorkspaceComposition(workspace, plugins, nativeReady)
+  const openGoogleWorkspace = useGoogleWorkspaceLauncher(workspace, composition, { setSettingsOpen, setTasksOpen, setGmailManagerOpen, showToast })
   const { openNote } = composition
-  const reviewFeatures = useMemo(() => ({ commands: composition.commands, close: () => {} }), [composition.commands])
-  const sourceFiles = useMemo(() => ({ open: composition.openSource, commands: composition.sourceCommands }), [composition.openSource, composition.sourceCommands])
   const deleteNoteController = useDeleteNoteController({
     enabled: nativeReady,
     closeTab: workspace.closeTab,
@@ -401,6 +401,7 @@ function App() {
     logActivity: workspaceLogActivity,
   } = workspace
   const pluginCommandRuntime = usePluginCommandRuntime({
+    vaultId: workspace.vault?.id,
     refreshHealth, fixVaultLint, exportWithProfile, setStatusDockTab, setHealthDashboardOpen,
     setCanvasOpen, setBibliographyOpen, setGmailManagerOpen, showToast,
   })
@@ -805,11 +806,10 @@ function App() {
     if (!workspace.activePath || !nativeReady) return
     await deleteNoteController.deleteNote(workspace.activePath)
   }, [deleteNoteController, nativeReady, workspace.activePath])
-
   const pluginWorkspaceHandlers = createPluginWorkspaceHandlers({ commands: pluginCommandEntries, canExecute: canExecutePluginCommand, runtime: pluginCommandRuntime, activePath: workspace.activePath,
-    close: reviewFeatures.close, openNote: composition.openNote, openGraph: () => setGraphOpen(true), openCanvas: () => setCanvasOpen(true),
+    close: () => {}, openNote: composition.openNote, openGraph: () => setGraphOpen(true), openCanvas: () => setCanvasOpen(true),
     openKnowledge: () => openKnowledgeWorkbench('discover'), openTasks: () => setTasksOpen(true), openExport: () => setPublishCenterOpen(true),
-    openRuntime: () => reviewFeatures.commands.find(command => command.id === 'open-runtime-console')?.run() })
+    openRuntime: () => composition.commands.find(command => command.id === 'open-runtime-console')?.run() })
 
   const bibliographyKeys = useMemo(() => new Set(bibliography.map((entry) => entry.key)), [bibliography])
 
@@ -899,10 +899,10 @@ function App() {
         setHibernateGit,
         hibernateSpellcheck,
         setHibernateSpellcheck,
-      }), ...reviewFeatures.commands, ...sourceFiles.commands],
+      }), ...composition.commands, ...composition.sourceCommands],
     [
-      reviewFeatures.commands,
-      sourceFiles.commands,
+      composition.commands,
+      composition.sourceCommands,
       ai,
       canExecutePluginCommand,
       chrome.inspectorCollapsed,
@@ -1051,7 +1051,7 @@ function App() {
     organizeNote: workspace.organizeNote,
     openNote: composition.openNote,
     openReaderDocument: handleOpenReaderDocument,
-    openSourceFile: sourceFiles.open,
+    openSourceFile: composition.openSource,
     refreshVault: workspace.refreshVault,
     importDroppedFiles: workspace.importDroppedFiles,
     deleteNote: deleteNoteController.deleteNote,
@@ -1730,6 +1730,8 @@ function App() {
         >
         <Suspense fallback={<PanelFallback />}>
           <SettingsPanel
+          gmailEnabled={plugins.activePlugins.some(plugin => plugin.manifest.id === 'scriptor.gmail-manager')}
+          onOpenGoogleWorkspace={openGoogleWorkspace}
           vaultOpen={Boolean(workspace.vault)}
           vaultId={workspace.vault?.id ?? null}
           systemInfo={systemInfo}

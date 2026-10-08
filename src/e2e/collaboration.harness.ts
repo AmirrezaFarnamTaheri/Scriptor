@@ -12,6 +12,7 @@ export function createCollaborationHarness() {
     const reply = (value: unknown) => ({ handled: true, value })
     const listing = () => ({ files: [{ id: `revision-${++polls}`, name: `Shared revision ${polls}` }] })
     switch (cmd) {
+      case 'collaboration_get_account': return reply('collaboration@example.invalid')
       case 'collaboration_poll_start': stopped = false; return reply({ lease_id: 'poll-session', expires_at: new Date(Date.now() + 900_000).toISOString(), remaining_requests: 30 })
       case 'collaboration_poll_stop': stopped = true; return reply(null)
       case 'collaboration_poll_read':

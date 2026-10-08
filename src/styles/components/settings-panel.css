@@ -355,6 +355,54 @@
   gap: 12px;
 }
 
+.google-integration-settings {
+  min-width: 0;
+  container: google-integrations / inline-size;
+}
+
+.google-integration-settings .settings-field,
+.google-integration-settings .settings-field :is(input, select),
+.google-integration-settings .google-integration-fields {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.google-integration-settings .google-integration-fields h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.google-integration-settings button {
+  min-height: 44px;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.google-integration-settings .google-connection-actions [role='status'] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.google-integration-settings details summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 10px;
+  overflow-wrap: anywhere;
+}
+
+.google-integration-settings details summary:focus-visible {
+  outline: var(--focus-outline);
+}
+
+@container google-integrations (max-width: 480px) {
+  .google-integration-settings .google-integration-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .google-integration-options {
   align-items: end;
 }

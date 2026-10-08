@@ -34,9 +34,13 @@ for (const diagram of [
       await expect.poll(() => svg.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(60)
       for (const label of diagram.labels) await expect(rendered.getByText(label, { exact: true }).first()).toBeVisible()
       await expect(rendered.locator('math').first()).toContainText('x')
-      const formula = rendered.locator('.katex-html').first()
+      // Mermaid uses native MathML when supported, and KaTeX's HTML renderer
+      // only for its legacy fallback. Assert the actual painted formula.
+      const htmlFormula = rendered.locator('.katex-html').first()
+      const formula = await htmlFormula.count() > 0 ? htmlFormula : rendered.locator('math').first()
       await expect(formula).toBeVisible()
       await expect.poll(() => formula.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(10)
+      await expect(rendered.locator('math msup').first()).toContainText('x2')
       await expect(rendered.locator('.katex-error')).toHaveCount(0)
     }
     await settleLayout(page)

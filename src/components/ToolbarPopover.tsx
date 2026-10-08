@@ -129,12 +129,21 @@ export function ToolbarPopover({
     if (!open) return undefined
 
     updatePosition()
-    const activeElement = document.activeElement
-    if (activeElement === document.body || activeElement === triggerRef.current) {
-      const panel = panelRef.current
-      if (panel) menuItems(panel)[0]?.focus()
+    const focusInitialItem = () => {
+      const activeElement = document.activeElement
+      if (activeElement === document.body || activeElement === triggerRef.current) {
+        const panel = panelRef.current
+        if (panel) menuItems(panel)[0]?.focus({ preventScroll: true })
+      }
     }
-    const frame = window.requestAnimationFrame(updatePosition)
+    focusInitialItem()
+    // The activating key or pointer event can restore focus to its trigger
+    // after React's layout effects. Recheck once after that event completes,
+    // without taking focus away from an item the user already chose.
+    const frame = window.requestAnimationFrame(() => {
+      updatePosition()
+      focusInitialItem()
+    })
     const resizeObserver = typeof ResizeObserver === 'undefined'
       ? null
       : new ResizeObserver(updatePosition)

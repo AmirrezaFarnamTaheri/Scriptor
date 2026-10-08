@@ -24,6 +24,8 @@ import { createResearchHarness } from './research.harness'
 import { assetMediaHarness } from './assetMedia.harness'
 import { createCollaborationHarness } from './collaboration.harness'
 import { createPublishingAuditHarness } from './publishingAudit.harness'
+import { createGoogleGmailHarness } from './google.harness'
+import { createGoogleEcosystemHarness } from './googleEcosystem.harness'
 
 const DEFAULT_CONFIG = {
   daily_note: {
@@ -190,7 +192,13 @@ export function installE2eBridge(): void {
   const researchHarness=createResearchHarness()
   const collaborationHarness=createCollaborationHarness()
   const publishingAuditHarness=createPublishingAuditHarness()
+  const googleGmailHarness = createGoogleGmailHarness()
+  const googleEcosystemHarness = createGoogleEcosystemHarness()
   mockIPC((cmd, payload) => {
+    const gmail = googleGmailHarness(cmd, payload)
+    if (gmail.handled) return gmail.value
+    const ecosystem = googleEcosystemHarness(cmd, payload)
+    if (ecosystem.handled) return ecosystem.value
     const collaboration=collaborationHarness(cmd,payload)
     if(collaboration.handled)return collaboration.value
     const publishingAudit=publishingAuditHarness(cmd,payload)
@@ -222,6 +230,13 @@ export function installE2eBridge(): void {
           throw new Error('GOOGLE_AUTH_REQUIRED: Gmail is not connected')
         }
         return undefined
+      case 'collaboration_get_account':
+      case 'google_calendar_get_authed_email':
+        return null
+      case 'google_calendar_list_calendars':
+        return [{ id: 'primary', summary: 'Personal calendar', primary: true, accessRole: 'owner', writable: true }]
+      case 'google_calendar_list_task_lists':
+        return [{ id: '@default', title: 'My tasks' }]
       case 'plugin_state_get':
         return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [...disabledPluginIds] }
       case 'plugin_state_set_enabled': {

@@ -9,7 +9,10 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::google_calendar::{disconnect_google_account, http_client, refresh_if_needed, start_google_auth, stored_google_email};
+use super::google_calendar::{
+    disconnect_google_account, http_client, refresh_if_needed, start_google_auth,
+    stored_google_email,
+};
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::state::{AppState, active_session};
 
@@ -154,7 +157,10 @@ fn read_docs_record(
         client
             .get(format!("{API}/{file_id}"))
             .bearer_auth(token)
-            .query(&[("fields", "parents,mimeType,trashed,appProperties"), ("supportsAllDrives", "true")])
+            .query(&[
+                ("fields", "parents,mimeType,trashed,appProperties"),
+                ("supportsAllDrives", "true"),
+            ])
             .send()
             .map_err(|error| error.to_string())?,
     )?;
@@ -327,12 +333,15 @@ impl DriveRequest {
             Self::List { page_token, .. }
             | Self::ListFolders { page_token }
             | Self::ListDocs { page_token, .. }
-                if page_token.as_ref().is_some_and(|value| value.is_empty() || value.len() > 2048 || value.chars().any(char::is_control)) =>
+                if page_token.as_ref().is_some_and(|value| {
+                    value.is_empty() || value.len() > 2048 || value.chars().any(char::is_control)
+                }) =>
             {
                 Err("Drive page token exceeds its limit".into())
             }
             Self::CreateFolder { name } => {
-                if name.trim().is_empty() || name.len() > 512 || name.chars().any(char::is_control) {
+                if name.trim().is_empty() || name.len() > 512 || name.chars().any(char::is_control)
+                {
                     return Err("Folder name is empty or exceeds its limits".into());
                 }
                 Ok(())
@@ -533,17 +542,25 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
             "trashed=false and mimeType='application/vnd.google-apps.folder'",
             page_token,
         ),
-        DriveRequest::ListDocs { folder_id, page_token } => list_resources(
+        DriveRequest::ListDocs {
+            folder_id,
+            page_token,
+        } => list_resources(
             &client,
             &token,
-            &format!("'{folder_id}' in parents and trashed=false and mimeType='application/vnd.google-apps.document'"),
+            &format!(
+                "'{folder_id}' in parents and trashed=false and mimeType='application/vnd.google-apps.document'"
+            ),
             page_token,
         ),
         DriveRequest::CreateFolder { name } => bounded_json(
-            client.post(API).bearer_auth(&token)
+            client
+                .post(API)
+                .bearer_auth(&token)
                 .query(&[("fields", "id,name"), ("supportsAllDrives", "true")])
                 .json(&json!({"name":name.trim(),"mimeType":"application/vnd.google-apps.folder"}))
-                .send().map_err(|error| error.to_string())?,
+                .send()
+                .map_err(|error| error.to_string())?,
         ),
         DriveRequest::ReadDocsRecord { folder_id, file_id } => {
             read_docs_record(&client, &token, &folder_id, &file_id)
@@ -595,7 +612,11 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
                 client
                     .post(UPLOAD)
                     .bearer_auth(&token)
-                    .query(&[("uploadType", "multipart"), ("fields", "id,name"), ("supportsAllDrives", "true")])
+                    .query(&[
+                        ("uploadType", "multipart"),
+                        ("fields", "id,name"),
+                        ("supportsAllDrives", "true"),
+                    ])
                     .header(
                         "Content-Type",
                         format!("multipart/related; boundary={boundary}"),
@@ -610,7 +631,10 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
                 client
                     .get(format!("{API}/{file_id}"))
                     .bearer_auth(&token)
-                    .query(&[("fields", "parents,mimeType,trashed"), ("supportsAllDrives", "true")])
+                    .query(&[
+                        ("fields", "parents,mimeType,trashed"),
+                        ("supportsAllDrives", "true"),
+                    ])
                     .send()
                     .map_err(|error| error.to_string())?,
             )?;
@@ -641,7 +665,11 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
                 client
                     .post(UPLOAD)
                     .bearer_auth(&token)
-                    .query(&[("uploadType", "multipart"), ("fields", "id,name"), ("supportsAllDrives", "true")])
+                    .query(&[
+                        ("uploadType", "multipart"),
+                        ("fields", "id,name"),
+                        ("supportsAllDrives", "true"),
+                    ])
                     .header(
                         "Content-Type",
                         format!("multipart/related; boundary={boundary}"),
@@ -678,14 +706,19 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
             if let Some(page_token) = page_token {
                 request = request.query(&[("pageToken", page_token)]);
             }
-            validate_listing(bounded_json(request.send().map_err(|error| error.to_string())?)?)
+            validate_listing(bounded_json(
+                request.send().map_err(|error| error.to_string())?,
+            )?)
         }
         DriveRequest::Read { folder_id, file_id } => {
             let metadata = bounded_json(
                 client
                     .get(format!("{API}/{file_id}"))
                     .bearer_auth(&token)
-                    .query(&[("fields", "parents,appProperties,size"), ("supportsAllDrives", "true")])
+                    .query(&[
+                        ("fields", "parents,appProperties,size"),
+                        ("supportsAllDrives", "true"),
+                    ])
                     .send()
                     .map_err(|error| error.to_string())?,
             )?;
@@ -768,7 +801,11 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
                 client
                     .post(UPLOAD)
                     .bearer_auth(&token)
-                    .query(&[("uploadType", "multipart"), ("fields", "id,name"), ("supportsAllDrives", "true")])
+                    .query(&[
+                        ("uploadType", "multipart"),
+                        ("fields", "id,name"),
+                        ("supportsAllDrives", "true"),
+                    ])
                     .header(
                         "Content-Type",
                         format!("multipart/related; boundary={boundary}"),
@@ -783,15 +820,27 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
 
 fn validate_listing(value: Value) -> Result<Value, String> {
     if value.get("incompleteSearch").and_then(Value::as_bool) == Some(true) {
-        return Err("Google Drive returned an incomplete search. Retry before selecting resources.".into());
+        return Err(
+            "Google Drive returned an incomplete search. Retry before selecting resources.".into(),
+        );
     }
-    let files = value.get("files").and_then(Value::as_array).ok_or("Invalid Drive resource listing")?;
+    let files = value
+        .get("files")
+        .and_then(Value::as_array)
+        .ok_or("Invalid Drive resource listing")?;
     if files.len() > 100 {
         return Err("Drive resource listing exceeds its limit".into());
     }
     for file in files {
-        validate_id(file.get("id").and_then(Value::as_str).ok_or("Invalid Drive resource identity")?)?;
-        let name = file.get("name").and_then(Value::as_str).ok_or("Invalid Drive resource name")?;
+        validate_id(
+            file.get("id")
+                .and_then(Value::as_str)
+                .ok_or("Invalid Drive resource identity")?,
+        )?;
+        let name = file
+            .get("name")
+            .and_then(Value::as_str)
+            .ok_or("Invalid Drive resource name")?;
         if name.len() > 4096 || name.chars().any(char::is_control) {
             return Err("Invalid Drive resource name".into());
         }
@@ -822,7 +871,9 @@ fn list_resources(
     if let Some(page_token) = page_token {
         request = request.query(&[("pageToken", page_token)]);
     }
-    validate_listing(bounded_json(request.send().map_err(|error| error.to_string())?)?)
+    validate_listing(bounded_json(
+        request.send().map_err(|error| error.to_string())?,
+    )?)
 }
 
 fn validate_docs_metadata(metadata: &Value, folder_id: &str) -> Result<(), String> {
@@ -981,15 +1032,37 @@ mod tests {
         let folders = DriveRequest::ListFolders { page_token: None };
         assert!(folders.validate().is_ok());
         assert_eq!(folders.scope(), "drive:folders:list");
-        let docs = DriveRequest::ListDocs { folder_id: "selected-folder".into(), page_token: None };
+        let docs = DriveRequest::ListDocs {
+            folder_id: "selected-folder".into(),
+            page_token: None,
+        };
         assert!(docs.validate().is_ok());
         assert_eq!(docs.scope(), "drive:docs:list:selected-folder");
-        let create = DriveRequest::CreateFolder { name: "Research".into() };
+        let create = DriveRequest::CreateFolder {
+            name: "Research".into(),
+        };
         assert!(create.validate().is_ok());
         assert_eq!(create.scope(), "drive:folders:create");
-        assert!(DriveRequest::CreateFolder { name: "\n".into() }.validate().is_err());
-        assert!(DriveRequest::ListFolders { page_token: Some("x".repeat(2049)) }.validate().is_err());
-        assert!(DriveRequest::ListDocs { folder_id: "../escape".into(), page_token: None }.validate().is_err());
+        assert!(
+            DriveRequest::CreateFolder { name: "\n".into() }
+                .validate()
+                .is_err()
+        );
+        assert!(
+            DriveRequest::ListFolders {
+                page_token: Some("x".repeat(2049))
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            DriveRequest::ListDocs {
+                folder_id: "../escape".into(),
+                page_token: None
+            }
+            .validate()
+            .is_err()
+        );
     }
 
     #[test]
@@ -998,7 +1071,12 @@ mod tests {
         assert!(validate_listing(json!({"files":[{"id":"../bad","name":"Document"}]})).is_err());
         assert!(validate_listing(json!({"files":[],"nextPageToken":55})).is_err());
         assert!(validate_listing(json!({"files":[],"nextPageToken":""})).is_err());
-        assert!(validate_listing(json!({"files":[{"id":"doc-id","name":"Document"}],"nextPageToken":"page-2"})).is_ok());
+        assert!(
+            validate_listing(
+                json!({"files":[{"id":"doc-id","name":"Document"}],"nextPageToken":"page-2"})
+            )
+            .is_ok()
+        );
     }
 
     #[test]
