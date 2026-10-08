@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- Size legacy dialogs against the effective app-zoom viewport, reflow the snippet catalog at its own width, and prevent frontmatter fields and conflict choices from overflowing. Add 20 hosted zoom regressions with screenshot attachments.
 - Serialize Mermaid configuration and rendering across previews and exports, restore settings after failures, and preserve diagram preparation error causes.
 - Keep bibliography dialogs within the effective zoomed viewport and focus the health summary before its lower maintenance controls can scroll the opening view.
 - Retain export and publication operation ownership through vault transitions without resetting pending locks from effects.

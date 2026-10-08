@@ -18,6 +18,15 @@ workers and Rust workspace/frontend smoke lanes, but failed five browser cases
 and the fast lint lane. Its subsequent source repairs require new hosted proof;
 104 visual passes plus four reference differences do not override those failures.
 
+Revision `de577efb4420d8f3d223af170a07b07eb7e9a07b` subsequently passed all
+374 functional browser cases, five mobile browser cases, fast contracts/lint,
+Rust workspace checks and tests, frontend/accessibility/TUI/daemon smoke, and
+Windows/Linux/macOS desktop checks on GitHub workers. Four historical visual
+references and the four previously documented Typst dependency maintenance
+advisories still fail their gates. See
+`validation/LEGACY-DIALOG-ZOOM-2026-10-08.md` for exact runs, current image
+dispositions and the further legacy-dialog repairs awaiting hosted proof.
+
 Localization enforcement covers maintained product/contributor documentation.
 `docs/validation/` holds provenance-sensitive audit records and recovered source
 reports; these evidence artifacts are excluded from translation requirements,

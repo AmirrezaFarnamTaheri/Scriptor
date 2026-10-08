@@ -63,7 +63,7 @@
 }
 
 .obsidian-import-dialog {
-  width: min(620px, calc(100vw - 28px));
+  width: min(620px, calc(var(--app-viewport-width, 100vw) - 28px));
   gap: 18px;
 }
 
@@ -218,7 +218,7 @@
 
 @media (max-width: 620px) {
   .obsidian-import-dialog {
-    max-height: calc(100dvh - 24px);
+    max-height: calc(var(--app-viewport-height, 100dvh) - 24px);
     overflow-y: auto;
     padding: 15px;
   }
@@ -233,7 +233,7 @@
 }
 
 .external-deep-link-dialog {
-  width: min(560px, calc(100vw - 32px));
+  width: min(560px, calc(var(--app-viewport-width, 100vw) - 32px));
 }
 
 .external-deep-link-dialog > p {

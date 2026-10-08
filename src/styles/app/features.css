@@ -90,8 +90,8 @@
 }
 
 .knowledge-filters-panel {
-  width: min(720px, 92vw);
-  max-height: min(80vh, 720px);
+  width: min(720px, calc(var(--app-viewport-width, 100vw) * 0.92));
+  max-height: min(calc(var(--app-viewport-height, 100dvh) * 0.8), 720px);
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   background: var(--surface);
@@ -317,7 +317,7 @@
 }
 
 .frontmatter-inspector {
-  width: min(720px, calc(100vw - 32px));
+  width: min(720px, calc(var(--app-viewport-width, 100vw) - 32px));
   max-width: 720px;
   background: var(--dialog-bg, var(--bg-elevated));
 }
@@ -332,9 +332,15 @@
 
 .frontmatter-fields li {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.5rem;
   align-items: end;
+}
+
+.frontmatter-fields label,
+.frontmatter-fields input {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .graph-canvas.force {
@@ -442,8 +448,8 @@
 }
 
 .writing-targets-panel {
-  width: min(520px, 92vw);
-  max-height: calc(100dvh - 24px);
+  width: min(520px, calc(var(--app-viewport-width, 100vw) * 0.92));
+  max-height: calc(var(--app-viewport-height, 100dvh) - 24px);
   overflow-y: auto;
   background: var(--dialog-bg, var(--bg-elevated));
   border: 1px solid var(--border);

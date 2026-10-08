@@ -132,7 +132,9 @@
 
 
 .rename-dialog {
-  width: min(480px, calc(100vw - 32px));
+  width: min(480px, calc(var(--app-viewport-width, 100vw) - 32px));
+  max-height: calc(var(--app-viewport-height, 100dvh) - 32px);
+  overflow: auto;
   display: grid;
   gap: 14px;
   padding: 18px;
