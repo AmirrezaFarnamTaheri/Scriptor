@@ -104,6 +104,15 @@ small presentation repair; fresh worker capture remains required.
 The designated reference refresh subsequently passed; its 35 individually
 inspected gallery images and source/verification boundaries are recorded in
 [the refresh ledger](SCREENSHOT-REFRESH-2026-10-08.md).
+The cancelled predecessor's failure archive identified a test-bootstrap
+defect: the zoom matrix explicitly selects CodeMirror, but workspace readiness
+only inspected the Monaco-only test bridge. The rendered CodeMirror document
+already contained Research Plan while that bridge was absent. Readiness now
+checks the actual CodeMirror document when no Monaco model exists, retaining
+the selected-note, expected content and visible editor assertions. The math
+cases explicitly select Monaco before using its model bridge. This diagnosis
+does not turn the cancelled run into a pass; all 50 new cases still require
+their corrected hosted execution.
 
 The fresh audit at `dffacb08390e18b7f2eb172737c66c01556351d2` also detected
 one low-severity npm advisory through Mermaid's older transitive KaTeX copy,

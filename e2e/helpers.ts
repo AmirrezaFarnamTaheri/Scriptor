@@ -292,8 +292,8 @@ export async function waitForWorkspace(page: Page, options: { allowHiddenVaultLi
   })
   const editorSurface = page.locator('.monaco-editor .view-lines, .cm-content')
   // Monaco may have an empty virtualized view while its model is already
-  // authoritative (especially when another panel is opening). Poll the
-  // model first, then retain the DOM assertion as a rendering sanity check.
+  // authoritative. CodeMirror has no Monaco test bridge, so inspect its real
+  // document DOM. Both paths retain the content and rendering assertions.
   await expect
     .poll(
       async () =>
@@ -301,7 +301,9 @@ export async function waitForWorkspace(page: Page, options: { allowHiddenVaultLi
           const editor = (window as Window & {
             __scriptorE2eEditor?: { getModel?: () => { getValue?: () => string } | null }
           }).__scriptorE2eEditor
-          return editor?.getModel?.()?.getValue?.() ?? ''
+          return editor?.getModel?.()?.getValue?.()
+            ?? document.querySelector('.cm-content')?.textContent
+            ?? ''
         }),
       { timeout: 45_000 },
     )

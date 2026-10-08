@@ -72,3 +72,24 @@ wiki links), and `InspectorRail.tsx` (full `MarkdownPreview` renderer).
 the editable surface. The existing distinction is recorded in
 `docs/ui-visual-review-2026-09-24.md` and `docs/validation/REPORT-REVIEW.md`.
 This follow-up does not claim the editable view is identical to rendered output.
+
+## Final selector-frame capture
+
+[The final refresh worker](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37778807826)
+passed its 30 capture cases, four supplementary cases and 30 repeated
+comparisons at `d198c76567f11a5c3e02347fbdb080bde3fe4114`.
+Its screenshot-only commit `8892a6e5b09487e3c3cbc66f4c6c852e7a8bb206`
+updated 11 gallery images and three Windows references. Individual reinspection
+of `mobile-inspector.png`, `mobile-vault.png`, `workspace-mobile.png` and
+`workspace-tablet.png` confirms one clean selector frame, readable Writing
+text, contained native arrow and preserved neighboring control alignment.
+Individual reinspection of the other seven changed gallery images also found
+no new visual defect: `git-panel.png`, `knowledge-workbench.png`,
+`mcp-sharing-inventory.png`, `mcp-tools.png`, `note-history.png`,
+`publish-center.png` and `settings-appearance.png`. Headers, close controls,
+fields and actions remain contained and aligned. Inventory sections, long
+tool results, export profiles and appearance fields continue within their
+intended vertical scroll regions. The history rail's sparse retention data
+explains its blank interval; neither comparison column is clipped.
+No comparison tolerance was widened. Later readiness-helper/math-bootstrap
+changes affect tests only and still require functional worker execution.

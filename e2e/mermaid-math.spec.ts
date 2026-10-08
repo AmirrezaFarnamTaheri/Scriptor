@@ -8,6 +8,7 @@ for (const diagram of [
   { name: 'sequence', source: 'sequenceDiagram\n Alice->>Bob: $$x^2$$' },
 ]) {
   test(`Mermaid ${diagram.name} preserves mathematical labels with patched KaTeX`, async ({ page }, testInfo) => {
+    await page.addInitScript(() => localStorage.setItem('scriptor:editor-mode', 'monaco'))
     await launchApp(page)
     await waitForWorkspace(page)
     const markdown = `# Math compatibility\n\n\`\`\`mermaid\n${diagram.source}\n\`\`\`\n`
