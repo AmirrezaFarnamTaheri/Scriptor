@@ -58,6 +58,76 @@ async function openCommand(page: Page, command: string, name: string) {
 for (const viewport of viewports) {
   const dimensions = `${viewport.width}x${viewport.height}`
 
+  test(`product tour and final actions fit at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
+    await page.addInitScript(() => localStorage.setItem('scriptor:onboarding-complete', 'false'))
+    await prepare(page, viewport)
+    const tour = page.getByRole('dialog', { name: 'Product tour', exact: true })
+    await expectFullBounds(tour)
+    const steps = Number(await tour.getByRole('progressbar').getAttribute('max'))
+    expect(steps).toBeGreaterThan(1)
+    expect(steps).toBeLessThanOrEqual(16)
+    for (let step = 1; step < steps; step += 1) {
+      const next = tour.getByRole('button', { name: 'Next', exact: true })
+      await expectReachable(next)
+      await next.click()
+      await expect(tour.getByRole('progressbar')).toHaveAttribute('value', String(step + 1))
+      await expectFullBounds(tour)
+    }
+    for (const action of ['Skip tour', 'Back', 'Help & guides', 'Open cheatsheet', 'Finish']) {
+      await expectReachable(tour.getByRole('button', { name: action, exact: true }))
+    }
+    await expect.poll(() => tour.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
+    await captureDialog(page, testInfo)
+    await tour.getByRole('button', { name: 'Finish', exact: true }).click()
+    await expect(tour).toBeHidden()
+  })
+
+  test(`toolbar customizer keeps controls and actions contained at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
+    await prepare(page, viewport)
+    await page.locator('.editor-toolbar .customize-trigger').click()
+    const dialog = page.getByRole('dialog', { name: /Customize toolbar/i })
+    await expectFullBounds(dialog)
+    const close = dialog.locator('.toolbar-customizer-close')
+    await expectFullBounds(close)
+    await expectFullBounds(dialog.getByRole('button', { name: 'Apply', exact: true }))
+    await expectReachable(dialog.locator('.toolbar-customize-row').last().getByRole('spinbutton'))
+    await expect.poll(() => dialog.locator('.toolbar-customizer-list').evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
+    await expectFullBounds(close)
+    await captureDialog(page, testInfo)
+    await dialog.locator('.toolbar-customizer-actions').getByRole('button', { name: 'Cancel', exact: true }).click()
+    await expect(dialog).toBeHidden()
+  })
+
+  test(`Tools menu stays attached, bounded and keyboard reachable at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
+    await prepare(page, viewport)
+    const trigger = page.getByRole('button', { name: 'Tools', exact: true })
+    await trigger.focus()
+    await page.keyboard.press('ArrowDown')
+    const menu = page.getByRole('menu', { name: 'Tools', exact: true })
+    await expect(menu).toHaveAttribute('data-positioned', 'true')
+    await expectFullBounds(menu)
+    await expect.poll(async () => {
+      const menuBox = await menu.boundingBox()
+      const triggerBox = await trigger.boundingBox()
+      if (!menuBox || !triggerBox) return Number.POSITIVE_INFINITY
+      return Math.min(
+        Math.abs(menuBox.y - triggerBox.y - triggerBox.height),
+        Math.abs(triggerBox.y - menuBox.y - menuBox.height),
+      )
+    }).toBeLessThanOrEqual(14)
+    const first = menu.getByRole('menuitem').first()
+    await expect(first).toBeFocused()
+    await page.keyboard.press('End')
+    const last = menu.getByRole('menuitem').last()
+    await expect(last).toBeFocused()
+    await expectFullBounds(last)
+    await expectFullBounds(menu)
+    await captureDialog(page, testInfo)
+    await page.keyboard.press('Escape')
+    await expect(menu).toBeHidden()
+    await expect(trigger).toBeFocused()
+  })
+
   test(`command palette card and last result fit at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
     await prepare(page, viewport)
     await openCommandPalette(page)

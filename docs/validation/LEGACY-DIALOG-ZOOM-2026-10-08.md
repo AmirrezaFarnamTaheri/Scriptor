@@ -74,6 +74,24 @@ presented as additional defects observed in the four images above.
 
 ## Verification boundary
 
+The continued source sweep also found the shared `ToolbarPopover` mixing
+physical bounding rectangles with CSS positioning and scroll dimensions under
+fallback app zoom. Its trigger and viewport coordinates now use the body zoom
+factor; native WebView zoom retains the ordinary coordinate path. Three Tools
+menu cases cover 200% restored zoom, adjacency, viewport bounds, first/last
+keyboard focus, scrolling and Escape focus restoration. These are additional
+hosted regressions, pending fresh execution; no local runtime was started.
+The standalone toolbar customizer also retained raw viewport sizing and a
+physical-width breakpoint. Its card now uses the effective viewport, its rows
+reflow at the card's container width, and the header/actions retain their
+height while the list scrolls. Three additional cases check the close/apply
+controls, the last width field, horizontal containment and cancellation.
+The onboarding specialization had higher-specificity raw viewport sizing and
+an unwrapped final action group. Its card now uses the effective viewport and
+scrolls as a whole when needed; final actions wrap. Three cases advance every
+tour step, inspect all five final controls and finish the tour. The expanded
+legacy matrix now contains 45 cases, plus the two math compatibility cases.
+
 The fresh audit at `dffacb08390e18b7f2eb172737c66c01556351d2` also detected
 one low-severity npm advisory through Mermaid's older transitive KaTeX copy,
 in addition to the four existing Rust maintenance findings. The
@@ -84,7 +102,11 @@ locked at 0.18.7; the added override aligns vulnerable transitive copies with
 that same integrity-pinned package, without a local installation. The targeted
 lockfile edit reuses its existing package/dependency entries and removes the
 now-unused vulnerable copy and its exclusive commander dependency. Frozen
-installation and a fresh audit must confirm this graph on the worker.
+installation succeeded on the
+[hosted audit worker](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37775428356)
+at `324647959c269ee213f9d8a0bd8084a2099a4d7b`, and its JavaScript audit
+reported no known vulnerabilities. The combined gate remains failed because
+of the four documented Rust maintenance advisories.
 Two real Mermaid flowchart/sequence math-label browser cases supplement the
 existing diagram export/preview regression. The patch does not claim evidence
 of an exploitable prototype-pollution path in Scriptor.

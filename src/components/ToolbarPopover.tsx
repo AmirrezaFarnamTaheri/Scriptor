@@ -67,9 +67,19 @@ export function ToolbarPopover({
     const panel = panelRef.current
     if (!trigger || !panel) return
 
-    const triggerRect = trigger.getBoundingClientRect()
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
+    // CSS app zoom makes bounding rectangles screen-sized, while inline fixed
+    // positions and scroll dimensions remain in the portal's CSS coordinates.
+    // Native WebView zoom removes the body zoom property and needs no conversion.
+    const zoom = Number.parseFloat(document.body.style.zoom) || 1
+    const screenRect = trigger.getBoundingClientRect()
+    const triggerRect = {
+      left: screenRect.left / zoom,
+      top: screenRect.top / zoom,
+      bottom: screenRect.bottom / zoom,
+      width: screenRect.width / zoom,
+    }
+    const viewportWidth = window.innerWidth / zoom
+    const viewportHeight = window.innerHeight / zoom
     const maximumWidth = Math.max(0, viewportWidth - VIEWPORT_PADDING * 2)
     const minimumWidth = Math.min(
       Math.max(MIN_POPOVER_WIDTH, triggerRect.width),
