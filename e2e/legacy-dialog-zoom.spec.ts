@@ -4,6 +4,7 @@ import { launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspa
 
 const viewports = [
   { width: 1440, height: 768 },
+  { width: 1024, height: 768 },
   { width: 768, height: 900 },
 ]
 
@@ -56,6 +57,52 @@ async function openCommand(page: Page, command: string, name: string) {
 // 720px effective desktop viewport, and narrower views also expose small cards.
 for (const viewport of viewports) {
   const dimensions = `${viewport.width}x${viewport.height}`
+
+  test(`command palette card and last result fit at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
+    await prepare(page, viewport)
+    await openCommandPalette(page)
+    const palette = page.getByRole('dialog', { name: 'Command palette', exact: true })
+    const card = palette.locator('.command-palette')
+    await settleLayout(page)
+    await expectFullBounds(card)
+    await expectFullBounds(palette.getByRole('searchbox'))
+    await expectReachable(palette.getByRole('option').last())
+    await expectFullBounds(card)
+    await captureDialog(page, testInfo)
+    await page.keyboard.press('Escape')
+    await expect(palette).toBeHidden()
+  })
+
+  test(`theme builder keeps header, footer and fields reachable at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
+    await prepare(page, viewport)
+    const settings = await openCommand(page, 'Open settings', 'Settings')
+    await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
+    await settings.getByRole('button', { name: 'Manage color palettes', exact: true }).click()
+    const palettes = page.getByRole('dialog', { name: 'Color palettes', exact: true })
+    await settleLayout(page)
+    await expectFullBounds(palettes.locator('.plugin-manager-modal'))
+    const create = palettes.getByRole('button', { name: 'Create Custom Palette', exact: true })
+    await expectReachable(create)
+    await create.click()
+    const dialog = page.getByRole('dialog', { name: 'Theme Customizer & Builder', exact: true })
+    const card = dialog.locator('.customizer-modal')
+    await settleLayout(page)
+    await expectFullBounds(card)
+    const close = dialog.locator('.customizer-header').getByRole('button')
+    await expectFullBounds(close)
+    await expectFullBounds(dialog.locator('.customizer-footer'))
+    const name = dialog.locator('#theme-name-input')
+    await expectReachable(name)
+    await name.fill('Zoom review palette')
+    await expect(name).toHaveValue('Zoom review palette')
+    await expectReachable(dialog.locator('.picker-row textarea').last())
+    await expectFullBounds(close)
+    await expectFullBounds(dialog.locator('.customizer-footer'))
+    await captureDialog(page, testInfo)
+    await close.click()
+    await expect(dialog).toBeHidden()
+    await expect(palettes).toBeVisible()
+  })
 
   for (const surface of [
     { command: 'Markdown cheatsheet', name: 'Markdown cheatsheet', close: 'Close cheatsheet' },

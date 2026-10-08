@@ -11,9 +11,9 @@
 }
 
 .plugin-manager-modal {
-  width: min(800px, calc(100vw - 16px));
+  width: min(800px, calc(var(--app-viewport-width, 100vw) - 16px));
   max-width: 800px;
-  max-height: calc(100dvh - 16px);
+  max-height: calc(var(--app-viewport-height, 100dvh) - 16px);
   min-height: 0;
   background-color: var(--surface);
   color: var(--ink);
@@ -335,8 +335,8 @@
 
 @media (max-width: 520px) {
   .plugin-manager-modal {
-    width: min(100%, calc(100vw - 12px));
-    max-height: calc(100dvh - 12px);
+    width: min(100%, calc(var(--app-viewport-width, 100vw) - 12px));
+    max-height: calc(var(--app-viewport-height, 100dvh) - 12px);
   }
 
   .plugin-manager-header {

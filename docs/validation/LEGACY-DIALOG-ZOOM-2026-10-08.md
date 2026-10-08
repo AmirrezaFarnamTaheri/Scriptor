@@ -12,8 +12,8 @@ Results describe that revision, not the subsequent CSS/test patch below.
 | [Localization run 37361220369](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37361220369) | Passed. |
 | [Visual run 37361220375](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/37361220375) | 104 passed, four failed comparisons against historical references: MCP, history, publishing and health. |
 
-The functional job log was read through the connected GitHub tool after the
-local CLI credential expired. Its final results explicitly report 374 and five
+The functional job log was read through the connected GitHub tool when local
+CLI access to job logs was unavailable. Its final results explicitly report 374 and five
 passes. This does not establish live-account provider synchronization or
 packaged mobile behavior. The four unmaintained transitive Typst dependencies
 remain documented in `SUPPLY-CHAIN-2026-10-04.md`; no exception was added.
@@ -55,7 +55,7 @@ force horizontal overflow. Frontmatter fields use a shrinkable grid column.
 Conflict choices and merged-preview headings can wrap, and preview columns
 can shrink below their ordinary minimum when the card is narrower.
 
-`e2e/legacy-dialog-zoom.spec.ts` adds 20 cases: ten supported routes at each of
+The initial `e2e/legacy-dialog-zoom.spec.ts` patch added 20 cases: ten routes at each of
 1440×768 and 768×900, restoring the real 200% app-zoom preference before opening.
 They exercise cheatsheet scrolling, populated snippet editing, template-list
 reachability, import controls, writing targets, populated frontmatter, the
@@ -73,6 +73,26 @@ source-derived risks until the new cases execute; they are not retroactively
 presented as additional defects observed in the four images above.
 
 ## Verification boundary
+
+A further specialist sweep found the command palette and theme customizer
+still using raw viewport heights and physical-width breakpoints. The palette
+now caps its actual card, leaves header/search context fixed and lets the list
+shrink and scroll. The theme builder caps its card against the effective
+viewport, keeps its header/footer outside the body scroller, and uses named
+container queries to reflow its sidebar and color inputs. Contrast and preview
+rows can wrap at the available width.
+
+The owning Color palettes/module-manager dialog retained the same raw height
+cap, which could place its separate creation row above the window before the
+theme builder opened. Its ordinary and narrow card caps now use the effective
+viewport too; the new theme route asserts that parent card and creation control
+remain reachable before opening its child dialog.
+
+The suite now contains 36 cases: all twelve routes at 1440×768, 1024×768 and
+768×900. The intermediate physical width specifically catches layouts whose
+mobile media query has not activated while zoom halves the available width.
+New cases assert palette card/search/last-result bounds and theme card,
+header/footer, editable fields and return to the owning palette dialog.
 
 The further CSS/test patch awaits GitHub worker execution and review of its
 new screenshots. No local installation, application, browser, build, lint or
