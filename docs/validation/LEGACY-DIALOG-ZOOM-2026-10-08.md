@@ -90,7 +90,20 @@ The onboarding specialization had higher-specificity raw viewport sizing and
 an unwrapped final action group. Its card now uses the effective viewport and
 scrolls as a whole when needed; final actions wrap. Three cases advance every
 tour step, inspect all five final controls and finish the tour. The expanded
-legacy matrix now contains 45 cases, plus the two math compatibility cases.
+legacy matrix now contains 48 cases, plus the two math compatibility cases.
+The separate top-bar customization popup used the same mixed coordinate
+systems and raw height limit. It now converts measured/viewport dimensions
+into CSS coordinates and uses an effective-width/height cap. Both its normal
+button and header context-menu route share this bounded placement. Three cases
+check scrolling, bounds, both opening routes and Escape focus restoration.
+Fresh mobile captures also exposed a second inner border inside the rounded
+Writing selector. The outer strip now owns the ordinary-scale frame; the
+high-zoom layout, which removes that strip frame, retains the select's own
+border. Existing mode selection and responsive screenshot cases cover this
+small presentation repair; fresh worker capture remains required.
+The designated reference refresh subsequently passed; its 35 individually
+inspected gallery images and source/verification boundaries are recorded in
+[the refresh ledger](SCREENSHOT-REFRESH-2026-10-08.md).
 
 The fresh audit at `dffacb08390e18b7f2eb172737c66c01556351d2` also detected
 one low-severity npm advisory through Mermaid's older transitive KaTeX copy,

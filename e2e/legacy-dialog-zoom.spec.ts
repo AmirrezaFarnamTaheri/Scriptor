@@ -58,6 +58,26 @@ async function openCommand(page: Page, command: string, name: string) {
 for (const viewport of viewports) {
   const dimensions = `${viewport.width}x${viewport.height}`
 
+  test(`top bar customization stays bounded and restores focus at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
+    await prepare(page, viewport)
+    const trigger = page.getByRole('button', { name: 'Customize top bar actions', exact: true })
+    await trigger.click()
+    const dialog = page.getByRole('dialog', { name: 'Customize top bar actions', exact: true })
+    await settleLayout(page)
+    await expectFullBounds(dialog)
+    await expectReachable(dialog.getByRole('checkbox').last())
+    await expectReachable(dialog.locator('.customize-reset'))
+    await expectFullBounds(dialog)
+    await captureDialog(page, testInfo)
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await expect(trigger).toBeFocused()
+    await page.locator('header.topbar').click({ button: 'right' })
+    await expectFullBounds(dialog)
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+  })
+
   test(`product tour and final actions fit at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
     await page.addInitScript(() => localStorage.setItem('scriptor:onboarding-complete', 'false'))
     await prepare(page, viewport)

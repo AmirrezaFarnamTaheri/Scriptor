@@ -835,8 +835,9 @@ html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
 .topbar-customize {
   position: fixed;
   z-index: 90;
-  min-width: 250px;
-  max-height: 70vh;
+  min-width: min(250px, calc(var(--app-viewport-width, 100vw) - 16px));
+  max-width: calc(var(--app-viewport-width, 100vw) - 16px);
+  max-height: calc(var(--app-viewport-height, 100dvh) * 0.7);
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;

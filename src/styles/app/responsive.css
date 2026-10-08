@@ -3,9 +3,10 @@
   min-height: 42px;
   min-width: 0;
   padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
+  /* The mode strip already owns the rounded frame at ordinary scale. */
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
   color: var(--ink);
   font-weight: 600;
 }
@@ -708,4 +709,4 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls { padding:0
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-switcher { margin:0; gap:4px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-switcher select { min-height:32px; height:32px; padding:4px 6px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-strip { padding:0; border:0; border-radius:0; background:transparent; }
-html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-select { min-height:32px; height:32px; padding:4px 6px; border-radius:6px; font-size:12px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-select { min-height:32px; height:32px; padding:4px 6px; border:1px solid var(--border); border-radius:6px; background:var(--surface); font-size:12px; }

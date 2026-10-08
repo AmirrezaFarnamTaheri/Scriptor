@@ -12,7 +12,8 @@
 
 ### Fixed
 
-- Convert toolbar-menu positioning into the zoomed page's coordinates, reflow the toolbar customizer and wrap final tour actions, with keyboard, scrolling and complete-tour regressions.
+- Remove the duplicate inner frame from the ordinary mobile/tablet mode selector while retaining its standalone border at high app zoom.
+- Convert toolbar-menu and top-bar popup positioning into the zoomed page's coordinates, reflow the toolbar customizer and wrap final tour actions, with keyboard, scrolling and complete-tour regressions.
 - Align vulnerable transitive KaTeX copies with the patched renderer dependency, retaining the existing integrity pin and adding real Mermaid math-label compatibility coverage.
 - Size legacy dialogs and the command palette against the effective app-zoom viewport, reflow snippet/theme editors at their own width, and prevent frontmatter fields and conflict choices from overflowing. Add 36 hosted zoom regressions with screenshot attachments.
 - Serialize Mermaid configuration and rendering across previews and exports, restore settings after failures, and preserve diagram preparation error causes.
