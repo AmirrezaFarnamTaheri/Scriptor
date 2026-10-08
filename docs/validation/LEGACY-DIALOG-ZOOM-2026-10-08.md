@@ -74,6 +74,21 @@ presented as additional defects observed in the four images above.
 
 ## Verification boundary
 
+The fresh audit at `dffacb08390e18b7f2eb172737c66c01556351d2` also detected
+one low-severity npm advisory through Mermaid's older transitive KaTeX copy,
+in addition to the four existing Rust maintenance findings. The
+[upstream advisory](https://github.com/advisories/GHSA-238p-pmpm-9mq7) describes
+inherited prototype properties bypassing renderer trust restrictions and names
+0.18.2 as the fixed release. The renderer's direct dependency was already
+locked at 0.18.7; the added override aligns vulnerable transitive copies with
+that same integrity-pinned package, without a local installation. The targeted
+lockfile edit reuses its existing package/dependency entries and removes the
+now-unused vulnerable copy and its exclusive commander dependency. Frozen
+installation and a fresh audit must confirm this graph on the worker.
+Two real Mermaid flowchart/sequence math-label browser cases supplement the
+existing diagram export/preview regression. The patch does not claim evidence
+of an exploitable prototype-pollution path in Scriptor.
+
 A further specialist sweep found the command palette and theme customizer
 still using raw viewport heights and physical-width breakpoints. The palette
 now caps its actual card, leaves header/search context fixed and lets the list

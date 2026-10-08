@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- Align vulnerable transitive KaTeX copies with the patched renderer dependency, retaining the existing integrity pin and adding real Mermaid math-label compatibility coverage.
 - Size legacy dialogs and the command palette against the effective app-zoom viewport, reflow snippet/theme editors at their own width, and prevent frontmatter fields and conflict choices from overflowing. Add 36 hosted zoom regressions with screenshot attachments.
 - Serialize Mermaid configuration and rendering across previews and exports, restore settings after failures, and preserve diagram preparation error causes.
 - Keep bibliography dialogs within the effective zoomed viewport and focus the health summary before its lower maintenance controls can scroll the opening view.
