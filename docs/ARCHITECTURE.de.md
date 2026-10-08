@@ -111,3 +111,5 @@ SQLite verwendet WAL, Foreign Keys, Busy Timeouts, Current-Schema Validation, FT
 ## Bekannte Architekturarbeit
 
 Die Adapter Layer behält eine Composition Root, aber Quick Capture, Rename Transactions, Deletion, Telemetry, Shortcuts, Sidebar Actions, Auxiliary Workspace Data, Settings Vault Configuration, MCP Tool Contracts, Daemon Command Catalog/Support, Daemon Transport Tests, CLI Command-Line Schema und CLI Benchmarks haben fokussierte Owners. Weitere Dekomposition erfolgt über charakterisierte Vertical Workflows auf typisierten Application Services, nicht per Big-Bang-Rewrite. Siehe Capability Ledger.
+
+Die Einstellungen für Arbeitsbereich-Verknüpfungen sind von Tresor-Tabs und Entwürfen getrennt. Versionierte, begrenzte lokale Daten enthalten nur Textbezeichnungen und Größen. Aktionen werden aus dem aktuellen Befehlskatalog aufgelöst. Ein Speicherfehler lässt den Entwurf geöffnet und zeigt einen Fehler; die Befehlspalette bleibt der Wiederherstellungsweg.

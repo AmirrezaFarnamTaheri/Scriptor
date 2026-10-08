@@ -200,26 +200,47 @@ export async function settleLayout(page: Page) {
     await page.waitForLoadState('domcontentloaded')
     try {
       await page.evaluate(async () => {
-        await document.fonts.ready
-        await Promise.all(
-          Array.from(document.images)
-            .filter((image) => image.getBoundingClientRect().width > 0)
+        async function waitForStage<T>(pending: Promise<T>, stage: string, details: () => string = () => ''): Promise<T> {
+          let timer: number | undefined
+          try {
+            return await Promise.race([
+              pending,
+              new Promise<never>((_resolve, reject) => {
+                timer = window.setTimeout(() => reject(new Error(`Layout settling timed out at ${stage}: ${details()}`)), 15_000)
+              }),
+            ])
+          } finally {
+            window.clearTimeout(timer)
+          }
+        }
+        await waitForStage(document.fonts.ready, 'fonts', () => document.fonts.status)
+        const visibleImages = Array.from(document.images).filter(image => image.getBoundingClientRect().width > 0)
+        await waitForStage(Promise.all(
+          visibleImages
             .map(async (image) => {
               if (!image.complete) await image.decode()
               if (image.naturalWidth === 0) {
                 throw new Error(`Visible image failed to load: ${image.currentSrc || image.src}`)
               }
             }),
-        )
+        ), 'visible images', () => visibleImages.filter(image => !image.complete || image.naturalWidth === 0)
+          .slice(0, 5).map(image => image.currentSrc || image.src).join(', '))
         window.dispatchEvent(new Event('resize'))
         const finiteAnimations = document.getAnimations().filter((animation) => {
           const endTime = animation.effect?.getComputedTiming().endTime
-          return typeof endTime === 'number' && Number.isFinite(endTime)
+          return animation.playState === 'running' && animation.playbackRate !== 0
+            && typeof endTime === 'number' && Number.isFinite(endTime)
         })
-        await Promise.allSettled(finiteAnimations.map((animation) => animation.finished))
-        await new Promise<void>((resolve) => {
+        await waitForStage(Promise.allSettled(finiteAnimations.map((animation) => animation.finished)), 'running animations', () =>
+          finiteAnimations.slice(0, 5).map(animation => {
+            const target = (animation.effect as KeyframeEffect | null)?.target
+            return JSON.stringify({ target: target instanceof Element ? `${target.tagName}.${target.className}` : null,
+              playState: animation.playState, currentTime: String(animation.currentTime),
+              endTime: animation.effect?.getComputedTiming().endTime, playbackRate: animation.playbackRate })
+          }).join('; '))
+        await waitForStage(new Promise<void>((resolve) => {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-        })
+        }), 'paint frames')
       })
       break
     } catch (error) {

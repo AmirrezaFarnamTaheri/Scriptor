@@ -480,6 +480,10 @@ export function installE2eBridge(): void {
         ]
       case 'indexer_list_tags':
         return [{ tag: 'research', note_count: 1 }]
+      case 'indexer_notes_for_tag':
+        return (payload as { tag?: string }).tag === 'research'
+          ? [{ path: 'Research Plan.md', title: 'Research Plan' }]
+          : []
       case 'indexer_list_inbox':
         return activeNoteSummaries().filter((note) => !note.organized)
       case 'indexer_list_orphans':

@@ -242,7 +242,8 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
-svg {
+/* Interface icon defaults must not resize diagrams or nested math glyphs. */
+svg.lucide {
   width: 17px;
   height: 17px;
   stroke-width: 1.9;
@@ -871,6 +872,10 @@ html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
   color: var(--muted);
 }
 
+.topbar-customize > * {
+  flex-shrink: 0;
+}
+
 .topbar-customize label {
   display: flex;
   align-items: center;
@@ -880,6 +885,7 @@ html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
 
 .topbar-customize .customize-reset {
   margin-top: 4px;
+  margin-bottom: 2px;
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;

@@ -10,10 +10,12 @@ import { useReviewFeatureWorkspaces } from './useReviewFeatureWorkspaces'
 import { sourceLanguage } from '../lib/sourceFile'
 import { useI18n } from '../lib/i18n'
 import { workspaceCopy } from '../lib/workspaceCopy'
+import { useWorkspaceShortcutPreferences } from './useWorkspaceShortcutPreferences'
 
 export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWorkspace>, plugins: ReturnType<typeof usePluginRegistry>, nativeReady: boolean) {
   const { locale } = useI18n()
   const copy = workspaceCopy(locale)
+  const shortcuts = useWorkspaceShortcutPreferences()
   const vaultId = workspace.vault?.id ?? null
   const lifecycle = useMemo(() => createWorkspaceLeafLifecycle(), [])
   const [revealed, setRevealed] = useState<{ vaultId: string | null; id: string } | null>(null)
@@ -74,8 +76,11 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
     const leaf = leaves.state.leaves.find(leaf => leaf.reference.kind === 'note' && leaf.reference.path === path)
     return leaf ? leaves.close(leaf.id) : workspace.closeTab(path)
   }, [leaves, workspace])
-  const sourceCommands = useMemo<PaletteCommand[]>(() => vaultId && nativeReady ? [{ id: 'open-source-file-editor', label: 'Source file editor', category: 'Workspace', keywords: ['latex', 'python', 'code', 'Overleaf'], run: () => openSource(null) }] : [], [nativeReady, openSource, vaultId])
-  return { ...leaves, commands, sourceCommands, openSource, openPlugin, openNote, closeNote, lifecycle,
+  const sourceCommands = useMemo<PaletteCommand[]>(() => vaultId && nativeReady ? [
+    { id: 'open-source-file-editor', label: 'Source file editor', category: 'Workspace', keywords: ['latex', 'python', 'code', 'Overleaf'], run: () => openSource(null) },
+    { id: 'customize-workspace-shortcuts', label: locale === 'de' ? 'Arbeitsbereich-Verknüpfungen anpassen' : locale === 'fa' ? 'سفارشی‌سازی میانبرهای فضای کاری' : 'Customize workspace shortcuts', category: 'Workspace', keywords: ['Customize workspace shortcuts', 'hide', 'pin', 'rename', 'resize', 'toolbar'], run: shortcuts.show },
+  ] : [], [locale, nativeReady, openSource, shortcuts.show, vaultId])
+  return { ...leaves, commands, sourceCommands, openSource, openPlugin, openNote, closeNote, lifecycle, shortcuts,
     managerProps: { registeredWorkspaces: plugins.contributions.workspaces, registeredPluginManifests: plugins.plugins.map(plugin => plugin.manifest), workspacePolicies: plugins.pluginPolicies, vaultId, safeMode: plugins.snapshot.safeMode, onOpenPluginWorkspace: openPlugin, onSetPluginEnabled: plugins.setPluginEnabled },
     visited: visited.vaultId === vaultId ? visited.ids : new Set<string>(),
     revealed: revealed?.vaultId === vaultId ? revealed.id : null,

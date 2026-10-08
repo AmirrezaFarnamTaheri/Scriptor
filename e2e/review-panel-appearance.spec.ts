@@ -81,6 +81,17 @@ for (const surface of surfaces) test(`${surface[0]} captures fresh light, dark a
         expect(metrics.overflow).toBeLessThanOrEqual(1)
         expect(metrics.height).toBeGreaterThan(350)
         expect(metrics.color).not.toBe(metrics.background)
+        if (surface[0] === 'Semantic inspector') {
+          const projection = panel.locator('.semantic-projection')
+          await expect(projection).toBeVisible()
+          await expect(projection.locator('g[role="button"]')).toHaveCount(2)
+          await expect.poll(() => projection.evaluate(element => element.getBoundingClientRect().width)).toBeGreaterThan(200)
+          await expect.poll(() => projection.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(120)
+          expect(await projection.evaluate(element => {
+            const box = element.getBoundingClientRect()
+            return Math.abs(box.width / box.height - 600 / 360)
+          })).toBeLessThan(0.05)
+        }
         const control = panel.locator('input:enabled,select:enabled,textarea:enabled,button:enabled').first()
         await page.keyboard.press('Tab')
         await control.focus()

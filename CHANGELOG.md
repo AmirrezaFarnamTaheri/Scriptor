@@ -8,14 +8,18 @@
 
 ### Added
 
+- Make workspace shortcuts optional and persistent: compact writing defaults, add/remove and pin-to-row or overflow placement, reordering, custom names, widths and text sizes, with a palette route to restore a hidden row.
 - Add workspace accessibility audits across light/dark appearance and desktop/narrow RTL layouts, with downloadable violation details. Run full verification on hosted GitHub workers, including draft PRs.
 
 ### Fixed
 
+- Restrict interface SVG sizing to icons so Mermaid diagrams and mathematical glyphs retain their intended geometry. Reflow tag browsing at the available pane width, with populated tag-action and readable-diagram regressions.
+- Resolve DOM-independent Markdown utilities in preview workers, retaining browser exports in production's main bundle and verifying healthy inspector output alongside editable math diagrams.
+- Reflow Git rows at their actual content width with measured virtual-row spacing, initialize toolbar-menu keyboard focus before painting, and preserve top-bar reset-button clearance. Bound screenshot readiness with stage diagnostics and add paused/running animation regressions.
 - Remove the duplicate inner frame from the ordinary mobile/tablet mode selector while retaining its standalone border at high app zoom.
 - Convert toolbar-menu and top-bar popup positioning into the zoomed page's coordinates, reflow the toolbar customizer and wrap final tour actions, with keyboard, scrolling and complete-tour regressions.
 - Align vulnerable transitive KaTeX copies with the patched renderer dependency, retaining the existing integrity pin and adding real Mermaid math-label compatibility coverage.
-- Size legacy dialogs and the command palette against the effective app-zoom viewport, reflow snippet/theme editors at their own width, and prevent frontmatter fields and conflict choices from overflowing. Add 36 hosted zoom regressions with screenshot attachments.
+- Size legacy dialogs and the command palette against the effective app-zoom viewport, reflow snippet/theme editors at their own width, and prevent frontmatter fields and conflict choices from overflowing. Add 48 hosted zoom regressions with screenshot attachments.
 - Serialize Mermaid configuration and rendering across previews and exports, restore settings after failures, and preserve diagram preparation error causes.
 - Keep bibliography dialogs within the effective zoomed viewport and focus the health summary before its lower maintenance controls can scroll the opening view.
 - Retain export and publication operation ownership through vault transitions without resetting pending locks from effects.

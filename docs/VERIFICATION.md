@@ -27,6 +27,27 @@ advisories still fail their gates. See
 `validation/LEGACY-DIALOG-ZOOM-2026-10-08.md` for exact runs, current image
 dispositions and the further legacy-dialog repairs awaiting hosted proof.
 
+Integrated revision `d198c76567f11a5c3e02347fbdb080bde3fe4114` passed all
+108 visual comparisons and Windows/Linux/macOS desktop workers. The designated
+screenshot refresh passed its 30 capture cases, four supplementary cases and
+30 repeated comparisons; all 11 changed gallery images were individually
+reinspected. `validation/SCREENSHOT-REFRESH-2026-10-08.md` records exact source,
+worker and screenshot commit identities. Revision `0df092864` passed its fresh
+108-case visual attempt, platform, Rust workspace, fast and frontend lanes.
+Functional results were 416 passes and eight failures, plus five mobile passes;
+both math assertions passed, but individual image inspection found collapsed
+diagrams and an inspector worker fallback. The report records these false-green
+assertions, the squeezed Tags pane, the zoom failures, their subsequent repairs
+and the first visual attempt's startup failure. Those repairs require
+fresh hosted proof; canceled runs are not passes. The dependency gate still
+fails on four unsuppressed Rust maintenance advisories.
+
+Workspace shortcut customization is implemented with a compact default row,
+persisted visibility, pinning, ordering, labels and bounded dimensions. Its
+source and authored persistence, cancellation, storage-error and zoom checks
+are recorded in `validation/WORKSPACE-SHORTCUTS-2026-10-08.md`; fresh hosted
+execution is pending. Historical worker counts do not verify this addition.
+
 Localization enforcement covers maintained product/contributor documentation.
 `docs/validation/` holds provenance-sensitive audit records and recovered source
 reports; these evidence artifacts are excluded from translation requirements,

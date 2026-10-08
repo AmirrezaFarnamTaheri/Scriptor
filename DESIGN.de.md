@@ -109,3 +109,5 @@ Stand 2026-08-09:
 ## Visuelle Verifikation
 
 Playwright-Projekte decken Hell-/Dunkel-Themes, Desktop-/Mobile-Breakpoints, modale Flächen, Editor/Vorschau, Knowledge Workbench, Einstellungen, Graph und wichtige Workflow-Zustände ab. Der eingefrorene Release Candidate verlangt zusätzlich manuelle Prüfungen bei 200 % Zoom, mit Screenreader und in der nativen Shell, bis diese zuverlässig automatisiert sind. Snapshot-Schwellenwerte dürfen keine ganzseitigen Verschiebungen verdecken. Siehe [`docs/validation/FRONTEND_QUALITY.de.md`](docs/validation/FRONTEND_QUALITY.de.md).
+
+Arbeitsbereich-Verknüpfungen sind optional. Standardmäßig erscheinen kompakte Schreibaktionen; weitere Werkzeuge werden bewusst hinzugefügt. Die Zeile kann ausgeblendet werden. Einträge lassen sich anheften, im Menü ablegen, umordnen, umbenennen und in Breite und Schriftgröße begrenzt anpassen. Die Befehlspalette stellt ausgeblendete Verknüpfungen wieder her; Touch-Ziele bleiben mindestens 44px groß.

@@ -53,3 +53,5 @@ Una capacidad solo pasa a Supported cuando existen todos estos elementos:
 6. documentación de usuario y operador;
 7. inclusión en release y artifact verification;
 8. changelog entry.
+
+Accesos opcionales a espacios de trabajo: implementados; verificación en trabajadores de GitHub pendiente. Se guardan visibilidad, fijación, orden, nombres y tamaños limitados. Los permisos y la copia de borradores son independientes. Fuentes: `workspaceShortcuts.ts`, `WorkspaceShortcutBar.tsx`; evidencia: `validation/WORKSPACE-SHORTCUTS-2026-10-08.md`.

@@ -111,3 +111,5 @@ SQLite usa WAL, foreign keys, busy timeouts, current-schema validation, FTS y se
 ## Trabajo de arquitectura conocido
 
 Adapter layer conserva una composition root, pero quick capture, rename transactions, deletion, telemetry, shortcuts, sidebar actions, auxiliary workspace data, settings vault configuration, MCP tool contracts, daemon command catalog/support, daemon transport tests, CLI command-line schema y CLI benchmarks ya tienen owners definidos. La descomposición adicional avanza mediante vertical workflows caracterizados sobre typed application services, no mediante un big-bang rewrite. Véase el capability ledger.
+
+Las preferencias de accesos están separadas de las pestañas y los borradores del repositorio. Los datos locales, versionados y limitados solo guardan nombres de texto y dimensiones; las acciones se resuelven desde el catálogo actual. Un error de almacenamiento mantiene abierto el borrador y muestra un aviso. La paleta permite recuperar la fila oculta.

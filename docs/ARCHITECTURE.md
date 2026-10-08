@@ -122,6 +122,12 @@ SQLite uses WAL, foreign keys, busy timeouts, current-schema validation, FTS, an
 
 ### Reviewed source, sync and rendering workflows
 
+Workspace shortcut preferences are separate from vault leaves and drafts.
+`useWorkspaceShortcutPreferences` validates versioned, bounded local UI data;
+`WorkspaceShortcutBar` resolves only the current command catalog. Labels and
+dimensions cannot store executable commands. Storage denial retains the draft
+and reports an error; hidden rows remain recoverable through the palette.
+
 The shell's `useWorkspaceComposition` binds runtime-validated per-vault leaf
 references to two dock groups. It restores references without activating owners,
 commits navigation only after owner approval and preserves mounted source/feature

@@ -46,4 +46,15 @@ The inspected [Typst upstream workspace manifest](https://raw.githubusercontent.
 
 ## Limits
 
+### Published-release recheck — 2026-10-08
+
+The official latest-release pages still identify
+[Typst 0.15.1](https://docs.rs/crate/typst/latest) and
+[syntect 5.3.0](https://docs.rs/crate/syntect/latest). Typst's upstream workspace
+still requests rustybuzz 0.20, ttf-parser 0.25, syntect 5.3 with `yaml-load`
+and usvg 0.47. This recheck found no published version-only upgrade that removes
+the four recorded maintenance findings. The upstream YAML migration remains
+distinct from the published dependency graph. No fork, advisory suppression or
+local dependency installation was introduced.
+
 No new runtime exploit was asserted. No maintained replacement was asserted to be source- or data-format compatible without validation. Cargo lockfile reverse edges and published features were inspected statically; exact target/feature reachability and any candidate migration must be verified on GitHub workers. Rust review/build approval is withheld while the worker advisory gate is red.

@@ -111,3 +111,5 @@ SQLite использует WAL, foreign keys, busy timeouts, current-schema val
 ## Известная архитектурная работа
 
 Adapter layer сохраняет composition root, но quick capture, rename transactions, deletion, telemetry, shortcuts, sidebar actions, auxiliary workspace data, settings vault configuration, MCP tool contracts, daemon command catalog/support, daemon transport tests, CLI command-line schema и CLI benchmarks уже имеют сфокусированных owners. Дальнейшая декомпозиция идёт через характеризованные vertical workflows поверх typed application services, а не через big-bang rewrite. См. capability ledger.
+
+Настройки ярлыков отделены от вкладок хранилища и черновиков. Локальные данные имеют версию и ограничения; они содержат только текстовые названия и размеры. Действия берутся из текущего каталога команд. При ошибке сохранения черновик остаётся открытым и показывается сообщение. Палитра команд позволяет вернуть скрытую строку.

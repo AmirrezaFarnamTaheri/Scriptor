@@ -111,3 +111,5 @@ SQLite 使用 WAL、foreign key、busy timeout、current-schema validation、FTS
 ## 已知架构工作
 
 Adapter layer 仍保留 composition root，但 quick capture、rename transaction、deletion、telemetry、shortcut、sidebar action、auxiliary workspace data、settings vault configuration、MCP tool contract、daemon command catalog/support、daemon transport test、CLI command-line schema 与 CLI benchmark 已有明确 owner。进一步拆分会通过有表征测试的 vertical workflow 和 typed application service 渐进进行，而不是 big-bang rewrite。详见 capability ledger。
+
+工作区快捷项设置与库标签及草稿分开存储。带版本且受限的本地数据只保存纯文本名称和尺寸，操作由当前命令目录解析。存储失败时保留打开的草稿并显示错误，命令面板仍可恢复隐藏的快捷栏。

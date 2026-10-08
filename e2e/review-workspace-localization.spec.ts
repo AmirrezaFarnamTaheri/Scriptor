@@ -15,7 +15,15 @@ const scenarios = [
 for (const scenario of scenarios) {
   test(`review workspaces use ${scenario.locale} labels without changing routes or drafts`, async ({ page }, testInfo) => {
     await launchApp(page)
-    await page.addInitScript(locale => localStorage.setItem('scriptor:locale', locale), scenario.locale)
+    // This case verifies explicitly pinned integration labels. Fresh profiles
+    // intentionally show only the three compact writing shortcuts.
+    await page.addInitScript(locale => {
+      localStorage.setItem('scriptor:locale', locale)
+      localStorage.setItem('scriptor:workspace-shortcuts:v1', JSON.stringify({ version: 1, visible: true, items:
+        ['open-database-studio', 'open-capture-reviewer', 'open-publishing-studio', 'open-drive-collaboration', 'open-diagram-studio', 'open-runtime-console', 'open-semantic-inspector', 'open-asset-deck']
+          .map(id => ({ id, shown: true, pinned: true, label: '', width: 0, fontSize: 12 })),
+      }))
+    }, scenario.locale)
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('lang', scenario.locale)
     await expect(page.locator('html')).toHaveAttribute('dir', scenario.direction)

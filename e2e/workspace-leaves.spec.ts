@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { launchApp } from './helpers'
+import { launchApp, openCommandPalette, runCommand } from './helpers'
 
 test('workspace groups retain drafts, move tabs and restore inert references', async ({ page }) => {
   await launchApp(page)
   const activity = page.getByRole('navigation', { name: 'Workspaces', exact: true })
-  await activity.getByRole('button', { name: 'Diagram studio', exact: true }).click()
+  await openCommandPalette(page)
+  await runCommand(page, 'Diagram studio')
   const diagram = page.getByRole('region', { name: 'Diagram studio', exact: true })
   await expect(diagram).toBeVisible()
   await diagram.getByLabel('Diagram source', { exact: true }).fill('flowchart LR\n D[Kept draft] --> E[Evidence]')
@@ -27,7 +28,8 @@ test('workspace tabs remain bounded and keyboard reachable in narrow RTL layouts
   await page.setViewportSize({ width: 375, height: 900 })
   await page.evaluate(() => { document.documentElement.dir = 'rtl' })
   const activity = page.getByRole('navigation', { name: 'Workspaces', exact: true })
-  await activity.getByRole('button', { name: 'Diagram studio', exact: true }).click()
+  await openCommandPalette(page)
+  await runCommand(page, 'Diagram studio')
   await activity.getByRole('button', { name: 'Source file', exact: true }).click()
   const tab = page.getByRole('tab', { name: 'Diagram studio', exact: true })
   await tab.focus()

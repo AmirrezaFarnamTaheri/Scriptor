@@ -136,7 +136,7 @@ for (const viewport of viewports) {
       )
     }).toBeLessThanOrEqual(14)
     const first = menu.getByRole('menuitem').first()
-    await expect(first).toBeFocused()
+    await expect(first, `Initial menu focus owner: ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 500))}`).toBeFocused()
     await page.keyboard.press('End')
     const last = menu.getByRole('menuitem').last()
     await expect(last).toBeFocused()
@@ -272,10 +272,27 @@ for (const viewport of viewports) {
       await expectFullBounds(dialog)
       const close = dialog.getByRole('button', { name: 'Close Knowledge workbench', exact: true })
       await expectFullBounds(close)
+      if (command === 'Saved views') {
+        await expect(dialog.getByRole('tab', { name: 'Views', exact: true })).toHaveAttribute('aria-selected', 'true')
+      }
       const control = command === 'Saved views'
-        ? dialog.getByRole('button', { name: 'Save current view', exact: true })
+        ? dialog.getByRole('button', { name: 'Save current…', exact: true })
         : dialog.locator('.tag-list button').first()
       await expectReachable(control)
+      if (command === 'Browse tags') {
+        await expect(dialog.getByRole('tab', { name: 'Tags', exact: true })).toHaveAttribute('aria-selected', 'true')
+        const details = dialog.locator('.tag-notes')
+        // Measure in app CSS pixels: a bounded dialog can still squeeze its
+        // detail pane into a one-word-per-line column at restored app zoom.
+        await expect.poll(() => details.evaluate(element => element.getBoundingClientRect().width / Number(document.body.style.zoom))).toBeGreaterThanOrEqual(220)
+        await control.click()
+        await expect(details.locator('.tag-notes-header strong')).toContainText('#')
+        for (const action of ['Insert tag', 'Rename tag']) {
+          await expectReachable(details.getByRole('button', { name: action, exact: true }))
+        }
+        await expect.poll(() => details.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
+        await expectReachable(details.getByRole('button', { name: 'Research Plan Research Plan.md', exact: true }))
+      }
       await expectReachable(close)
       await captureDialog(page, testInfo)
       await close.click()
@@ -309,6 +326,18 @@ for (const viewport of viewports) {
     await page.addInitScript(() => sessionStorage.setItem('e2e:git-conflicts', '1'))
     await prepare(page, viewport)
     const git = await openCommand(page, 'Open Git panel', 'Git')
+    const rows = git.locator('.git-changes li')
+    await expect(rows).toHaveCount(2)
+    for (const row of await rows.all()) {
+      await expectReachable(row)
+      for (const action of await row.getByRole('button').all()) await expectFullBounds(action)
+      expect(await row.evaluate(element => {
+        const selection = element.querySelector('.git-file-selection')!.getBoundingClientRect()
+        const actions = element.querySelector('.git-file-row-actions')!.getBoundingClientRect()
+        return selection.right <= actions.left + 1 || selection.bottom <= actions.top + 1
+      })).toBe(true)
+    }
+    await testInfo.attach('git-rows-200-percent', { body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png' })
     await git.getByRole('button', { name: 'Resolve', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Resolve merge conflicts', exact: true })
     await expectFullBounds(dialog)

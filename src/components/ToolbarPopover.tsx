@@ -129,13 +129,12 @@ export function ToolbarPopover({
     if (!open) return undefined
 
     updatePosition()
-    const frame = window.requestAnimationFrame(() => {
-      updatePosition()
-      const activeElement = document.activeElement
-      if (activeElement !== document.body && activeElement !== triggerRef.current) return
+    const activeElement = document.activeElement
+    if (activeElement === document.body || activeElement === triggerRef.current) {
       const panel = panelRef.current
       if (panel) menuItems(panel)[0]?.focus()
-    })
+    }
+    const frame = window.requestAnimationFrame(updatePosition)
     const resizeObserver = typeof ResizeObserver === 'undefined'
       ? null
       : new ResizeObserver(updatePosition)

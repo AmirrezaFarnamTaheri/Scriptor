@@ -219,7 +219,7 @@ export const TagBrowserPanel = memo(function TagBrowserPanel({
   )
 
   if (embedded) {
-    return <div className="knowledge-workbench-embed">{body}</div>
+    return <div className="knowledge-workbench-embed tag-browser-embed">{body}</div>
   }
 
   return (

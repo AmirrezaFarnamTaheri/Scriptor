@@ -31,6 +31,12 @@ At narrow widths, secondary regions collapse into the mobile workspace navigatio
 
 ## Tokens & Customization
 
+Workspace shortcuts are optional chrome. Default to compact writing actions;
+integrations are added by the user. Support hiding the entire row, pinning or
+overflow placement, reordering, plain-text labels and bounded button/text sizes.
+Hidden chrome must have a keyboard-accessible recovery route in the command
+palette. Mouse controls may be compact; coarse pointers retain 44px targets.
+
 Authoritative tokens live in `src/index.css` and `src/styles/`. New components must use semantic variables for surfaces, text, borders, focus, danger, warning, success, spacing, radii, and motion. Arbitrary colors and shadows require a documented exception.
 
 | Token role | Runtime variable | Purpose / Scope |

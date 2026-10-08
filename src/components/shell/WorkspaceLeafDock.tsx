@@ -4,6 +4,7 @@ import type { useWorkspaceComposition } from '../../hooks/useWorkspaceCompositio
 import type { useVaultWorkspace } from '../../hooks/useVaultWorkspace'
 import type { usePluginRegistry } from '../../hooks/usePluginRegistry'
 import { WorkspaceLeafTabs } from './WorkspaceLeafTabs'
+import { WorkspaceShortcutBar } from './WorkspaceShortcutBar'
 import { ReviewFeatureWorkspaces } from '../app/ReviewFeatureWorkspaces'
 import { SourceFileWorkspace } from '../app/SourceFileWorkspace'
 import { WorkspaceEmbeddedPanel } from '../../context/WorkspacePanelContext'
@@ -36,12 +37,14 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
   const vaultId = workspace.vault?.id
   const focusedGroup = revealed?.group ?? dock.activeLeaf?.group ?? 'primary'
   return <section className={`editor-panel workspace-leaf-dock${secondary ? ' has-side' : ''} focus-${focusedGroup}`} aria-label={copy.navigation}>
-    {vaultId && <nav className="workspace-activity-bar" aria-label={copy.navigation}>
-      <button type="button" onClick={() => { void dock.open({ kind: 'feature', id: 'editor' }, 'primary') }}>{copy.writing}</button>
-      <button type="button" onClick={() => dock.openSource(null)}>{copy.source}</button>
-      {workspace.activePath && <button type="button" onClick={() => { if (workspace.activePath) void dock.open({ kind: 'note', path: workspace.activePath }, 'secondary') }}>{copy.preview}</button>}
-      {dock.commands.map(command => <button key={command.id} type="button" onClick={() => { void command.run() }}>{command.label}</button>)}
-    </nav>}
+    {vaultId && <WorkspaceShortcutBar locale={locale} preferences={dock.shortcuts.preferences} open={dock.shortcuts.open}
+      onOpen={dock.shortcuts.show} onClose={dock.shortcuts.close} onSave={dock.shortcuts.save}
+      catalog={[
+        { id: 'writing', label: copy.writing, run: () => { void dock.open({ kind: 'feature', id: 'editor' }, 'primary') } },
+        { id: 'source', label: copy.source, run: () => dock.openSource(null) },
+        { id: 'preview', label: copy.preview, disabled: !workspace.activePath, run: () => { if (workspace.activePath) void dock.open({ kind: 'note', path: workspace.activePath }, 'secondary') } },
+        ...dock.commands.map(command => ({ id: command.id, label: command.label, run: () => { void command.run() } })),
+      ]} />}
     {dock.status !== 'idle' && <p className="workspace-transition-status" role="status">{workspaceTransitionCopy(locale, dock.status === 'pending', dock.reason === 'limit')}</p>}
     <div className="workspace-leaf-grid">
       {(['primary', 'secondary'] as const).map(group => <div key={group} className={`workspace-group-heading ${group}`}>

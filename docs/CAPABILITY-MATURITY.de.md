@@ -53,3 +53,5 @@ Eine Fähigkeit wird nur dann Supported, wenn alles vorhanden ist:
 6. Nutzer- und Operator-Dokumentation;
 7. Release Inclusion und Artifact Verification;
 8. Changelog Entry.
+
+Optionale Arbeitsbereich-Verknüpfungen: implementiert, Überprüfung auf GitHub-Workern ausstehend. Sichtbarkeit, Anheften, Reihenfolge, Namen und begrenzte Größen werden gespeichert. Berechtigungen und Entwurfssicherung bleiben unabhängig. Quellen: `workspaceShortcuts.ts`, `WorkspaceShortcutBar.tsx`; Nachweis: `validation/WORKSPACE-SHORTCUTS-2026-10-08.md`.

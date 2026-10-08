@@ -683,7 +683,6 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
 
 /* Magnified controls remain at least 56 physical pixels at 175% zoom, while
    keeping the navigation chrome smaller than the document it serves. */
-html[data-ui-zoom='high'] .workspace-activity-bar { display:none; }
 html[data-ui-zoom='high'] [data-workspace-header-only='true'] { display:none; }
 html[data-ui-zoom='high'] .workspace-embedded-panel .unified-panel-body { padding:8px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(4,minmax(32px,1fr)); gap:2px; padding:4px; }
