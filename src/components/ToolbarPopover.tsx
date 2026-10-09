@@ -157,18 +157,23 @@ export function ToolbarPopover({
   useEffect(() => {
     if (!open) return undefined
 
-    // Acquire keyboard focus after the portal is painted and React's layout
-    // effects have finished restoring other controls.
+    // Opening can precede the portal descendants becoming visible. Retry while
+    // the opening control still owns focus, stopping on success, user movement
+    // or cleanup rather than silently leaving a visible menu unfocused.
+    const origin = document.activeElement
+    let focusFrame = 0
+    let focusAttempts = 0
     const focusInitialItem = () => {
       const panel = panelRef.current
-      if (panel && !panel.contains(document.activeElement)) {
-        menuItems(panel)[0]?.focus({ preventScroll: true })
-      }
+      if (!panel || panel.contains(document.activeElement)) return
+      const active = document.activeElement
+      if (active !== origin && active !== triggerRef.current && active !== document.body) return
+      const item = menuItems(panel)[0]
+      if (!item) return
+      if (getComputedStyle(item).visibility === 'visible') item.focus({ preventScroll: true })
+      if (document.activeElement !== item && ++focusAttempts < 60) focusFrame = window.requestAnimationFrame(focusInitialItem)
     }
     focusInitialItem()
-    const focusFrame = window.requestAnimationFrame(() => {
-      if (document.activeElement === triggerRef.current || document.activeElement === document.body) focusInitialItem()
-    })
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target

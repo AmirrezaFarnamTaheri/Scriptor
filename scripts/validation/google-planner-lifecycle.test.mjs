@@ -61,6 +61,7 @@ function harness() {
       },
       useRef(initial) { return slots[cursor++] ??= { current: initial } },
       useMemo: callback => callback(),
+      useLayoutEffect(callback) { const index = cursor++; if (!(index in slots)) { slots[index] = {}; effects.push(() => { slots[index].cleanup = callback() }) } },
       useEffect(callback) { const index = cursor++; if (!(index in slots)) { slots[index] = {}; effects.push(() => { slots[index].cleanup = callback() }) } },
     }
     const jsx = (type, props) => ({ type, props })

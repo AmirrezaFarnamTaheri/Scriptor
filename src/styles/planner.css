@@ -19,6 +19,9 @@
 .planner-day__timeline {position:relative;height:576px;}
 .planner-day__hours { position:absolute; inset: 0; display:grid; grid-template-rows: repeat(4,1fr); pointer-events:none; font-size: 9px; color: var(--muted); }
 .planner-day__timeline .planner-block {position:absolute;min-height:32px;overflow:auto;}
+.planner-day__timeline .planner-block { padding: 3px; gap: 2px; line-height: 1.15; }
+.planner-day__timeline .planner-block > strong,
+.planner-day__timeline .planner-block > time { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: none; }
 .planner-day__hours span {border-block-start: 1px solid var(--border);padding: 3px;}
 .planner-day__entries {position:relative;display:flex;flex-direction:column;gap:4px;padding:20px 3px 3px;}
 .planner-block {display:flex;flex-direction:column;gap:3px;min-width:0;width:100%;padding:6px;border:1px solid var(--primary);background:var(--surface-raised);border-radius:4px;font-size:10px;text-align:start;overflow-wrap:anywhere;color:var(--ink);}
@@ -31,4 +34,15 @@
 .planner-review__row>span {margin-inline-start:8px;font-size:12px;}
 .planner-review pre {white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:180px;overflow:auto;}
 .planner-review__actions {display:flex;gap:8px;flex-wrap:wrap;}
+.planner-review button {
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.planner-review button:hover:not(:disabled) { background: var(--surface-muted); border-color: var(--border-strong); }
+.planner-review button:disabled { opacity: .55; }
 @media(max-width:768px) { .planner-week {grid-template-columns:1fr;} .planner-day {min-height:100px;} .planner-day__hours {display:none;} .planner-day__entries {padding:6px;} .planner-day__timeline {height:auto;display:flex;flex-direction:column;gap:4px;} .planner-day__timeline .planner-block {position:static;width:100%!important;height:auto!important;min-height:44px;} }

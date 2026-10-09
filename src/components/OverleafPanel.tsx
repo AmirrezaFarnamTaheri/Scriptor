@@ -35,6 +35,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
   const changeTarget = () => { generation.current++; setSnapshot(null); setAccepted(false); setReviewed('') }
   return <div className="modal-backdrop"><section className="modal-card overleaf-panel" ref={dialog} role="dialog" aria-modal="true" aria-label="Overleaf source sync" data-help-topic="git">
     <header><h2>Overleaf source sync</h2><button type="button" onClick={onClose}>Close Overleaf sync</button></header>
+    <div className="overleaf-panel-body">
     <p>Sync this saved source file through the official Overleaf Cloud Git bridge. Git access requires eligible premium access and a token saved in your operating-system Git credential manager using username “git”. No browser session is imported.</p>
     <p>Only the selected UTF-8 .tex, .ltx or .bib file is synchronized. Figures, included files and compiler settings stay in their respective projects. Set the main document in Overleaf if needed. Review each action; existing remote edits are never force-pushed.</p>
     <p>Local source: <bdi>{document.path}</bdi></p>
@@ -62,5 +63,6 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
       })}>Share reviewed source with Overleaf</button>
     </>}
     {busy && <p>The submitted operation is pending. Closing discards its display result; an already submitted share or local save may still complete.</p>}
+    </div>
   </section></div>
 }

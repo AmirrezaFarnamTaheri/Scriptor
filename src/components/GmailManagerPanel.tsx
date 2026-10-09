@@ -499,7 +499,7 @@ export function GmailManagerPanel({
               <div className={`gmail-manager-message-layout${selectedMessage ? ' gmail-manager-message-layout--detail' : ''}`}>
                 <div className="gmail-manager-message-list" aria-label={t('integrations.gmail.messageListAria')} aria-busy={refreshing || loadingMore}>
                   {refreshing ? <p role="status" className="gmail-manager-page-status">{t('integrations.gmail.loadingMessages')}</p> : null}
-                  {messages.length === 0 && !refreshing ? (
+                  {messages.length === 0 && !refreshing && !error ? (
                     <div className="gmail-manager-empty">
                       <Inbox size={28} aria-hidden="true" />
                       <p>{t('integrations.gmail.noMessages')}</p>
@@ -516,13 +516,13 @@ export function GmailManagerPanel({
                       className={`gmail-manager-message-row${selectedMessage?.id === item.id ? ' is-selected' : ''}`}
                     >
                       <span className="gmail-manager-message-row-head">
-                        <strong>{item.from}</strong>
-                        <time>{formatGmailDate(item.date)}</time>
+                        <strong dir="auto">{item.from}</strong>
+                        <time dir="auto">{formatGmailDate(item.date)}</time>
                       </span>
-                      <span className="gmail-manager-message-subject">
+                      <span className="gmail-manager-message-subject" dir="auto">
                         {item.subject || t('integrations.gmail.noSubject')}
                       </span>
-                      <span className="gmail-manager-message-snippet">{item.snippet}</span>
+                      <span className="gmail-manager-message-snippet" dir="auto">{item.snippet}</span>
                     </button>
                   ))}
                   {nextPageToken ? (
@@ -545,7 +545,7 @@ export function GmailManagerPanel({
                   <article className="gmail-manager-message-detail">
                     <header className="gmail-manager-message-detail-header">
                       <div className="gmail-manager-message-detail-title-row">
-                        <h3>{selectedMessage.subject || t('integrations.gmail.noSubject')}</h3>
+                        <h3 dir="auto">{selectedMessage.subject || t('integrations.gmail.noSubject')}</h3>
                         <div className="gmail-manager-message-actions">
                           {onImportNote ? (
                             <button
@@ -582,11 +582,11 @@ export function GmailManagerPanel({
                         </div>
                       </div>
                       <dl className="gmail-manager-message-meta">
-                        <div><dt>{t('integrations.gmail.from')}</dt><dd>{selectedMessage.from}</dd></div>
-                        <div><dt>{t('integrations.gmail.date')}</dt><dd>{formatGmailDate(selectedMessage.date)}</dd></div>
+                        <div><dt>{t('integrations.gmail.from')}</dt><dd dir="auto">{selectedMessage.from}</dd></div>
+                        <div><dt>{t('integrations.gmail.date')}</dt><dd dir="auto">{formatGmailDate(selectedMessage.date)}</dd></div>
                       </dl>
                     </header>
-                    <div className="gmail-manager-message-body">
+                    <div className="gmail-manager-message-body" dir="auto">
                       {selectedMessage.plainText || selectedMessage.snippet}
                     </div>
                   </article>
@@ -602,6 +602,7 @@ export function GmailManagerPanel({
               {t('integrations.gmail.recipient')}
               <input
                 type="email"
+                dir="ltr"
                 value={composeTo}
                 onChange={(event) => setComposeTo(event.target.value)}
                 placeholder="recipient@example.com"
@@ -615,6 +616,7 @@ export function GmailManagerPanel({
               <input
                 type="text"
                 value={composeSubject}
+                dir="auto"
                 onChange={(event) => setComposeSubject(event.target.value)}
                 placeholder={t('integrations.gmail.subjectPlaceholder')}
                 required
@@ -626,6 +628,7 @@ export function GmailManagerPanel({
               {t('integrations.gmail.messageBody')}
               <textarea
                 value={composeBody}
+                dir="auto"
                 onChange={(event) => setComposeBody(event.target.value)}
                 placeholder={t('integrations.gmail.bodyPlaceholder')}
                 required

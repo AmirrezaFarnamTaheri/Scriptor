@@ -15,6 +15,9 @@
 
 ### Fixed
 
+- Match planner review, semantic inspector and restored-workspace buttons to themed controls; keep compact timed-event text within its block and distinguish Gmail provider failures from empty results.
+- Give Overleaf source review a padded, bounded scrolling body and a persistent close header; capture screenshot detail from the asserted state anchor rather than scrolling back to a panel introduction.
+- Isolate Gmail message content from the interface direction and align frontend citation token boundaries with the native indexer so email addresses and URL handles do not produce false citation warnings.
 - Make positioned toolbar portals explicitly visible before acquiring keyboard focus, preserve provider error causes, and keep screenshot state anchors fully inside the visible scrollport.
 - Preserve the current workspace during delayed startup path resolution and distinguish unavailable recent-vault opening from success before selecting the default vault. Restore command-palette focus to its originating control and retain modal text-field shortcut ownership.
 - Guard Google account changes and delayed imports across vault replacement, preserve independent credentials when disconnecting, reject incomplete or cyclic provider listings, support discovered shared-drive resources consistently, and validate Tasks character limits before batch writes. Parse Gmail's actual `mimeType` payload and render imported message text literally.
