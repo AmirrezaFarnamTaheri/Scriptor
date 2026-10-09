@@ -58,6 +58,10 @@ contrast states, bringing its defined coverage to 76 states and 152 images.
   focus. The bounded animation-frame retry stops after success, user focus
   movement or closing; the keyboard tests still require actual initial focus,
   End navigation, visible bounds and Escape restoration.
+- Initial menu focus also waits until the activating key dispatch and its
+  microtasks finish. A synchronous focus success can otherwise be undone by an
+  editor's final trigger-focus restoration. The existing failing dispatch-order
+  regression is now included in both full browser and workflow-state lanes.
 - The planner lifecycle harness implements the layout effect used by the
   component. Its stale-account and post-unmount mutation assertions remain.
 
@@ -85,6 +89,15 @@ shared-drive membership, Overleaf account access or packaged-device behavior.
 The four upstream maintenance advisories documented in
 [the supply-chain assessment](SUPPLY-CHAIN-2026-10-04.md) remain unsuppressed and
 block release. Provider and device acceptance remain separate evidence gates.
+
+At `d3198f0d1eec07b5473e839e471be2fe649aa87f`, workflow review passed all
+136 cases and visual review passed all 108. Source (605/605), zero-warning lint,
+Rust, frontend/accessibility/TUI/daemon, three desktop targets and localization
+passed. The report contains 76 complete pairs: 126 images match the preceding
+individually reviewed report, and all 26 changed/added captures were inspected.
+The full browser lane passed 462 of 463 plus all five mobile cases; its one
+dispatch-order focus failure prompted the deferred-focus repair above.
+That repair requires its own hosted result before acceptance.
 
 The original reports and recovered scratchpad lineage remain indexed in
 [the complete reread](REVIEW-REREAD-2026-10-01.md) and

@@ -65,6 +65,7 @@ jobs:
             "e2e/workspace-shortcuts.spec.ts", "e2e/workspace-leaves.spec.ts",
             "e2e/semantic-visual-states.spec.ts",
             "e2e/command-palette-focus.spec.ts", "e2e/legacy-dialog-zoom.spec.ts",
+            "e2e/layout-animation-replacement.spec.ts",
             "e2e/frontend-polish-regressions.spec.ts", "e2e/mermaid-math.spec.ts",
             "e2e/collaboration-workflows.spec.ts"
           )

@@ -173,7 +173,9 @@ export function ToolbarPopover({
       if (getComputedStyle(item).visibility === 'visible') item.focus({ preventScroll: true })
       if (document.activeElement !== item && ++focusAttempts < 60) focusFrame = window.requestAnimationFrame(focusInitialItem)
     }
-    focusInitialItem()
+    // Let the activating key and its focus-restoration microtasks finish before
+    // transferring focus. A synchronous success can be undone by that dispatch.
+    focusFrame = window.requestAnimationFrame(focusInitialItem)
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target
