@@ -67,14 +67,17 @@ native approval cancellation, stale responses, keyboard, RTL and 200% zoom.
 Hosted evidence must be recorded against the final committed source, including
 all new screenshots; authored tests alone are not passing evidence.
 
-Commit `96d9ac7ef289ad1e4c9e894477811fb5ae8ec4b5` passed hosted desktop
-compilation on Windows, Linux and macOS, the existing 108 visual comparisons,
-localization, Rust checks and frontend/build/accessibility checks. Its browser
-lane passed 442 cases and failed 14; its source lane passed 598 checks and failed
-three. Repairs and expanded screenshots require another committed-head run.
-These preceding passes do not verify the new screenshot states or subsequent
-repairs. Four documented optional Typst upstream advisories remain unsuppressed
-and block the supply-chain/release gate.
+Commit `4f41ecd93a00ec1e7783eee29a956580bb25a958` passed hosted Rust checks,
+frontend/build/accessibility checks and source regressions. Its browser lane
+passed 458 cases and failed three Tools-menu focus cases; the five mobile browser
+cases passed. The populated workflow lane passed 131 of 134 cases, with the same
+three focus failures. The earlier Docs/Drive capture clipping and Calendar
+navigation failures passed. The fast lane still failed lint with eight errors
+and six warnings. These results are diagnostic evidence, not final acceptance.
+Visibility, lifecycle/lint repairs and explicit anchors for all 74 paired
+screenshot states require verification against their next committed head.
+Four documented optional Typst upstream advisories remain unsuppressed and block
+the supply-chain/release gate.
 
 Primary provider references: [OAuth](https://developers.google.com/identity/protocols/oauth2),
 [shared drives](https://developers.google.com/workspace/drive/api/guides/enable-shareddrives),

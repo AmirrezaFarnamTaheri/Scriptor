@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { TaskRow } from '../hooks/useTaskStore'
 import type { RunSourceNoteMutation } from '../hooks/useTaskStore'
 import { googleCalendarCreateTask, googlePlannerWrite, type CalendarEvent, type GoogleTask } from '../bridge/commands/google_calendar'
@@ -65,7 +65,7 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
   const mountedRef = useRef(false)
   const contextKey = JSON.stringify([vaultId, googleAccount, calendarId, taskListId])
   const currentContextRef = useRef(contextKey)
-  currentContextRef.current = contextKey
+  useLayoutEffect(() => { currentContextRef.current = contextKey }, [contextKey])
   const contextCurrent = () => mountedRef.current && currentContextRef.current === contextKey
   useEffect(() => {
     mountedRef.current = true

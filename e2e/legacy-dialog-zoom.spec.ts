@@ -164,6 +164,7 @@ for (const viewport of viewports) {
       )
     }).toBeLessThanOrEqual(14)
     const first = menu.getByRole('menuitem').first()
+    await expect(first).toHaveCSS('visibility', 'visible')
     try {
       await expect(first, `Initial menu focus owner: ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 500))}`).toBeFocused()
     } catch (error) {

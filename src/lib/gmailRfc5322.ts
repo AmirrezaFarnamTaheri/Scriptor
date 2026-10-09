@@ -89,7 +89,7 @@ export function gmailImportedNoteTitle(subject: string, messageId: string): stri
 /** Render a Gmail message as Markdown with YAML-safe front matter. */
 export function buildGmailMarkdown(msg: GmailMarkdownSource, labels = { untitled: 'Untitled Email', unknown: 'Unknown', from: 'From', date: 'Date' }): string {
   const literal = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/([\\`*_{}\[\]()#+.!|~-])/g, '\\$1')
+    .replace(/([\\`*_{}[\]()#+.!|~-])/g, '\\$1')
   const subject = msg.subject || labels.untitled
   return `---
 title: ${toYamlScalar(subject)}

@@ -65,6 +65,9 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   const accountReadGeneration = useRef(0)
   const accountOrigin = useRef<object>({})
   const setupVault = useRef(vaultId)
+  // These resets invalidate provider previews when their owning vault changes.
+  // They must finish before another operation can consume the previous context.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (setupVault.current === vaultId) return
     setupVault.current = vaultId
@@ -79,6 +82,8 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       setError(caught instanceof Error ? caught.message : String(caught))
     }
   }, [vaultId, googleConfig])
+  /* eslint-enable react-hooks/set-state-in-effect */
+  const stopPolling = polling.stop
   useEffect(() => {
     let mounted = true
     const loadAccount = () => {
@@ -92,7 +97,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       if (detail?.service !== 'drive' || detail.origin === accountOrigin.current) return
       epoch.current++
       operation.current++; occupied.current = false
-      polling.stop()
+      stopPolling()
       setAccount(''); setRows([]); setPreview(null); setDocsPreview(null); setBusy(false)
       setFolders(null); setFolderPage(undefined); setDocuments(null); setDocumentPage(undefined)
       setPageToken(undefined); setDocsId(''); setPollConsent(false); setDocsConsent(false)
@@ -103,8 +108,10 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     }
     loadAccount()
     window.addEventListener('scriptor:google-account-changed', changed)
-    return () => { mounted = false; accountReadGeneration.current++; window.removeEventListener('scriptor:google-account-changed', changed) }
-  }, [polling.stop, copy.accountChanged])
+    return () => { mounted = false; window.removeEventListener('scriptor:google-account-changed', changed) }
+  }, [stopPolling, copy.accountChanged])
+  // Discard note/folder-owned state as one synchronous context transition.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     epoch.current++
     operation.current++; occupied.current = false; setBusy(false)
@@ -114,6 +121,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     base.current = null
     peer.current = crypto.randomUUID()
   }, [path, vaultId, folderId])
+  /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => {
     let live = true
     base.current = null
@@ -158,7 +166,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     const result = await collaborationList(vaultId!, folderId, next, transport)
     if (epoch.current !== current) return
     try { acceptGoogleResourcePage(next, result.nextPageToken, revisionTokens.current) }
-    catch (caught) { setPageToken(undefined); throw new Error(caught instanceof Error && caught.message.includes('ten pages') ? copy.pageLimit : copy.repeatedPage) }
+    catch (caught) { setPageToken(undefined); throw new Error(caught instanceof Error && caught.message.includes('ten pages') ? copy.pageLimit : copy.repeatedPage, { cause: caught }) }
     setRows(previous => appendGoogleResources(next ? previous : [], result.files))
     setPageToken(result.nextPageToken)
   }
@@ -179,7 +187,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     try { acceptGoogleResourcePage(token, result.nextPageToken, seen) }
     catch (caught) {
       if (kind === 'folders') setFolderPage(undefined); else setDocumentPage(undefined)
-      throw new Error(caught instanceof Error && caught.message.includes('ten pages') ? copy.pageLimit : copy.repeatedPage)
+      throw new Error(caught instanceof Error && caught.message.includes('ten pages') ? copy.pageLimit : copy.repeatedPage, { cause: caught })
     }
     if (kind === 'folders') { setFolders(previous => appendGoogleResources(next ? previous ?? [] : [], result.files)); setFolderPage(result.nextPageToken) }
     else { setDocuments(previous => appendGoogleResources(next ? previous ?? [] : [], result.files)); setDocumentPage(result.nextPageToken) }

@@ -32,7 +32,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
     try {
       await mutateVaultConfig((current) => mergeGoogleClientId({ ...current, calendar_sync: { ...DEFAULT_VAULT_CONFIG.calendar_sync!, ...current.calendar_sync } }, value), vaultId)
     } catch (caught) {
-      throw new Error(t('integrations.google.saveConnectionFailed', { error: caught instanceof Error ? caught.message : String(caught) }))
+      throw new Error(t('integrations.google.saveConnectionFailed', { error: caught instanceof Error ? caught.message : String(caught) }), { cause: caught })
     }
   }, [t, vaultId])
   const accounts = useGoogleIntegrationAccounts({ vaultId, clientId, persistClientId, gmailEnabled })

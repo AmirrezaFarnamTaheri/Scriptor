@@ -18,7 +18,8 @@ export function useStartupVault({ nativeReady, recentVaults, workspace }: Startu
   useEffect(() => {
     lifetime.current++
     started.current = false
-    return () => { lifetime.current++ }
+    const invalidate = () => { lifetime.current++ }
+    return invalidate
   }, [nativeReady])
   useEffect(() => {
     // E2E visual coverage needs a deterministic true-empty startup state. The

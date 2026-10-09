@@ -23,7 +23,8 @@ export function useGoogleWorkspaceLauncher(
   useEffect(() => {
     mounted.current = true
     currentVaultId.current = vaultId
-    return () => { mounted.current = false; launchGeneration.current++ }
+    const invalidate = () => { mounted.current = false; launchGeneration.current++ }
+    return invalidate
   }, [vaultId])
   const { refreshVaultConfig } = workspace
   const { commands } = composition

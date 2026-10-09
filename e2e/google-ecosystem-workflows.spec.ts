@@ -61,7 +61,7 @@ test('Drive discovers and deduplicates folders, authorizes creation, and persist
   await panel.getByRole('button', { name: 'Browse accessible folders', exact: true }).click()
   await panel.getByRole('button', { name: 'More folders', exact: true }).click()
   await expect(panel.getByRole('combobox', { name: 'Choose a Drive folder', exact: true }).locator('option')).toHaveCount(3)
-  await attachVisualState(page, testInfo, 'drive-folders-discovered', panel)
+  await attachVisualState(page, testInfo, 'drive-folders-discovered', panel, panel.getByRole('combobox', { name: 'Choose a Drive folder', exact: true }))
   await panel.getByLabel('New folder name').fill('Team research')
   await page.evaluate(() => sessionStorage.setItem('e2e:google-cancel-operation', 'google_drive_write'))
   await panel.getByRole('button', { name: 'Create Drive folder', exact: true }).click()
@@ -80,13 +80,13 @@ test('Drive discovers and deduplicates folders, authorizes creation, and persist
   expect(save.payload.expectedVaultId).toBe('screenshot-vault')
   expect((save.payload.config as { calendar_sync: unknown }).calendar_sync).toEqual(expect.objectContaining({ google_drive_folder_id: 'created-folder', google_drive_transport: 'google_docs' }))
   await settleLayout(page)
-  await attachVisualState(page, testInfo, 'drive-resource-setup', panel)
+  await attachVisualState(page, testInfo, 'drive-resource-setup', panel, panel.getByLabel('Shared folder ID', { exact: true }))
   await page.reload()
   await openCommandPalette(page)
   await runCommand(page, 'Drive collaboration')
   await expect(panel.getByLabel('Shared folder ID', { exact: true })).toHaveValue('created-folder')
   await expect(panel.getByLabel('Revision transport', { exact: true })).toHaveValue('google_docs')
-  await attachVisualState(page, testInfo, 'drive-binding-reopened', panel)
+  await attachVisualState(page, testInfo, 'drive-binding-reopened', panel, panel.getByLabel('Shared folder ID', { exact: true }))
 })
 
 test('Docs discovery stays in the selected folder and a conflicted preview cannot overwrite a stale note', async ({ page }, testInfo) => {
@@ -133,7 +133,7 @@ test('Docs export creates a new document only after accepted loss disclosure and
   await panel.getByText('Optional Google Docs text translation', { exact: true }).click()
   const create = panel.getByRole('button', { name: 'Create new Google Docs text copy', exact: true })
   await expect(create).toBeDisabled()
-  await attachVisualState(page, testInfo, 'docs-loss-consent-required', panel)
+  await attachVisualState(page, testInfo, 'docs-loss-consent-required', panel, create)
   await panel.getByLabel('I reviewed and accept the text conversion losses for this action').check()
   await page.evaluate(() => sessionStorage.setItem('e2e:google-cancel-operation', 'google_drive_write'))
   await create.click()
@@ -143,7 +143,7 @@ test('Docs export creates a new document only after accepted loss disclosure and
   await page.evaluate(() => sessionStorage.removeItem('e2e:google-cancel-operation'))
   await create.click()
   await expect(panel.getByRole('status').filter({ hasText: 'Created new Google document' })).toContainText('Created new Google document')
-  await attachVisualState(page, testInfo, 'docs-new-copy-created', panel)
+  await attachVisualState(page, testInfo, 'docs-new-copy-created', panel, panel.getByRole('status').filter({ hasText: 'Created new Google document' }))
   const write = (await calls(page)).find(call => call.cmd === 'collaboration_write')!
   expect(write.payload.request).toEqual(expect.objectContaining({ kind: 'append_docs', folder_id: 'shared-folder' }))
   expect(write.payload.request).not.toHaveProperty('file_id')
@@ -170,7 +170,7 @@ test('External Drive account changes clear discoveries and discard late Docs pre
   await expect(panel.getByRole('combobox', { name: 'Choose a Google document', exact: true })).toHaveCount(0)
   await expect(panel.getByRole('combobox', { name: 'Choose a Drive folder', exact: true })).toHaveCount(0)
   await expect(panel.getByLabel('Google document ID', { exact: true })).toHaveValue('')
-  await attachVisualState(page, testInfo, 'drive-disconnected-review-cleared', panel)
+  await attachVisualState(page, testInfo, 'drive-disconnected-review-cleared', panel, panel.getByLabel('Google document ID', { exact: true }))
   expect((await calls(page)).filter(call => call.cmd === 'vault_save_note')).toHaveLength(0)
 })
 
@@ -181,7 +181,7 @@ test('Revision pagination rejects repeated tokens without duplicating entries or
   await panel.getByRole('button', { name: 'Load next page', exact: true }).click()
   await expect(panel.getByRole('button', { name: 'Shared revision one', exact: true })).toHaveCount(1)
   await expect(panel.getByRole('button', { name: 'Shared revision two', exact: true })).toHaveCount(1)
-  await attachVisualState(page, testInfo, 'drive-revisions-paginated', panel)
+  await attachVisualState(page, testInfo, 'drive-revisions-paginated', panel, panel.getByRole('button', { name: 'Shared revision two', exact: true }))
   await page.evaluate(() => sessionStorage.setItem('e2e:google-revision-loop', '1'))
   await panel.getByRole('button', { name: 'Refresh shared revisions', exact: true }).click()
   await panel.getByRole('button', { name: 'Load next page', exact: true }).click()
@@ -204,7 +204,7 @@ test('Calendar and task-list discovery persists selections without authorizing o
   await google.getByRole('combobox', { name: 'Task list', exact: true }).selectOption('research-tasks')
   await settings.getByRole('button', { name: 'Save vault config', exact: true }).click()
   await expect(settings.getByRole('button', { name: 'Save vault config', exact: true })).toBeDisabled()
-  await attachVisualState(page, testInfo, 'google-settings-resource-selection', google)
+  await attachVisualState(page, testInfo, 'google-settings-resource-selection', google, google.getByRole('combobox', { name: 'Task list', exact: true }))
   const save = (await calls(page)).filter(call => call.cmd === 'vault_save_config_cmd').at(-1)!
   expect((save.payload.config as { calendar_sync: unknown }).calendar_sync).toEqual(expect.objectContaining({ google_calendar_id: 'reader@example.com', google_task_list_id: 'research-tasks' }))
   const calendarGroup = google.getByRole('group', { name: 'Google Calendar & Tasks', exact: true })
@@ -219,7 +219,7 @@ test('Calendar and task-list discovery persists selections without authorizing o
   const reopened = await openGoogleSettings(page)
   await expect(reopened.google.getByRole('combobox', { name: 'Calendar', exact: true })).toHaveValue('reader@example.com')
   await expect(reopened.google.getByRole('combobox', { name: 'Task list', exact: true })).toHaveValue('research-tasks')
-  await attachVisualState(page, testInfo, 'google-settings-restored-resources', reopened.google)
+  await attachVisualState(page, testInfo, 'google-settings-restored-resources', reopened.google, reopened.google.getByRole('combobox', { name: 'Task list', exact: true }))
 })
 
 test('Google setup save failures retain the connected account and allow an explicit retry', async ({ page }, testInfo) => {
@@ -235,7 +235,7 @@ test('Google setup save failures retain the connected account and allow an expli
   await page.evaluate(() => sessionStorage.removeItem('e2e:google-config-save-error'))
   await panel.getByRole('button', { name: 'Save folder and transport', exact: true }).click()
   await expect(panel.getByRole('status').filter({ hasText: 'saved for this vault' })).toContainText('saved for this vault')
-  await attachVisualState(page, testInfo, 'drive-binding-save-recovered', panel)
+  await attachVisualState(page, testInfo, 'drive-binding-save-recovered', panel, panel.getByRole('status').filter({ hasText: 'saved for this vault' }))
 })
 
 test('A read-only selected calendar permits reviewed imports while blocking event writes', async ({ page }, testInfo) => {
@@ -258,10 +258,10 @@ test('A read-only selected calendar permits reviewed imports while blocking even
   await expect(eventRow).toHaveCount(1)
   await expect(eventRow.getByRole('button', { name: 'Use vault → Google', exact: true })).toBeDisabled()
   await expect(eventRow.getByRole('button', { name: 'Use Google → vault', exact: true })).toBeEnabled()
-  await attachVisualState(page, testInfo, 'calendar-readonly-reviewed-change', eventRow)
+  await attachVisualState(page, testInfo, 'calendar-readonly-reviewed-change', eventRow, eventRow.getByRole('button', { name: 'Use Google → vault', exact: true }))
   await eventRow.getByRole('button', { name: 'Use Google → vault', exact: true }).click()
   await expect(planner.getByRole('status')).toContainText('Change applied')
-  await attachVisualState(page, testInfo, 'calendar-reviewed-import-applied', planner)
+  await attachVisualState(page, testInfo, 'calendar-reviewed-import-applied', planner, planner.getByRole('status'))
   expect((await calls(page)).filter(call => call.cmd === 'google_planner_write_event')).toHaveLength(0)
 })
 

@@ -43,8 +43,14 @@ export function useGoogleIntegrationAccounts({ vaultId, clientId, persistClientI
   }, [gmailEnabled, update])
 
   useEffect(() => {
-    void check('drive')
-    void check('gmail')
+    let live = true
+    const generations = generation.current
+    const operations = running.current
+    void Promise.resolve().then(() => {
+      if (!live) return
+      void check('drive')
+      void check('gmail')
+    })
     const changed = (event: Event) => {
       const detail = (event as CustomEvent<{ service?: Service; origin?: string }>).detail
       if (detail?.origin === 'settings') return
@@ -56,10 +62,11 @@ export function useGoogleIntegrationAccounts({ vaultId, clientId, persistClientI
     }
     window.addEventListener('scriptor:google-account-changed', changed)
     return () => {
-      generation.current.drive++
-      generation.current.gmail++
-      running.current.drive = 0
-      running.current.gmail = 0
+      live = false
+      generations.drive++
+      generations.gmail++
+      operations.drive = 0
+      operations.gmail = 0
       window.removeEventListener('scriptor:google-account-changed', changed)
     }
   }, [check, vaultId, clientId])

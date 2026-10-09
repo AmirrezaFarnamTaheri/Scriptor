@@ -15,6 +15,7 @@
 
 ### Fixed
 
+- Make positioned toolbar portals explicitly visible before acquiring keyboard focus, preserve provider error causes, and keep screenshot state anchors fully inside the visible scrollport.
 - Preserve the current workspace during delayed startup path resolution and distinguish unavailable recent-vault opening from success before selecting the default vault. Restore command-palette focus to its originating control and retain modal text-field shortcut ownership.
 - Guard Google account changes and delayed imports across vault replacement, preserve independent credentials when disconnecting, reject incomplete or cyclic provider listings, support discovered shared-drive resources consistently, and validate Tasks character limits before batch writes. Parse Gmail's actual `mimeType` payload and render imported message text literally.
 - Restrict interface SVG sizing to icons so Mermaid diagrams and mathematical glyphs retain their intended geometry. Reflow tag browsing at the available pane width, with populated tag-action and readable-diagram regressions.

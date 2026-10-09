@@ -123,6 +123,9 @@ export function ToolbarPopover({
     panel.style.left = `${clamp(triggerRect.left, VIEWPORT_PADDING, maximumLeft)}px`
     panel.style.maxHeight = `${availableHeight}px`
     panel.dataset.positioned = 'true'
+    // Make the positioned portal focusable in this layout transaction. The
+    // inherited hidden state can otherwise survive through the first frame.
+    panel.style.visibility = 'visible'
   }, [triggerRef])
 
   useLayoutEffect(() => {
