@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { closeWorkspacePanel, launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspace } from './helpers'
 import { attachVisualState } from './visual-state-evidence'
+import { expectReadableError } from './error-contrast'
 
 async function openGmail(page: Page, connected = true, theme: 'light' | 'dark' = 'light') {
   await page.addInitScript(({ connected }) => {
@@ -137,6 +138,15 @@ test('Gmail cancelled approval does not send and failed sending preserves the dr
   await expect(panel.getByLabel('Message body (plain text)')).toHaveValue('Draft body')
   await attachVisualState(page, testInfo, 'gmail-send-failed-draft', panel, panel.getByRole('alert'))
 })
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`Gmail ${theme} provider errors retain readable text contrast`, async ({ page }, testInfo) => {
+    await page.addInitScript(() => sessionStorage.setItem('e2e:gmail-list-error', '1'))
+    const panel = await openGmail(page, true, theme)
+    await expectReadableError(page, panel.getByRole('alert'))
+    await attachVisualState(page, testInfo, `gmail-${theme}-error-contrast`, panel, panel.getByRole('alert'))
+  })
+}
 
 test('Gmail reconnects, disconnects and rejects late reads after external disconnect', async ({ page }, testInfo) => {
   const panel = await openGmail(page, false)

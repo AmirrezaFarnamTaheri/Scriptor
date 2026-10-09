@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspace } from './helpers'
 import { attachVisualState } from './visual-state-evidence'
+import { expectReadableError } from './error-contrast'
 
 async function customize(page: import('@playwright/test').Page) {
   await openCommandPalette(page)
@@ -129,6 +130,7 @@ test('workspace shortcut customization reports failed storage without silently c
   await dialog.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('alert')).toBeVisible()
+  await expectReadableError(page, dialog.getByRole('alert'))
   await attachVisualState(page, testInfo, 'shortcuts-storage-failure', dialog, dialog.getByRole('alert'))
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(page.locator('.workspace-activity-bar')).toBeVisible()

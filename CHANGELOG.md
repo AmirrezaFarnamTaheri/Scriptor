@@ -15,6 +15,7 @@
 
 ### Fixed
 
+- Keep Gmail and shortcut-storage errors readable in themed surfaces, retaining a red severity marker with hosted contrast checks; reject citation-like suffixes following supplementary Unicode letters.
 - Match planner review, semantic inspector and restored-workspace buttons to themed controls; keep compact timed-event text within its block and distinguish Gmail provider failures from empty results.
 - Give Overleaf source review a padded, bounded scrolling body and a persistent close header; capture screenshot detail from the asserted state anchor rather than scrolling back to a panel introduction.
 - Isolate Gmail message content from the interface direction and align frontend citation token boundaries with the native indexer so email addresses and URL handles do not produce false citation warnings.

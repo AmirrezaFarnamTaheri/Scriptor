@@ -82,7 +82,7 @@ export function extractPandocCitations(markdown: string): ExtractedCitation[] {
       }
       // Match the native indexer's token boundary: addresses, URL handles and
       // escaped literal at signs must not create false citation diagnostics.
-      if (match.index > 0 && /[\p{L}\p{N}._+%/\\]/u.test(withoutBrackets[match.index - 1])) {
+      if (match.index > 0 && /[\p{L}\p{N}._+%/\\]$/u.test(withoutBrackets.slice(Math.max(0, match.index - 2), match.index))) {
         continue
       }
       const key = match[1]

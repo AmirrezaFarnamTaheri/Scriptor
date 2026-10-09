@@ -32,7 +32,8 @@
 
 .gmail-manager-status--error {
   background: var(--color-status-error-bg, color-mix(in srgb, var(--danger) 10%, transparent));
-  color: var(--color-status-error, var(--danger));
+  color: var(--ink);
+  border-inline-start: 3px solid var(--color-status-error, var(--danger));
 }
 
 .gmail-manager-tab {

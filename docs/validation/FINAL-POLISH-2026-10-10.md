@@ -7,6 +7,13 @@ Images were inspected individually, including narrow, RTL, dark, cancellation,
 pending, conflict and failure states. Historical captures are diagnostic
 evidence; they do not establish acceptance of a subsequent commit.
 
+The replacement report for `7676ea60510b26d65efcc92de298bb5393b31a73`
+was also reviewed individually: all 148 images in all 74 states. Media, runtime,
+compiler results, and successful Overleaf close controls are now captured at
+their asserted anchors. This review identified insufficient error-text contrast
+in Gmail and shortcut storage failure. The current suite adds light/dark Gmail
+contrast states, bringing its defined coverage to 76 states and 152 images.
+
 ## Coverage
 
 | Surface | States | Images | Review result |
@@ -30,6 +37,12 @@ evidence; they do not establish acceptance of a subsequent commit.
 - Frontend inline citation extraction rejects email addresses, URL handles and
   escaped at signs, matching the native indexer's token boundary. Behavioral
   checks retain real inline citations following punctuation.
+- Citation boundaries inspect complete Unicode code points, including letters
+  represented by surrogate pairs. The behavioral regression includes both
+  mathematical script and Deseret letters next to literal at signs.
+- Gmail and shortcut-storage errors use theme ink for readable text and a red
+  inline-start severity marker. Hosted axe checks evaluate rendered alerts;
+  Gmail covers both light and dark appearance.
 - A Gmail provider failure no longer claims an empty search result. Recovery
   still produces the authoritative empty state after a successful search.
 - Overleaf has a padded scrolling body with a persistent close header. Narrow
@@ -58,7 +71,14 @@ terminal period. Focus diagnostics showed both early attempts occurring while
 the target descendant was hidden. The source suite passed 602 of 605; all three
 failures were the missing layout-effect method in the planner harness.
 
-The repairs above require a new hosted result before final acceptance. No local
+Commit `7676ea60510b26d65efcc92de298bb5393b31a73` passed all 134 hosted
+workflow cases, all 108 visual cases, all 605 source cases, zero-warning lint,
+Rust checks, frontend/accessibility/TUI/daemon smoke, documentation localization,
+and desktop compilation on Windows, macOS and Linux. The workflow report's
+148 images were individually inspected. Its full browser lane was still running
+at this evidence checkpoint. The contrast and supplementary-Unicode repairs
+require their own subsequent hosted result; final status is recorded in PR checks.
+No local
 application, dependency install, executable test, build, lint, typecheck or
 formatter was run. Passing fixture checks cannot establish live Google OAuth,
 shared-drive membership, Overleaf account access or packaged-device behavior.

@@ -25,7 +25,7 @@ Saving updates the UI only after storage succeeds. Storage denial leaves the
 draft open with an actionable error. Cancel and Escape discard the draft.
 Other windows observe saved settings through storage events.
 
-## Authored verification and limits
+## Verification and limits
 
 Model cases cover defaults, opt-in additions, order/pinning/size restoration,
 plain-text labels, malformed/versioned/oversized storage, entry deduplication,
@@ -37,8 +37,11 @@ and a real storage failure. Existing
 German/Persian route tests explicitly pin integration shortcuts to retain
 coverage of localized labels and preserved drafts.
 
-These are authored regressions, awaiting GitHub workers. No local application,
-browser, build, lint, typecheck, installation or test execution was used.
-Screenshot references will only be refreshed through the designated hosted
-workflow after individual capture inspection. Earlier polish fixes and unrelated
-user material remain preserved.
+The hosted workflow for `7676ea60510b26d65efcc92de298bb5393b31a73` passed
+all 134 cases, including these shortcut regressions. Its five paired shortcut
+states were individually inspected. That inspection identified low-contrast
+storage-error text; theme ink and a red severity marker now have an additional
+rendered contrast assertion requiring subsequent hosted verification.
+No local application, browser, build, lint, typecheck, installation or test
+execution was used. Screenshot references are refreshed only through the
+designated hosted workflow after individual capture inspection.

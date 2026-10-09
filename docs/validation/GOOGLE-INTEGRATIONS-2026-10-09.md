@@ -67,15 +67,14 @@ native approval cancellation, stale responses, keyboard, RTL and 200% zoom.
 Hosted evidence must be recorded against the final committed source, including
 all new screenshots; authored tests alone are not passing evidence.
 
-Commit `4f41ecd93a00ec1e7783eee29a956580bb25a958` passed hosted Rust checks,
-frontend/build/accessibility checks and source regressions. Its browser lane
-passed 458 cases and failed three Tools-menu focus cases; the five mobile browser
-cases passed. The populated workflow lane passed 131 of 134 cases, with the same
-three focus failures. The earlier Docs/Drive capture clipping and Calendar
-navigation failures passed. The fast lane still failed lint with eight errors
-and six warnings. These results are diagnostic evidence, not final acceptance.
-Visibility, lifecycle/lint repairs and explicit anchors for all 74 paired
-screenshot states require verification against their next committed head.
+Commit `7676ea60510b26d65efcc92de298bb5393b31a73` passed hosted Rust,
+frontend/accessibility/TUI/daemon, desktop compilation, localization, all 605
+source cases and zero-warning lint. The populated workflow lane passed all 134
+cases and the visual lane passed all 108. All 148 workflow images were inspected
+individually. The full browser lane was still running at this checkpoint.
+The current suite defines 76 paired states (152 images), adding light/dark Gmail
+error contrast checks. These additions and supplementary-Unicode citation
+boundaries require their own hosted result; use the final PR checks for acceptance.
 Four documented optional Typst upstream advisories remain unsuppressed and block
 the supply-chain/release gate.
 
