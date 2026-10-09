@@ -18,7 +18,7 @@
 
 [Запись Google](validation/GOOGLE-INTEGRATIONS-2026-10-09.md) содержит пять сервисов, результаты работников и ограничения провайдера. [Ограничения зависимостей](validation/SUPPLY-CHAIN-2026-10-04.md) не снимаются успешной посторонней проверкой.
 
-Текущие доказательства хранятся в датированных записях: [обзор продукта](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md), [масштаб](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md), [происхождение снимков](validation/SCREENSHOT-REFRESH-2026-10-08.md), [настройки](validation/WORKSPACE-SHORTCUTS-2026-10-08.md), [история](validation/HISTORICAL_VERIFICATION.md). Прежняя русская версия [сохранена дословно](validation/localized-verification-history/VERIFICATION.ru.md). Исторические числа подтверждают происхождение, не текущую готовность. Активная документация требует локализации; архивы аудита с чувствительным происхождением исключены.
+Текущие доказательства хранятся в датированных записях: [обзор продукта](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md), [масштаб](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md), [происхождение снимков](validation/SCREENSHOT-REFRESH-2026-10-08.md), [настройки](validation/WORKSPACE-SHORTCUTS-2026-10-08.md), [история](validation/HISTORICAL_VERIFICATION.md). Прежняя русская версия [сохраняет исторический текст с исправленными адресами ссылок](validation/localized-verification-history/VERIFICATION.ru.md). Исторические числа подтверждают происхождение, не текущую готовность. Активная документация требует локализации; архивы аудита с чувствительным происхождением исключены.
 
 ## Проверки репозитория
 

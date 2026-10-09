@@ -1,6 +1,8 @@
-[English](VERIFICATION.md) · [فارسی](VERIFICATION.fa.md) · [简体中文](VERIFICATION.zh-CN.md) · [Русский](VERIFICATION.ru.md) · [Deutsch](VERIFICATION.de.md) · **Español**
+[English](../../VERIFICATION.md) · [فارسی](../../VERIFICATION.fa.md) · [简体中文](../../VERIFICATION.zh-CN.md) · [Русский](../../VERIFICATION.ru.md) · [Deutsch](../../VERIFICATION.de.md) · **Español**
 
 # Evidencia de verificación
+
+> Nota del archivo: Se conservan el texto histórico y las cifras registradas. Los destinos de los enlaces se han ajustado a la ubicación del archivo; consulta la [guía de verificación](../../VERIFICATION.es.md) para las instrucciones actuales.
 
 **Fecha:** 2026-08-23 (evidencia local del repositorio; no implica que cada comando listado se haya vuelto a ejecutar en esta sesión)
 
@@ -37,7 +39,7 @@ cargo deny check
 cargo tree --workspace
 ```
 
-Las excepciones RustSec no son una supresión general. La única superficie permitida es el registro versionado [`security/RUSTSEC-EXCEPTIONS.es.md`](security/RUSTSEC-EXCEPTIONS.es.md), con responsable, alcanzabilidad, fecha de revisión y condición de salida. Una vulnerabilidad nueva o actualizable sigue bloqueando el release.
+Las excepciones RustSec no son una supresión general. La única superficie permitida es el registro versionado [`security/RUSTSEC-EXCEPTIONS.es.md`](../../security/RUSTSEC-EXCEPTIONS.es.md), con responsable, alcanzabilidad, fecha de revisión y condición de salida. Una vulnerabilidad nueva o actualizable sigue bloqueando el release.
 
 La frontera de procesos también pertenece al gate: los procesos externos de producción deben atravesar la system bridge aprobada y validarse contra el inventario. Secrets, red, filesystem, mutaciones MCP y permisos de plugins se validan fail-closed en su frontera nativa de confianza.
 
@@ -54,7 +56,7 @@ pnpm check:frontend-quality
 pnpm check:i18n
 ```
 
-La superficie de comandos está documentada en [`contracts/COMMAND_CATALOG.es.md`](contracts/COMMAND_CATALOG.es.md). Los resultados de límites siguen [`contracts/BOUNDARY_OUTCOMES.es.md`](contracts/BOUNDARY_OUTCOMES.es.md): `value`, `absent-optional`, `invalid`, `degraded`, `failed` y `recovered` no pueden colapsarse en un único valor por defecto.
+La superficie de comandos está documentada en [`contracts/COMMAND_CATALOG.es.md`](../../contracts/COMMAND_CATALOG.es.md). Los resultados de límites siguen [`contracts/BOUNDARY_OUTCOMES.es.md`](../../contracts/BOUNDARY_OUTCOMES.es.md): `value`, `absent-optional`, `invalid`, `degraded`, `failed` y `recovered` no pueden colapsarse en un único valor por defecto.
 
 **Regla de aceptación:** todo command, RPC, tool MCP o entrada CLI nueva necesita owner, clase de permiso, entrada/salida tipada, semántica de fallo, auditoría y contrato de rollback o no-mutación.
 
@@ -92,7 +94,7 @@ pnpm check:release
 
 ### E2E y visual
 
-Playwright usa configuraciones y directorios de salida separados para E2E funcional y regresión visual estable. Las capturas canónicas de documentación son imágenes frescas del source actual; los snapshots estables de Windows son una superficie de aceptación separada. Consulte [`assets/screenshots/README.es.md`](assets/screenshots/README.es.md) y [`VISUAL-REVIEW.es.md`](VISUAL-REVIEW.es.md).
+Playwright usa configuraciones y directorios de salida separados para E2E funcional y regresión visual estable. Las capturas canónicas de documentación son imágenes frescas del source actual; los snapshots estables de Windows son una superficie de aceptación separada. Consulte [`assets/screenshots/README.es.md`](../../assets/screenshots/README.es.md) y [`VISUAL-REVIEW.es.md`](../../VISUAL-REVIEW.es.md).
 
 Los cambios intencionados de píxeles se revisan y actualizan expresamente. Nunca se aumenta la tolerancia global para ocultar una regresión.
 
@@ -129,7 +131,7 @@ scriptor.cyclonedx.json
 SHA256SUMS
 ```
 
-El verificador trata el receipt como allowlist exacta. Artefactos ausentes, artefactos extra, checksums duplicados, symlinks, rutas absolutas/traversal, deriva del árbol fuente o deriva de metadata SBOM bloquean la promoción. Consulte [`evidence/README.es.md`](evidence/README.es.md) y [`RELEASE-SECURITY.es.md`](RELEASE-SECURITY.es.md).
+El verificador trata el receipt como allowlist exacta. Artefactos ausentes, artefactos extra, checksums duplicados, symlinks, rutas absolutas/traversal, deriva del árbol fuente o deriva de metadata SBOM bloquean la promoción. Consulte [`evidence/README.es.md`](../../evidence/README.es.md) y [`RELEASE-SECURITY.es.md`](../../RELEASE-SECURITY.es.md).
 
 Las attestations de GitHub y la identidad fuente registrada se generan solo después de verificar correctamente la evidencia local. Un archivo producido sin checkout Git canónico sirve para diagnóstico, pero no se acepta como provenance de producción.
 
@@ -137,7 +139,7 @@ Las attestations de GitHub y la identidad fuente registrada se generan solo desp
 
 Los screenshots del repositorio son artefactos de documentación; por sí solos no prueban un release. Evidencia visual sólida registra commit exacto, SO/runner, browser/channel, viewport o device scale y resultado de la suite Playwright correspondiente.
 
-La galería, reglas de captura y disciplina de revisión están en [`assets/screenshots/README.es.md`](assets/screenshots/README.es.md) y [`VISUAL-REVIEW.es.md`](VISUAL-REVIEW.es.md).
+La galería, reglas de captura y disciplina de revisión están en [`assets/screenshots/README.es.md`](../../assets/screenshots/README.es.md) y [`VISUAL-REVIEW.es.md`](../../VISUAL-REVIEW.es.md).
 
 ## Límites conocidos de la evidencia del repositorio
 

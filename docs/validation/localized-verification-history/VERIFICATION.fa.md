@@ -1,12 +1,14 @@
 <div dir="ltr" align="center">
 
-[English](VERIFICATION.md) · **فارسی** · [简体中文](VERIFICATION.zh-CN.md) · [Русский](VERIFICATION.ru.md) · [Deutsch](VERIFICATION.de.md) · [Español](VERIFICATION.es.md)
+[English](../../VERIFICATION.md) · **فارسی** · [简体中文](../../VERIFICATION.zh-CN.md) · [Русский](../../VERIFICATION.ru.md) · [Deutsch](../../VERIFICATION.de.md) · [Español](../../VERIFICATION.es.md)
 
 </div>
 
 <div dir="rtl" lang="fa" align="right">
 
 # شواهد راستی‌آزمایی
+
+> یادداشت بایگانی: متن تاریخی و اعداد ثبت‌شده حفظ شده‌اند. مقصد پیوندها با مسیر بایگانی هماهنگ شده است؛ دستورالعمل‌های جاری در [راهنمای راستی‌آزمایی](../../VERIFICATION.fa.md) قرار دارند.
 
 **تاریخ:** 2026-08-23 — شواهد محلی <bdi dir="ltr">repository</bdi>؛ این تاریخ به‌معنای آن نیست که همه <bdi dir="ltr">command</bdi>های زیر در این <bdi dir="ltr">session</bdi> دوباره اجرا شده‌اند.
 
@@ -59,7 +61,7 @@ cargo tree --workspace
 
 <div dir="rtl" lang="fa" align="right">
 
-<bdi dir="ltr">exception</bdi>های <bdi dir="ltr">RustSec suppression</bdi> عمومی محسوب نمی‌شوند. تنها سطح <bdi dir="ltr">exception</bdi> مجاز، <bdi dir="ltr">ledger versioned</bdi> در [`security/RUSTSEC-EXCEPTIONS.fa.md`](security/RUSTSEC-EXCEPTIONS.fa.md) است که <bdi dir="ltr">owner</bdi>، <bdi dir="ltr">reachability</bdi>، تاریخ <bdi dir="ltr">review</bdi> و <bdi dir="ltr">exit condition</bdi> را ثبت می‌کند. <bdi dir="ltr">vulnerability-class advisory</bdi> جدید یا قابل <bdi dir="ltr">upgrade</bdi> همچنان <bdi dir="ltr">release blocker</bdi> است.
+<bdi dir="ltr">exception</bdi>های <bdi dir="ltr">RustSec suppression</bdi> عمومی محسوب نمی‌شوند. تنها سطح <bdi dir="ltr">exception</bdi> مجاز، <bdi dir="ltr">ledger versioned</bdi> در [`security/RUSTSEC-EXCEPTIONS.fa.md`](../../security/RUSTSEC-EXCEPTIONS.fa.md) است که <bdi dir="ltr">owner</bdi>، <bdi dir="ltr">reachability</bdi>، تاریخ <bdi dir="ltr">review</bdi> و <bdi dir="ltr">exit condition</bdi> را ثبت می‌کند. <bdi dir="ltr">vulnerability-class advisory</bdi> جدید یا قابل <bdi dir="ltr">upgrade</bdi> همچنان <bdi dir="ltr">release blocker</bdi> است.
 
 <bdi dir="ltr">process</bdi> <bdi dir="ltr">boundary</bdi> هم بخشی از <bdi dir="ltr">security gate</bdi> است: اجرای <bdi dir="ltr">external process</bdi> در <bdi dir="ltr">production</bdi> باید از <bdi dir="ltr">system bridge</bdi> تأییدشده عبور کند و با <bdi dir="ltr">process inventory</bdi> تطبیق داده شود. <bdi dir="ltr">secrets</bdi>، <bdi dir="ltr">network</bdi>، <bdi dir="ltr">filesystem</bdi>، <bdi dir="ltr">mutation</bdi>های <bdi dir="ltr">MCP</bdi> و <bdi dir="ltr">permission</bdi>های <bdi dir="ltr">plugin</bdi> باید در <bdi dir="ltr">native trust boundary</bdi> خود به‌صورت <bdi dir="ltr">fail-closed validate</bdi> شوند.
 
@@ -84,7 +86,7 @@ pnpm check:i18n
 
 <div dir="rtl" lang="fa" align="right">
 
-سطح <bdi dir="ltr">command</bdi> در [`contracts/COMMAND_CATALOG.fa.md`](contracts/COMMAND_CATALOG.fa.md) مستند شده است. <bdi dir="ltr">outcome</bdi>های <bdi dir="ltr">boundary</bdi> از [`contracts/BOUNDARY_OUTCOMES.fa.md`](contracts/BOUNDARY_OUTCOMES.fa.md) پیروی می‌کنند: `value`، `absent-optional`، `invalid`، `degraded`، `failed` و `recovered` نباید به یک <bdi dir="ltr">default value</bdi> واحد <bdi dir="ltr">collapse</bdi> شوند.
+سطح <bdi dir="ltr">command</bdi> در [`contracts/COMMAND_CATALOG.fa.md`](../../contracts/COMMAND_CATALOG.fa.md) مستند شده است. <bdi dir="ltr">outcome</bdi>های <bdi dir="ltr">boundary</bdi> از [`contracts/BOUNDARY_OUTCOMES.fa.md`](../../contracts/BOUNDARY_OUTCOMES.fa.md) پیروی می‌کنند: `value`، `absent-optional`، `invalid`، `degraded`، `failed` و `recovered` نباید به یک <bdi dir="ltr">default value</bdi> واحد <bdi dir="ltr">collapse</bdi> شوند.
 
 **قاعده پذیرش:** هر <bdi dir="ltr">command</bdi>، <bdi dir="ltr">RPC</bdi>، <bdi dir="ltr">MCP tool</bdi> یا <bdi dir="ltr">CLI entry point</bdi> جدید باید <bdi dir="ltr">owner</bdi>، <bdi dir="ltr">permission class</bdi>، <bdi dir="ltr">input/output</bdi> تایپ‌شده، <bdi dir="ltr">failure semantics</bdi>، <bdi dir="ltr">audit behavior</bdi> و قرارداد <bdi dir="ltr">rollback</bdi> یا <bdi dir="ltr">no-mutation</bdi> داشته باشد.
 
@@ -138,7 +140,7 @@ pnpm check:release
 
 ### <bdi dir="ltr">E2E</bdi> و <bdi dir="ltr">Visual</bdi>
 
-<bdi dir="ltr">Playwright</bdi> برای <bdi dir="ltr">E2E functional</bdi> و <bdi dir="ltr">visual suite stable</bdi> از <bdi dir="ltr">config</bdi> و <bdi dir="ltr">output directory</bdi> جداگانه استفاده می‌کند. <bdi dir="ltr">screenshot canonical</bdi> مستندات <bdi dir="ltr">capture</bdi> تازه <bdi dir="ltr">source</bdi> فعلی است؛ <bdi dir="ltr">Windows snapshot stable</bdi> یک سطح جداگانه برای پذیرش <bdi dir="ltr">regression</bdi> است. [`assets/screenshots/README.fa.md`](assets/screenshots/README.fa.md) و [`VISUAL-REVIEW.fa.md`](VISUAL-REVIEW.fa.md) را ببینید.
+<bdi dir="ltr">Playwright</bdi> برای <bdi dir="ltr">E2E functional</bdi> و <bdi dir="ltr">visual suite stable</bdi> از <bdi dir="ltr">config</bdi> و <bdi dir="ltr">output directory</bdi> جداگانه استفاده می‌کند. <bdi dir="ltr">screenshot canonical</bdi> مستندات <bdi dir="ltr">capture</bdi> تازه <bdi dir="ltr">source</bdi> فعلی است؛ <bdi dir="ltr">Windows snapshot stable</bdi> یک سطح جداگانه برای پذیرش <bdi dir="ltr">regression</bdi> است. [`assets/screenshots/README.fa.md`](../../assets/screenshots/README.fa.md) و [`VISUAL-REVIEW.fa.md`](../../VISUAL-REVIEW.fa.md) را ببینید.
 
 تغییر عمدی <bdi dir="ltr">pixel</bdi> باید <bdi dir="ltr">review</bdi> و صریحاً <bdi dir="ltr">update</bdi> شود. <bdi dir="ltr">visual tolerance</bdi> سراسری برای پنهان‌کردن <bdi dir="ltr">regression</bdi> افزایش داده نمی‌شود.
 
@@ -183,7 +185,7 @@ SHA256SUMS
 
 <div dir="rtl" lang="fa" align="right">
 
-<bdi dir="ltr">verifier</bdi>، <bdi dir="ltr">receipt</bdi> را <bdi dir="ltr">allowlist</bdi> دقیق می‌داند. <bdi dir="ltr">artifact</bdi> گمشده، <bdi dir="ltr">artifact</bdi> اضافی خارج از <bdi dir="ltr">receipt</bdi>، <bdi dir="ltr">checksum</bdi> تکراری، <bdi dir="ltr">symbolic link</bdi>، <bdi dir="ltr">absolute/traversal path</bdi>، <bdi dir="ltr">source-tree drift</bdi> یا <bdi dir="ltr">SBOM metadata drift</bdi> همگی <bdi dir="ltr">promotion</bdi> را متوقف می‌کنند. [`evidence/README.fa.md`](evidence/README.fa.md) و [`RELEASE-SECURITY.fa.md`](RELEASE-SECURITY.fa.md) را ببینید.
+<bdi dir="ltr">verifier</bdi>، <bdi dir="ltr">receipt</bdi> را <bdi dir="ltr">allowlist</bdi> دقیق می‌داند. <bdi dir="ltr">artifact</bdi> گمشده، <bdi dir="ltr">artifact</bdi> اضافی خارج از <bdi dir="ltr">receipt</bdi>، <bdi dir="ltr">checksum</bdi> تکراری، <bdi dir="ltr">symbolic link</bdi>، <bdi dir="ltr">absolute/traversal path</bdi>، <bdi dir="ltr">source-tree drift</bdi> یا <bdi dir="ltr">SBOM metadata drift</bdi> همگی <bdi dir="ltr">promotion</bdi> را متوقف می‌کنند. [`evidence/README.fa.md`](../../evidence/README.fa.md) و [`RELEASE-SECURITY.fa.md`](../../RELEASE-SECURITY.fa.md) را ببینید.
 
 <bdi dir="ltr">GitHub</bdi> <bdi dir="ltr">provenance attestation</bdi> و <bdi dir="ltr">source identity</bdi> ثبت‌شده فقط پس از <bdi dir="ltr">verify</bdi> موفق <bdi dir="ltr">evidence</bdi> محلی تولید می‌شوند. <bdi dir="ltr">archive</bdi> محلی بدون <bdi dir="ltr">Git checkout canonical</bdi> برای <bdi dir="ltr">diagnosis</bdi> مفید است، اما <bdi dir="ltr">production provenance</bdi> قابل قبول نیست.
 
@@ -191,7 +193,7 @@ SHA256SUMS
 
 <bdi dir="ltr">screenshot</bdi>های <bdi dir="ltr">repository artifact</bdi> مستندات هستند و به‌تنهایی <bdi dir="ltr">release</bdi> را ثابت نمی‌کنند. <bdi dir="ltr">visual evidence</bdi> معتبر باید <bdi dir="ltr">exact commit</bdi>، <bdi dir="ltr">OS/runner</bdi>، <bdi dir="ltr">browser/channel</bdi>، <bdi dir="ltr">viewport</bdi> یا <bdi dir="ltr">device scale</bdi> و نتیجه <bdi dir="ltr">Playwright suite</bdi> متناظر را ثبت کند.
 
-قواعد <bdi dir="ltr">gallery</bdi>، <bdi dir="ltr">capture</bdi> و <bdi dir="ltr">review</bdi> در [`assets/screenshots/README.fa.md`](assets/screenshots/README.fa.md) و [`VISUAL-REVIEW.fa.md`](VISUAL-REVIEW.fa.md) مستند شده‌اند.
+قواعد <bdi dir="ltr">gallery</bdi>، <bdi dir="ltr">capture</bdi> و <bdi dir="ltr">review</bdi> در [`assets/screenshots/README.fa.md`](../../assets/screenshots/README.fa.md) و [`VISUAL-REVIEW.fa.md`](../../VISUAL-REVIEW.fa.md) مستند شده‌اند.
 
 ## محدودیت‌های شناخته‌شده <bdi dir="ltr">Repository Evidence</bdi>
 

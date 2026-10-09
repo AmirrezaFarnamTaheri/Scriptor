@@ -18,7 +18,7 @@
 
 [Google 记录](validation/GOOGLE-INTEGRATIONS-2026-10-09.md)包含五项服务范围、工作机结果及提供商限制。[依赖限制](validation/SUPPLY-CHAIN-2026-10-04.md)不会因无关检查通过而解除。
 
-当前证据保存在注明日期的记录中：[产品审查](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md)、[缩放审查](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md)、[截图来源](validation/SCREENSHOT-REFRESH-2026-10-08.md)、[工作区自定义](validation/WORKSPACE-SHORTCUTS-2026-10-08.md)及[历史验证](validation/HISTORICAL_VERIFICATION.md)。此前中文版[原文归档](validation/localized-verification-history/VERIFICATION.zh-CN.md)。历史数字是来源记录，不代表当前完成状态。维护中的文档必须本地化；来源敏感的审计和归档文档除外。
+当前证据保存在注明日期的记录中：[产品审查](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md)、[缩放审查](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md)、[截图来源](validation/SCREENSHOT-REFRESH-2026-10-08.md)、[工作区自定义](validation/WORKSPACE-SHORTCUTS-2026-10-08.md)及[历史验证](validation/HISTORICAL_VERIFICATION.md)。此前中文版[保留历史正文归档，链接目标已调整](validation/localized-verification-history/VERIFICATION.zh-CN.md)。历史数字是来源记录，不代表当前完成状态。维护中的文档必须本地化；来源敏感的审计和归档文档除外。
 
 ## 仓库检查
 

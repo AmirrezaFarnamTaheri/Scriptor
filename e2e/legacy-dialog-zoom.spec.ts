@@ -119,6 +119,34 @@ for (const viewport of viewports) {
   })
 
   test(`Tools menu stays attached, bounded and keyboard reachable at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
+    await page.addInitScript(() => {
+      const records: unknown[] = []
+      Object.defineProperty(window, '__toolsMenuFocusEvidence', { value: records })
+      const originalFocus = HTMLElement.prototype.focus
+      HTMLElement.prototype.focus = function (options?: FocusOptions) {
+        const related = this.matches('.tools-trigger, .toolbar-tools-menu [role="menuitem"]')
+          || document.activeElement?.closest('.toolbar-tools-menu')
+        if (related && records.length < 100) {
+          records.push({
+            kind: 'focus-call',
+            target: this.outerHTML.slice(0, 500),
+            visibility: getComputedStyle(this).visibility,
+            display: getComputedStyle(this).display,
+            positioned: this.closest('.toolbar-tools-menu')?.getAttribute('data-positioned'),
+            stack: new Error().stack,
+          })
+        }
+        originalFocus.call(this, options)
+        if (related && records.length < 100) {
+          records.push({ kind: 'focus-result', active: document.activeElement?.outerHTML.slice(0, 500) })
+        }
+      }
+      document.addEventListener('focusin', event => {
+        if (records.length < 100 && event.target instanceof HTMLElement) {
+          records.push({ kind: 'focusin', target: event.target.outerHTML.slice(0, 500) })
+        }
+      }, true)
+    })
     await prepare(page, viewport)
     const trigger = page.getByRole('button', { name: 'Tools', exact: true })
     await trigger.focus()
@@ -136,7 +164,15 @@ for (const viewport of viewports) {
       )
     }).toBeLessThanOrEqual(14)
     const first = menu.getByRole('menuitem').first()
-    await expect(first, `Initial menu focus owner: ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 500))}`).toBeFocused()
+    try {
+      await expect(first, `Initial menu focus owner: ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 500))}`).toBeFocused()
+    } catch (error) {
+      await testInfo.attach('tools-menu-focus-evidence', {
+        body: JSON.stringify(await page.evaluate(() => Reflect.get(window, '__toolsMenuFocusEvidence')), null, 2),
+        contentType: 'application/json',
+      })
+      throw error
+    }
     await page.keyboard.press('End')
     const last = menu.getByRole('menuitem').last()
     await expect(last).toBeFocused()

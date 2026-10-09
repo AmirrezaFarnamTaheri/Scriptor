@@ -1,6 +1,8 @@
-[English](VERIFICATION.md) · [فارسی](VERIFICATION.fa.md) · [简体中文](VERIFICATION.zh-CN.md) · **Русский** · [Deutsch](VERIFICATION.de.md) · [Español](VERIFICATION.es.md)
+[English](../../VERIFICATION.md) · [فارسی](../../VERIFICATION.fa.md) · [简体中文](../../VERIFICATION.zh-CN.md) · **Русский** · [Deutsch](../../VERIFICATION.de.md) · [Español](../../VERIFICATION.es.md)
 
 # Доказательства верификации
+
+> Примечание к архиву: Исторический текст и записанные числа сохранены. Адреса ссылок скорректированы для расположения архива; актуальные инструкции находятся в [руководстве по проверке](../../VERIFICATION.ru.md).
 
 **Дата:** 2026-08-23 (локальные доказательства репозитория; это не утверждение, что каждый приведённый ниже command был повторно запущен в этой сессии)
 
@@ -37,7 +39,7 @@ cargo deny check
 cargo tree --workspace
 ```
 
-RustSec exceptions не являются общей suppression-политикой. Единственная разрешённая поверхность — versioned ledger [`security/RUSTSEC-EXCEPTIONS.ru.md`](security/RUSTSEC-EXCEPTIONS.ru.md) с owner, reachability, review date и exit condition. Новая либо обновляемая vulnerability-class advisory остаётся release blocker.
+RustSec exceptions не являются общей suppression-политикой. Единственная разрешённая поверхность — versioned ledger [`security/RUSTSEC-EXCEPTIONS.ru.md`](../../security/RUSTSEC-EXCEPTIONS.ru.md) с owner, reachability, review date и exit condition. Новая либо обновляемая vulnerability-class advisory остаётся release blocker.
 
 Process boundary также входит в security gate: production-запуски внешних программ проходят через одобренную system bridge и сверяются с inventory. Secrets, network, filesystem, MCP mutations и plugin permissions валидируются fail-closed на своей native trust boundary.
 
@@ -54,7 +56,7 @@ pnpm check:frontend-quality
 pnpm check:i18n
 ```
 
-Command surface описана в [`contracts/COMMAND_CATALOG.ru.md`](contracts/COMMAND_CATALOG.ru.md). Boundary outcomes следуют [`contracts/BOUNDARY_OUTCOMES.ru.md`](contracts/BOUNDARY_OUTCOMES.ru.md): `value`, `absent-optional`, `invalid`, `degraded`, `failed` и `recovered` нельзя сводить к одному default value.
+Command surface описана в [`contracts/COMMAND_CATALOG.ru.md`](../../contracts/COMMAND_CATALOG.ru.md). Boundary outcomes следуют [`contracts/BOUNDARY_OUTCOMES.ru.md`](../../contracts/BOUNDARY_OUTCOMES.ru.md): `value`, `absent-optional`, `invalid`, `degraded`, `failed` и `recovered` нельзя сводить к одному default value.
 
 **Правило принятия:** каждый новый command, RPC, MCP tool или CLI entry point должен иметь owner, permission class, typed input/output, failure semantics, audit behavior и rollback/no-mutation contract.
 
@@ -92,7 +94,7 @@ pnpm check:release
 
 ### E2E и visual
 
-Playwright использует раздельные configs/output dirs для функционального E2E и стабильной visual suite. Канонические docs screenshots — свежие captures текущего source; стабильные Windows snapshots — отдельная regression acceptance surface. См. [`assets/screenshots/README.ru.md`](assets/screenshots/README.ru.md) и [`VISUAL-REVIEW.ru.md`](VISUAL-REVIEW.ru.md).
+Playwright использует раздельные configs/output dirs для функционального E2E и стабильной visual suite. Канонические docs screenshots — свежие captures текущего source; стабильные Windows snapshots — отдельная regression acceptance surface. См. [`assets/screenshots/README.ru.md`](../../assets/screenshots/README.ru.md) и [`VISUAL-REVIEW.ru.md`](../../VISUAL-REVIEW.ru.md).
 
 Намеренные pixel changes проверяются и явно обновляются. Глобальная visual tolerance не повышается для сокрытия regression.
 
@@ -129,7 +131,7 @@ scriptor.cyclonedx.json
 SHA256SUMS
 ```
 
-Verifier трактует receipt как точную allowlist. Missing artifact, лишний unreceipted artifact, duplicate checksum, symlink, absolute/traversal path, source-tree drift или SBOM metadata drift блокируют promotion. См. [`evidence/README.ru.md`](evidence/README.ru.md) и [`RELEASE-SECURITY.ru.md`](RELEASE-SECURITY.ru.md).
+Verifier трактует receipt как точную allowlist. Missing artifact, лишний unreceipted artifact, duplicate checksum, symlink, absolute/traversal path, source-tree drift или SBOM metadata drift блокируют promotion. См. [`evidence/README.ru.md`](../../evidence/README.ru.md) и [`RELEASE-SECURITY.ru.md`](../../RELEASE-SECURITY.ru.md).
 
 GitHub provenance attestations и записанная source identity создаются только после успешной локальной проверки evidence. Архив, созданный без канонического Git checkout, полезен для диагностики, но не принимается как production provenance.
 
@@ -137,7 +139,7 @@ GitHub provenance attestations и записанная source identity созд�
 
 Repository screenshots — документационные artifacts и сами по себе не доказывают release. Надёжная visual evidence фиксирует exact commit, OS/runner, browser/channel, viewport/device scale и результат соответствующей Playwright suite.
 
-Галерея, capture rules и reviewer discipline описаны в [`assets/screenshots/README.ru.md`](assets/screenshots/README.ru.md) и [`VISUAL-REVIEW.ru.md`](VISUAL-REVIEW.ru.md).
+Галерея, capture rules и reviewer discipline описаны в [`assets/screenshots/README.ru.md`](../../assets/screenshots/README.ru.md) и [`VISUAL-REVIEW.ru.md`](../../VISUAL-REVIEW.ru.md).
 
 ## Известные ограничения repository evidence
 

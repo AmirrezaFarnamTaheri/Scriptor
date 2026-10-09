@@ -295,7 +295,14 @@ test('Calendar changes in Settings invalidate an already prepared planner review
   await expect(planner.getByRole('button', { name: 'Review bidirectional sync', exact: true })).toBeEnabled()
   await planner.getByRole('button', { name: 'Review bidirectional sync', exact: true }).click()
   await expect(planner.locator('.planner-review')).toBeVisible()
-  const { google } = await openGoogleSettings(page)
+  // Tasks owns a modal: use a non-editing control's palette route rather
+  // than attempting to click chrome behind the backdrop.
+  await planner.getByRole('button', { name: 'Review bidirectional sync', exact: true }).focus()
+  await page.keyboard.press('Control+KeyK')
+  await runCommand(page, 'Open settings')
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true })
+  await settings.getByRole('tab', { name: 'Integrations', exact: true }).click()
+  const google = settings.locator('.google-integration-settings')
   const calendar = google.getByRole('group', { name: 'Google Calendar & Tasks', exact: true })
   await calendar.getByRole('button', { name: 'Disconnect', exact: true }).click()
   await expect(planner.locator('.planner-review')).toHaveCount(0)

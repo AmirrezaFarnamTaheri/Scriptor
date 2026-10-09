@@ -1,6 +1,8 @@
-[English](VERIFICATION.md) · [فارسی](VERIFICATION.fa.md) · **简体中文** · [Русский](VERIFICATION.ru.md) · [Deutsch](VERIFICATION.de.md) · [Español](VERIFICATION.es.md)
+[English](../../VERIFICATION.md) · [فارسی](../../VERIFICATION.fa.md) · **简体中文** · [Русский](../../VERIFICATION.ru.md) · [Deutsch](../../VERIFICATION.de.md) · [Español](../../VERIFICATION.es.md)
 
 # 验证证据
+
+> 归档说明：历史正文及记录的数字均予保留，链接目标已按归档路径调整。当前操作指引见[验证指南](../../VERIFICATION.zh-CN.md)。
 
 **日期：**2026-08-23（仓库本地证据；并不声称本次会话重新执行了下列每一条命令）
 
@@ -37,7 +39,7 @@ cargo deny check
 cargo tree --workspace
 ```
 
-RustSec exception 不被视为通用 suppression。唯一允许的 exception surface 是版本控制的 [`security/RUSTSEC-EXCEPTIONS.zh-CN.md`](security/RUSTSEC-EXCEPTIONS.zh-CN.md)，其中记录 owner、reachability、复审日期和退出条件。新出现或可升级修复的 vulnerability-class advisory 仍然是 release blocker。
+RustSec exception 不被视为通用 suppression。唯一允许的 exception surface 是版本控制的 [`security/RUSTSEC-EXCEPTIONS.zh-CN.md`](../../security/RUSTSEC-EXCEPTIONS.zh-CN.md)，其中记录 owner、reachability、复审日期和退出条件。新出现或可升级修复的 vulnerability-class advisory 仍然是 release blocker。
 
 Process boundary 也是安全 gate 的组成部分：production 外部程序启动必须经过批准的 system bridge，并与 process inventory 对照。Secrets、network、filesystem、MCP mutation 与 plugin permission 都必须在其原生 trust boundary 上 fail-closed 验证。
 
@@ -54,7 +56,7 @@ pnpm check:frontend-quality
 pnpm check:i18n
 ```
 
-Command surface 记录在 [`contracts/COMMAND_CATALOG.zh-CN.md`](contracts/COMMAND_CATALOG.zh-CN.md)。Boundary outcome 遵循 [`contracts/BOUNDARY_OUTCOMES.zh-CN.md`](contracts/BOUNDARY_OUTCOMES.zh-CN.md)：`value`、`absent-optional`、`invalid`、`degraded`、`failed`、`recovered` 不得折叠为单一 default value。
+Command surface 记录在 [`contracts/COMMAND_CATALOG.zh-CN.md`](../../contracts/COMMAND_CATALOG.zh-CN.md)。Boundary outcome 遵循 [`contracts/BOUNDARY_OUTCOMES.zh-CN.md`](../../contracts/BOUNDARY_OUTCOMES.zh-CN.md)：`value`、`absent-optional`、`invalid`、`degraded`、`failed`、`recovered` 不得折叠为单一 default value。
 
 **接受规则：**新增 command、RPC、MCP tool 或 CLI entry point 必须具有 owner、permission class、typed input/output、failure semantics、audit behavior，以及 rollback/no-mutation contract。
 
@@ -92,7 +94,7 @@ pnpm check:release
 
 ### E2E 与 Visual
 
-Playwright 为功能 E2E 与稳定 visual suite 使用独立 config/output directory。权威文档 screenshot 是当前 source 的新鲜 capture；稳定 Windows snapshot 是独立 visual-regression acceptance surface。参见 [`assets/screenshots/README.zh-CN.md`](assets/screenshots/README.zh-CN.md) 与 [`VISUAL-REVIEW.zh-CN.md`](VISUAL-REVIEW.zh-CN.md)。
+Playwright 为功能 E2E 与稳定 visual suite 使用独立 config/output directory。权威文档 screenshot 是当前 source 的新鲜 capture；稳定 Windows snapshot 是独立 visual-regression acceptance surface。参见 [`assets/screenshots/README.zh-CN.md`](../../assets/screenshots/README.zh-CN.md) 与 [`VISUAL-REVIEW.zh-CN.md`](../../VISUAL-REVIEW.zh-CN.md)。
 
 刻意的 pixel change 必须审查并明确更新。绝不能通过提高全局 visual tolerance 来掩盖 regression。
 
@@ -129,7 +131,7 @@ scriptor.cyclonedx.json
 SHA256SUMS
 ```
 
-Verifier 将 receipt 视为精确 allowlist。缺失 artifact、额外未入 receipt 的 artifact、重复 checksum、symbolic link、absolute/traversal path、source-tree drift 或 SBOM metadata drift 都会阻止 promotion。参见 [`evidence/README.zh-CN.md`](evidence/README.zh-CN.md) 与 [`RELEASE-SECURITY.zh-CN.md`](RELEASE-SECURITY.zh-CN.md)。
+Verifier 将 receipt 视为精确 allowlist。缺失 artifact、额外未入 receipt 的 artifact、重复 checksum、symbolic link、absolute/traversal path、source-tree drift 或 SBOM metadata drift 都会阻止 promotion。参见 [`evidence/README.zh-CN.md`](../../evidence/README.zh-CN.md) 与 [`RELEASE-SECURITY.zh-CN.md`](../../RELEASE-SECURITY.zh-CN.md)。
 
 GitHub provenance attestation 与记录的 source identity 只会在本地 evidence 成功验证后生成。没有权威 Git checkout 的本地 archive 可用于诊断，但不能作为 production provenance 接受。
 
@@ -137,7 +139,7 @@ GitHub provenance attestation 与记录的 source identity 只会在本地 evide
 
 仓库中的 screenshot 是文档 artifact，本身不能证明 release。可靠 visual evidence 必须记录精确 commit、OS/runner、browser/channel、viewport 或 device scale，以及对应 Playwright suite 的结果。
 
-Screenshot gallery、capture 规则与 reviewer discipline 记录在 [`assets/screenshots/README.zh-CN.md`](assets/screenshots/README.zh-CN.md) 与 [`VISUAL-REVIEW.zh-CN.md`](VISUAL-REVIEW.zh-CN.md)。
+Screenshot gallery、capture 规则与 reviewer discipline 记录在 [`assets/screenshots/README.zh-CN.md`](../../assets/screenshots/README.zh-CN.md) 与 [`VISUAL-REVIEW.zh-CN.md`](../../VISUAL-REVIEW.zh-CN.md)。
 
 ## 仓库证据的已知边界
 

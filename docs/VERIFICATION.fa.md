@@ -24,7 +24,7 @@
 
 [گزارش گوگل](validation/GOOGLE-INTEGRATIONS-2026-10-09.md) دامنه پنج سرویس، نتایج اجراگرها و محدودیت‌های ارائه‌دهنده را ثبت می‌کند. [محدودیت وابستگی‌ها](validation/SUPPLY-CHAIN-2026-10-04.md) با موفقیت یک مسیر نامرتبط رفع نمی‌شود.
 
-شواهد جاری در گزارش‌های تاریخ‌دار نگهداری می‌شوند: [بازبینی محصول](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md)، [بزرگ‌نمایی](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md)، [منشأ تصاویر](validation/SCREENSHOT-REFRESH-2026-10-08.md)، [تنظیم فضای کاری](validation/WORKSPACE-SHORTCUTS-2026-10-08.md) و [تاریخچه](validation/HISTORICAL_VERIFICATION.md). نسخه فارسی قبلی [عیناً بایگانی شده است](validation/localized-verification-history/VERIFICATION.fa.md). اعداد تاریخی سند منشأ هستند، نه ادعای تکمیل فعلی. راهنماهای فعال باید ترجمه شوند؛ سوابق ممیزی حساس به منشأ و اسناد بایگانی‌شده مستثنا هستند.
+شواهد جاری در گزارش‌های تاریخ‌دار نگهداری می‌شوند: [بازبینی محصول](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md)، [بزرگ‌نمایی](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md)، [منشأ تصاویر](validation/SCREENSHOT-REFRESH-2026-10-08.md)، [تنظیم فضای کاری](validation/WORKSPACE-SHORTCUTS-2026-10-08.md) و [تاریخچه](validation/HISTORICAL_VERIFICATION.md). [متن تاریخی نسخه فارسی قبلی با مقصد پیوندهای اصلاح‌شده بایگانی شده است](validation/localized-verification-history/VERIFICATION.fa.md). اعداد تاریخی سند منشأ هستند، نه ادعای تکمیل فعلی. راهنماهای فعال باید ترجمه شوند؛ سوابق ممیزی حساس به منشأ و اسناد بایگانی‌شده مستثنا هستند.
 
 ## بررسی‌های مخزن
 

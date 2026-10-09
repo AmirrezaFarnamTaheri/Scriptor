@@ -18,7 +18,7 @@ Toda verificación ejecutable de esta revisión corre en trabajadores de GitHub.
 
 El [registro Google](validation/GOOGLE-INTEGRATIONS-2026-10-09.md) recoge los cinco servicios, resultados de trabajadores y límites del proveedor. Las [limitaciones de dependencias](validation/SUPPLY-CHAIN-2026-10-04.md) no desaparecen por aprobar otra vía.
 
-La evidencia actual reside en registros fechados: [revisión del producto](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md), [zoom](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md), [procedencia de capturas](validation/SCREENSHOT-REFRESH-2026-10-08.md), [personalización](validation/WORKSPACE-SHORTCUTS-2026-10-08.md) e [historia](validation/HISTORICAL_VERIFICATION.md). La versión española anterior se conserva [íntegra](validation/localized-verification-history/VERIFICATION.es.md). Las cifras históricas son procedencia, no afirmaciones actuales de finalización. La localización se exige en guías activas; los archivos de auditoría sensibles a procedencia quedan exentos.
+La evidencia actual reside en registros fechados: [revisión del producto](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md), [zoom](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md), [procedencia de capturas](validation/SCREENSHOT-REFRESH-2026-10-08.md), [personalización](validation/WORKSPACE-SHORTCUTS-2026-10-08.md) e [historia](validation/HISTORICAL_VERIFICATION.md). La versión española anterior conserva el [texto histórico con los destinos de los enlaces ajustados](validation/localized-verification-history/VERIFICATION.es.md). Las cifras históricas son procedencia, no afirmaciones actuales de finalización. La localización se exige en guías activas; los archivos de auditoría sensibles a procedencia quedan exentos.
 
 ## Comprobaciones del repositorio
 

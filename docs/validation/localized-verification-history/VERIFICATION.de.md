@@ -1,6 +1,8 @@
-[English](VERIFICATION.md) · [فارسی](VERIFICATION.fa.md) · [简体中文](VERIFICATION.zh-CN.md) · [Русский](VERIFICATION.ru.md) · **Deutsch** · [Español](VERIFICATION.es.md)
+[English](../../VERIFICATION.md) · [فارسی](../../VERIFICATION.fa.md) · [简体中文](../../VERIFICATION.zh-CN.md) · [Русский](../../VERIFICATION.ru.md) · **Deutsch** · [Español](../../VERIFICATION.es.md)
 
 # Verifikationsevidenz
+
+> Archivhinweis: Der historische Text und die aufgezeichneten Zahlen sind erhalten. Die Linkziele wurden an den Archivpfad angepasst; aktuelle Anleitungen stehen in der [Verifikationsanleitung](../../VERIFICATION.de.md).
 
 **Datum:** 2026-08-23 (Repository-lokale Evidenz; keine Behauptung, dass jeder unten aufgeführte Befehl in dieser Sitzung erneut ausgeführt wurde)
 
@@ -37,7 +39,7 @@ cargo deny check
 cargo tree --workspace
 ```
 
-RustSec-Ausnahmen werden nicht als generelle Unterdrückung behandelt. Die einzige erlaubte Ausnahmeoberfläche ist das versionierte Ledger [`security/RUSTSEC-EXCEPTIONS.de.md`](security/RUSTSEC-EXCEPTIONS.de.md), das Owner, Reachability, Review-Datum und Exit-Bedingung enthält. Neue oder upgradebare Vulnerability-Class-Advisories bleiben Release-Blocker.
+RustSec-Ausnahmen werden nicht als generelle Unterdrückung behandelt. Die einzige erlaubte Ausnahmeoberfläche ist das versionierte Ledger [`security/RUSTSEC-EXCEPTIONS.de.md`](../../security/RUSTSEC-EXCEPTIONS.de.md), das Owner, Reachability, Review-Datum und Exit-Bedingung enthält. Neue oder upgradebare Vulnerability-Class-Advisories bleiben Release-Blocker.
 
 Die Prozessgrenze ist ebenfalls Teil des Security-Gates: Produktionsstarts externer Programme müssen über die genehmigte System-Bridge laufen und gegen das Prozessinventar geprüft werden. Secrets, Netzwerk, Dateisystem, MCP-Mutationen und Plugin-Berechtigungen müssen an ihrer nativen Vertrauensgrenze fail-closed validiert werden.
 
@@ -56,7 +58,7 @@ pnpm check:frontend-quality
 pnpm check:i18n
 ```
 
-Die Befehlsoberfläche ist in [`contracts/COMMAND_CATALOG.de.md`](contracts/COMMAND_CATALOG.de.md) beschrieben. Boundary-Ergebnisse folgen [`contracts/BOUNDARY_OUTCOMES.de.md`](contracts/BOUNDARY_OUTCOMES.de.md): `value`, `absent-optional`, `invalid`, `degraded`, `failed` und `recovered` dürfen nicht zu einem gemeinsamen Defaultwert kollabieren.
+Die Befehlsoberfläche ist in [`contracts/COMMAND_CATALOG.de.md`](../../contracts/COMMAND_CATALOG.de.md) beschrieben. Boundary-Ergebnisse folgen [`contracts/BOUNDARY_OUTCOMES.de.md`](../../contracts/BOUNDARY_OUTCOMES.de.md): `value`, `absent-optional`, `invalid`, `degraded`, `failed` und `recovered` dürfen nicht zu einem gemeinsamen Defaultwert kollabieren.
 
 **Akzeptanzregel:** Ein neu hinzugefügter Command, RPC, MCP-Tool oder CLI-Einstiegspunkt muss Owner, Permission-Klasse, typisierte Ein-/Ausgabe, Failure-Semantik, Audit-Verhalten und Rollback-/No-Mutation-Vertrag besitzen.
 
@@ -94,7 +96,7 @@ pnpm check:release
 
 ### E2E und Visual
 
-Playwright verwendet getrennte Konfigurationen und Output-Verzeichnisse für funktionale E2E- und stabile Visual-Suites. Die kanonischen Dokumentations-Screenshots sind frische Aufnahmen des aktuellen Source-Zustands; gespeicherte Windows-Snapshots sind eine separate Regression-Akzeptanzoberfläche. Details stehen in [`assets/screenshots/README.de.md`](assets/screenshots/README.de.md) und [`VISUAL-REVIEW.de.md`](VISUAL-REVIEW.de.md).
+Playwright verwendet getrennte Konfigurationen und Output-Verzeichnisse für funktionale E2E- und stabile Visual-Suites. Die kanonischen Dokumentations-Screenshots sind frische Aufnahmen des aktuellen Source-Zustands; gespeicherte Windows-Snapshots sind eine separate Regression-Akzeptanzoberfläche. Details stehen in [`assets/screenshots/README.de.md`](../../assets/screenshots/README.de.md) und [`VISUAL-REVIEW.de.md`](../../VISUAL-REVIEW.de.md).
 
 Absichtliche Pixeländerungen werden geprüft und ausdrücklich aktualisiert. Die globale visuelle Toleranz wird nicht erhöht, um Regressionen zu verstecken.
 
@@ -131,7 +133,7 @@ scriptor.cyclonedx.json
 SHA256SUMS
 ```
 
-Der Verifier behandelt den Receipt als exakte Allowlist. Fehlende Artefakte, zusätzliche nicht quittierte Artefakte, doppelte Checksum-Einträge, symbolische Links, absolute/Traversal-Pfade, Source-Tree-Drift oder SBOM-Metadaten-Drift blockieren die Promotion. Siehe [`evidence/README.de.md`](evidence/README.de.md) und [`RELEASE-SECURITY.de.md`](RELEASE-SECURITY.de.md).
+Der Verifier behandelt den Receipt als exakte Allowlist. Fehlende Artefakte, zusätzliche nicht quittierte Artefakte, doppelte Checksum-Einträge, symbolische Links, absolute/Traversal-Pfade, Source-Tree-Drift oder SBOM-Metadaten-Drift blockieren die Promotion. Siehe [`evidence/README.de.md`](../../evidence/README.de.md) und [`RELEASE-SECURITY.de.md`](../../RELEASE-SECURITY.de.md).
 
 GitHub-Provenance-Attestations und die aufgezeichnete Source-Identity werden erst nach erfolgreicher lokaler Evidenzprüfung erstellt. Ein lokal erzeugtes Archiv ohne kanonischen Git-Checkout ist diagnostisch nützlich, aber keine akzeptierte Produktions-Provenance.
 
@@ -139,7 +141,7 @@ GitHub-Provenance-Attestations und die aufgezeichnete Source-Identity werden ers
 
 Screenshots im Repository sind Dokumentationsartefakte. Sie belegen allein keinen Release. Ein belastbarer visueller Nachweis nennt den exakten Commit, Betriebssystem/Runner, Browser/Channel, Viewport bzw. Device Scale und das Ergebnis der zugehörigen Playwright-Suite.
 
-Die Screenshot-Galerie, ihre Capture-Regeln und die Reviewer-Disziplin sind in [`assets/screenshots/README.de.md`](assets/screenshots/README.de.md) und [`VISUAL-REVIEW.de.md`](VISUAL-REVIEW.de.md) dokumentiert.
+Die Screenshot-Galerie, ihre Capture-Regeln und die Reviewer-Disziplin sind in [`assets/screenshots/README.de.md`](../../assets/screenshots/README.de.md) und [`VISUAL-REVIEW.de.md`](../../VISUAL-REVIEW.de.md) dokumentiert.
 
 ## Bekannte Grenzen der Repository-Evidenz
 
