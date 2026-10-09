@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspace } from './helpers'
+import { attachVisualState } from './visual-state-evidence'
 
 async function customize(page: import('@playwright/test').Page) {
   await openCommandPalette(page)
@@ -40,6 +41,7 @@ test('workspace shortcuts keep compact defaults and persist custom names, dimens
   await more.press('ArrowDown')
   const runCode = page.getByRole('menuitem', { name: 'Run code', exact: true })
   await expect(runCode).toBeFocused()
+  await attachVisualState(page, testInfo, 'shortcuts-custom-runtime-overflow-open', page.getByRole('menu'))
   await runCode.press('Enter')
   await expect(page.getByRole('region', { name: 'Runtime console', exact: true })).toBeVisible()
   await page.reload()
@@ -57,9 +59,9 @@ test('workspace shortcuts keep compact defaults and persist custom names, dimens
   await expect(bar.getByRole('button', { name: 'Code', exact: true })).toHaveCount(0)
   await more.click()
   await expect(page.getByRole('menuitem', { name: 'Code', exact: true })).toBeVisible()
+  await attachVisualState(page, testInfo, 'shortcuts-restored-source-overflow-open', page.getByRole('menu'))
   await page.keyboard.press('Escape')
-  await settleLayout(page)
-  await testInfo.attach('custom-workspace-shortcuts', { body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png' })
+  await attachVisualState(page, testInfo, 'custom-workspace-shortcuts', bar)
 })
 
 test('a hidden workspace shortcut row stays hidden and can be restored through the palette without losing routes', async ({ page }) => {
@@ -103,7 +105,7 @@ test('workspace shortcut customization cancels drafts and keeps fields reachable
   const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true })
   await cancel.scrollIntoViewIfNeeded()
   await expect(cancel).toBeInViewport({ ratio: 1 })
-  await testInfo.attach('workspace-shortcuts-zoom', { body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png' })
+  await attachVisualState(page, testInfo, 'workspace-shortcuts-zoom', dialog)
   await cancel.click()
   await expect(dialog).toBeHidden()
   await settleLayout(page)
@@ -113,7 +115,7 @@ test('workspace shortcut customization cancels drafts and keeps fields reachable
   await expect(reopened).toBeHidden()
 })
 
-test('workspace shortcut customization reports failed storage without silently claiming to save', async ({ page }) => {
+test('workspace shortcut customization reports failed storage without silently claiming to save', async ({ page }, testInfo) => {
   await launchApp(page)
   const dialog = await customize(page)
   await dialog.getByLabel('Show workspace shortcut row', { exact: true }).uncheck()
@@ -127,6 +129,7 @@ test('workspace shortcut customization reports failed storage without silently c
   await dialog.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('alert')).toBeVisible()
+  await attachVisualState(page, testInfo, 'shortcuts-storage-failure', dialog, dialog.getByRole('alert'))
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(page.locator('.workspace-activity-bar')).toBeVisible()
 })

@@ -8,14 +8,23 @@ const source = ts.transpileModule(readFileSync(new URL('../../src/hooks/useComma
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText
 
-function harness(modals = []) {
+class EditingTarget {
+  constructor(modal, editing = true) { this.modal = modal; this.editing = editing }
+  closest(selector) {
+    if (selector === '[aria-modal="true"]') return this.modal
+    assert.equal(selector, 'input, textarea, select, [contenteditable="true"]')
+    return this.editing ? this : null
+  }
+}
+
+function harness() {
   let open = false
   const listeners = []
   const effects = []
   const module = { exports: {} }
   vm.runInNewContext(source, {
     module, exports: module.exports,
-    document: { querySelectorAll: () => modals },
+    Element: EditingTarget,
     window: {
       addEventListener(type, listener, capture) { listeners.push({ type, listener, capture }) },
       removeEventListener(type, listener, capture) {
@@ -69,12 +78,16 @@ test('Cmd+K opens the palette; composition and other modified chords retain edit
   }
 })
 
-test('visible modal forms block palette opening but hidden forms and the palette itself do not', () => {
+test('modal editing targets retain keyboard ownership while non-editing controls allow nested navigation', () => {
   const modal = (visible, palette) => ({
     getClientRects: () => visible ? [{}] : [],
     classList: { contains: name => palette && name === 'command-palette-overlay' },
   })
-  assert.equal(harness([modal(true, false)]).press().open, false)
-  assert.equal(harness([modal(false, false)]).press().open, true)
-  assert.equal(harness([modal(true, true)]).press().open, true)
+  const blocked = harness().press({ target: new EditingTarget(modal(true, false)) })
+  assert.equal(blocked.open, false)
+  assert.equal(blocked.event.prevented, false)
+  assert.equal(blocked.editorReceivedChord, true)
+  assert.equal(harness().press({ target: new EditingTarget(modal(false, false)) }).open, true)
+  assert.equal(harness().press({ target: new EditingTarget(modal(true, true)) }).open, true)
+  assert.equal(harness().press({ target: new EditingTarget(modal(true, false), false) }).open, true)
 })

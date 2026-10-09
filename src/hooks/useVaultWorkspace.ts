@@ -464,13 +464,16 @@ export function useVaultWorkspace(options?: {
   }, [loadGraph])
 
   const openVaultAt = useCallback(
-    async (rootPath: string) => {
+    async (rootPath: string): Promise<{ status: 'opened' | 'failed' | 'cancelled'; isCurrent: () => boolean }> => {
       const requestId = ++vaultOpenRequestIdRef.current
-      if (!await prepareVaultSwitch() || requestId !== vaultOpenRequestIdRef.current) return
+      const isCurrent = () => requestId === vaultOpenRequestIdRef.current
+      const cancelled = { status: 'cancelled' as const, isCurrent }
+      if (!await prepareVaultSwitch() || !isCurrent()) return cancelled
       const saved = await resetNoteNavigation()
-      if (!saved || requestId !== vaultOpenRequestIdRef.current) {
+      if (!isCurrent()) return cancelled
+      if (!saved) {
         setStatus(vault ? 'ready' : 'idle')
-        return
+        return cancelled
       }
 
       setStatus('opening')
@@ -479,7 +482,7 @@ export function useVaultWorkspace(options?: {
 
       try {
         const opened = await vaultOpen(rootPath)
-        if (requestId !== vaultOpenRequestIdRef.current) return
+        if (!isCurrent()) return cancelled
         setVault(opened.vault)
         onVaultChanged?.(opened.vault.id)
         setStatus('indexing')
@@ -497,7 +500,7 @@ export function useVaultWorkspace(options?: {
           indexerRebuild(),
           vaultReadWorkspaceSession().catch(() => null),
         ])
-        if (requestId !== vaultOpenRequestIdRef.current) return
+        if (!isCurrent()) return cancelled
 
         setEntries(scanned)
         setSections(buildVaultSections(scanned))
@@ -509,7 +512,7 @@ export function useVaultWorkspace(options?: {
         // restored. A user action after "ready" must never be overwritten by a
         // later startup tab restore.
         if (savedSession?.open_tabs?.length) {
-          if (requestId !== vaultOpenRequestIdRef.current) return
+          if (!isCurrent()) return cancelled
           onSessionLayoutRestore?.({
             collapsedFolders: savedSession.collapsed_folders ?? {},
             sidebarView: savedSession.sidebar_view === 'inbox' ? 'inbox' : 'vault',
@@ -520,11 +523,11 @@ export function useVaultWorkspace(options?: {
             () => requestId === vaultOpenRequestIdRef.current,
           )
         } else {
-          if (requestId !== vaultOpenRequestIdRef.current) return
+          if (!isCurrent()) return cancelled
           const firstNote = scanned.find((entry) => entry.kind === 'note')
           if (firstNote) await openNote(firstNote.path, () => requestId === vaultOpenRequestIdRef.current)
         }
-        if (requestId !== vaultOpenRequestIdRef.current) return
+        if (!isCurrent()) return cancelled
         setStatus('ready')
         void Promise.all([
           refreshHealth(opened.vault),
@@ -537,7 +540,7 @@ export function useVaultWorkspace(options?: {
         })
         try {
           const persisted = await vaultReadActivityLog(100)
-          if (requestId !== vaultOpenRequestIdRef.current) return
+          if (!isCurrent()) return cancelled
           if (persisted.length > 0) {
             setActivityLog(persisted.map((row) => ({
               id: row.id,
@@ -550,14 +553,16 @@ export function useVaultWorkspace(options?: {
         } catch {
           // activity log is optional until first write
         }
-        if (requestId !== vaultOpenRequestIdRef.current) return
+        if (!isCurrent()) return cancelled
         logActivity('success', `Opened vault ${opened.vault.name}`, rootPath)
+        return { status: 'opened', isCurrent }
       } catch (caught) {
-        if (requestId !== vaultOpenRequestIdRef.current) return
+        if (!isCurrent()) return cancelled
         setStatus('error')
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Failed to open vault', message)
+        return { status: 'failed', isCurrent }
       }
     },
     [clearSearch, logActivity, onSessionLayoutRestore, onVaultChanged, openNote, refreshGit, refreshHealth, refreshNoteSummaries, refreshVaultConfig, refreshVaultSnippets, resetNoteNavigation, restoreEditorSession, setHealth, setHealthDiagnostics, setRebuild, vault],

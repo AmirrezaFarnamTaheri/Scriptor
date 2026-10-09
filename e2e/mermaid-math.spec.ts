@@ -31,7 +31,16 @@ for (const diagram of [
       await expect(svg).toBeVisible()
       // Visibility alone allowed the global icon rule to collapse diagrams to 17px.
       await expect.poll(() => svg.evaluate(element => element.getBoundingClientRect().width)).toBeGreaterThan(100)
-      await expect.poll(() => svg.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(60)
+      // A two-node flowchart is naturally shorter than a sequence diagram.
+      // Compare against its intrinsic aspect ratio instead of a diagram-specific
+      // minimum height, while keeping the width guard against icon CSS collapse.
+      await expect.poll(() => svg.evaluate(element => {
+        const box = element.getBoundingClientRect()
+        const viewBox = (element as SVGSVGElement).viewBox.baseVal
+        return viewBox.width > 0 && viewBox.height > 0
+          ? Math.abs(box.width / box.height - viewBox.width / viewBox.height)
+          : Number.POSITIVE_INFINITY
+      })).toBeLessThan(0.1)
       for (const label of diagram.labels) await expect(rendered.getByText(label, { exact: true }).first()).toBeVisible()
       await expect(rendered.locator('math').first()).toContainText('x')
       // Mermaid uses native MathML when supported, and KaTeX's HTML renderer

@@ -1,152 +1,100 @@
+# Проверка
+
 [English](VERIFICATION.md) · [فارسی](VERIFICATION.fa.md) · [简体中文](VERIFICATION.zh-CN.md) · **Русский** · [Deutsch](VERIFICATION.de.md) · [Español](VERIFICATION.es.md)
 
-# Доказательства верификации
+Каждый результат указывает точный commit, среду, архитектуру и артефакты. Старое выполнение не подтверждает новую реализацию.
 
-**Дата:** 2026-08-23 (локальные доказательства репозитория; это не утверждение, что каждый приведённый ниже command был повторно запущен в этой сессии)
+## Свидетельства и текущий статус
 
-Документ описывает хранящуюся в репозитории цепочку доказательств для hygiene, contracts, security, build, tests, packaging и release provenance. Записанные commands, filenames, identifiers, hashes и tool output сохраняются без перевода, поскольку это технические доказательства, а не продуктовый текст.
+Исполняемые проверки этого обзора проходят только на работниках GitHub. Локальные запуск приложения, установка, тесты, сборка, lint, проверка типов и форматирование не разрешены. Изучение исходников и написанные регрессионные тесты фиксируются отдельно от успешного выполнения.
 
-## 1. Локальная hygiene, discovery и проверка scope
+| Свидетельство | Значение |
+|---|---|
+| Проверено исполнением | Указанная команда прошла на указанном исходном коде. |
+| Статически проверено | Код или метаданные проверены без запуска продукта. |
+| Изучено | Код, контракты или изображения просмотрены без исполняемого доказательства. |
+| Ожидается | Не получено обязательное исполнение или ручное свидетельство. |
+| Не прошло | Команда выполнена с неуспешным результатом. |
 
-До интерпретации результатов определяется, какой commit и какие источники являются авторитетными. Исключаются drift working tree, неожиданные generated files, устаревшие local artifacts и противоречащая реализации документация.
+[Запись Google](validation/GOOGLE-INTEGRATIONS-2026-10-09.md) содержит пять сервисов, результаты работников и ограничения провайдера. [Ограничения зависимостей](validation/SUPPLY-CHAIN-2026-10-04.md) не снимаются успешной посторонней проверкой.
 
-Типичные проверки репозитория:
+Текущие доказательства хранятся в датированных записях: [обзор продукта](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md), [масштаб](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md), [происхождение снимков](validation/SCREENSHOT-REFRESH-2026-10-08.md), [настройки](validation/WORKSPACE-SHORTCUTS-2026-10-08.md), [история](validation/HISTORICAL_VERIFICATION.md). Прежняя русская версия [сохранена дословно](validation/localized-verification-history/VERIFICATION.ru.md). Исторические числа подтверждают происхождение, не текущую готовность. Активная документация требует локализации; архивы аудита с чувствительным происхождением исключены.
 
-```powershell
-git status --short
-git rev-parse HEAD
-git ls-files
-pnpm version:check
+## Проверки репозитория
+
+Работники запускают из корня:
+
+```bash
 pnpm check:source
-pnpm check:docs
-pnpm check:i18n
+pnpm check:governance
+pnpm check:mcp
+pnpm check:plugins
+pnpm check:canvas
+pnpm check:editor
+pnpm check:portal
+pnpm check:renderer
+pnpm check:export
+pnpm check:headless
+pnpm check:citations
+pnpm check:knowledge
+pnpm check:merge
 ```
 
-Также проверяются `package.json`, `pnpm-lock.yaml`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, Tauri config, workflows в `.github/workflows/`, release scripts и документы архитектуры/зрелости. Источник истины — реализация точного commit; исторические планы и аудиты не заменяют проверку текущего состояния.
+`check:source` охватывает IPC, модули/процессы/unsafe Rust, нативную авторизацию, frontend, владельцев, benchmarks, доверие релизам и исключения RustSec. `check:governance` проверяет версии, неизменяемые Actions, границы пакетов, языки, документацию и лицензии.
 
-**Правило принятия:** evidence относится к release candidate только если привязана к тому же source commit или её provenance contract явно доказывает проверенную производность.
+## Полная инженерная проверка
 
-## 2. Security и dependency gate
+Кандидату нужна чистая среда GitHub с инструментами из манифестов и замороженными lockfiles:
 
-Проверка охватывает Node/pnpm, Rust/Cargo, GitHub Actions и внешние tools. Repository-native gates проверяют pinning workflows, dependency policies, inventory запуска процессов и известные advisories.
-
-```powershell
-pnpm lint:actions
-pnpm check:release-security
-cargo deny check
-cargo tree --workspace
-```
-
-RustSec exceptions не являются общей suppression-политикой. Единственная разрешённая поверхность — versioned ledger [`security/RUSTSEC-EXCEPTIONS.ru.md`](security/RUSTSEC-EXCEPTIONS.ru.md) с owner, reachability, review date и exit condition. Новая либо обновляемая vulnerability-class advisory остаётся release blocker.
-
-Process boundary также входит в security gate: production-запуски внешних программ проходят через одобренную system bridge и сверяются с inventory. Secrets, network, filesystem, MCP mutations и plugin permissions валидируются fail-closed на своей native trust boundary.
-
-## 3. Type, contract и boundary surface
-
-Scriptor использует генерируемые Rust/TypeScript contracts и дополнительные source contracts, чтобы renderer, Tauri, daemon, CLI/TUI и MCP не расходились по payload незаметно.
-
-```powershell
-pnpm check:contracts
-pnpm check:generated-contracts
-pnpm lint:boundaries
-pnpm check:source
-pnpm check:frontend-quality
-pnpm check:i18n
-```
-
-Command surface описана в [`contracts/COMMAND_CATALOG.ru.md`](contracts/COMMAND_CATALOG.ru.md). Boundary outcomes следуют [`contracts/BOUNDARY_OUTCOMES.ru.md`](contracts/BOUNDARY_OUTCOMES.ru.md): `value`, `absent-optional`, `invalid`, `degraded`, `failed` и `recovered` нельзя сводить к одному default value.
-
-**Правило принятия:** каждый новый command, RPC, MCP tool или CLI entry point должен иметь owner, permission class, typed input/output, failure semantics, audit behavior и rollback/no-mutation contract.
-
-## 4. Build и UI smoke
-
-Frontend/desktop build проверяет совместимость TypeScript/React, Tauri host и bundled assets.
-
-```powershell
+```bash
+corepack enable
 pnpm install --frozen-lockfile
 pnpm lint
+pnpm check:contracts
 pnpm build
-cargo check --workspace
+pnpm check:release
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo deny check
+pnpm audit --prod
 ```
 
-Desktop-specific release evidence требует выполнения Tauri build paths на поддерживаемых ОС. Зелёный web build сам по себе не доказывает desktop integration, native capabilities или корректное создание installer.
+`pnpm build` проверяет граф production-bundle и начальный gzip-бюджет; `pnpm lint` не допускает предупреждений ESLint. `check:release` требует PowerShell 7 (`pwsh`) на Linux/macOS. Axe нужен ChromeDriver, совместимый с Chrome; при отсутствии автоматического обнаружения `CHROMEWEBDRIVER` указывает каталог драйвера.
 
-UI smoke минимум охватывает open vault, чтение/запись notes, readiness index/search, error/recovery states и основную navigation. E2E/screenshot modes не должны попадать в production bundles.
+## Интерфейс и доступность
 
-## 5. Test suites
-
-Верификация сочетает быстрые source contracts, JavaScript/TypeScript tests, Rust tests, Playwright E2E, accessibility и visual regression. Ни один тип теста не заменяет остальные.
-
-```powershell
-pnpm test:source
-pnpm test:rust
+```bash
 pnpm test:e2e
 pnpm test:visual
-pnpm test:a11y
-pnpm check:release
+pnpm check:a11y
+pnpm check:a11y-axe
 ```
 
-`pnpm check:release` — агрегированный release gate: он запускает contract runners, Rust checks, Playwright suites, accessibility audits, daemon/TUI smoke и performance gates, требуемые для кандидата.
+Ручная матрица: 320/375/768/1024/1440 CSS-пикселей, светлая/тёмная/контрастная темы, Windows/macOS/Linux, клавиатура, экранный диктор, масштаб текста 200 %, уменьшенная анимация, пустое состояние, загрузка, ошибка, успех, разрушительное подтверждение и длинное содержимое.
 
-### E2E и visual
+Меню Typography/Insert выводятся порталом за отсечение toolbar, остаются в viewport после resize/scroll и перемещаются ограниченными обновлениями DOM без цикла React. Клавиатурное открытие фокусирует первый пункт; работают стрелки, Home, End, Escape, Tab и внешний клик. Escape возвращает фокус кнопке.
 
-Playwright использует раздельные configs/output dirs для функционального E2E и стабильной visual suite. Канонические docs screenshots — свежие captures текущего source; стабильные Windows snapshots — отдельная regression acceptance surface. См. [`assets/screenshots/README.ru.md`](assets/screenshots/README.ru.md) и [`VISUAL-REVIEW.ru.md`](VISUAL-REVIEW.ru.md).
+Снимки ждут заголовка preview без `.preview-error`. Baseline применяются к стабильным поверхностям; состояния прикладываются к hosted-job. [Каталог](assets/screenshots/README.ru.md) разделяет свежие документальные снимки и сохранённые baseline.
 
-Намеренные pixel changes проверяются и явно обновляются. Глобальная visual tolerance не повышается для сокрытия regression.
+## Релиз и восстановление
 
-### Accessibility
+Все установщики собираются из точного проверенного тега. Архитектура работника до packaging должна совпасть: Windows x86_64, macOS aarch64, Linux x86_64/aarch64. В публикации ровно семь установщиков в `release-artifacts` и четыре записи `signing-evidence-<platform>-<architecture>.json` в `release-evidence`.
 
-Evidence сочетает автоматические axe checks и keyboard/focus contracts для modal surfaces, menus, Canvas/Graph, virtualized lists и security-state controls. Минимальная цель product surfaces — WCAG 2.2 AA; coarse-pointer targets не меньше 44×44 px.
+Официальные записи: `signed: false`, `notarized: false`, `signatureType: "none"`. Перед receipt выполняется `node scripts/release/verify-signing-evidence.mjs release-evidence production`. `SHA256SUMS` покрывает только семь установщиков; receipt schema 4 включает четыре нормализованные записи доверия. `node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence` отклоняет изменение исходников, грязный checkout, лишние/отсутствующие файлы, опасные пути, symlinks, несовпадение checksum/SBOM и неполную идентичность целей.
 
-### Performance
+Проверьте GitHub provenance, SBOM-аттестации и неизменяемую линию тега для каждого установщика. Release notes объясняют неизвестного издателя и отдельные команды checksum/аттестации. Зафиксируйте чистую установку и предупреждения ОС. Повреждённые backups должны отклоняться, восстановление работать на всех ОС, прерванные restore/MCP — восстанавливаться детерминированно. Нужны performance-gates сканирования, памяти, индекса, поиска, графа, редактора и экспорта.
 
-Benchmarks имеют versioned baselines и определённые thresholds. Gates выявляют regression запуска, indexing, search, graph, large vault и memory-heavy surfaces; они не предназначены для абсолютного сравнения произвольного hardware.
+## Инварианты и каноническая история
 
-## 6. Packaging и installer verification
+Ручной dispatch по умолчанию предварительный; публикация требует `publish: true` на существующем `v*`-теге. **Release Kickoff** проверяет успешную CI точного commit, требует точную `VERSION`, создаёт только новый неизменяемый тег и явно запускает Release. Изменение версии само не создаёт тег; конфликтующий тег — ошибка, его никогда не перемещают.
 
-Release считается desktop release только после успешной упаковки всех платформ. Поддерживаемая matrix соответствует Windows, macOS и Linux, заявленным в README/release docs.
+Автопубликация идёт после успешных сборок и quality-gates тега. Pages защищён средой `github-pages`. Update-manifest относится к неизменяемому релизу; rolling-тега и force-push нет. **Release** — единственный владелец публикации. Архитектура в именах предотвращает коллизии. Загрузка исключает распакованные внутренности и CI-доказательства; checksum установщиков и метаданные доверия проверяются отдельно.
 
-Packaging evidence проверяет:
+Из полного канонического clone:
 
-- ожидаемые file types и architectures;
-- равенство версии в `VERSION`, npm, Cargo и Tauri;
-- отсутствие E2E/fault-injection markers в release bundle;
-- installer/bundle names и checksums;
-- отсутствие неожиданных symlink и absolute/traversal paths;
-- воспроизводимую связь с release commit.
-
-Entry points документированы в `scripts/release/`; release workflow создаёт platform artifacts и затем объединяет их в общей evidence stage.
-
-## 7. Release evidence, SBOM и provenance
-
-Pipeline создаёт финальные доказательства **после** скачивания всех platform artifacts. К авторитетным файлам относятся:
-
-```text
-release-receipt.json
-scriptor.cyclonedx.json
-SHA256SUMS
+```bash
+bash scripts/governance/history-audit.sh . .history-audit
 ```
 
-Verifier трактует receipt как точную allowlist. Missing artifact, лишний unreceipted artifact, duplicate checksum, symlink, absolute/traversal path, source-tree drift или SBOM metadata drift блокируют promotion. См. [`evidence/README.ru.md`](evidence/README.ru.md) и [`RELEASE-SECURITY.ru.md`](RELEASE-SECURITY.ru.md).
-
-GitHub provenance attestations и записанная source identity создаются только после успешной локальной проверки evidence. Архив, созданный без канонического Git checkout, полезен для диагностики, но не принимается как production provenance.
-
-## Визуальная верификация и документационные artifacts
-
-Repository screenshots — документационные artifacts и сами по себе не доказывают release. Надёжная visual evidence фиксирует exact commit, OS/runner, browser/channel, viewport/device scale и результат соответствующей Playwright suite.
-
-Галерея, capture rules и reviewer discipline описаны в [`assets/screenshots/README.ru.md`](assets/screenshots/README.ru.md) и [`VISUAL-REVIEW.ru.md`](VISUAL-REVIEW.ru.md).
-
-## Известные ограничения repository evidence
-
-- Документ фиксирует локальную evidence; дата выше не означает повторный запуск всех commands в каждой последующей сессии.
-- Один зелёный job не заменяет commit-exact цепочку release gates.
-- Local/historical CI logs нельзя приписывать другому commit.
-- Platform-dependent packaging/signing/installer evidence должна возникать на соответствующей платформе или в предназначенном workflow.
-- Наличие tests не превращает design-only/experimental capabilities в поддерживаемые production features. Ledger зрелости остаётся авторитетным.
-
-## Интерпретация для release
-
-Для production publication текущие gates должны быть зелёными на точном release commit, а созданные artifacts — доказуемо ссылаться на тот же commit. Авторитетная проверка объединяет exact-head CI matrix **и exact-head Visual review gate**; draft PR намеренно откладывает тяжёлые gates до `ready_for_review`. При конфликте исторической evidence с текущей реализацией приоритет имеют текущая воспроизводимая реализация и commit-bound verification.
+Также нужны разрешённый scanner секретов всей истории и hosted-свидетельства защиты веток, reviews, сред, тегов и релизов. Исходный контракт не доказывает публичный релиз. Завершение требует CI и **Visual review** точного текущего commit, затем production-tag workflow и опубликованные assets. Draft-PR откладывает тяжёлые gates; `ready_for_review` запускает полную матрицу.

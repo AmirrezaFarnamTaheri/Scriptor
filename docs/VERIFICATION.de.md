@@ -1,154 +1,100 @@
+# Verifikation
+
 [English](VERIFICATION.md) · [فارسی](VERIFICATION.fa.md) · [简体中文](VERIFICATION.zh-CN.md) · [Русский](VERIFICATION.ru.md) · **Deutsch** · [Español](VERIFICATION.es.md)
 
-# Verifikationsevidenz
+Jedes Ergebnis muss den exakten Quell-Commit, die Umgebung, Zielarchitektur und Artefakte nennen. Ein älteres Ergebnis bestätigt keinen neueren Stand.
 
-**Datum:** 2026-08-23 (Repository-lokale Evidenz; keine Behauptung, dass jeder unten aufgeführte Befehl in dieser Sitzung erneut ausgeführt wurde)
+## Evidenz und aktueller Status
 
-Dieses Dokument beschreibt die im Repository vorhandene Evidenzkette für Hygiene, Verträge, Security, Build, Tests, Packaging und Release-Provenance. Aufgezeichnete Befehle, Dateinamen, IDs, Hashes und Toolausgaben bleiben unverändert, weil sie technische Evidenz und keine übersetzbare Produktcopy sind.
+Die ausführbaren Prüfungen dieser Review laufen ausschließlich auf GitHub-Workern. Lokale App-Ausführung, Installation, Tests, Build, Lint, Typprüfung und Formatierung sind für diese Review nicht autorisiert. Quellprüfung und verfasste Regressionstests werden getrennt von bestandener Ausführung dokumentiert.
 
-## 1. Lokale Hygiene, Discovery und Scope-Prüfung
+| Evidenz | Bedeutung |
+|---|---|
+| Verifiziert | Der genannte Befehl lief auf dem angegebenen Stand erfolgreich. |
+| Statisch validiert | Quelltext oder Metadaten wurden ohne Produktausführung geprüft. |
+| Geprüft | Code, Verträge oder Bilder wurden ohne Ausführungsnachweis begutachtet. |
+| Ausstehend | Erforderliche Ausführung oder manuelle Evidenz fehlt. |
+| Fehlgeschlagen | Der genannte Befehl lief und bestand nicht. |
 
-Vor der Interpretation von Testergebnissen wird zuerst geprüft, welcher Commit und welche Quellen tatsächlich maßgeblich sind. Insbesondere werden Working-Tree-Drift, unerwartete generierte Dateien, veraltete lokale Artefakte und widersprüchliche Dokumentation ausgeschlossen.
+Der [Google-Nachweis](validation/GOOGLE-INTEGRATIONS-2026-10-09.md) enthält den Umfang der fünf Dienste, Worker-Ergebnisse und Anbietergrenzen. [Abhängigkeitsgrenzen](validation/SUPPLY-CHAIN-2026-10-04.md) bleiben offen, bis der betroffene Audit oder Release-Gate selbst besteht.
 
-Typische Repository-native Prüfungen:
+Aktuelle Belege gehören in datierte Nachweise: [Produktreview](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md), [Zoomreview](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md), [Screenshot-Herkunft](validation/SCREENSHOT-REFRESH-2026-10-08.md), [Arbeitsbereich-Anpassung](validation/WORKSPACE-SHORTCUTS-2026-10-08.md) und [historische Verifikation](validation/HISTORICAL_VERIFICATION.md). Die frühere deutsche Fassung bleibt [unverändert archiviert](validation/localized-verification-history/VERIFICATION.de.md). Historische Zahlen sind Herkunftsnachweise, keine aktuelle Freigabe. Aktive Anleitungen unterliegen der Lokalisierung; provenance-sensitive Auditarchive bleiben ausgenommen.
 
-```powershell
-git status --short
-git rev-parse HEAD
-git ls-files
-pnpm version:check
+## Repository-Prüfungen
+
+GitHub-Worker führen vom Repository-Stamm aus:
+
+```bash
 pnpm check:source
-pnpm check:docs
-pnpm check:i18n
+pnpm check:governance
+pnpm check:mcp
+pnpm check:plugins
+pnpm check:canvas
+pnpm check:editor
+pnpm check:portal
+pnpm check:renderer
+pnpm check:export
+pnpm check:headless
+pnpm check:citations
+pnpm check:knowledge
+pnpm check:merge
 ```
 
-Zu dieser Stufe gehört außerdem die Prüfung von `package.json`, `pnpm-lock.yaml`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, Tauri-Konfiguration, Workflows unter `.github/workflows/`, Release-Skripten sowie der Capability-/Architektur-Dokumentation. Der maßgebliche Zustand ist die Implementierung des exakten Commits; historische Audit- oder Planungsdokumente ersetzen diese Prüfung nicht.
+`check:source` prüft IPC-Verträge, Rust-Module, Prozesse und Unsafe-Regeln, native Autorisierung, Frontend-Richtlinien, Zuständigkeiten, Benchmarks, Release-Vertrauen und RustSec-Ausnahmen. `check:governance` prüft Versionen, unveränderliche Actions, Paketgrenzen, Sprachen und Dokumentations-/Lizenzverträge.
 
-**Akzeptanzregel:** Evidenz wird nur dann einem Release-Kandidaten zugerechnet, wenn sie an denselben Source-Commit gebunden ist oder ihr Provenance-Vertrag eine ausdrücklich verifizierte Ableitung belegt.
+## Vollständiger Engineering-Gate
 
-## 2. Security- und Dependency-Gate
+Ein Kandidat benötigt eine saubere Worker-Umgebung mit den Toolchains der Manifeste und unveränderten Lockfiles:
 
-Die Dependency- und Security-Prüfung umfasst Node/pnpm, Rust/Cargo, GitHub Actions und externe Tools. Repo-native Gates prüfen unter anderem Workflow-Pinning, Dependency-Policies, Prozess-Launch-Inventar und bekannte Advisories.
-
-```powershell
-pnpm lint:actions
-pnpm check:release-security
-cargo deny check
-cargo tree --workspace
-```
-
-RustSec-Ausnahmen werden nicht als generelle Unterdrückung behandelt. Die einzige erlaubte Ausnahmeoberfläche ist das versionierte Ledger [`security/RUSTSEC-EXCEPTIONS.de.md`](security/RUSTSEC-EXCEPTIONS.de.md), das Owner, Reachability, Review-Datum und Exit-Bedingung enthält. Neue oder upgradebare Vulnerability-Class-Advisories bleiben Release-Blocker.
-
-Die Prozessgrenze ist ebenfalls Teil des Security-Gates: Produktionsstarts externer Programme müssen über die genehmigte System-Bridge laufen und gegen das Prozessinventar geprüft werden. Secrets, Netzwerk, Dateisystem, MCP-Mutationen und Plugin-Berechtigungen müssen an ihrer nativen Vertrauensgrenze fail-closed validiert werden.
-
-## 3. Typ-, Contract- und Boundary-Oberfläche
-
-Scriptor verwendet generierte Rust/TypeScript-Verträge und zusätzliche Source-Contracts, damit Renderer, Tauri, Daemon, CLI/TUI und MCP keine still auseinanderlaufenden Payloads besitzen.
-
-Relevante Prüfungen:
-
-```powershell
-pnpm check:contracts
-pnpm check:generated-contracts
-pnpm lint:boundaries
-pnpm check:source
-pnpm check:frontend-quality
-pnpm check:i18n
-```
-
-Die Befehlsoberfläche ist in [`contracts/COMMAND_CATALOG.de.md`](contracts/COMMAND_CATALOG.de.md) beschrieben. Boundary-Ergebnisse folgen [`contracts/BOUNDARY_OUTCOMES.de.md`](contracts/BOUNDARY_OUTCOMES.de.md): `value`, `absent-optional`, `invalid`, `degraded`, `failed` und `recovered` dürfen nicht zu einem gemeinsamen Defaultwert kollabieren.
-
-**Akzeptanzregel:** Ein neu hinzugefügter Command, RPC, MCP-Tool oder CLI-Einstiegspunkt muss Owner, Permission-Klasse, typisierte Ein-/Ausgabe, Failure-Semantik, Audit-Verhalten und Rollback-/No-Mutation-Vertrag besitzen.
-
-## 4. Build und UI-Smoke
-
-Der Frontend- und Desktop-Build prüft, dass die TypeScript-/React-Oberfläche, der Tauri-Host und die gebündelten Assets zusammenpassen.
-
-```powershell
+```bash
+corepack enable
 pnpm install --frozen-lockfile
 pnpm lint
+pnpm check:contracts
 pnpm build
-cargo check --workspace
+pnpm check:release
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo deny check
+pnpm audit --prod
 ```
 
-Für Desktop-spezifische Release-Evidenz werden die Tauri-Buildpfade auf den unterstützten Betriebssystemen ausgeführt. Ein grüner Web-Build allein beweist keine korrekte Desktop-Integration, native Capability oder Installer-Erzeugung.
+`pnpm build` prüft den Produktions-Bundlegraph und das anfängliche gzip-Budget; `pnpm lint` erlaubt keine ESLint-Warnungen. `check:release` benötigt PowerShell 7 (`pwsh`) auch unter Linux/macOS. Die axe-Prüfung benötigt einen zur Chrome-Version passenden ChromeDriver; bei fehlender Erkennung verweist `CHROMEWEBDRIVER` auf dessen Verzeichnis.
 
-UI-Smoke-Evidenz umfasst mindestens das Öffnen eines Vaults, Lesen/Schreiben von Notizen, Index-/Search-Bereitschaft, Fehler-/Recovery-Zustände und die Hauptnavigation. Test-/Screenshot-Modi dürfen nicht in Produktionsbundles gelangen.
+## Oberfläche und Barrierefreiheit
 
-## 5. Test-Suites
-
-Die Verifikation kombiniert schnelle Source-Contracts, JavaScript/TypeScript-Tests, Rust-Tests, Playwright-E2E, Accessibility und visuelle Regression. Kein einzelner Testtyp ersetzt die anderen.
-
-```powershell
-pnpm test:source
-pnpm test:rust
+```bash
 pnpm test:e2e
 pnpm test:visual
-pnpm test:a11y
-pnpm check:release
+pnpm check:a11y
+pnpm check:a11y-axe
 ```
 
-`pnpm check:release` ist das zusammengefasste Release-Gate und führt die für einen Kandidaten geforderten Contract Runner, Rust-Prüfungen, Playwright-Suites, Accessibility-Audits, Daemon/TUI-Smokes und Performance-Gates aus.
+Manuell erforderlich sind 320/375/768/1024/1440 CSS-Pixel, helle/dunkle/kontrastreiche Themes, Windows/macOS/Linux, reine Tastaturbedienung, Screenreader-Smoke, 200 % Textzoom, reduzierte Bewegung sowie leere, ladende, fehlerhafte, erfolgreiche, destruktive und lange Inhalte.
 
-### E2E und Visual
+Typography-/Insert-Menüs müssen außerhalb des Toolbar-Clippings portaled werden, nach Resize/Scroll im visuellen Viewport bleiben und sich ohne React-Render-Schleife begrenzt neu positionieren. Tastaturöffnung fokussiert den ersten Eintrag; Pfeile, Home, End, Escape, Tab und Außenklick funktionieren. Escape stellt Trigger-Fokus wieder her.
 
-Playwright verwendet getrennte Konfigurationen und Output-Verzeichnisse für funktionale E2E- und stabile Visual-Suites. Die kanonischen Dokumentations-Screenshots sind frische Aufnahmen des aktuellen Source-Zustands; gespeicherte Windows-Snapshots sind eine separate Regression-Akzeptanzoberfläche. Details stehen in [`assets/screenshots/README.de.md`](assets/screenshots/README.de.md) und [`VISUAL-REVIEW.de.md`](VISUAL-REVIEW.de.md).
+Aufnahmen warten auf die erwartete Preview-Überschrift ohne `.preview-error`. Stabile Kernflächen verwenden Baselines; Zustandsbilder hängen am gehosteten Browser-/Visual-Job. [Screenshot-Katalog](assets/screenshots/README.de.md): Dokumentationsbilder entstehen aus frischen Aufnahmen, getrennt von gespeicherten Baselines.
 
-Absichtliche Pixeländerungen werden geprüft und ausdrücklich aktualisiert. Die globale visuelle Toleranz wird nicht erhöht, um Regressionen zu verstecken.
+## Release und Wiederherstellung
 
-### Accessibility
+Alle Installer entstehen aus dem exakten geprüften Tag. Vor dem Packaging muss die Runner-Architektur zum Ziel passen: Windows x86_64, macOS aarch64, Linux x86_64/aarch64. Die Veröffentlichung enthält genau sieben Installer in `release-artifacts` und vier `signing-evidence-<platform>-<architecture>.json`-Datensätze in `release-evidence`.
 
-Accessibility-Evidenz kombiniert automatisierte axe-Prüfungen mit Keyboard-/Focus-Verträgen für Modalflächen, Menüs, Canvas/Graph, virtualisierte Listen und Security-State-Controls. Mindestziel für produktseitige Oberflächen ist WCAG 2.2 AA; Coarse-Pointer-Ziele bleiben mindestens 44×44 px.
+Offizielle Datensätze enthalten `signed: false`, `notarized: false`, `signatureType: "none"`. Vor dem Receipt läuft `node scripts/release/verify-signing-evidence.mjs release-evidence production`. `SHA256SUMS` umfasst nur die sieben Installer; Receipt-Schema 4 bettet die vier normalisierten Vertrauensdatensätze ein. `node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence` verwirft Quellabweichung, schmutzigen Checkout, fehlende/zusätzliche Installer, unsichere Pfade, Symlinks, Prüfsummen-/SBOM-Abweichungen und unvollständige Zielidentitäten.
 
-### Performance
+Für jeden Installer sind GitHub-Provenance, SBOM-Attestierung und unveränderliche Tag-Abstammung zu prüfen. Release Notes erklären unbekannte Herausgeber sowie Einzeldatei-Prüfsummen und Attestierungen. Saubere Installation und OS-Warnungen werden je Plattform aufgezeichnet. Externe Backups müssen beschädigte Kopien ablehnen und auf allen OS wiederherstellbar sein; unterbrochene Restores/MCP-Mutationen müssen deterministisch zurückkehren. Scan-, Speicher-, Index-, Such-, Graph-, Editor- und Export-Performance-Gates gehören dazu.
 
-Benchmarks besitzen versionierte Baselines und definierte Schwellen. Performance-Gates sollen Regressionen bei Start, Indexierung, Search, Graph, großen Vaults und speicherintensiven Oberflächen erkennen, nicht absolute Hardware-Vergleiche zwischen beliebigen Hosts liefern.
+## Release-Invarianten und kanonische Historie
 
-## 6. Packaging- und Installer-Prüfung
+Manuelle Dispatches sind Vorschauen; Veröffentlichung verlangt `publish: true` auf vorhandenem `v*`-Tag. **Release Kickoff** prüft erfolgreiche CI auf dem exakten Commit, verlangt die exakte `VERSION`, erstellt nur einen unbenutzten unveränderlichen Tag und startet Release explizit. Versionsänderungen allein erstellen keinen Tag; widersprüchliche Tags sind ein harter Fehler und werden nie verschoben.
 
-Ein Release ist erst nach erfolgreicher Plattform-Paketierung ein Desktop-Release. Die unterstützte Matrix umfasst die in README/Release-Dokumentation deklarierte Windows-, macOS- und Linux-Oberfläche.
+Automatische Produktion folgt erst erfolgreichen Tag-Builds und Qualitätsprüfungen. Pages bleibt durch `github-pages` geschützt. Update-Manifeste hängen am unveränderlichen Release; es gibt keinen rollierenden Force-Push-Tag. **Release** ist der einzige Release-Eigentümer. Architektur-Dateinamen verhindern Kollisionen. Uploads enthalten keine entpackten Interna oder CI-Evidenz; Installer-Prüfsummen und separate Vertrauensmetadaten bleiben getrennt.
 
-Packaging-Evidenz prüft insbesondere:
+Aus einem vollständigen kanonischen Clone:
 
-- erwartete Dateitypen und Architekturen;
-- Versionsgleichheit zwischen `VERSION`, npm, Cargo und Tauri;
-- Release-Bundle-Inhalt ohne E2E-/Fault-Injection-Marker;
-- Installer-/Bundle-Namen und Checksums;
-- keine unerwarteten symbolischen Links oder Pfadtraversal-Einträge;
-- reproduzierbare Zuordnung zum Release-Commit.
-
-Relevante Einstiegspunkte sind unter `scripts/release/` dokumentiert; der Release-Workflow erzeugt Plattformartefakte und sammelt sie anschließend in einer gemeinsamen Evidenzstufe.
-
-## 7. Release-Evidenz, SBOM und Provenance
-
-Die Release-Pipeline erzeugt ihre finalen Nachweise **nach** dem Download aller Plattformartefakte. Maßgebliche Dateien sind unter anderem:
-
-```text
-release-receipt.json
-scriptor.cyclonedx.json
-SHA256SUMS
+```bash
+bash scripts/governance/history-audit.sh . .history-audit
 ```
 
-Der Verifier behandelt den Receipt als exakte Allowlist. Fehlende Artefakte, zusätzliche nicht quittierte Artefakte, doppelte Checksum-Einträge, symbolische Links, absolute/Traversal-Pfade, Source-Tree-Drift oder SBOM-Metadaten-Drift blockieren die Promotion. Siehe [`evidence/README.de.md`](evidence/README.de.md) und [`RELEASE-SECURITY.de.md`](RELEASE-SECURITY.de.md).
-
-GitHub-Provenance-Attestations und die aufgezeichnete Source-Identity werden erst nach erfolgreicher lokaler Evidenzprüfung erstellt. Ein lokal erzeugtes Archiv ohne kanonischen Git-Checkout ist diagnostisch nützlich, aber keine akzeptierte Produktions-Provenance.
-
-## Visuelle Verifikation und Dokumentationsartefakte
-
-Screenshots im Repository sind Dokumentationsartefakte. Sie belegen allein keinen Release. Ein belastbarer visueller Nachweis nennt den exakten Commit, Betriebssystem/Runner, Browser/Channel, Viewport bzw. Device Scale und das Ergebnis der zugehörigen Playwright-Suite.
-
-Die Screenshot-Galerie, ihre Capture-Regeln und die Reviewer-Disziplin sind in [`assets/screenshots/README.de.md`](assets/screenshots/README.de.md) und [`VISUAL-REVIEW.de.md`](VISUAL-REVIEW.de.md) dokumentiert.
-
-## Bekannte Grenzen der Repository-Evidenz
-
-- Dieses Dokument ist eine Aufzeichnung repository-lokaler Evidenz; das Datum oben bedeutet nicht, dass in jeder späteren Sitzung alle Befehle erneut ausgeführt wurden.
-- Ein grüner Einzeljob ersetzt nicht die Commit-genaue Release-Gate-Kette.
-- Lokale oder historische CI-Logs dürfen nicht auf einen anderen Commit übertragen werden.
-- Plattformabhängige Packaging-/Signing-/Installer-Evidenz muss auf der jeweiligen unterstützten Plattform bzw. im dafür vorgesehenen Workflow entstehen.
-- Design-only oder experimentelle Fähigkeiten werden nicht durch das Vorhandensein von Tests automatisch zu unterstützten Produktionsfeatures. Der Reifegrad-Ledger bleibt maßgeblich.
-
-## Release-Interpretation
-
-Für eine Produktionsfreigabe müssen die aktuellen Gates auf dem exakten Release-Commit grün sein und die erzeugten Artefakte denselben Commit nachweisbar referenzieren. Die maßgebliche Prüfung besteht aus der exact-head CI-Matrix **plus dem exact-head Visual-Review-Gate**; Draft-PRs verschieben die schweren Gates absichtlich bis `ready_for_review`. Bei Widerspruch zwischen historischer Evidenz und aktueller Implementierung gewinnt die aktuelle, reproduzierbare Implementierung plus commitgebundene Verifikation.
+Zusätzlich sind ein genehmigter vollständiger Secret-Scan und Hosting-Nachweise zu Branch-/Review-/Environment-Schutz sowie Tag-/Release-Abstammung nötig. Ein Quellvertrag beweist keine öffentliche Veröffentlichung. Maßgeblich sind CI-Matrix und **Visual review** auf dem exakten aktuellen Commit, danach Produktions-Tag-Workflow und veröffentlichte Assets. Draft-PRs verschieben schwere Gates; `ready_for_review` startet die vollständige Matrix.

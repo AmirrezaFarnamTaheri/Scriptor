@@ -92,7 +92,12 @@ Experimental source workflows support standalone LaTeX and code text alongside
 Markdown with code chunks and media. Source editing preserves file formats and
 keeps execution explicit. Experimental collaboration can host immutable
 Markdown revisions through Drive or Google Docs, and exchange reviewed source
-files with Overleaf. Capability and verification limits remain recorded in
+files with Overleaf. Calendar and Tasks support reviewed planning, and the
+opt-in Gmail plugin supports message search, plain-text import and approved
+mail actions. Each Google connection has independent credentials; vault files
+remain authoritative. Setup and recovery are documented in the
+[Google integration guide](docs/guides/GOOGLE_INTEGRATIONS.md).
+Capability and verification limits remain recorded in
 `docs/CAPABILITY-MATURITY.md`.
 
 Roadmap documents describe options, not current behavior. A capability graduates only after it has:

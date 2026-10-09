@@ -88,6 +88,8 @@ test.describe('Frontend polish regressions', () => {
     await page.getByRole('button', { name: 'Field Notes.md' }).click()
     const documentTabs = page.getByRole('group', { name: 'Editor tabs', exact: true })
     const selected = documentTabs.getByRole('tab', { name: 'Field Notes', exact: true, selected: true })
+    await expect(page.getByRole('tablist', { name: 'Main workspace tabs', exact: true }).getByRole('tab', { name: 'Field Notes.md', selected: true })).toBeVisible()
+    await expect(selected).toBeVisible()
     await selected.focus()
     await selected.press('ArrowLeft')
     const research = documentTabs.getByRole('tab', { name: 'Research Plan', exact: true, selected: true })

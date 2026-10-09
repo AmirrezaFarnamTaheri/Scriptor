@@ -41,6 +41,8 @@ Vault 设置位于 `.scriptor/config.json`。Snippet、导出 profile 和 plugin
 
 使用顶部栏的 workspace 模式 — **Writing**、**Knowledge**、**Publish**、**Review**、**Automation** — 让 toolbar 和 command palette 聚焦当前任务。
 
+紧凑快捷栏可自定义：选择命令、顺序、标签和大小，固定项目或隐藏整栏。隐藏后仍可通过命令面板打开自定义设置。
+
 ## 核心工作流
 
 | 任务 | Desktop | Terminal (`scriptor tui`) |
@@ -75,6 +77,10 @@ Dry-run 导出预览无需 Pandoc。发现方式、override 与故障排除参�
 ## 可选：Headless engine
 
 启用 **Settings → Headless engine** 后，索引、搜索、backlink、graph、Git 状态与导出 job 会通过本地 daemon 执行。打开 vault 与 canvas 保持 in-process，以保证响应速度。参阅 [`docs/architecture/IPC_DAEMON.zh-CN.md`](../architecture/IPC_DAEMON.zh-CN.md)。
+
+## 可选：Google 集成
+
+实验性桌面集成支持经审阅的 Drive 或 Docs Markdown 协作、Calendar 和 Tasks 规划以及 Gmail 插件。在 **Settings → Integrations** 配置公开的桌面 OAuth 客户端，然后分别连接所需服务组。本地笔记仍是权威来源；向服务写入需要批准。[Google 集成指南](GOOGLE_INTEGRATIONS.zh-CN.md)介绍资源选择、工作流和恢复。
 
 ## 延伸阅读
 

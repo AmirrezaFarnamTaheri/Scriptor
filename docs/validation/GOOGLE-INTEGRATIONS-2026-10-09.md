@@ -67,11 +67,14 @@ native approval cancellation, stale responses, keyboard, RTL and 200% zoom.
 Hosted evidence must be recorded against the final committed source, including
 all new screenshots; authored tests alone are not passing evidence.
 
-The preceding commit `1abff8fe63c6d2dde3485ffea633cbd186497059` passed hosted
-desktop compilation, visual comparisons, localization, Rust tests and frontend
-smoke. Its browser run failed 15 cases and its source lane failed a contextual
-help assertion. Those failures are open until repairs pass on a new head. Four
-documented optional Typst upstream advisories also remain unsuppressed.
+Commit `96d9ac7ef289ad1e4c9e894477811fb5ae8ec4b5` passed hosted desktop
+compilation on Windows, Linux and macOS, the existing 108 visual comparisons,
+localization, Rust checks and frontend/build/accessibility checks. Its browser
+lane passed 442 cases and failed 14; its source lane passed 598 checks and failed
+three. Repairs and expanded screenshots require another committed-head run.
+These preceding passes do not verify the new screenshot states or subsequent
+repairs. Four documented optional Typst upstream advisories remain unsuppressed
+and block the supply-chain/release gate.
 
 Primary provider references: [OAuth](https://developers.google.com/identity/protocols/oauth2),
 [shared drives](https://developers.google.com/workspace/drive/api/guides/enable-shareddrives),

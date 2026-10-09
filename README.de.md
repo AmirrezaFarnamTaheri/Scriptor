@@ -28,7 +28,7 @@ Scriptor ist für langfristige Projekte wie Bücher, Abschlussarbeiten, technisc
 
 | Arbeit mit deinen Inhalten | Was Scriptor bietet |
 |---|---|
-| **Schreiben und überarbeiten** | Quelltext-, Split- und gerenderte Ansichten; Gliederungsnavigation; Snippets; konfigurierbarer Editor; Notizverlauf |
+| **Schreiben und überarbeiten** | Quelltext und bearbeitbare visuelle Preview-/Split-Ansichten; schreibgeschützte Ausgabe im Inspector; Gliederung; Snippets; konfigurierbarer Editor; Notizverlauf |
 | **Belege aufbauen** | Wikilinks, Backlinks, Zitate, Graph-Erkundung, Zustandsprüfungen und Reparatur nicht aufgelöster Links |
 | **Reproduzierbar veröffentlichen** | Benannte Pandoc-Profile für HTML, PDF, DOCX, LaTeX, ePub und Reveal.js |
 | **Mit klaren Grenzen automatisieren** | Git-aware Workflows, auditierbare MCP-Werkzeuge, berechtigungsgebundene Plugins und ein lokaler daemon |
@@ -45,9 +45,19 @@ Scriptor ist für langfristige Projekte wie Bücher, Abschlussarbeiten, technisc
 
 | Arbeitsbereich erweitern | Aus benannten Profilen veröffentlichen |
 |---|---|
-| ![Plugin-Marktplatz](docs/assets/screenshots/plugins.png) | ![Publish Center](docs/assets/screenshots/publish-center.png) |
+| ![Verwaltung installierter eigener Plugins](docs/assets/screenshots/plugins.png) | ![Publish Center](docs/assets/screenshots/publish-center.png) |
 
 Der [Screenshot-Katalog](docs/assets/screenshots/README.de.md) umfasst außerdem Dark Mode, Git, Konfliktauflösung, Command Palette, MCP, Einstellungen, Vault-Gesundheit, Notizverlauf, Tastaturkürzel, Onboarding und kompakte Layouts. Das Aufnahmeskript wartet, bis Daten und Panels vollständig geladen sind, und schlägt fehl, wenn ein Bildschirm im Lade- oder Degradationszustand verbleibt.
+
+Diese Beispiele verwenden den E2E-Fixture-Vault. Der Plugin-Store ist ein experimenteller Katalog eigener Plugins, kein öffentlicher Marktplatz. MCP-Ergebnisse stammen hier aus der lokalen Test-Bridge, nicht von einem externen Client.
+
+| MCP-Autorisierung und geführte Rezepte | Read-only Outline im Tools-Tab |
+|---|---|
+| ![MCP-Autorisierung und geführte Rezepte](docs/assets/screenshots/mcp-panel.png) | ![Read-only Outline im Tools-Tab](docs/assets/screenshots/mcp-tools.png) |
+
+| Vault Lint: notwendiger Lesezugriff vor Aktivierung | Appearance: Palette, Tag/Nacht, Schrift und Dichte |
+|---|---|
+| ![Vault Lint: notwendiger Lesezugriff vor Aktivierung](docs/assets/screenshots/plugin-permissions.png) | ![Appearance: Palette, Tag/Nacht, Schrift und Dichte](docs/assets/screenshots/settings-appearance.png) |
 
 ## Funktionen
 
@@ -62,6 +72,8 @@ Der [Screenshot-Katalog](docs/assets/screenshots/README.de.md) umfasst außerdem
 - **Rechtschreibprüfung** — Hunspell für mehrere Sprachräume, optional LanguageTool
 
 Den aktuellen Status ausgelieferter, experimenteller und rein konzeptioneller Funktionen findest du in [`docs/CAPABILITY-MATURITY.de.md`](docs/CAPABILITY-MATURITY.de.md).
+
+Die experimentellen Desktop-Integrationen unterstützen geprüfte Markdown-Zusammenarbeit über Drive oder Docs, Planung mit Calendar und Tasks sowie ein Gmail-Plugin. Konfigurieren Sie den öffentlichen Desktop-OAuth-Client unter **Settings → Integrations** und verbinden Sie jede benötigte Dienstgruppe separat. Lokale Notizen bleiben maßgeblich; Schreibzugriffe beim Anbieter benötigen Zustimmung. Der [Google-Leitfaden](docs/guides/GOOGLE_INTEGRATIONS.de.md) erklärt Ressourcenauswahl, Arbeitsabläufe und Wiederherstellung.
 
 <a id="download"></a>
 ## Scriptor herunterladen

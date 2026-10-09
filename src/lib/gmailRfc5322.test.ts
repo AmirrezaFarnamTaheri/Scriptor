@@ -84,12 +84,16 @@ test('Gmail import keeps provider HTML and Markdown syntax inert while preservin
   const markdown = buildGmailMarkdown({ id: 'a1', threadId: 'b1', subject: 'Title\n# injected',
     from: '<img src=x onerror=alert(1)>', date: 'today', snippet: '',
     plainText: '<script>alert(1)</script>\n![beacon](https://example.com/pixel)\n[run](command:danger)' })
-  assert.ok(!markdown.includes('<script>'))
-  assert.ok(!markdown.includes('<img'))
-  assert.ok(!markdown.includes('\n# injected'))
-  assert.match(markdown, /&lt;script&gt;/)
-  assert.ok(markdown.includes('\\!\\[beacon\\]\\(https://example\\.com/pixel\\)'))
-  assert.ok(markdown.includes('\\[run\\]\\(command:danger\\)'))
+  // YAML scalars preserve metadata verbatim; only the rendered body interprets
+  // Markdown/HTML, so its escaping must be checked independently.
+  assert.ok(markdown.includes('from: "<img src=x onerror=alert(1)>"'))
+  const body = markdown.slice(markdown.indexOf('\n---\n') + 5)
+  assert.ok(!body.includes('<script>'))
+  assert.ok(!body.includes('<img'))
+  assert.ok(!body.includes('\n# injected'))
+  assert.match(body, /&lt;script&gt;/)
+  assert.ok(body.includes('\\!\\[beacon\\]\\(https://example\\.com/pixel\\)'))
+  assert.ok(body.includes('\\[run\\]\\(command:danger\\)'))
 })
 
 test('Gmail MIME encodes Unicode subjects and rejects header control characters', () => {

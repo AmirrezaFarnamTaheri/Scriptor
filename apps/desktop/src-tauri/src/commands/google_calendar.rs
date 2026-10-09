@@ -1859,6 +1859,7 @@ pub fn google_gmail_list_messages(
     query: Option<String>,
     max_results: u32,
 ) -> Result<Vec<GmailMessagePreview>, String> {
+    require_gmail_capability(&state)?;
     google_gmail_list_messages_page(state, query, max_results.clamp(1, 50), None)
         .map(|page| page.messages)
 }

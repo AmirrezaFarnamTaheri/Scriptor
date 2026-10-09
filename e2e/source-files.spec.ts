@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 import { closeWorkspacePanel, launchApp, openCommandPalette, runCommand } from './helpers'
+import { attachVisualState } from './visual-state-evidence'
 
-async function openEditor(page: Page) {
-  await launchApp(page)
+async function openEditor(page: Page, theme = 'light') {
+  await launchApp(page, { theme })
   await page.evaluate(() => {
     const internals = (window as Window & { __TAURI_INTERNALS__?: { invoke?: (command: string, args?: Record<string, unknown>, options?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__
     if (!internals?.invoke) throw new Error('Native fixture unavailable')
@@ -26,7 +27,10 @@ async function openEditor(page: Page) {
         files.set(path, { content, hash })
         return { vault_id: args.expectedVaultId, path, content, content_hash: hash, language: /\.(tex|ltx)$/.test(path) ? 'latex' : path.endsWith('.bib') ? 'bibtex' : 'python' }
       }
-      if (command === 'latex_compile') return { output_path: '.scriptor/latex-out/main.pdf', stdout: '', stderr: '', duration_ms: 3 }
+      if (command === 'latex_compile') {
+        if (sessionStorage.getItem('e2e:source-compile-error') === '1') throw new Error('main.tex:3: Undefined control sequence: \\unknowncommand. No PDF was produced.')
+        return { output_path: '.scriptor/latex-out/main.pdf', stdout: '', stderr: '', duration_ms: 3 }
+      }
       return original(command, args, options)
     }
   })
@@ -35,16 +39,18 @@ async function openEditor(page: Page) {
   await expect(editor.getByRole('heading', { name: 'Source files', exact: true })).toBeVisible()
   return editor
 }
-test('source editor creates LaTeX and compiles only reviewed saved content', async ({ page }) => {
+test('source editor creates LaTeX and compiles only reviewed saved content', async ({ page }, testInfo) => {
   const editor = await openEditor(page)
   await editor.getByLabel('File path', { exact: true }).fill('main.tex')
   await editor.getByLabel('Source file content', { exact: true }).fill('\\documentclass{article}\n\\begin{document}Hello\\end{document}\n')
   await editor.getByRole('button', { name: 'Create file', exact: true }).click()
   const compile = editor.getByRole('button', { name: 'Compile PDF', exact: true })
   await expect(compile).toBeDisabled()
+  await attachVisualState(page, testInfo, 'source-latex-saved', editor)
   await editor.getByLabel('I reviewed the saved source and want to compile it.').check()
   await compile.click()
   await expect(editor.getByText('Compilation: success', { exact: false })).toBeVisible()
+  await attachVisualState(page, testInfo, 'source-latex-compile-success', editor)
   await editor.getByLabel('Source file content', { exact: true }).fill('Unsaved source')
   await expect(compile).toBeDisabled()
   const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:source-calls') ?? '[]'))
@@ -52,11 +58,30 @@ test('source editor creates LaTeX and compiles only reviewed saved content', asy
   expect(calls.filter((row: { command: string }) => row.command === 'latex_compile')).toHaveLength(1)
 })
 
-test('source editor approved internal discard closes without prompting a second time', async ({ page }) => {
+test('dark source editor retains saved LaTeX and actionable diagnostics after failed compilation', async ({ page }, testInfo) => {
+  const editor = await openEditor(page, 'dark')
+  await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark')
+  const source = '\\documentclass{article}\n\\begin{document}\n\\unknowncommand\n\\end{document}\n'
+  await editor.getByLabel('File path', { exact: true }).fill('main.tex')
+  await editor.getByLabel('Source file content', { exact: true }).fill(source)
+  await editor.getByRole('button', { name: 'Create file', exact: true }).click()
+  await expect(editor.getByRole('button', { name: 'Save file', exact: true })).toBeDisabled()
+  await page.evaluate(() => sessionStorage.setItem('e2e:source-compile-error', '1'))
+  await editor.getByLabel('I reviewed the saved source and want to compile it.').check()
+  await editor.getByRole('button', { name: 'Compile PDF', exact: true }).click()
+  await expect(editor.getByText('Compilation: error', { exact: true })).toBeVisible()
+  await expect(editor.locator('pre')).toContainText('main.tex:3: Undefined control sequence')
+  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue(source)
+  await expect(editor.getByRole('button', { name: 'Compile PDF', exact: true })).toBeDisabled()
+  await attachVisualState(page, testInfo, 'source-dark-compile-diagnostics', editor)
+})
+
+test('source editor approved internal discard closes without prompting a second time', async ({ page }, testInfo) => {
   const editor = await openEditor(page)
   await editor.getByLabel('Source file content', { exact: true }).fill('Discard this draft once')
   await closeWorkspacePanel(page, editor)
   await expect(editor.getByRole('alertdialog', { name: 'Unsaved source changes' })).toBeVisible()
+  await attachVisualState(page, testInfo, 'source-discard-review', editor.getByRole('alertdialog', { name: 'Unsaved source changes' }))
   await editor.getByRole('button', { name: 'Discard and continue', exact: true }).click()
   await expect(editor).not.toBeVisible()
   await expect(page.getByRole('alertdialog', { name: 'Unsaved source changes' })).not.toBeVisible()
@@ -79,7 +104,7 @@ test('source editor settles both vault decisions dispatched before a render', as
   await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('Retain this draft')
 })
 
-test('pending source decision stays visible until cancelled before a sidebar file opens its own leaf', async ({ page }) => {
+test('pending source decision stays visible until cancelled before a sidebar file opens its own leaf', async ({ page }, testInfo) => {
   const editor = await openEditor(page)
   const originalTabLabel = await page.getByRole('tablist', { name: 'Side workspace tabs', exact: true }).getByRole('tab', { selected: true }).innerText()
   await editor.getByLabel('Source file content', { exact: true }).fill('Retain this draft')
@@ -99,15 +124,17 @@ test('pending source decision stays visible until cancelled before a sidebar fil
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('e2e:source-vault-result'))).toBe('[false]')
   await bibliography.click()
   await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('@article{reviewed, title={Reviewed source}}\n')
+  await attachVisualState(page, testInfo, 'source-bibtex-populated', editor)
   await page.getByRole('tab', { name: originalTabLabel, exact: true }).click()
   await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('Retain this draft')
 })
 
-test('real vault switching reveals two dirty source leaves sequentially and refusal prevents native open', async ({ page }) => {
+test('real vault switching reveals two dirty source leaves sequentially and refusal prevents native open', async ({ page }, testInfo) => {
   const editor = await openEditor(page)
   await editor.getByLabel('File path', { exact: true }).fill('main.py')
   await editor.getByRole('button', { name: 'Open file', exact: true }).click()
   await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('print(1)\n')
+  await attachVisualState(page, testInfo, 'source-python-populated', editor)
   await editor.getByLabel('Source file content', { exact: true }).fill('print("first draft")\n')
   await page.getByRole('complementary', { name: 'Vault', exact: true }).getByRole('button', { name: 'references.bib', exact: true }).click()
   await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('@article{reviewed, title={Reviewed source}}\n')
@@ -128,7 +155,7 @@ test('real vault switching reveals two dirty source leaves sequentially and refu
   expect(calls.filter(row => row.command === 'vault_open')).toHaveLength(0)
 })
 
-test('nested Overleaf modal stays visible when a palette command attempts to open another workspace', async ({ page }) => {
+test('nested Overleaf modal stays visible when a palette command attempts to open another workspace', async ({ page }, testInfo) => {
   const editor = await openEditor(page)
   await editor.getByLabel('File path', { exact: true }).fill('references.bib')
   await editor.getByRole('button', { name: 'Open file', exact: true }).click()
@@ -141,12 +168,13 @@ test('nested Overleaf modal stays visible when a palette command attempts to ope
   await expect(editor).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Diagram studio', exact: true })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Diagram studio', exact: true })).toHaveCount(0)
+  await attachVisualState(page, testInfo, 'source-nested-overleaf-route-blocked', modal)
   await modal.getByRole('button', { name: 'Close Overleaf sync', exact: true }).click()
   await expect(modal).toHaveCount(0)
   await openCommandPalette(page); await runCommand(page, 'Diagram studio')
   await expect(page.getByRole('region', { name: 'Diagram studio', exact: true })).toBeVisible()
 })
-test('source editor retains conflicts and dirty drafts across cancelled close and vault switch', async ({ page }) => {
+test('source editor retains conflicts and dirty drafts across cancelled close and vault switch', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const editor = await openEditor(page)
   await editor.getByLabel('File path', { exact: true }).fill('main.py')
@@ -156,8 +184,10 @@ test('source editor retains conflicts and dirty drafts across cancelled close an
   await page.evaluate(() => sessionStorage.setItem('e2e:source-stale', '1'))
   await editor.getByRole('button', { name: 'Save file', exact: true }).click()
   await expect(editor.getByRole('alert')).toContainText('Source changed on disk')
+  await attachVisualState(page, testInfo, 'source-mobile-disk-conflict', editor, editor.getByRole('alert'))
   await closeWorkspacePanel(page, editor)
   await expect(editor.getByRole('button', { name: 'Keep editing', exact: true })).toBeFocused()
+  await attachVisualState(page, testInfo, 'source-mobile-dirty-close', editor.getByRole('alertdialog', { name: 'Unsaved source changes' }))
   await page.keyboard.press('Tab')
   await expect(editor.getByRole('button', { name: 'Save and continue', exact: true })).toBeFocused()
   await page.keyboard.press('Shift+Tab')

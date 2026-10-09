@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { launchApp, openCommandPalette, runCommand } from './helpers'
+import { attachVisualState } from './visual-state-evidence'
 async function open(page: Page) {
   await launchApp(page)
   await page.evaluate(() => {
@@ -37,15 +38,17 @@ async function open(page: Page) {
   await dialog.getByLabel('Overleaf project ID or official URL', { exact: true }).fill('abcdef123456')
   return { editor, dialog }
 }
-test('Overleaf reviews remote source, shares with remote CAS and applies with local CAS', async ({ page }) => {
+test('Overleaf reviews remote source, shares with remote CAS and applies with local CAS', async ({ page }, testInfo) => {
   const { editor, dialog } = await open(page)
   await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
   const share = dialog.getByRole('button', { name: 'Share reviewed source with Overleaf', exact: true })
   await expect(share).toBeDisabled()
   await dialog.getByLabel('Reviewed source to apply locally or share', { exact: true }).fill('\\section{Reviewed merged source}\n')
+  await attachVisualState(page, testInfo, 'overleaf-remote-local-merged-review', dialog)
   const consent = dialog.getByLabel('I compared both copies and reviewed this source for the selected action')
   await consent.check(); await share.click()
   await expect(dialog.getByRole('status')).toContainText('Reviewed source shared with Overleaf')
+  await attachVisualState(page, testInfo, 'overleaf-reviewed-share-success', dialog)
   await consent.check()
   await dialog.getByRole('button', { name: 'Apply reviewed source locally', exact: true }).click()
   await expect(dialog).toHaveCount(0)
@@ -55,7 +58,7 @@ test('Overleaf reviews remote source, shares with remote CAS and applies with lo
   expect(push.expectedHead).toBe('c'.repeat(40)); expect(push.expectedRemoteHash).toBe('d'.repeat(64)); expect(push.expectedVaultId).toBe('screenshot-vault')
   expect(calls.find(row => row.command === 'source_file_save')!.args.expectedContentHash).toBe('a'.repeat(64))
 })
-test('Overleaf rejects stale sharing, contains nested dialog focus and blocks pending vault switching', async ({ page }) => {
+test('Overleaf rejects stale sharing, contains nested dialog focus and blocks pending vault switching', async ({ page }, testInfo) => {
   await page.clock.install()
   await page.setViewportSize({ width: 320, height: 720 })
   const { dialog } = await open(page)
@@ -79,4 +82,5 @@ test('Overleaf rejects stale sharing, contains nested dialog focus and blocks pe
   await dialog.getByLabel('I compared both copies and reviewed this source for the selected action').check()
   await dialog.getByRole('button', { name: 'Share reviewed source with Overleaf', exact: true }).click()
   await expect(dialog.getByRole('alert')).toContainText('Overleaf changed since review')
+  await attachVisualState(page, testInfo, 'overleaf-narrow-rtl-stale-share', dialog, dialog.getByRole('alert'))
 })

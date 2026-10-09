@@ -47,6 +47,8 @@
 
 از <bdi dir="ltr">mode</bdi>های <bdi dir="ltr">workspace</bdi> در نوار بالا — **<bdi dir="ltr">Writing</bdi>**، **<bdi dir="ltr">Knowledge</bdi>**، **<bdi dir="ltr">Publish</bdi>**، **<bdi dir="ltr">Review</bdi>** و **<bdi dir="ltr">Automation</bdi>** — برای متمرکز کردن <bdi dir="ltr">toolbar</bdi> و <bdi dir="ltr">command palette</bdi> بر کار فعلی استفاده کنید.
 
+ردیف فشرده میانبرها قابل تنظیم است: فرمان‌ها، ترتیب، برچسب‌ها و اندازه‌ها را انتخاب کنید؛ موارد را سنجاق کنید یا ردیف را پنهان کنید. حتی پس از پنهان شدن، تنظیم میانبرها از پالت فرمان در دسترس است.
+
 ## گردش‌کارهای اصلی
 
 | کار | <bdi dir="ltr">Desktop</bdi> | <bdi dir="ltr">Terminal</bdi> (`scriptor tui`) |
@@ -68,6 +70,7 @@
 
 <bdi dir="ltr">Scriptor</bdi> از [<bdi dir="ltr">Pandoc</bdi>](https://pandoc.org/) برای <bdi dir="ltr">export</bdi> استفاده می‌کند. برای <bdi dir="ltr">export</bdi> واقعی به <bdi dir="ltr">HTML</bdi>، <bdi dir="ltr">PDF</bdi>، <bdi dir="ltr">DOCX</bdi>، <bdi dir="ltr">LaTeX</bdi>، <bdi dir="ltr">ePub</bdi> و <bdi dir="ltr">Reveal.js</bdi>، <bdi dir="ltr">Pandoc</bdi> را روی سیستم نصب کنید:
 
+
 </div>
 
 <div dir="ltr" align="left">
@@ -84,11 +87,16 @@ brew install pandoc
 
 <div dir="rtl" lang="fa" align="right">
 
+
 پیش‌نمایش <bdi dir="ltr">dry-run export</bdi> بدون <bdi dir="ltr">Pandoc</bdi> کار می‌کند. برای <bdi dir="ltr">discovery</bdi>، <bdi dir="ltr">override</bdi> و عیب‌یابی به [`docs/release/PANDOC_STRATEGY.fa.md`](../release/PANDOC_STRATEGY.fa.md) مراجعه کنید.
 
 ## اختیاری: موتور <bdi dir="ltr">headless</bdi>
 
 با فعال کردن **<bdi dir="ltr">Settings</bdi> → <bdi dir="ltr">Headless engine</bdi>**، <bdi dir="ltr">index</bdi>، جست‌وجو، <bdi dir="ltr">backlink</bdi>، <bdi dir="ltr">graph</bdi>، وضعیت <bdi dir="ltr">Git</bdi> و <bdi dir="ltr">job</bdi>های <bdi dir="ltr">export</bdi> از طریق <bdi dir="ltr">daemon</bdi> محلی انجام می‌شوند. باز کردن <bdi dir="ltr">vault</bdi> و <bdi dir="ltr">canvas</bdi> برای پاسخ‌گویی سریع در همان <bdi dir="ltr">process</bdi> باقی می‌مانند. به [`docs/architecture/IPC_DAEMON.fa.md`](../architecture/IPC_DAEMON.fa.md) مراجعه کنید.
+
+## اختیاری: یکپارچه‌سازی با گوگل
+
+یکپارچه‌سازی‌های آزمایشی دسکتاپ، همکاری بازبینی‌شده روی Markdown از طریق Drive یا Docs، برنامه‌ریزی با Calendar و Tasks و افزونه Gmail را پشتیبانی می‌کنند. شناسه عمومی کارخواه OAuth دسکتاپ را در **Settings → Integrations** تنظیم کنید و هر گروه خدمات موردنیاز را جداگانه متصل کنید. یادداشت‌های محلی مرجع اصلی می‌مانند و نوشتن در سرویس به تأیید نیاز دارد. [راهنمای گوگل](GOOGLE_INTEGRATIONS.fa.md) انتخاب منابع، گردش‌کارها و بازیابی را توضیح می‌دهد.
 
 ## مطالعه بیشتر
 

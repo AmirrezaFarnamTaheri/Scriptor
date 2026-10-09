@@ -46,7 +46,9 @@ test('every native Gmail command enforces the active-vault plugin capability', (
   const commands = [
     'google_gmail_start_auth',
     'google_gmail_disconnect',
+    'google_gmail_get_authed_email',
     'google_gmail_list_messages',
+    'google_gmail_list_messages_page',
     'google_gmail_get_message',
     'google_gmail_modify_message',
     'google_gmail_trash_message',

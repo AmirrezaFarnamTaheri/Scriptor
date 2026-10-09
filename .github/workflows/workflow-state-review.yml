@@ -1,0 +1,95 @@
+name: Workflow state screenshots
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'e2e/**'
+      - 'src/e2e/**'
+      - '.github/workflows/workflow-state-review.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-state-review-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  review-states:
+    name: Populated workflow and recovery screenshots
+    runs-on: windows-2025
+    timeout-minutes: 40
+    env:
+      PLAYWRIGHT_CHANNEL: msedge
+      CI_LOG_DIR: artifacts/ci-logs/workflow-state-review
+    steps:
+      - name: Checkout exact review source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Configure manifest package manager
+        shell: pwsh
+        run: |
+          $scriptorPackageManager = (Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).packageManager
+          corepack enable
+          corepack prepare $scriptorPackageManager --activate
+
+      - name: Configure supported Node with package cache
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Describe state review scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Workflow state screenshots"
+
+      - name: Install frozen dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
+
+      - name: Install Playwright recording runtime
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Playwright recording runtime" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "install", "ffmpeg") -TimeoutSeconds 900
+
+      - name: Review populated workflows and recovery states
+        shell: pwsh
+        run: |
+          $scriptorStateSpecs = @(
+            "e2e/google-ecosystem-workflows.spec.ts", "e2e/google-gmail-workflows.spec.ts",
+            "e2e/source-files.spec.ts", "e2e/overleaf-workflows.spec.ts",
+            "e2e/runtime-kernel.spec.ts", "e2e/asset-media.spec.ts",
+            "e2e/workspace-shortcuts.spec.ts", "e2e/workspace-leaves.spec.ts",
+            "e2e/semantic-visual-states.spec.ts",
+            "e2e/command-palette-focus.spec.ts", "e2e/legacy-dialog-zoom.spec.ts",
+            "e2e/frontend-polish-regressions.spec.ts", "e2e/mermaid-math.spec.ts",
+            "e2e/collaboration-workflows.spec.ts"
+          )
+          ./scripts/ci/invoke-logged.ps1 -Name "Review populated workflow states" -FilePath "pnpm" -ArgumentList (@("exec", "playwright", "test", "--config", "playwright.e2e.config.ts") + $scriptorStateSpecs) -TimeoutSeconds 1800 -HeartbeatSeconds 20
+
+      - name: Capture state review failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Workflow state screenshots"
+
+      - name: Finalize state review evidence
+        if: always()
+        shell: pwsh
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Workflow state screenshots" -Status $env:JOB_STATUS
+
+      - name: Upload paired images, reports and source diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: workflow-state-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ env.CI_LOG_DIR }}
+            playwright-report/e2e
+            test-results/e2e
+          if-no-files-found: warn
+          retention-days: 14

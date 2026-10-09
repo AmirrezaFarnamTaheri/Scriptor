@@ -18,7 +18,13 @@ Capturas para documentación y marketing, generadas con Playwright en modo E2E.
 | graph.png | Grafo revisado | Docs + cobertura visual estable |
 | canvas.png | Canvas espacial para organizar notas | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
 | git-panel.png | Estado, commit, pull/push de control de versiones | VISUAL-REVIEW, STORE-MIGRATION |
-| mcp-panel.png | Panel MCP revisado | Docs + cobertura visual estable |
+| mcp-panel.png | Autorización MCP y recetas guiadas | README / docs |
+| mcp-tools.png | Outline de solo lectura en Tools | README / docs |
+| mcp-audit.png | Audit tras Outline de solo lectura | README / docs |
+| settings-appearance.png | Appearance: paleta, día/noche, fuente y densidad | README / docs |
+| plugin-permissions.png | Permiso de lectura de Vault Lint antes de activar | README / docs |
+| plugins-installed.png | Vault Lint activado con revocación por vault | README / docs |
+| empty-note.png | Sin nota activa, acciones dentro del estado vacío | README / docs |
 | settings.png | Config runtime/vault, apariencia, diagnóstico | VISUAL-REVIEW, STORE-MIGRATION |
 | publish-center.png | Publish Center revisado | Docs + cobertura visual estable |
 | vault-health.png | Dashboard de salud con lint y puntuaciones | VISUAL-REVIEW, RELEASE-CHECKLIST |
@@ -27,7 +33,7 @@ Capturas para documentación y marketing, generadas con Playwright en modo E2E.
 | note-history.png | Historial de revisiones con restore | VISUAL-REVIEW |
 | keyboard-shortcuts.png | Editor de atajos | VISUAL-REVIEW |
 | onboarding-tour.png | Tour de primer inicio | VISUAL-REVIEW |
-| plugins.png | Descubrimiento y gestión de plugins | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
+| plugins.png | Plugins propios instalados antes de revisar permisos | README / docs |
 | editor-recovery.png | Estado fallback de recuperación del editor | VISUAL-REVIEW, RELEASE-CHECKLIST |
 | mcp-sharing-inventory.png | Inventario de recursos y sharing MCP | VISUAL-REVIEW |
 | toolbar-typography.png | Popover de tipografía | VISUAL-REVIEW |
@@ -38,6 +44,24 @@ Capturas para documentación y marketing, generadas con Playwright en modo E2E.
 | task-list-preview.png | Elementos de lista de tareas renderizados con casillas interactivas | VISUAL-REVIEW |
 | workspace-selector.png | Selector de espacio de trabajo e identidad de la bóveda activa en la barra superior | VISUAL-REVIEW |
 
+### Cobertura de estados y límites de evidencia
+
+**Workflow state screenshots** ejecuta suites seleccionadas de estados/recuperación de manera independiente y conserva informes del commit exacto; la suite funcional completa sigue siendo obligatoria aparte. `e2e/visual-state-evidence.ts` crea imágenes de viewport y detalle después de verificar contenido y layout. Son evidencia de estado separada de baselines y galería.
+
+| Suite | Estados |
+|---|---|
+| `google-ecosystem-workflows.spec.ts` | Drive: selección, cancelación, binding y error de persistencia; Docs: vista previa, conflicto, consentimiento de pérdida y creación; Calendar: recursos, revisión/importación; RTL persa y zoom |
+| `google-gmail-workflows.spec.ts` | Inbox, páginas deduplicadas, texto literal, importación, búsqueda, paginación, errores, desconexión, borradores conservados, modo oscuro/RTL/zoom |
+| `source-files.spec.ts` | Formatos fuente, diagnósticos LaTeX, conflicto/descarte y modo oscuro |
+| `overleaf-workflows.spec.ts` | Fuentes anidadas y rechazo de fuente obsoleta |
+| `runtime-kernel.spec.ts` | Sesión, stdout, variables, plot decodificado y fallos de ciclo de vida |
+| `asset-media.spec.ts` | Imagen decodificada, controles audio y rechazo |
+| `workspace-shortcuts.spec.ts` | Personalización, overflow, error de persistencia y zoom |
+| `workspace-leaves.spec.ts` | Grupos, paneles movidos y hojas inactivas restauradas |
+| `semantic-visual-states.spec.ts` | Proyección 2D/3D, rotación, similitud, umbral vacío y fallo que conserva mediciones |
+
+Las imágenes/plots son PNG deterministas de 320×200 con dimensiones decodificadas comprobadas. Demuestran layout, no una cámara ni un plot real de Python. Google nunca accede a cuentas reales. Una captura constituye evidencia ejecutada solo tras aprobar la suite alojada del commit e inspeccionar imágenes. Los estados docs-only incluyen permisos/activación/revocación de plugins, Outline/Audit MCP, Appearance, Canvas, grafo denso, triage, ayuda, selector nativo, RTL, alemán compacto, zoom/escala, carga, vault grande y diálogos oscuros. No prueban cliente MCP externo, autorización nativa ni instalación de terceros. El `<select>` nativo se comprueba semánticamente; su popup del OS no es un objetivo fiable de captura.
+
 ### Actualidad y aceptación
 
 Los PNG de documentación son **capturas frescas del código fuente actual**, no copias de las líneas base de comparación de Playwright. Las pruebas primero capturan la página ya estabilizada directamente en `docs/assets/screenshots/` y, por separado, ejecutan `toHaveScreenshot` contra las líneas base estables de Windows en `e2e/screenshots.spec.ts-snapshots/`.
@@ -46,7 +70,7 @@ La separación es intencional. Una línea base almacenada puede seguir aceptánd
 
 Las líneas base estables de Windows siguen siendo la superficie de aceptación de regresión visual. Los cambios intencionados de píxeles deben revisarse y actualizarse explícitamente con `--update-snapshots=all`; nunca se ocultan fallos aumentando la tolerancia global.
 
-El workflow de pull request **Visual review** es el único dueño del gate de regresión visual. Primero compara contra los baselines committed. Solo si esa comparación falla ejecuta un pase diagnóstico `--update-snapshots=all` para producir imágenes actuales y evidencia de drift; nunca acepta cambios automáticamente. El E2E funcional de navegador permanece en el CI principal, de modo que un PR limpio no ejecuta la suite visual dos veces.
+**Visual review** hace una sola comparación en Windows fijado con `--update-snapshots=none`; los PR no reescriben baselines. Los fallos ya conservan actual/diff, trazas, vídeos y capturas nuevas. Solo el refresh explícito cambia baselines. `visual-review.zip` contiene imágenes actuales únicas en `images/`; `image-manifest.json` registra SHA-256, tamaño y todas las rutas de origen. Los duplicados exactos se guardan una vez; no se suben árboles paralelos de resultados/baselines.
 
 Las capturas responsive y de estados (`workspace-mobile`, `workspace-tablet`, vault/inspector móvil, recuperación del editor, inventario MCP y popovers) se generan desde salida de prueba en vivo y no se convierten en baseline estable salvo que la prueba use expresamente `toHaveScreenshot`.
 
@@ -68,7 +92,7 @@ Refresh visual intencional en Windows fijado:
 
 `-UpdateBaselines` regenera todos los snapshots estables de Windows con `--update-snapshots=all`, actualiza las capturas docs-only desde salida Playwright fresca y conserva las capturas escritas por `screenshots.spec.ts`. **No** copia PNG de baseline sobre el directorio de docs.
 
-El repositorio también ofrece el workflow manual **Refresh documentation screenshots**. Ejecútelo en una rama de revisión, no en `main`. Usa `windows-2025` fijado y Edge, ejecuta pruebas de contrato de captura, regenera docs y baselines de Windows, verifica la suite visual completa sin actualizar snapshots y commitea únicamente los PNG generados en la rama seleccionada.
+Después de publicar, `release.yml` despacha **Refresh documentation screenshots** sobre `main`. Captura el código actual de main, no píxeles del tag; el flujo separado debe concluir correctamente. También puede ejecutarse en un branch de revisión. Windows/Edge fijados comprueban contratos, actualizan docs/baselines, verifican sin actualizaciones y commitean solo PNG generados. El paquete con manifiesto deduplica SHA-256. El push no es forzado: si avanzó el branch, falla con seguridad y debe repetirse.
 
 ### Build en modo E2E
 

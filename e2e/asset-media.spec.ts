@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, openCommandPalette, runCommand } from './helpers'
+import { attachVisualState } from './visual-state-evidence'
+import { VISUAL_MEDIA_ASSET } from '../src/e2e/visualMediaFixtures'
 
-test('asset images and audio preview locally, revoke URLs and bind vault identity', async ({ page }) => {
+test('asset images and audio preview locally, revoke URLs and bind vault identity', async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     sessionStorage.setItem('e2e:asset-media', '1')
     const revoke = URL.revokeObjectURL.bind(URL)
@@ -16,15 +18,18 @@ test('asset images and audio preview locally, revoke URLs and bind vault identit
   await asset('assets/pixel.png').getByRole('button', { name: 'Open source', exact: true }).click()
   const image = deck.getByRole('img', { name: 'Vault source: assets/pixel.png', exact: true })
   await expect(image).toBeVisible()
-  await expect.poll(() => image.evaluate(node => (node as HTMLImageElement).naturalWidth)).toBe(1)
+  await expect.poll(() => image.evaluate(node => (node as HTMLImageElement).naturalWidth)).toBe(VISUAL_MEDIA_ASSET.width)
+  await expect.poll(() => image.evaluate(node => (node as HTMLImageElement).naturalHeight)).toBe(VISUAL_MEDIA_ASSET.height)
   const firstUrl = await image.getAttribute('src')
   expect(firstUrl).toMatch(/^blob:/)
+  await attachVisualState(page, testInfo, 'asset-image-preview', deck)
   await asset('assets/tone.wav').getByRole('button', { name: 'Open source', exact: true }).click()
   const audio = deck.locator('audio')
   await expect(audio).toHaveAttribute('controls', '')
   await expect.poll(() => audio.evaluate(node => (node as HTMLAudioElement).readyState)).toBeGreaterThan(0)
   expect(await audio.evaluate(node => (node as HTMLAudioElement).paused)).toBe(true)
   expect(await page.evaluate(() => sessionStorage.getItem('e2e:revoked-media'))).toBe(firstUrl)
+  await attachVisualState(page, testInfo, 'asset-audio-preview', deck)
   await expect(asset('assets/active.svg').getByRole('button', { name: 'Open source', exact: true })).toBeDisabled()
   await asset('assets/invalid.png').getByRole('button', { name: 'Open source', exact: true }).click()
   await expect(deck.getByRole('alert')).toContainText('do not match')
@@ -34,4 +39,5 @@ test('asset images and audio preview locally, revoke URLs and bind vault identit
   expect(calls.every(call => call.expectedVaultId === 'screenshot-vault')).toBe(true)
   await page.setViewportSize({ width: 320, height: 740 })
   await expect.poll(() => deck.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1)
+  await attachVisualState(page, testInfo, 'asset-narrow-invalid-media-error', deck, deck.getByRole('alert'))
 })

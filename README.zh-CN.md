@@ -28,7 +28,7 @@ Scriptor 面向需要长期维护的项目，例如书籍、论文、技术文�
 
 | 你的工作 | Scriptor 提供的能力 |
 |---|---|
-| **撰写与修订** | 源码、分栏和渲染视图；大纲导航；代码片段；可配置编辑器；笔记历史 |
+| **撰写与修订** | 源文本与可编辑的可视化 Preview/Split 视图；Inspector 内只读渲染输出；大纲；片段；可配置编辑器；笔记历史 |
 | **构建证据链** | Wikilink、反向链接、引用、图谱探索、健康检查、未解析链接修复 |
 | **可复现发布** | 面向 HTML、PDF、DOCX、LaTeX、ePub 和 Reveal.js 的具名 Pandoc 配置 |
 | **有边界的自动化** | 感知 Git 的工作流、可审计的 MCP 工具、权限受控的插件和本地 daemon |
@@ -45,9 +45,19 @@ Scriptor 面向需要长期维护的项目，例如书籍、论文、技术文�
 
 | 扩展工作空间 | 从具名配置发布 |
 |---|---|
-| ![插件市场](docs/assets/screenshots/plugins.png) | ![发布中心](docs/assets/screenshots/publish-center.png) |
+| ![已安装第一方插件管理](docs/assets/screenshots/plugins.png) | ![发布中心](docs/assets/screenshots/publish-center.png) |
 
 [截图目录](docs/assets/screenshots/README.zh-CN.md)还包括深色模式、Git、冲突解决、命令面板、MCP、设置、知识库健康状态、笔记历史、键盘快捷键、首次引导以及紧凑布局。截图脚本会等待数据和面板完全加载；如果页面始终处于加载中或降级状态，捕获流程会直接失败。
+
+这些示例使用 E2E 测试库。插件商店是实验性的第一方目录，并非公开的第三方市场。MCP 结果来自本地测试桥接，而不是外部客户端。
+
+| MCP 授权模式和引导配方 | Tools 页只读笔记大纲及结果 |
+|---|---|
+| ![MCP 授权模式和引导配方](docs/assets/screenshots/mcp-panel.png) | ![Tools 页只读笔记大纲及结果](docs/assets/screenshots/mcp-tools.png) |
+
+| 启用前 Vault Lint 必需读取许可确认 | Appearance：调色板、昼夜、字体和密度 |
+|---|---|
+| ![启用前 Vault Lint 必需读取许可确认](docs/assets/screenshots/plugin-permissions.png) | ![Appearance：调色板、昼夜、字体和密度](docs/assets/screenshots/settings-appearance.png) |
 
 ## 功能
 
@@ -62,6 +72,8 @@ Scriptor 面向需要长期维护的项目，例如书籍、论文、技术文�
 - **拼写检查** — 多语言 Hunspell，并可选用 LanguageTool
 
 关于已发布、实验性以及仅处于设计阶段的功能，请参阅 [`docs/CAPABILITY-MATURITY.zh-CN.md`](docs/CAPABILITY-MATURITY.zh-CN.md)。
+
+实验性桌面集成支持经审阅的 Drive 或 Docs Markdown 协作、Calendar 和 Tasks 规划以及 Gmail 插件。在 **Settings → Integrations** 配置公开的桌面 OAuth 客户端，然后分别连接所需服务组。本地笔记仍是权威来源；向服务写入需要批准。[Google 集成指南](docs/guides/GOOGLE_INTEGRATIONS.zh-CN.md)介绍资源选择、工作流和恢复。
 
 <a id="download"></a>
 ## 获取 Scriptor

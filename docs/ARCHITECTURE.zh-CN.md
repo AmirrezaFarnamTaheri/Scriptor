@@ -110,6 +110,34 @@ SQLite 使用 WAL、foreign key、busy timeout、current-schema validation、FTS
 
 ## 已知架构工作
 
-Adapter layer 仍保留 composition root，但 quick capture、rename transaction、deletion、telemetry、shortcut、sidebar action、auxiliary workspace data、settings vault configuration、MCP tool contract、daemon command catalog/support、daemon transport test、CLI command-line schema 与 CLI benchmark 已有明确 owner。进一步拆分会通过有表征测试的 vertical workflow 和 typed application service 渐进进行，而不是 big-bang rewrite。详见 capability ledger。
+### 经审阅的源文件、同步与渲染流程
 
-工作区快捷项设置与库标签及草稿分开存储。带版本且受限的本地数据只保存纯文本名称和尺寸，操作由当前命令目录解析。存储失败时保留打开的草稿并显示错误，命令面板仍可恢复隐藏的快捷栏。
+研究工作区复用 vault/indexer 边界。表格修改先保存编辑器，再保留表格最初显示的修订；源变化须重载并审阅。Capture 与 Zotero 导入先预览，再向原始库的不存在目标写入。凭据仅在内存中；密钥变化重置分页。
+
+PDF/EPUB 限制为 128 MiB，栅格图像/音频另限 32 MiB，排除活动 SVG/HTML。检查 MIME，源变化或卸载时回收对象 URL。Reader 协议提供内置查看器代码，不暴露任意文件路径。
+
+构建收据绑定源/输出指纹。部署复制到私有、有界临时快照，验证收据后仅将快照交给进程代理，结束后删除。适配器在获得打包和真实提供商证据前仍属实验性。
+
+重命名先保存编辑器，再执行原生修改。保存失败中止并保留草稿；链接改写遵循修订/导航保护，原生过期源检查仍权威。恢复备份文件名唯一，保护旧补丁。活动历史只读末尾最多 256 KiB、返回最多 200 条有效记录；超过 16 KiB 的追加被拒，超过 1 MiB 的历史在库锁内压缩。重命名恢复单独保留，不自动清除。
+
+引用在最终净化前从文本节点按当前书目解析。分组保留前缀、定位及作者抑制；缺失键保留源文本并标注可访问状态。代码、链接及已有引用除外。作者/年份预览不修改 Markdown、不替代 CSL 导出。
+
+`useWorkspaceShortcutPreferences`验证有界版本化本地 UI 数据；`WorkspaceShortcutBar`只解析当前命令目录。标签和尺寸不能保存可执行命令。存储错误保留草稿；隐藏行仍可经命令面板恢复。
+
+`useWorkspaceComposition`将验证后的每库叶引用绑定至两个 dock 组。恢复引用不激活所有者；导航经所有者批准。隐藏或移动保留已挂载所有者；嵌套对话框阻止隐藏。生命周期按叶管理，修改的编辑器依次展示。主写作编辑器唯一，侧 Markdown 叶是只读快照。模块管理器按规范 manifest 和当前插件策略授权，再存偏好。
+
+独立源文件使用 `commands/source_files.rs`，显式文本格式允许列表、有界 UTF-8、内容 hash 保存、严格创建和不可变恢复。不会进入 Markdown 正文元数据或历史。未保存导航须在切库前决策；过期决策不能无限阻塞。
+
+`calendar_sync`保留公开文件夹/传输绑定和桌面 OAuth client ID，无需迁移。Drive/Docs、Calendar/Tasks、Gmail 使用三份独立系统密钥链记录和服务授权。发现验证有界页，拒绝部分结果及分页循环，保留日历写入角色。切换账户使消费者与准备的审阅失效；原生 OAuth 代数阻止迟到登录恢复断开的凭据。删除本地凭据不会撤销整个 Google 应用授权，须在 Google 账户明确操作。
+
+异步后续保留原始库和账户。账户改变使发现、消息、审阅和导入失效。Planner 块保留本地；映射及基线归确认账户和所选日历/任务列表。卸载后迟到响应不能覆盖活动 planner。Gmail 在保存、索引、导航前重检上下文；提交的写入可能完成，但过期后续效果被抑制。
+
+Drive JSON 与 opaque Docs 共享修订/冲突模型和一次原生许可。Docs 验证规范编码信封和 checksum，保留 Markdown 字节。富文本转换是独立审阅流程，记录不携带媒体。[Google 指南](guides/GOOGLE_INTEGRATIONS.zh-CN.md)。
+
+Overleaf 经代理使用固定主机 Git。新隔离仓库保留完整远端索引，仅物化所选 blob；对象检查绕过 Git 文本过滤。审阅 HEAD/内容后普通非强制 push；本地应用采用内容 CAS。
+
+持久 Python kernel 是库所有的代理进程，生命周期有限、按单元源授权、输出有界且绘图产物有归属。原生转换保护防止迟到注册；切库/恢复停止旧 kernel。其他语言的新执行独立处理。
+
+Graphviz 使用内置 WebAssembly、可取消且限时的 worker。DOT 围栏与 Diagram studio 共享客户端；SVG 在被动图像上下文显示。离线 PDF 排版仍属原生，具有受限资源快照、内置声明及唯一产物发布。渲染测试数据不证明平台打包或真实提供商。
+
+Adapter layer 仍保留 composition root，但 quick capture、rename transaction、deletion、telemetry、shortcut、sidebar action、auxiliary workspace data、settings vault configuration、MCP tool contract、daemon command catalog/support、daemon transport test、CLI command-line schema 与 CLI benchmark 已有明确 owner。进一步拆分会通过有表征测试的 vertical workflow 和 typed application service 渐进进行，而不是 big-bang rewrite。详见 capability ledger。

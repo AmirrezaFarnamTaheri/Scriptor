@@ -108,9 +108,11 @@ test('unmount invalidates late OAuth before configuration persistence', async ()
 test('credential changes notify other panels before a delayed config write completes', async () => {
   const h = harness()
   let resolve
-  h.options.persistClientId = () => new Promise(done => { resolve = done })
+  let started
+  const configStarted = new Promise(done => { started = done })
+  h.options.persistClientId = () => new Promise(done => { resolve = done; started() })
   const pending = h.render().connect('gmail')
-  await Promise.resolve()
+  await configStarted
   assert.equal(h.events.length, 1)
   assert.equal(h.events[0].detail.service, 'gmail')
   resolve(); await pending

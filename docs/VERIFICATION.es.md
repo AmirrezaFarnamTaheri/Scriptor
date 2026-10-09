@@ -1,152 +1,100 @@
+# Verificación
+
 [English](VERIFICATION.md) · [فارسی](VERIFICATION.fa.md) · [简体中文](VERIFICATION.zh-CN.md) · [Русский](VERIFICATION.ru.md) · [Deutsch](VERIFICATION.de.md) · **Español**
 
-# Evidencia de verificación
+Cada resultado debe identificar el commit exacto, entorno, arquitectura y artefactos. Un resultado anterior no certifica una implementación nueva.
 
-**Fecha:** 2026-08-23 (evidencia local del repositorio; no implica que cada comando listado se haya vuelto a ejecutar en esta sesión)
+## Evidencia y estado actual
 
-Este documento describe la cadena de evidencia almacenada en el repositorio para higiene, contratos, seguridad, build, pruebas, packaging y provenance de release. Los comandos, nombres de archivo, identificadores, hashes y salidas de herramientas registrados se conservan sin traducir porque son evidencia técnica, no copy de producto.
+Toda verificación ejecutable de esta revisión corre en trabajadores de GitHub. No se autoriza ejecutar localmente la aplicación, instalación, pruebas, compilación, lint, comprobación de tipos ni formateador. La inspección de código y las pruebas de regresión redactadas se registran aparte de las ejecuciones aprobadas.
 
-## 1. Higiene local, descubrimiento y revisión de alcance
+| Evidencia | Significado |
+|---|---|
+| Verificado | El comando indicado pasó sobre el código identificado. |
+| Validado estáticamente | Se comprobaron código o metadatos sin ejecutar el producto. |
+| Revisado | Se inspeccionaron código, contratos o imágenes sin prueba ejecutable. |
+| Pendiente | Falta ejecución requerida o evidencia manual. |
+| Fallido | El comando se ejecutó y no pasó. |
 
-Antes de interpretar resultados se establece qué commit y qué fuentes son autoritativos. Se descartan deriva del working tree, archivos generados inesperados, artefactos locales obsoletos y documentación contradictoria.
+El [registro Google](validation/GOOGLE-INTEGRATIONS-2026-10-09.md) recoge los cinco servicios, resultados de trabajadores y límites del proveedor. Las [limitaciones de dependencias](validation/SUPPLY-CHAIN-2026-10-04.md) no desaparecen por aprobar otra vía.
 
-Comprobaciones habituales del propio repositorio:
+La evidencia actual reside en registros fechados: [revisión del producto](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md), [zoom](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md), [procedencia de capturas](validation/SCREENSHOT-REFRESH-2026-10-08.md), [personalización](validation/WORKSPACE-SHORTCUTS-2026-10-08.md) e [historia](validation/HISTORICAL_VERIFICATION.md). La versión española anterior se conserva [íntegra](validation/localized-verification-history/VERIFICATION.es.md). Las cifras históricas son procedencia, no afirmaciones actuales de finalización. La localización se exige en guías activas; los archivos de auditoría sensibles a procedencia quedan exentos.
 
-```powershell
-git status --short
-git rev-parse HEAD
-git ls-files
-pnpm version:check
+## Comprobaciones del repositorio
+
+Los trabajadores ejecutan desde la raíz:
+
+```bash
 pnpm check:source
-pnpm check:docs
-pnpm check:i18n
+pnpm check:governance
+pnpm check:mcp
+pnpm check:plugins
+pnpm check:canvas
+pnpm check:editor
+pnpm check:portal
+pnpm check:renderer
+pnpm check:export
+pnpm check:headless
+pnpm check:citations
+pnpm check:knowledge
+pnpm check:merge
 ```
 
-Esta fase también revisa `package.json`, `pnpm-lock.yaml`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, configuración Tauri, workflows de `.github/workflows/`, scripts de release y documentación de arquitectura/madurez. La implementación del commit exacto es la fuente de verdad; planes o auditorías históricas no sustituyen esta comprobación.
+`check:source` cubre contratos IPC, módulos/procesos/unsafe de Rust, autorización nativa, política frontend, propiedad de módulos, benchmarks, confianza de releases y excepciones RustSec. `check:governance` cubre versiones, Actions inmutables, límites de paquetes, idiomas y contratos documentales/de licencia.
 
-**Regla de aceptación:** una evidencia solo se atribuye a un candidato si está vinculada al mismo commit fuente o si su contrato de provenance demuestra una derivación explícitamente verificada.
+## Validación completa de ingeniería
 
-## 2. Gate de seguridad y dependencias
+Un candidato requiere un entorno limpio de GitHub, herramientas fijadas por los manifiestos y lockfiles congelados:
 
-La revisión cubre Node/pnpm, Rust/Cargo, GitHub Actions y herramientas externas. Los gates nativos del repositorio comprueban pinning de workflows, políticas de dependencias, inventario de lanzamiento de procesos y advisories conocidos.
-
-```powershell
-pnpm lint:actions
-pnpm check:release-security
-cargo deny check
-cargo tree --workspace
-```
-
-Las excepciones RustSec no son una supresión general. La única superficie permitida es el registro versionado [`security/RUSTSEC-EXCEPTIONS.es.md`](security/RUSTSEC-EXCEPTIONS.es.md), con responsable, alcanzabilidad, fecha de revisión y condición de salida. Una vulnerabilidad nueva o actualizable sigue bloqueando el release.
-
-La frontera de procesos también pertenece al gate: los procesos externos de producción deben atravesar la system bridge aprobada y validarse contra el inventario. Secrets, red, filesystem, mutaciones MCP y permisos de plugins se validan fail-closed en su frontera nativa de confianza.
-
-## 3. Superficie de tipos, contratos y límites
-
-Scriptor utiliza contratos Rust/TypeScript generados y contratos de fuente adicionales para impedir divergencia silenciosa entre renderer, Tauri, daemon, CLI/TUI y MCP.
-
-```powershell
-pnpm check:contracts
-pnpm check:generated-contracts
-pnpm lint:boundaries
-pnpm check:source
-pnpm check:frontend-quality
-pnpm check:i18n
-```
-
-La superficie de comandos está documentada en [`contracts/COMMAND_CATALOG.es.md`](contracts/COMMAND_CATALOG.es.md). Los resultados de límites siguen [`contracts/BOUNDARY_OUTCOMES.es.md`](contracts/BOUNDARY_OUTCOMES.es.md): `value`, `absent-optional`, `invalid`, `degraded`, `failed` y `recovered` no pueden colapsarse en un único valor por defecto.
-
-**Regla de aceptación:** todo command, RPC, tool MCP o entrada CLI nueva necesita owner, clase de permiso, entrada/salida tipada, semántica de fallo, auditoría y contrato de rollback o no-mutación.
-
-## 4. Build y smoke de UI
-
-El build de frontend y desktop verifica que TypeScript/React, el host Tauri y los assets empaquetados sean compatibles.
-
-```powershell
+```bash
+corepack enable
 pnpm install --frozen-lockfile
 pnpm lint
+pnpm check:contracts
 pnpm build
-cargo check --workspace
+pnpm check:release
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo deny check
+pnpm audit --prod
 ```
 
-La evidencia específica de escritorio ejecuta las rutas Tauri en los sistemas soportados. Un web build verde no demuestra por sí solo integración desktop, capacidades nativas ni producción correcta de instaladores.
+`pnpm build` incluye el grafo de producción y presupuesto gzip inicial; `pnpm lint` no permite advertencias ESLint. `check:release` requiere PowerShell 7 (`pwsh`) también en Linux/macOS. Axe requiere ChromeDriver compatible con Chrome; si falla su detección, `CHROMEWEBDRIVER` debe apuntar al directorio del controlador.
 
-El smoke de UI cubre al menos apertura de vault, lectura/escritura de notas, readiness de índice/búsqueda, estados de error/recovery y navegación principal. Los modos E2E/screenshot no deben entrar en bundles de producción.
+## Interfaz y accesibilidad
 
-## 5. Suites de pruebas
-
-La verificación combina contratos rápidos de fuente, pruebas JavaScript/TypeScript, Rust, Playwright E2E, accesibilidad y regresión visual. Ningún tipo sustituye a los demás.
-
-```powershell
-pnpm test:source
-pnpm test:rust
+```bash
 pnpm test:e2e
 pnpm test:visual
-pnpm test:a11y
-pnpm check:release
+pnpm check:a11y
+pnpm check:a11y-axe
 ```
 
-`pnpm check:release` es el gate agregado del release y ejecuta contract runners, verificaciones Rust, suites Playwright, auditorías de accesibilidad, smokes de daemon/TUI y gates de rendimiento exigidos para un candidato.
+La matriz manual incluye 320/375/768/1024/1440 píxeles CSS, temas claro/oscuro/alto contraste, Windows/macOS/Linux, teclado, lector de pantalla, zoom de texto al 200 %, movimiento reducido y estados vacío, carga, error, éxito, confirmación destructiva y contenido largo.
 
-### E2E y visual
+Los menús Typography/Insert deben salir del recorte de la barra mediante portal, permanecer dentro del viewport tras redimensionar/desplazar y reposicionarse con cambios DOM acotados sin bucles React. La apertura por teclado enfoca el primer elemento; funcionan flechas, Home, End, Escape, Tab y clic exterior. Escape devuelve el foco al activador.
 
-Playwright usa configuraciones y directorios de salida separados para E2E funcional y regresión visual estable. Las capturas canónicas de documentación son imágenes frescas del source actual; los snapshots estables de Windows son una superficie de aceptación separada. Consulte [`assets/screenshots/README.es.md`](assets/screenshots/README.es.md) y [`VISUAL-REVIEW.es.md`](VISUAL-REVIEW.es.md).
+Las capturas esperan el encabezado previsto sin `.preview-error`. Solo las superficies estables usan baselines; las capturas de estado se adjuntan al trabajo alojado. El [catálogo](assets/screenshots/README.es.md) distingue capturas documentales nuevas de baselines guardadas.
 
-Los cambios intencionados de píxeles se revisan y actualizan expresamente. Nunca se aumenta la tolerancia global para ocultar una regresión.
+## Release y recuperación
 
-### Accesibilidad
+Todos los instaladores proceden del tag exacto auditado. Antes del empaquetado, la arquitectura del trabajador debe coincidir: Windows x86_64, macOS aarch64 y Linux x86_64/aarch64. La publicación separa exactamente siete instaladores en `release-artifacts` y cuatro registros `signing-evidence-<platform>-<architecture>.json` en `release-evidence`.
 
-La evidencia combina axe con contratos manuales/automatizados de teclado y foco para modales, menús, Canvas/Graph, listas virtualizadas y controles de seguridad. El objetivo mínimo de las superficies de producto es WCAG 2.2 AA; los objetivos coarse-pointer son como mínimo de 44×44 px.
+Los registros oficiales declaran `signed: false`, `notarized: false`, `signatureType: "none"`. Antes del recibo se ejecuta `node scripts/release/verify-signing-evidence.mjs release-evidence production`. `SHA256SUMS` incluye solo siete instaladores; el recibo de esquema 4 incorpora los cuatro registros normalizados. `node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence` rechaza deriva del código, checkout sucio, archivos faltantes/adicionales, rutas inseguras, enlaces simbólicos, discrepancias checksum/SBOM e identidades incompletas.
 
-### Rendimiento
+Verifique procedencia GitHub, atestaciones SBOM y linaje inmutable por instalador. Las notas explican editor desconocido y comandos de checksum/atestación individuales. Registre instalaciones limpias y avisos del sistema. Pruebe rechazo de backups corruptos y restauración en cada OS, recuperación determinista tras interrupciones de restore/MCP y límites de rendimiento para escaneo, memoria, índice, búsqueda, grafo, editor y exportación.
 
-Los benchmarks tienen baselines versionados y umbrales definidos. Los gates detectan regresiones de arranque, indexación, búsqueda, grafo, vaults grandes y superficies intensivas en memoria; no pretenden comparar hardware arbitrario en términos absolutos.
+## Invariantes e historial canónico
 
-## 6. Packaging e instaladores
+El despacho manual es una vista previa; publicar exige `publish: true` sobre un tag `v*` existente. **Release Kickoff** comprueba CI aprobada del commit exacto, exige la `VERSION` exacta, crea solo tags nuevos inmutables y despacha Release explícitamente. Cambiar la versión no crea tags; uno que apunta a otro commit falla y nunca se mueve.
 
-Un release solo es un release de escritorio después de empaquetar correctamente cada plataforma. La matriz soportada corresponde a Windows, macOS y Linux declarados en README y documentación de release.
+La publicación automática sigue a builds y controles del tag aprobados. Pages conserva protección `github-pages`. Los manifiestos de actualización pertenecen al release inmutable; no hay tag móvil ni force-push. **Release** es el único propietario de releases. Los nombres con arquitectura evitan colisiones. No se suben internos desempaquetados ni evidencia CI; checksums de instaladores y metadatos de confianza se verifican por separado.
 
-La evidencia de packaging comprueba:
+Desde un clon canónico completo:
 
-- tipos de archivo y arquitecturas esperados;
-- igualdad de versión entre `VERSION`, npm, Cargo y Tauri;
-- contenido del bundle sin marcadores E2E/fault-injection;
-- nombres y checksums de instaladores/bundles;
-- ausencia de symlinks inesperados y rutas absolutas/traversal;
-- asociación reproducible con el commit de release.
-
-Los puntos de entrada están documentados bajo `scripts/release/`; el workflow de release crea los artefactos de plataforma y después los reúne en una etapa común de evidencia.
-
-## 7. Evidencia de release, SBOM y provenance
-
-La pipeline crea los archivos finales **después** de descargar todos los artefactos de plataforma. Entre los archivos autoritativos están:
-
-```text
-release-receipt.json
-scriptor.cyclonedx.json
-SHA256SUMS
+```bash
+bash scripts/governance/history-audit.sh . .history-audit
 ```
 
-El verificador trata el receipt como allowlist exacta. Artefactos ausentes, artefactos extra, checksums duplicados, symlinks, rutas absolutas/traversal, deriva del árbol fuente o deriva de metadata SBOM bloquean la promoción. Consulte [`evidence/README.es.md`](evidence/README.es.md) y [`RELEASE-SECURITY.es.md`](RELEASE-SECURITY.es.md).
-
-Las attestations de GitHub y la identidad fuente registrada se generan solo después de verificar correctamente la evidencia local. Un archivo producido sin checkout Git canónico sirve para diagnóstico, pero no se acepta como provenance de producción.
-
-## Verificación visual y artefactos de documentación
-
-Los screenshots del repositorio son artefactos de documentación; por sí solos no prueban un release. Evidencia visual sólida registra commit exacto, SO/runner, browser/channel, viewport o device scale y resultado de la suite Playwright correspondiente.
-
-La galería, reglas de captura y disciplina de revisión están en [`assets/screenshots/README.es.md`](assets/screenshots/README.es.md) y [`VISUAL-REVIEW.es.md`](VISUAL-REVIEW.es.md).
-
-## Límites conocidos de la evidencia del repositorio
-
-- Este documento registra evidencia local; la fecha no significa que cada comando haya sido reejecutado en sesiones posteriores.
-- Un job verde aislado no sustituye la cadena de gates ligada al commit exacto.
-- Logs locales o históricos de CI no pueden reasignarse a otro commit.
-- Packaging, signing e instaladores dependientes de plataforma deben verificarse en la plataforma o workflow correspondiente.
-- La existencia de tests no convierte capacidades design-only/experimentales en features de producción soportadas. El ledger de madurez sigue siendo autoritativo.
-
-## Interpretación para release
-
-Para publicar en producción, los gates actuales deben estar verdes sobre el commit exacto de release y los artefactos generados deben referenciar demostrablemente ese mismo commit. La comprobación autoritativa combina la matriz CI del exact-head **con el gate Visual review del mismo exact-head**; los PR en borrador aplazan deliberadamente los gates pesados hasta `ready_for_review`. Si la evidencia histórica contradice la implementación actual, prevalecen la implementación reproducible actual y la verificación ligada al commit.
+También se requiere un escáner autorizado de secretos de toda la historia y evidencia alojada de protección de ramas, revisiones, entornos y linaje. Un contrato de código no demuestra publicación. La finalización exige CI y **Visual review** del commit actual exacto, después el flujo de tag de producción y assets publicados. Los PR borrador aplazan controles pesados; `ready_for_review` inicia la matriz completa.

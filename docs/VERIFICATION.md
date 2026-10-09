@@ -1,118 +1,49 @@
 # Verification record
 
-This document defines proof for the current source candidate. A release record must name the exact commit, source-tree hash, command, environment, target architecture, and artifact set.
+**English** · [فارسی](VERIFICATION.fa.md) · [简体中文](VERIFICATION.zh-CN.md) · [Русский](VERIFICATION.ru.md) · [Deutsch](VERIFICATION.de.md) · [Español](VERIFICATION.es.md)
 
-## Claim vocabulary
+This document defines the evidence required to verify Scriptor. A result must
+identify its exact source commit, environment, target architecture and artifacts.
+Results from an older commit cannot certify a newer implementation.
 
-The five-integration completion candidate is recorded in
-`validation/GOOGLE-INTEGRATIONS-2026-10-09.md`. New behavior and regression tests
-are authored; execution and formatting belong to hosted workers. This does not
-certify real Google accounts, OAuth app approval, or packaged WebView behavior.
+## Evidence and current status
 
-Full test/build verification for the 2026-10-04 polish checkpoint runs exclusively
-on GitHub-hosted workers, including draft PRs. No local full suites or builds are
-authorized. Interrupted local runs are not passing evidence. Current-head worker
-results supersede historical counts below. See
-`validation/FINAL-POLISH-2026-10-04.md` for the earlier checkpoint and
-`validation/CROSS-PRODUCT-REVIEW-2026-10-04.md` for the renewed review, hosted
-results and remaining proof.
+All executable verification for the current review runs on GitHub-hosted workers.
+No local application, install, test, build, lint, typecheck or formatter is
+authorized for this review. Source inspection and authored regression tests are
+recorded separately from passing execution.
 
-The 2026-10-05 follow-up is documented in
-`validation/VISUAL-FOLLOWUP-2026-10-05.md`. Revision `45f521f94` passed all desktop
-workers and Rust workspace/frontend smoke lanes, but failed five browser cases
-and the fast lint lane. Its subsequent source repairs require new hosted proof;
-104 visual passes plus four reference differences do not override those failures.
+| Evidence | Meaning |
+|---|---|
+| Verified | The stated command ran against the identified source and passed. |
+| Statically validated | Source or generated metadata was parsed and checked without running the product. |
+| Reviewed | Code, contracts or images were inspected without executable proof. |
+| Pending | Required execution or manual evidence has not been established. |
+| Failed | The stated command ran and did not pass. |
 
-Revision `de577efb4420d8f3d223af170a07b07eb7e9a07b` subsequently passed all
-374 functional browser cases, five mobile browser cases, fast contracts/lint,
-Rust workspace checks and tests, frontend/accessibility/TUI/daemon smoke, and
-Windows/Linux/macOS desktop checks on GitHub workers. Four historical visual
-references and the four previously documented Typst dependency maintenance
-advisories still fail their gates. See
-`validation/LEGACY-DIALOG-ZOOM-2026-10-08.md` for exact runs, current image
-dispositions and the further legacy-dialog repairs awaiting hosted proof.
+The [Google integration record](validation/GOOGLE-INTEGRATIONS-2026-10-09.md)
+holds the current five-service scope, worker results and provider limits.
+[Dependency limitations](validation/SUPPLY-CHAIN-2026-10-04.md) remain explicit;
+an unrelated passing lane does not clear a failed audit or release gate.
 
-Integrated revision `d198c76567f11a5c3e02347fbdb080bde3fe4114` passed all
-108 visual comparisons and Windows/Linux/macOS desktop workers. The designated
-screenshot refresh passed its 30 capture cases, four supplementary cases and
-30 repeated comparisons; all 11 changed gallery images were individually
-reinspected. `validation/SCREENSHOT-REFRESH-2026-10-08.md` records exact source,
-worker and screenshot commit identities. Revision `0df092864` passed its fresh
-108-case visual attempt, platform, Rust workspace, fast and frontend lanes.
-Functional results were 416 passes and eight failures, plus five mobile passes;
-both math assertions passed, but individual image inspection found collapsed
-diagrams and an inspector worker fallback. The report records these false-green
-assertions, the squeezed Tags pane, the zoom failures, their subsequent repairs
-and the first visual attempt's startup failure. Those repairs require
-fresh hosted proof; canceled runs are not passes. The dependency gate still
-fails on four unsuppressed Rust maintenance advisories.
+Current proof is recorded in dated audit records rather than accumulated in
+product guides:
 
-Workspace shortcut customization is implemented with a compact default row,
-persisted visibility, pinning, ordering, labels and bounded dimensions. Its
-source and authored persistence, cancellation, storage-error and zoom checks
-are recorded in `validation/WORKSPACE-SHORTCUTS-2026-10-08.md`; fresh hosted
-execution is pending. Historical worker counts do not verify this addition.
+- [Cross-product audit](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md)
+- [Visual and zoom review](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md)
+- [Screenshot provenance](validation/SCREENSHOT-REFRESH-2026-10-08.md)
+- [Workspace customization](validation/WORKSPACE-SHORTCUTS-2026-10-08.md)
+- [Historical verification records](validation/HISTORICAL_VERIFICATION.md)
 
-Localization enforcement covers maintained product/contributor documentation.
-`docs/validation/` holds provenance-sensitive audit records and recovered source
-reports; these evidence artifacts are excluded from translation requirements,
-as are archived documents. This does not exempt active user guides.
-
-- **Verified:** the stated command executed against this source state and passed.
-- **Statically validated:** source or generated metadata was parsed and checked without compiling or running the full product.
-- **Reviewed:** code and contracts were inspected without executable proof.
-- **Pending:** required proof depends on unavailable tooling, dependencies, platform, browser, or canonical history.
-- **Failed:** the stated command executed and did not pass.
-
-## Original local PR #135 remediation review - 2026-09-20
-
-This section preserves the original local-review evidence; it is not a claim about the current PR head, merge, or release state. The source ZIP identified `228e69c7dd9b4a0b71a97a0ff896c7fcc43bf885`. Before local changes, it was synchronized to PR head `f633615f8f49001190d288f4757da34388115e9f`; the complete Git tree matched `19485194209e906317a8fd80862928f631e417cc`. The result counts below describe that pinned baseline plus the then-local remediation patch.
-
-During the original review the remote head advanced to `a9e644c1cb3ad62136eee4907d58dd79523d61ac`. Its additional help bindings were inspected for overlap and were not replaced. At that point no remote remediation commit had yet been pushed. The confirmed fixes were subsequently integrated into PR #135 in incremental commits, so current-head CI and visual results—not these historical local counts—are authoritative for merge readiness.
-
-Environment: Linux container, Node with experimental TypeScript stripping, global TypeScript for source-harness transpilation, and system Chromium through Python Playwright. This was not a frozen workspace installation: package links, React, the repository's full frontend dependencies, and Cargo were unavailable. Read the pinned supported toolchains from the manifests rather than treating these inspection tools as replacements.
-
-| Evidence | Result and boundary |
-| --- | --- |
-| Source test discovery and execution | 301 tests reported: 300 passed; one file could not import the uninstalled `@scriptor/portal` workspace package. The normal suite did not pass in full. |
-| Editor persistence and race regression tests | 28/28 passed, including stale reload/navigation, transactional tab fallback, edits during saving, repeated native close requests, and close-error recovery. The native window was a test double, not a Windows runtime. |
-| Vault-scoped Google Tasks tests | 8/8 passed against the actual hook with provider doubles. Covers cross-vault ownership, conservative legacy migration, and post-write refresh failure. |
-| Startup-vault extraction tests | 4/4 passed; existing startup behavior was retained. |
-| Workspace persistence in isolation | All four original framework-free tests passed using the real Portal module and a loader adapter. React hooks were prohibited from executing in this adapter. This does not turn the ordinary source-suite import failure into a pass. |
-| Inspector metrics in Chromium | Six real-CSS DOM cases passed: rail widths 236, 340, and 510 CSS pixels, each in LTR and RTL. The narrow cases failed before the layout fix. These are scoped fixtures, not full application screenshots. |
-| Help ownership in Chromium | Five DOM checks passed: ordinary control, help trigger, invitation control, blocking modal, and hidden widget. The keyboard-help cases failed before the fix. |
-| Repository checks | 18 of 19 directly invoked source/metadata validators passed. The plugin Rust validator could not run `cargo metadata`; this is missing proof, not a pass. |
-| Standalone package validators | Canvas 8/8; Portal 5/5; Export 18/18; Citations 9/9; Safe external URL 14/14; Merge 10/10; Palette score 21/21. MCP, plugin marketplace, Editor, Renderer, and Knowledge runners remained blocked by missing dependencies/workspace links. |
-
-Regression specs were added for the browser fixtures, but the full Node Playwright application suite was not executed. Repository-source structural checks are not Rust compilation, full frontend type-checking, a dependency vulnerability audit, accessibility certification, or native runtime verification. A strict check of the standalone Help context source and syntactic checks of changed TypeScript supplement, but do not replace, the full engineering gate below.
-
-The uploaded visual archive contains 101 image assets representing 72 distinct images. Its own comparison log reports 39 passing visual scenarios, but its source identity is the earlier ZIP commit with `sourceDirty: true`. Those screenshots were visually inspected as historical evidence; they do not validate the patched candidate. No committed screenshot baseline was refreshed during this review.
-
-### Google Tasks migration boundary
-
-New mirror markers include the active vault identity. Exact matches to old stable native task IDs can be migrated because those IDs include vault identity. Old path/line markers and unrelated title matches cannot establish ownership of a task in a shared provider list, so they are not adopted or completed automatically. Such legacy tasks may require deliberate manual reconciliation; preserving a foreign task is preferable to an unsafe merge. After a successful mutation followed by a failed list refresh, perform a successful refresh before another mirror. Real-account OAuth, keychain, provider partial failure, disconnect, and platform-specific checks remain required.
-
-The confirmed local remediation queue is closed with regression evidence. This is not a claim that every file or runtime state is defect-free. Full pinned-toolchain installation, build, lint, Rust checks, application E2E, native close behavior, real Google integration, and current-head CI/visual gates must still pass before merge or release. The review bundle contains the exact changed files, patch, source provenance, raw test logs, visual inventory, and separately classified unverified concerns.
-
-## Local PR integration review — 2026-09-05
-
-Candidate: uncommitted `codex/unify-prs-repository-review`, based on PR #107 (`1f7770a51fa9b99601f5475a36db347ff42e0d54`), with PR #106 (`364ad717f67b5795e0ce4c7aa79ec613385711ae`) and PR #108 (`95cccbd2aa9780ad64275ee4675e974db261fc42`) applied and conflicts resolved. GitHub heads were rechecked during review. This is local integration evidence, not a release or remote merge record.
-
-Environment: Windows x64, PowerShell, Edge Playwright browser. Dependency network access used the user-provided local proxy. Original unrelated untracked files were preserved.
-
-- **Verified:** frozen dependency installation; production dependency audit (no reported vulnerabilities); production build and bundle budget; TypeScript contracts; warning-zero frontend lint; 192 source tests; repository governance and package validation gates.
-- **Verified on the final UI state:** 86 functional Playwright tests and 31 visual scenarios, without retries or baseline updates during the verification run. The production bundle contains 437,536 initial JavaScript gzip bytes, within its configured budget.
-- **Verified:** full workspace/all-target Rust clippy with warnings denied, formatting, product Rust tests, optional engine tests, and the WASM execution-backend tests. Follow-up publishing/export and daemon suites were rerun after their fixes (86 and 65 passing tests respectively).
-- **Regression evidence:** migration ordering and legacy task backfill; missing schema metadata; existing relative and root-relative asset references; source archive exclusion and reproducibility; CRLF generated contracts; high-zoom store navigation; Jobs reopening; toolbar controls contained within the writing column for Inspector, Preview, and Plugins at three desktop widths; valid Windows export paths and vault-relative output resolution.
-- The native run exposed shared fixture database writes and stale assertions for import, conflict-sidecar, watcher, and publish ownership behavior. These were corrected against the current source contracts rather than weakening failure checks.
-- **Verified:** release smoke, daemon smoke, and in-process TUI smoke. The release run reproduced a Windows pipe `WriteZero` failure on health diagnostics before the fix. Bounded, buffer-sized writes corrected it; the complete rerun passed including exports. Synthetic checks cover partial progress and permanently full pipes.
-- Updated visual references reflect the reviewed toolbar wrap, rail layout, store navigation, and status dock. CSS fallback zoom additionally compensates body, root, and shell height; reduced and enlarged zoom receive viewport-boundary regression coverage.
-- **Dependency limitations:** the final RustSec audit found no vulnerability-class advisories; unsoundness advisories remain for Tantivy's transitive `lru` and the Linux Tauri `glib` dependency. See the security ledger. No new advisory ignores were added. The Windows export symlink regression requires privilege unavailable here; ordinary path and traversal checks ran, but that platform-specific symlink branch was skipped.
-- **Not established:** a clean multi-platform release, Linux/macOS native runtime behavior, installer packaging, container verification, performance benchmark gates, axe accessibility gating, or a complete `cargo deny` result (the executable is unavailable here). This review does not claim the repository has no remaining defects.
+Historical source identities, counts and limitations are preserved in those
+records. They are provenance, not current completion claims. Localization
+enforcement applies to maintained product and contributor documentation.
+Provenance-sensitive audit records under `docs/validation/` and archived
+documents remain exempt; active user guides do not.
 
 ## Repository-native checks
 
-Run from the repository root:
+Hosted workers run the repository checks from the repository root:
 
 ```bash
 pnpm check:source
@@ -134,11 +65,10 @@ pnpm check:merge
 
 ## Full engineering gate
 
-A release candidate is not verified until these commands pass in a clean environment with the pinned toolchains and frozen lockfiles:
+A release candidate is not verified until these commands pass on hosted workers in a clean environment with the toolchains pinned by the repository manifests and frozen lockfiles:
 
 ```bash
 corepack enable
-corepack prepare pnpm@10.33.0 --activate
 pnpm install --frozen-lockfile
 pnpm lint
 pnpm check:contracts
@@ -186,94 +116,10 @@ Toolbar-popover verification must prove that Typography and Insert menus:
 
 Visual evidence captures must wait until the rendered preview has settled (the expected preview
 heading is visible and no `.preview-error` is present). Baseline assertions are reserved for stable
-core surfaces; transient/state-review screenshots are attached to the Visual review job instead of
+core surfaces; transient/state-review screenshots are attached to their hosted browser or visual job instead of
 creating missing-baseline failures. Documentation screenshots mirror reviewed Windows baselines
 with the platform suffix removed; regenerate them with `scripts/screenshots/capture.ps1`.
 
-## Exploratory ZIP-derived candidate output — 2026-08-19
-
-This section records exploratory baseline checks executed against the working tree reconstructed from the unhashed `Scriptor-lite.zip` artifact during workspace triage. Because the input archive did not record an immutable cryptographic hash, and the inspection environment had Node.js `v22.16.0` without a local Cargo/Rust toolchain, pnpm installation, workspace `node_modules`, PowerShell, or production browser build, this output is retained as informational exploratory notes only. It is **not** auditable candidate evidence or a release-readiness claim. Clean CI environments enforce all repository gates.
-
-| Gate | Result | Evidence |
-| --- | --- | --- |
-| Source contracts | Verified: 19/19 passed | `node scripts/validation/source-contracts.mjs` |
-| Complete lightweight source-test inventory | Verified: 100/100 tests passed across 19 discovered test files | `node scripts/validation/run-source-tests.mjs` |
-| Rust source structure | Statically validated: 200 Rust files | `node scripts/validation/rust-source-contracts.mjs` |
-| Native authorization inventory | Statically validated: 26 high-impact command bindings brokered | `node scripts/validation/authorization-inventory.mjs` |
-| Renderer/native command contract | Statically validated: 135 bridged commands resolve to 152 registered handlers | `node scripts/validation/tauri-command-contracts.mjs` |
-| Package boundaries | Statically validated: 15 packages / 482 package source files, no unexported cross-package imports or cycles | `node scripts/validation/deep-module-boundaries.mjs` |
-| Cargo manifest/lock workspace dependencies | Statically validated: 19 packages; parser is independent of LF/CRLF checkout normalization | `node scripts/validation/cargo-lock-workspace-deps.mjs` |
-| Plugin Rust gates | Statically validated: 5/5 backend package references resolve | `node scripts/validation/plugin-rust-gates.mjs` |
-| Frontend policy | Statically validated: 522 production TypeScript/CSS files; CSS token policy also passed | `node scripts/validation/frontend-quality.mjs`; `node scripts/validation/css-custom-properties.mjs` |
-| Governance/docs/version/action pins/i18n | Verified/static validators passed | `version.mjs check`, `action-pins.mjs`, `i18n-parity.mjs`, `docs-contracts.mjs` |
-| Standalone module runners | Verified where dependency-free: Canvas, Portal, Export, headless contracts, citations, safe external URLs, knowledge, merge/conflict, palette scoring, and Zotero connector tests | direct Node runners |
-| Workspace-dependent module runners | Pending: MCP, plugin-api, editor, renderer resolve workspace/external packages only after install | blocked by absent `node_modules` / pnpm |
-| Browser accessibility smoke | Pending | runner requires `pnpm build`; pnpm/dependencies unavailable |
-| Rust compile/test/fmt/Clippy/deny | Pending | Cargo/Rust toolchain unavailable |
-| Full TS/ESLint/Vite/Playwright/release packaging | Pending | pnpm dependencies, browser build, and/or PowerShell unavailable |
-
-Independent audit-only checks also parsed all strict JSON/TOML manifests, syntax-checked every JS/MJS/CJS script, verified pnpm-lock importer dependency contracts for 17 package manifests, found no repository symlinks or unexpected zero-byte files, and found no high-signal credential/private-key patterns outside fixture data. These checks are useful consistency evidence but do not replace repository-native build/test gates.
-
-## Local remediation evidence — 2026-08-23
-
-Executed against the working tree at commit `7981e8f` plus the local Git-panel
-remediation described in [`AUDIT-2026-08-23.md`](_archived/AUDIT-2026-08-23.md).
-Windows 11 x86_64 host; Node v26.1.0; Rust 1.96.0 (pinned toolchain).
-
-| Gate | Result | Evidence |
-| --- | --- | --- |
-| Dependency-free source/governance validators (16 runners) | Verified: all passed | `node scripts/validation/*.mjs` per `check:source`/`check:governance` lists |
-| Complete lightweight source-test inventory | Verified: 127/127 across 28 discovered test files (adds `src/hooks/workspace-git-status.test.ts`) | `node scripts/validation/run-source-tests.mjs` |
-| Rust workspace tests (CI exclusion list, `SCRIPTOR_TEST_DAEMON_HMAC_KEY` set) | Verified: 38 test binaries, 675 passed, 0 failed | `cargo test --locked --workspace --exclude scriptor-desktop --exclude scriptor-embeddings --exclude scriptor-tantivy-indexer --exclude scriptor-wasm-runtime --jobs 2` |
-| Clippy warning-zero (16 product crates) | Verified | `cargo clippy --locked --workspace --exclude scriptor-desktop --exclude scriptor-embeddings --all-targets -- -D warnings` |
-| rustfmt check after normalization | Verified: exit 0 (pre-fix HEAD emitted 41 diff hunks across 8 files) | `cargo fmt --all --check` |
-| TypeScript build | Verified | `tsc -b --pretty false` |
-| ESLint warning-zero, full repository | Verified: exit 0 only after adding missing `dist-e2e` ignores (finding D9) | `eslint . --max-warnings=0` |
-| Functional browser suite | Verified locally: 73/73 including the eight Git-panel failures observed in CI run 32632696707 pre-fix | `playwright test --config playwright.e2e.config.ts` |
-| Desktop crate release build (incl. aws-lc-sys/reqwest TLS graph) | Verified on this host after exporting `CL`/`CFLAGS=/std:c11 /wd4100 /wd4244 /wd4267 /wd4189` for the MSVC `-WX` feature probes; `target/release/scriptor-desktop.exe` produced | `cargo build --release -p scriptor-desktop` (5 m 24 s) |
-| Desktop binary launch smoke | Verified: process started, stayed alive through the observation window, terminated cleanly | manual launch of `target/release/scriptor-desktop.exe` |
-| Daemon IPC hermetic smoke | Verified: exit 0 against the minimal fixture vault | `node scripts/validation/daemon-smoke.mjs` |
-| TUI hermetic smoke | Verified: exit 0 (`scriptor-cli tui --smoke-test --in-process`) | `node scripts/validation/tui-smoke.mjs` |
-| Visual regression suite, axe audit, packaging/release gates | Pending: require pinned browser baselines, ChromeDriver, and packaging tooling | — |
-
-
-## Historical upstream candidate evidence — 2026-08-17 (not re-run for this ZIP-derived candidate)
-
-This table is retained as historical upstream evidence from the pre-improvement source state. It must not be used as proof that the ZIP-derived candidate above compiles, packages, or passes browser/Rust release gates.
-
-| Gate | Result | Evidence |
-| --- | --- | --- |
-| Functional browser suite | Passed 71/71 with zero retries | `pnpm test:e2e` |
-| Visual regression suite | 28 tests passed; `vault-health` baseline reviewed and intentionally refreshed for the four-note/520-word fixture | `pnpm test:visual` |
-| Static accessibility smoke | Passed | `pnpm check:a11y` |
-| Axe browser audit | Passed with zero violations | `pnpm check:a11y-axe` with Chrome/Chromedriver 151.0.7922.138 |
-| Rust workspace | Passed formatting, warning-zero Clippy, and the full workspace test graph | `cargo fmt --check`; `cargo clippy --locked --workspace --all-targets -- -D warnings`; `cargo test --locked --workspace --jobs 2` |
-| Cargo deny | Passed advisories, bans, licenses, and sources | pinned `cargo-deny 0.20.2 check` |
-| Release smoke and performance | Passed | `pnpm release:smoke`; `pnpm release:perf-gate` (1k-note scan mean 41 ms; 1500 ms budget) |
-| Production dependency audit | Pending external service | `pnpm audit --prod` exhausted retries after registry `ECONNRESET`; no vulnerability verdict was produced |
-
-Visual assets reviewed by this pass are catalogued in [`VISUAL-REVIEW.md`](./VISUAL-REVIEW.md) and the [canonical screenshot inventory](assets/screenshots/README.md).
-
-## 2026-08-13 experimental workspace evidence
-
-The following is implementation evidence for the Reader, Markdown-backed Tasks, and Kanban
-workflows. These surfaces remain **Experimental** in the capability ledger until the complete UI
-and release gates pass from a clean environment.
-
-| Workflow boundary | Evidence command | Observed result | Remaining proof |
-|---|---|---|---|
-| Reader native path confinement and annotation restart persistence | `cargo test -p scriptor-desktop reader --lib` | Passed: 2 tests | Desktop-shell PDF/EPUB rendering, keyboard-only and 200% zoom matrix |
-| Task parsing, source Markdown updates, and index refresh | `cargo test -p scriptor-indexer -- --nocapture` | Passed: 103 tests | Clean-environment browser mutation/retry proof |
-| Reader/Task/Kanban bridge and UI contracts | `node --experimental-strip-types --test scripts/validation/task-kanban-reader-contracts.test.mjs` | Passed | Full Playwright workflow against the configured web server |
-| Type, lint, and package contracts | `pnpm exec tsc -b --pretty false`; `pnpm lint`; `pnpm check:contracts` | Passed in the working-tree validation run | Repeat after the worktree is isolated for release |
-
-The intended normal path is: open a PDF/EPUB from the vault tree or command palette; open Tasks
-or Kanban from the palette; save an edited note before a task/card mutation; then let the native
-write and index refresh complete. A failed save or rejected native mutation leaves the source
-unchanged and surfaces an error for retry. Do not assign a default shortcut until the command
-palette flow has passed the keyboard-only matrix.
-
-The pinned Vite/Playwright server is required for the browser gate. Record the exact-head result in the release receipt before promotion.
 
 ## Release and recovery gate
 
@@ -317,33 +163,3 @@ bash scripts/governance/history-audit.sh . .history-audit
 Also run an approved full-history secret scanner and capture branch protection, required reviews, environment protection, tag lineage, and release lineage from the hosting platform.
 
 A passing source-level contract is not proof of a public release. The authoritative completion evidence is the exact-head CI matrix **plus the exact-head Visual review gate**, followed by the production tag workflow and published release assets. Draft PRs intentionally defer heavyweight gates; `ready_for_review` is the synchronization point that triggers the complete exact-head review matrix.
-
-## Review report remediation: 2026-09-30
-
-Scope: assess `Gemini-Review.md` and `Visual Review.txt`, preserve unrelated working-tree changes, and correct source-confirmed defects. Dispositions and residual limits are recorded in [REPORT-REVIEW.md](validation/REPORT-REVIEW.md). These are local working-tree results on Windows, not clean CI, native integration, or release certification.
-
-| Check | Result and scope |
-|---|---|
-| `pnpm check:source` | Pass: operation/source/Rust source/authorization/deep-module/frontend contracts and 388 source tests. Includes rename coordination, citation formatting, and citation sanitizer attributes. |
-| `pnpm check:renderer` | Pass: 159 renderer checks, including 108 XSS fixtures. Three documented renderer gaps remain unchanged. Performance samples: small 4.42 ms, medium 34.85 ms, large 247.8 ms. |
-| `pnpm lint` | Pass, zero warnings. |
-| `pnpm exec tsc -b` and `pnpm build` | Pass. Initial compressed bundle 555,387 bytes, below its 921,600-byte budget; existing large lazy-chunk notices remain. |
-| Docs, changelog, versions, i18n, CSS tokens, package boundaries, action pins | Existing configured checks passed; translation parity is three locales with 1,024 keys. |
-| `cargo fmt --all -- --check` | Pass. |
-| `cargo clippy --locked -p scriptor-vault --all-targets --jobs 2 -- -D warnings` | Pass, zero warnings for the affected native crate and its targets. |
-| `cargo test --locked -p scriptor-vault --lib --jobs 2 -- --test-threads=1` | Pass: 226 tests, including bounded activity reads/compaction and immutable rename backups. Initial parallel execution had 215 passes and 11 encryption failures caused by concurrent memory exhaustion; sequential execution resolves that environment limitation. |
-| Focused browser regression suite | Pass: all 43 tests on the final production changes across report remediation, rename, inspector metrics, single-row status, screenshot-review regressions, graph edge legibility, error recovery, and themes. The report-remediation file also passed independently with all 10 tests. |
-| Full visual capture suite | Pass: 78 scenarios in `e2e/visual-review.spec.ts`, with `--update-snapshots=none`. Covers desktop, narrow mobile, dark, RTL, populated/empty/error surfaces and zoom. No snapshot-baseline replacement or image-diff certification is claimed. |
-| Final chart/triage visual follow-up | Pass: two affected scenarios recaptured after their final changes; images inspected for recorded chart values and aligned metrics. |
-
-Reproduce browser checks:
-
-```powershell
-pnpm exec playwright test --config playwright.e2e.config.ts e2e/report-remediation.spec.ts e2e/rename.spec.ts e2e/inspector-metrics-dom.spec.ts e2e/status-strip-single-row.spec.ts e2e/screenshot-review-regressions.spec.ts e2e/graph-edge-legibility.spec.ts e2e/error-recovery.spec.ts e2e/theme.spec.ts --workers=2
-pnpm exec playwright test --config playwright.visual.config.ts e2e/visual-review.spec.ts --workers=2 --update-snapshots=none
-pnpm exec playwright test --config playwright.visual.config.ts e2e/visual-review.spec.ts --grep 'populated knowledge workbench triage|writing targets evidence' --workers=1 --update-snapshots=none --output test-results/report-followup-visual
-```
-
-The local browser environment initially lacked Playwright's ffmpeg helper; installing that helper enabled the video-configured test suite. No repository dependency or external-service configuration was changed.
-
-Not collected for this task: complete Rust workspace test/clippy matrix, exact-revision hosted CI, supported-OS installer matrix, authenticated OAuth/native Reader/MCP workflows, and cross-platform restore interruption evidence. Current browser mocks do not establish those outcomes. Existing release gates above remain applicable. No commit, push, release, publication, or remote resource mutation occurred.
