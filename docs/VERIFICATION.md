@@ -162,4 +162,4 @@ bash scripts/governance/history-audit.sh . .history-audit
 
 Also run an approved full-history secret scanner and capture branch protection, required reviews, environment protection, tag lineage, and release lineage from the hosting platform.
 
-A passing source-level contract is not proof of a public release. The authoritative completion evidence is the exact-head CI matrix **plus the exact-head Visual review gate**, followed by the production tag workflow and published release assets. Draft PRs intentionally defer heavyweight gates; `ready_for_review` is the synchronization point that triggers the complete exact-head review matrix.
+A passing source-level contract is not proof of a public release. The authoritative completion evidence is the exact-head CI matrix **plus the exact-head Visual review gate**, followed by the production tag workflow and published release assets. Draft PRs also run hosted CI, desktop compilation and visual review. `ready_for_review` triggers another exact-head validation; newer PR heads cancel stale runs. Release binary review remains a separate manual workflow.

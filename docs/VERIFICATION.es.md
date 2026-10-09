@@ -97,4 +97,4 @@ Desde un clon canónico completo:
 bash scripts/governance/history-audit.sh . .history-audit
 ```
 
-También se requiere un escáner autorizado de secretos de toda la historia y evidencia alojada de protección de ramas, revisiones, entornos y linaje. Un contrato de código no demuestra publicación. La finalización exige CI y **Visual review** del commit actual exacto, después el flujo de tag de producción y assets publicados. Los PR borrador aplazan controles pesados; `ready_for_review` inicia la matriz completa.
+También se requiere un escáner autorizado de secretos de toda la historia y evidencia alojada de protección de ramas, revisiones, entornos y linaje. Un contrato de código no demuestra publicación. La finalización exige CI y **Visual review** del commit actual exacto, después el flujo de tag de producción y assets publicados. Los PR borrador también ejecutan CI, compilación de escritorio y revisión visual en GitHub. `ready_for_review` inicia otra validación del commit exacto; los nuevos commits del PR cancelan ejecuciones obsoletas. La revisión de binarios de release sigue siendo un flujo manual separado.

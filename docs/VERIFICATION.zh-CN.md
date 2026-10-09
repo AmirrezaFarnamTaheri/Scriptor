@@ -97,4 +97,4 @@ Typography/Insert 菜单必须通过 portal 避开工具栏裁剪，在调整尺
 bash scripts/governance/history-audit.sh . .history-audit
 ```
 
-还需经授权的全历史秘密扫描及托管平台的分支保护、审阅、环境保护、标签和发布沿革证据。源码契约通过不能证明公开发布。完成证明必须包含准确当前提交的 CI 矩阵和 **Visual review**，再接生产标签流程与公开产物。草稿 PR 暂缓重型门禁；`ready_for_review`触发完整矩阵。
+还需经授权的全历史秘密扫描及托管平台的分支保护、审阅、环境保护、标签和发布沿革证据。源码契约通过不能证明公开发布。完成证明必须包含准确当前提交的 CI 矩阵和 **Visual review**，再接生产标签流程与公开产物。草稿 PR 也在 GitHub 上运行 CI、桌面编译和视觉审查。`ready_for_review`再次触发准确提交的验证；新的 PR 提交会取消过时运行。发布二进制审查仍是独立的手动流程。
