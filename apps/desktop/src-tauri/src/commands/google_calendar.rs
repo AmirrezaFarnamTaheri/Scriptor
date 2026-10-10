@@ -14,6 +14,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use scriptor_system_bridge::{keychain_delete, keychain_get, keychain_set};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::state::{ActiveSession, AppState, active_session};
@@ -1172,6 +1173,29 @@ pub(super) fn start_google_auth(
     Ok(email)
 }
 
+/// Hash length-prefixed UTF-8 fields so authorization covers exact content.
+fn google_write_digest(parts: &[&str]) -> String {
+    let mut hash = Sha256::new();
+    for value in parts {
+        hash.update(value.len().to_string().as_bytes());
+        hash.update(b":");
+        hash.update(value.as_bytes());
+    }
+    hex::encode(hash.finalize())
+}
+fn gmail_modify_scope(id: &str, add: &[String], remove: &[String]) -> String {
+    let a = add.len().to_string();
+    let r = remove.len().to_string();
+    let mut parts = vec![id, a.as_str()];
+    parts.extend(add.iter().map(String::as_str));
+    parts.push(r.as_str());
+    parts.extend(remove.iter().map(String::as_str));
+    format!("gmail-modify:{id}:{}", google_write_digest(&parts))
+}
+fn gmail_send_scope(raw: &str) -> String {
+    format!("gmail-send:{}", google_write_digest(&[raw]))
+}
+
 fn gmail_header(headers: &[GmailHeader], name: &str) -> String {
     headers
         .iter()
@@ -2072,7 +2096,7 @@ pub fn google_gmail_modify_message(
     if add_label_ids
         .iter()
         .chain(remove_label_ids.iter())
-        .any(|label| label.is_empty() || label.len() > 256)
+        .any(|label| label.is_empty() || label.len() > 256 || label.chars().any(char::is_control))
     {
         return Err("invalid Gmail label identifier".into());
     }
@@ -2080,7 +2104,7 @@ pub fn google_gmail_modify_message(
         &state,
         &authorization_token,
         SensitiveOperation::GoogleGmailWrite,
-        Some(&id),
+        Some(&gmail_modify_scope(&id, &add_label_ids, &remove_label_ids)),
         None,
     )?;
     let client = http_client()?;
@@ -2116,7 +2140,7 @@ pub fn google_gmail_trash_message(
         &state,
         &authorization_token,
         SensitiveOperation::GoogleGmailWrite,
-        Some(&id),
+        Some(&format!("gmail-trash:{id}")),
         None,
     )?;
     let client = http_client()?;
@@ -2153,7 +2177,7 @@ pub fn google_gmail_send_message(
         &state,
         &authorization_token,
         SensitiveOperation::GoogleGmailSend,
-        Some("gmail-send"),
+        Some(&gmail_send_scope(&raw_message)),
         None,
     )?;
     let client = http_client()?;
