@@ -27,8 +27,6 @@ use crate::state::{ActiveSession, AppState, active_session};
 const CALENDAR_TOKEN_KEYCHAIN_ACCOUNT: &str = "google.calendar.tokens";
 const GMAIL_TOKEN_KEYCHAIN_ACCOUNT: &str = "google.gmail.tokens";
 const DRIVE_TOKEN_KEYCHAIN_ACCOUNT: &str = "google.drive.collaboration.tokens";
-/// Broker scope shared by all task mutations.
-const TASK_SCOPE: &str = "google-task";
 /// Broker scope for the auth flow.
 const AUTH_SCOPE: &str = "google-calendar-auth";
 /// Broker scope for the Gmail Manager OAuth grant.
@@ -2381,8 +2379,21 @@ struct GoogleTaskUpdateInput {
     etag: String,
 }
 
-fn google_task_sync_scope(count: usize) -> String {
-    format!("Sync {count} vault task changes")
+fn google_task_sync_scope(task_list_id: &str, mutations: &[GoogleTaskSyncMutation]) -> String {
+    let count = mutations.len().to_string();
+    let mut parts = vec![task_list_id, count.as_str()];
+    for mutation in mutations {
+        parts.extend([
+            mutation.kind.as_str(),
+            mutation.task_id.as_deref().unwrap_or_default(),
+            mutation.title.as_deref().unwrap_or_default(),
+            mutation.notes.as_deref().unwrap_or_default(),
+            mutation.due.as_deref().unwrap_or_default(),
+            mutation.status.as_deref().unwrap_or_default(),
+            mutation.etag.as_deref().unwrap_or_default(),
+        ]);
+    }
+    format!("Sync {} vault task changes:{}", mutations.len(), google_write_digest(&parts))
 }
 
 #[derive(Debug, Deserialize)]
@@ -2769,7 +2780,7 @@ pub fn google_calendar_apply_task_sync(
     for mutation in &mutations {
         validate_task_sync_mutation(mutation)?;
     }
-    let scope = google_task_sync_scope(mutations.len());
+    let scope = google_task_sync_scope(&task_list_id, &mutations);
     require_sensitive_operation(
         &state,
         &authorization_token,
@@ -2849,7 +2860,9 @@ pub fn google_calendar_create_task(
         &state,
         &authorization_token,
         SensitiveOperation::GoogleTaskWrite,
-        Some(TASK_SCOPE),
+        Some(&format!("google-task-create:{}", google_write_digest(&[
+            &task_list_id, &title, notes.as_deref().unwrap_or_default(), due.as_deref().unwrap_or_default(),
+        ]))),
         None,
     )?;
     validate_task_list_id(&task_list_id)?;
@@ -2875,7 +2888,10 @@ pub fn google_calendar_update_task(
         &state,
         &authorization_token,
         SensitiveOperation::GoogleTaskWrite,
-        Some(TASK_SCOPE),
+        Some(&format!("google-task-update:{}", google_write_digest(&[
+            &task_list_id, &task_id, &title, &notes, due.as_deref().unwrap_or_default(),
+            status.as_deref().unwrap_or_default(), &etag,
+        ]))),
         None,
     )?;
     validate_task_list_id(&task_list_id)?;
@@ -2908,7 +2924,9 @@ pub fn google_calendar_complete_task(
         &state,
         &authorization_token,
         SensitiveOperation::GoogleTaskWrite,
-        Some(TASK_SCOPE),
+        Some(&format!("google-task-complete:{}", google_write_digest(&[
+            &task_list_id, &task_id, &etag,
+        ]))),
         None,
     )?;
     validate_task_list_id(&task_list_id)?;
@@ -2929,7 +2947,9 @@ pub fn google_calendar_delete_task(
         &state,
         &authorization_token,
         SensitiveOperation::GoogleTaskWrite,
-        Some(TASK_SCOPE),
+        Some(&format!("google-task-delete:{}", google_write_digest(&[
+            &task_list_id, &task_id, &etag,
+        ]))),
         None,
     )?;
     validate_task_list_id(&task_list_id)?;
@@ -3234,8 +3254,21 @@ mod tests {
 
     #[test]
     fn task_sync_scope_discloses_batch_size() {
-        assert_eq!(google_task_sync_scope(1), "Sync 1 vault task changes");
-        assert_eq!(google_task_sync_scope(42), "Sync 42 vault task changes");
+        let create: GoogleTaskSyncMutation = serde_json::from_str(
+            r#"{"kind":"create","title":"A","notes":"note","due":null}"#,
+        ).unwrap();
+        let changed: GoogleTaskSyncMutation = serde_json::from_str(
+            r#"{"kind":"create","title":"B","notes":"note","due":null}"#,
+        ).unwrap();
+        let one = google_task_sync_scope("@default", &[create]);
+        assert!(one.starts_with("Sync 1 vault task changes:"));
+        assert_eq!(one, google_task_sync_scope("@default", &[
+            serde_json::from_str(r#"{"kind":"create","title":"A","notes":"note","due":null}"#).unwrap()
+        ]));
+        assert_ne!(one, google_task_sync_scope("@default", &[changed]));
+        assert_ne!(one, google_task_sync_scope("another", &[
+            serde_json::from_str(r#"{"kind":"create","title":"A","notes":"note","due":null}"#).unwrap()
+        ]));
     }
 
     #[test]

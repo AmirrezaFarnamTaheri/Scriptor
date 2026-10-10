@@ -14,6 +14,16 @@ import type { GoogleCalendarResource, GoogleTaskListResource } from '../../lib/g
 
 export type { GoogleCalendarResource, GoogleTaskListResource } from '../../lib/googleResourceContracts.ts'
 
+async function googleWriteDigest(parts: string[]): Promise<string> {
+  const encoder = new TextEncoder()
+  const payload = parts.map(part => `${encoder.encode(part).byteLength}:${part}`).join('')
+  const hash = await crypto.subtle.digest('SHA-256', encoder.encode(payload))
+  return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+async function taskWriteScope(kind: string, parts: string[]): Promise<string> {
+  return `google-task-${kind}:${await googleWriteDigest(parts)}`
+}
+
 /** Complete, bounded discovery: a truncated provider list is an error. */
 export async function googleCalendarListCalendars(): Promise<GoogleCalendarResource[]> {
   requireNative()
@@ -125,9 +135,22 @@ export async function googleCalendarApplyTaskSync(
   if (mutations.length > 1000) {
     throw new Error('Google Task sync exceeds the supported 1000-mutation bound')
   }
+  const digestParts = [taskListId, String(mutations.length)]
+  for (const mutation of mutations) {
+    digestParts.push(
+      mutation.kind,
+      'taskId' in mutation ? mutation.taskId : '',
+      'title' in mutation ? mutation.title : '',
+      'notes' in mutation ? (mutation.notes ?? '') : '',
+      'due' in mutation ? (mutation.due ?? '') : '',
+      'status' in mutation ? (mutation.status ?? '') : '',
+      'etag' in mutation ? mutation.etag : '',
+    )
+  }
+  const digest = await googleWriteDigest(digestParts)
   const authorizationToken = await authorizeSensitiveOperation(
     'google_task_write',
-    `Sync ${mutations.length} vault task changes`,
+    `Sync ${mutations.length} vault task changes:${digest}`,
   )
   return invoke<GoogleTaskSyncMutationResult[]>('google_calendar_apply_task_sync', {
     taskListId,
@@ -143,7 +166,8 @@ export async function googleCalendarCreateTask(args: {
   due?: string | null
 }): Promise<GoogleTask> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write',
+    await taskWriteScope('create', [args.taskListId, args.title, args.notes ?? '', args.due ?? '']))
   return invoke<GoogleTask>('google_calendar_create_task', {
     taskListId: args.taskListId,
     title: args.title,
@@ -163,7 +187,8 @@ export async function googleCalendarUpdateTask(args: {
   etag: string
 }): Promise<GoogleTask> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write',
+    await taskWriteScope('update', [args.taskListId, args.taskId, args.title, args.notes, args.due ?? '', args.status ?? '', args.etag]))
   return invoke<GoogleTask>('google_calendar_update_task', {
     taskListId: args.taskListId,
     taskId: args.taskId,
@@ -182,13 +207,15 @@ export async function googleCalendarCompleteTask(
   etag: string,
 ): Promise<void> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write',
+    await taskWriteScope('complete', [taskListId, taskId, etag]))
   await invoke('google_calendar_complete_task', { taskListId, taskId, etag, authorizationToken })
 }
 
 export async function googleCalendarDeleteTask(taskListId: string, taskId: string, etag: string): Promise<void> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write',
+    await taskWriteScope('delete', [taskListId, taskId, etag]))
   await invoke('google_calendar_delete_task', { taskListId, taskId, etag, authorizationToken })
 }
 
