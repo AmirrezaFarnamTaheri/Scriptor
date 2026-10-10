@@ -6,7 +6,7 @@ This ledger owns every advisory temporarily ignored by `cargo-deny`. An ignore r
 
 **Review cadence:** monthly and before every production tag
 
-**Last full review:** 2026-10-02
+**Last full review:** 2026-10-10
 
 **Next full review:** 2026-11-01
 
@@ -16,6 +16,7 @@ The current RustSec database, commit `db663534ae858abb3fbad408a041ce04209c377f`,
 
 - **Removed ten withdrawn exceptions:** RUSTSEC-2024-0411 through RUSTSEC-2024-0420 were withdrawn on 2026-08-14 after GTK3 development resumed. GTK3 packages remain locked, but withdrawn advisories require no suppression. The earlier September assessment incorrectly treated them as active; this review corrects both the ledger and `deny.toml`.
 - **Retained eight active maintenance-only exceptions:** official records still classify the packages below as INFO Unmaintained and list no patched version. Each row names the actual locked crate and parent. A replacement crate name is not a compatible dependency upgrade; transitive API migration requires upstream changes and product validation.
+- **Four additional Typst upstream maintenance exceptions reviewed on 2026-10-10:** bincode, rustybuzz, ttf-parser, and yaml-rust have no patched releases and are reported as INFO Unmaintained, not a vulnerability proof. We are accepting a strictly enumerated, expiring build-time and PDF-rendering dependency risk rather than deleting the PDF feature or publishing a falsely green lockfile. This is **not a fix of unmaintained upstream code**. See the new rows below and remove them when maintained parents ship and full PDFs regressions pass.
 - **No new vulnerability or unsoundness exception:** Wasmtime RUSTSEC-2026-0315/0316 required a compatible patch upgrade. `glib` and Tantivy's `lru` unsoundness findings remain visible. Newly observed maintenance advisories in Typst's font/syntax dependencies are documented separately and are not added to the ignore list.
 - `fxhash` remains absent from the lockfile; RUSTSEC-2025-0057 remains removed.
 
@@ -29,6 +30,10 @@ The current RustSec database, commit `db663534ae858abb3fbad408a041ce04209c377f`,
 | RUSTSEC-2025-0081 | `unic-char-property` 0.9.0 via `urlpattern` 0.3.0 / `tauri-utils` 2.9.3 | Tauri URL-pattern Unicode processing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0081.html | 2026-11-01 | Remove when supported urlpattern/Tauri parents migrate to maintained Unicode APIs |
 | RUSTSEC-2025-0098 | `unic-ucd-version` 0.9.0 via `urlpattern` 0.3.0 / `tauri-utils` 2.9.3 | Tauri URL-pattern Unicode processing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0098.html | 2026-11-01 | Remove when supported urlpattern/Tauri parents migrate to maintained Unicode APIs |
 | RUSTSEC-2025-0100 | `unic-ucd-ident` 0.9.0 via `urlpattern` 0.3.0 / `tauri-utils` 2.9.3 | Tauri URL-pattern Unicode processing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0100.html | 2026-11-01 | Remove when supported urlpattern/Tauri parents migrate to maintained Unicode APIs |
+| RUSTSEC-2025-0141 | `bincode` 1.3.3 via `syntect` 5.3.0 / `two-face` 0.4.5 / Typst | Embedded PDF syntax highlighting dependency; no arbitrary syntax-definition file loading | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0141.html | 2026-11-01 | Migrate Typst highlighting to a maintained serialization parent or remove syntect after equivalent formatting tests |
+| RUSTSEC-2026-0206 | `rustybuzz` 0.20.1 via Typst layout / `krilla` 0.8.2 / `usvg` 0.47.0 | Font shaping in PDF export; bundled fonts only | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0206.html | 2026-11-01 | Upgrade Typst and layout parents to maintained harfrust after PDF visual parity testing |
+| RUSTSEC-2026-0192 | `ttf-parser` 0.25.1 via Typst, `fontdb`, `usvg` and rustybuzz | Bundled TrueType parser in PDF generation; arbitrary source fonts denied | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0192.html | 2026-11-01 | Upgrade to Typst font stack using maintained skrifa and verify shaping/embedding |
+| RUSTSEC-2024-0320 | `yaml-rust` 0.4.5 via `syntect` / `two-face` / Typst | PDF syntax highlighting graph; distinct from user frontmatter | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0320.html | 2026-11-01 | Upgrade syntect parent to yaml-rust2 or saphyr, confirm syntax parity |
 
 ## Review procedure
 
