@@ -8,6 +8,12 @@ const compile = relative => ts.transpileModule(readFileSync(new URL(relative, im
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
 }).outputText
 const componentSource = compile('../../src/components/PlannerWorkspace.tsx')
+const english = JSON.parse(readFileSync(new URL('../../src/lib/i18n/en.json', import.meta.url), 'utf8'))
+const translate = (key, params = {}) => {
+  const value = key.split('.').reduce((part, segment) => part?.[segment], english)
+  if (typeof value !== 'string') throw new Error(`Missing English fixture translation: ${key}`)
+  return value.replace(/\{\{(\w+)\}\}/g, (_, name) => String(params[name] ?? ''))
+}
 const plannerSource = compile('../../src/lib/planner.ts')
 const ownershipSource = compile('../../src/lib/plannerGoogleOwnership.ts')
 const deferred = () => {
@@ -71,7 +77,7 @@ function harness() {
       if (id.includes('plannerGoogleOwnership')) return ownership
       if (id.includes('/planner')) return planner
       if (id.includes('/date')) return { formatLocalDate: () => '2026-10-09' }
-      if (id.includes('/i18n')) return { useI18n: () => ({ locale: 'en' }) }
+      if (id.includes('/i18n')) return { useI18n: () => ({ locale: 'en', t: translate }) }
       return bridge
     })
     const options = { vaultId: 'vault', googleAccount: 'first@example.com', calendarId: 'primary', taskListId: '@default', tasks: [], events: [], remoteTasks: [], connected: true, calendarWritable: true, onReload: () => { calls.reloads.push(options.googleAccount) }, onOpenNote() {}, ...overrides }

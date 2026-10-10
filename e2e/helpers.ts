@@ -93,6 +93,10 @@ export async function launchApp(page: Page, options: { theme?: string; showFirst
   return page
 }
 
+// Match the native dialog's actual accessible name in the three supported
+// locales. This helper is used by localized keyboard-navigation regressions.
+const PALETTE_DIALOG_NAME = /^(?:Command palette|Befehlspalette|پالت دستورات)$/u
+
 export async function openCommandPalette(page: Page) {
   // Opening the palette before the workspace finishes booting drops the global
   // keyboard handler. This is especially visible on a cold CI worker where the
@@ -101,7 +105,7 @@ export async function openCommandPalette(page: Page) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const navigationTimeOrigin = await page.evaluate(() => performance.timeOrigin)
     await page.keyboard.press('Control+KeyK')
-    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    const palette = page.getByRole('dialog', { name: PALETTE_DIALOG_NAME })
     try {
       await expect(palette).toBeVisible({ timeout: 10_000 })
       return
@@ -139,7 +143,7 @@ function escapeRegExp(value: string): string {
  */
 export async function runCommand(page: Page, commandLabel: string) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    const palette = page.getByRole('dialog', { name: PALETTE_DIALOG_NAME })
     await palette.getByRole('searchbox').fill(commandLabel)
     const option = palette.getByRole('option').first()
     await expect(
