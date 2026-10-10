@@ -50,6 +50,7 @@ export function createGoogleEcosystemHarness() {
       requireAccount('drive')
       if (body.expectedVaultId !== 'screenshot-vault') throw new Error('Vault changed before a Drive transfer')
       const request = body.request as Record<string, unknown>
+      if (request.kind === 'generate_revision_id') return reply({ id: 'drive-generated-id-1' })
       if (request.kind === 'list_folders') return delayed({ files: request.page_token ? [folders[0], folders[1]] : [folders[0]], ...(!request.page_token ? { nextPageToken: 'folders-2' } : {}) }, 'folders')
       if (request.kind === 'create_folder') {
         const created = { id: 'created-folder', name: String(request.name) }; folders.push(created); return reply(created)

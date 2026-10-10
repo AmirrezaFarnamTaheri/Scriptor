@@ -1082,6 +1082,14 @@ pub fn collaboration_poll_stop(lease_id: String, expected_vault_id: String) -> R
 mod tests {
     use super::*;
     #[test]
+    fn generated_revision_ids_have_a_folder_bound_read_scope() {
+        let request = DriveRequest::GenerateRevisionId { folder_id: "team-folder".into() };
+        assert!(request.validate().is_ok());
+        assert_eq!(request.scope(), "drive:revision-id:team-folder");
+        assert_eq!(request.folder(), "team-folder");
+        assert!(DriveRequest::GenerateRevisionId { folder_id: "../escape".into() }.validate().is_err());
+    }
+    #[test]
     fn discovery_and_folder_creation_have_distinct_validated_scopes() {
         let folders = DriveRequest::ListFolders { page_token: None };
         assert!(folders.validate().is_ok());

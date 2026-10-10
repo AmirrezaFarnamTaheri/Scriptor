@@ -127,6 +127,19 @@ test('Docs discovery stays in the selected folder and a conflicted preview canno
   ]))
 })
 
+test('JSON share reserves one server-generated revision identity before append', async ({ page }) => {
+  await launchGoogle(page)
+  const panel = await openDrive(page)
+  await panel.getByRole('button', { name: 'Share current saved revision', exact: true }).click()
+  const history = await calls(page)
+  const allocations = history.filter(call => call.cmd === 'collaboration_read' && (call.payload.request as { kind?: string }).kind === 'generate_revision_id')
+  const appends = history.filter(call => call.cmd === 'collaboration_write' && (call.payload.request as { kind?: string }).kind === 'append')
+  expect(allocations).toHaveLength(1)
+  expect(appends).toHaveLength(1)
+  expect((appends[0].payload.request as { record?: { id?: string } }).record?.id).toBe('drive-generated-id-1')
+  expect(history.findIndex(call => call === allocations[0])).toBeLessThan(history.findIndex(call => call === appends[0]))
+})
+
 test('Docs export creates a new document only after accepted loss disclosure and approval', async ({ page }, testInfo) => {
   await launchGoogle(page)
   const panel = await openDrive(page)

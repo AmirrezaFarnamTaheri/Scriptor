@@ -22,6 +22,7 @@ export function createCollaborationHarness() {
         return reply(listing())
       case 'collaboration_read': {
         const request = body.request as Record<string, unknown>
+        if (request.kind === 'generate_revision_id') return reply({ id: 'drive-generated-id-2' })
         if (request.kind === 'read_docs') return reply({ title: 'Shared Google document', tabs: [{ documentTab: { body: { content: [{ paragraph: { paragraphStyle: { namedStyleType: 'HEADING_1' }, elements: [{ textRun: { content: 'Translated shared text\n' } }] } }] } } }] })
         if (request.kind === 'list') return reply(listing())
         return reply({ schema: 'scriptor.collaboration.v1', id: 'event-1', document: 'Research Plan.md', peer_id: 'peer-remote', base_markdown: '', markdown: 'Incoming shared content', created_at: '2026-10-02T00:00:00Z' })
