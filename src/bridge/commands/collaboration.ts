@@ -4,6 +4,19 @@ import { authorizeSensitiveOperation } from './authorization.ts'
 import { parseSharedRevision, type SharedRevision } from '../../lib/collaboration.ts'
 export type CollaborationTransport = 'drive_json' | 'google_docs'
 
+async function driveWriteDigest(parts: string[]): Promise<string> {
+  const encoder = new TextEncoder()
+  const joined = parts.map(part => `${encoder.encode(part).byteLength}:${part}`).join('')
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(joined))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+async function revisionWriteDigest(record: SharedRevision): Promise<string> {
+  return driveWriteDigest([
+    record.schema, record.id, record.document, record.peer_id,
+    record.base_markdown, record.markdown, record.created_at,
+  ])
+}
+
 export async function collaborationGetAccount(): Promise<string | null> {
   requireNative()
   const result: unknown = await invoke('collaboration_get_account')
@@ -20,7 +33,7 @@ export async function collaborationListFolders(expectedVaultId: string, pageToke
 
 export async function collaborationCreateFolder(expectedVaultId: string, name: string): Promise<{ id: string; name: string }> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_drive_write', 'drive:folders:create')
+  const authorizationToken = await authorizeSensitiveOperation('google_drive_write', `drive:folders:create:${await driveWriteDigest([name])}`)
   return parseCreatedResource(await invoke('collaboration_write', { request: { kind: 'create_folder', name }, expectedVaultId, authorizationToken }))
 }
 
@@ -89,7 +102,7 @@ export async function collaborationReadDocs(expectedVaultId: string, folderId: s
 }
 export async function collaborationCreateDocs(expectedVaultId: string, folderId: string, title: string, text: string): Promise<{ id: string; name: string }> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_drive_write', `drive:docs:create:${folderId}`)
+  const authorizationToken = await authorizeSensitiveOperation('google_drive_write', `drive:docs:create:${folderId}:${await driveWriteDigest([title, text])}`)
   const result = await invoke<{ id: string; name: string }>('collaboration_write', { request: { kind: 'append_docs', folder_id: folderId, title, text }, expectedVaultId, authorizationToken })
   if (!result || !/^[A-Za-z0-9_-]{1,200}$/.test(result.id) || typeof result.name !== 'string' || result.name.length > 1024) throw new Error('Invalid created Google document')
   return result
@@ -103,6 +116,9 @@ export async function collaborationAppend(expectedVaultId: string, folderId: str
   requireNative()
   const validated = parseSharedRevision(record)
   const name = `${validated.id}.json`
-  const authorizationToken = await authorizeSensitiveOperation('google_drive_write', transport === 'google_docs' ? `drive:docs-record:append:${folderId}:${name}` : `drive:append:${folderId}:${name}`)
+  const revisionDigest = await revisionWriteDigest(validated)
+  const authorizationToken = await authorizeSensitiveOperation('google_drive_write', transport === 'google_docs'
+    ? `drive:docs-record:append:${folderId}:${name}:${revisionDigest}`
+    : `drive:append:${folderId}:${name}:${revisionDigest}`)
   await invoke('collaboration_write', { request: { kind: transport === 'google_docs' ? 'append_docs_record' : 'append', folder_id: folderId, name, record: validated }, expectedVaultId, authorizationToken })
 }

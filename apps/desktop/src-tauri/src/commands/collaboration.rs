@@ -326,6 +326,24 @@ pub enum DriveRequest {
     },
 }
 
+// String-length framing matches the renderer and prevents delimiter
+// collisions for multiline Markdown and arbitrary document titles.
+fn drive_write_digest(parts: &[&str]) -> String {
+    let mut digest = Sha256::new();
+    for part in parts {
+        digest.update(part.len().to_string().as_bytes());
+        digest.update(b":");
+        digest.update(part.as_bytes());
+    }
+    hex::encode(digest.finalize())
+}
+fn revision_write_digest(record: &CollaborationRecord) -> String {
+    drive_write_digest(&[
+        &record.schema, &record.id, &record.document, &record.peer_id,
+        &record.base_markdown, &record.markdown, &record.created_at,
+    ])
+}
+
 impl DriveRequest {
     fn validate(&self) -> Result<(), String> {
         validate_id(self.folder())?;
@@ -386,7 +404,9 @@ impl DriveRequest {
     fn scope(&self) -> String {
         match self {
             Self::ListFolders { .. } => "drive:folders:list".into(),
-            Self::CreateFolder { .. } => "drive:folders:create".into(),
+            Self::CreateFolder { name } => {
+                format!("drive:folders:create:{}", drive_write_digest(&[name]))
+            },
             Self::ListDocs { folder_id, .. } => format!("drive:docs:list:{folder_id}"),
             Self::List {
                 folder_id,
@@ -402,16 +422,18 @@ impl DriveRequest {
             Self::ReadDocs { folder_id, file_id } => {
                 format!("drive:docs:read:{folder_id}:{file_id}")
             }
-            Self::AppendDocs { folder_id, .. } => format!("drive:docs:create:{folder_id}"),
+            Self::AppendDocs { folder_id, title, text } => {
+                format!("drive:docs:create:{folder_id}:{}", drive_write_digest(&[title, text]))
+            },
             Self::ReadDocsRecord { folder_id, file_id } => {
                 format!("drive:docs-record:read:{folder_id}:{file_id}")
             }
-            Self::AppendDocsRecord {
-                folder_id, name, ..
-            } => format!("drive:docs-record:append:{folder_id}:{name}"),
-            Self::Append {
-                folder_id, name, ..
-            } => format!("drive:append:{folder_id}:{name}"),
+            Self::AppendDocsRecord { folder_id, name, record } => {
+                format!("drive:docs-record:append:{folder_id}:{name}:{}", revision_write_digest(record))
+            },
+            Self::Append { folder_id, name, record } => {
+                format!("drive:append:{folder_id}:{name}:{}", revision_write_digest(record))
+            },
         }
     }
 }
