@@ -2481,6 +2481,25 @@ fn validate_planner_write(request: &PlannerWrite) -> Result<(), String> {
     Ok(())
 }
 
+fn planner_write_scope(request: &PlannerWrite) -> String {
+    match request {
+        PlannerWrite::Event { calendar_id, event_id, etag, title, start, end, create } => {
+            let digest = google_write_digest(&[
+                calendar_id, event_id, etag.as_deref().unwrap_or_default(),
+                title, start, end, if *create { "true" } else { "false" },
+            ]);
+            format!("Google Calendar event {calendar_id}:{event_id}:{digest}")
+        }
+        PlannerWrite::Task { task_list_id, task_id, etag, title, due, done } => {
+            let digest = google_write_digest(&[
+                task_list_id, task_id, etag, title,
+                due.as_deref().unwrap_or_default(), if *done { "true" } else { "false" },
+            ]);
+            format!("Google Task {task_list_id}:{task_id}:{digest}")
+        }
+    }
+}
+
 /// One reviewed planner change per grant. Provider preconditions protect remote revisions.
 #[tauri::command]
 pub fn google_planner_write_event(
@@ -2489,14 +2508,10 @@ pub fn google_planner_write_event(
     authorization_token: Option<String>,
 ) -> Result<serde_json::Value, String> {
     validate_planner_write(&request)?;
-    let scope = match &request {
-        PlannerWrite::Event {
-            calendar_id,
-            event_id,
-            ..
-        } => format!("Google Calendar event {calendar_id}:{event_id}"),
-        _ => return Err("Event command requires an event change".into()),
-    };
+    if !matches!(request, PlannerWrite::Event { .. }) {
+        return Err("Event command requires an event change".into());
+    }
+    let scope = planner_write_scope(&request);
     require_sensitive_operation(
         &state,
         authorization_token
@@ -2516,14 +2531,10 @@ pub fn google_planner_write_task(
     authorization_token: Option<String>,
 ) -> Result<serde_json::Value, String> {
     validate_planner_write(&request)?;
-    let scope = match &request {
-        PlannerWrite::Task {
-            task_list_id,
-            task_id,
-            ..
-        } => format!("Google Task {task_list_id}:{task_id}"),
-        _ => return Err("Task command requires a task change".into()),
-    };
+    if !matches!(request, PlannerWrite::Task { .. }) {
+        return Err("Task command requires a task change".into());
+    }
+    let scope = planner_write_scope(&request);
     require_sensitive_operation(
         &state,
         authorization_token

@@ -225,7 +225,15 @@ export type PlannerWrite =
 
 export async function googlePlannerWrite(request: PlannerWrite): Promise<{ id: string; etag: string | null }> {
   requireNative()
-  const scope = request.kind === 'event' ? `Google Calendar event ${request.calendarId}:${request.eventId}` : `Google Task ${request.taskListId}:${request.taskId}`
+  const scope = request.kind === 'event'
+    ? `Google Calendar event ${request.calendarId}:${request.eventId}:${await googleWriteDigest([
+      request.calendarId, request.eventId, request.etag ?? '', request.title,
+      request.start, request.end, String(request.create),
+    ])}`
+    : `Google Task ${request.taskListId}:${request.taskId}:${await googleWriteDigest([
+      request.taskListId, request.taskId, request.etag, request.title,
+      request.due ?? '', String(request.done),
+    ])}`
   const authorizationToken = request.kind === 'event'
     ? await authorizeSensitiveOperation('google_calendar_write', scope)
     : await authorizeSensitiveOperation('google_task_write', scope)
