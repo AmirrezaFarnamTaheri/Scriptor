@@ -31,7 +31,9 @@ impl MobileRuntime {
         expected_hash: &str,
     ) -> Result<MobilePdfSnapshot, RuntimeError> {
         let _ = (self, scope, path, expected_hash);
-        Err(RuntimeError::Limit("isolated mobile PDF compiler is not available; export requires a native memory-limited worker"))
+        Err(RuntimeError::Limit(
+            "isolated mobile PDF compiler is not available; export requires a native memory-limited worker",
+        ))
     }
 
     #[cfg(not(any(target_os = "ios", target_os = "android")))]

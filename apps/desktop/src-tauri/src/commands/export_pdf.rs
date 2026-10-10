@@ -1,14 +1,16 @@
 //! Bounded PDF snapshots, compiled in a separate OS-memory-limited worker.
- //! No external package fetch or arbitrary destination is permitted.
+//! No external package fetch or arbitrary destination is permitted.
 use std::fs;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use scriptor_export_runner::inprocess_pdf::{
-    BUNDLED_ASSET_NOTICES, MAX_ASSET_BYTES, MAX_MARKDOWN_BYTES, MAX_TOTAL_ASSET_BYTES,
-    MAX_PDF_BYTES, PdfAsset, PdfDocument, markdown_image_paths,
+use scriptor_export_runner::inprocess_pdf::worker::{
+    PDF_WORKER_MARKER, PdfWorkerReceipt, PdfWorkerRequest,
 };
-use scriptor_export_runner::inprocess_pdf::worker::{PdfWorkerRequest, PdfWorkerReceipt, PDF_WORKER_MARKER};
+use scriptor_export_runner::inprocess_pdf::{
+    BUNDLED_ASSET_NOTICES, MAX_ASSET_BYTES, MAX_MARKDOWN_BYTES, MAX_PDF_BYTES,
+    MAX_TOTAL_ASSET_BYTES, PdfAsset, PdfDocument, markdown_image_paths,
+};
 use scriptor_system_bridge::{ProcessSpec, run_process};
 use scriptor_vault::{RelativeVaultPath, VaultRoot};
 use serde::Serialize;
@@ -112,9 +114,13 @@ fn compile_pdf_isolated(
     if encoded.len() > 140 * 1024 * 1024 {
         return Err("Offline PDF request exceeds its isolated-worker transport bound".into());
     }
-    let mut file = fs::OpenOptions::new().write(true).create_new(true)
-        .open(&input).map_err(|error| error.to_string())?;
-    file.write_all(&encoded).and_then(|()| file.sync_all())
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&input)
+        .map_err(|error| error.to_string())?;
+    file.write_all(&encoded)
+        .and_then(|()| file.sync_all())
         .map_err(|error| error.to_string())?;
     drop(file);
 
@@ -127,24 +133,37 @@ fn compile_pdf_isolated(
         .current_dir(private.path())
         .timeout(std::time::Duration::from_secs(30))
         .max_output_bytes(4096);
-    let result = run_process(spec).map_err(|error| format!("Isolated PDF worker could not finish: {error}"))?;
+    let result = run_process(spec)
+        .map_err(|error| format!("Isolated PDF worker could not finish: {error}"))?;
     if result.exit_code != 0 || result.timed_out {
-        return Err(format!("Isolated PDF worker failed (exit {}): {}", result.exit_code, result.stderr));
+        return Err(format!(
+            "Isolated PDF worker failed (exit {}): {}",
+            result.exit_code, result.stderr
+        ));
     }
-    let pdf = fs::read(&output).map_err(|error| format!("PDF worker did not publish output: {error}"))?;
-    if pdf.len() > MAX_PDF_BYTES || !pdf.starts_with(b"%PDF-")
-        || !pdf.trim_ascii_end().ends_with(b"%%EOF") {
+    let pdf =
+        fs::read(&output).map_err(|error| format!("PDF worker did not publish output: {error}"))?;
+    if pdf.len() > MAX_PDF_BYTES
+        || !pdf.starts_with(b"%PDF-")
+        || !pdf.trim_ascii_end().ends_with(b"%%EOF")
+    {
         return Err("PDF worker returned invalid or oversized output".into());
     }
-    let metadata: PdfWorkerReceipt = serde_json::from_slice(
-        &fs::read(&receipt).map_err(|error| error.to_string())?
-    ).map_err(|_| "PDF worker returned invalid metadata")?;
-    if metadata.page_count == 0 || metadata.page_count > 256
+    let metadata: PdfWorkerReceipt =
+        serde_json::from_slice(&fs::read(&receipt).map_err(|error| error.to_string())?)
+            .map_err(|_| "PDF worker returned invalid metadata")?;
+    if metadata.page_count == 0
+        || metadata.page_count > 256
         || metadata.warnings.len() > 4
-        || metadata.sha256 != scriptor_vault::content_hash_bytes(&pdf) {
+        || metadata.sha256 != scriptor_vault::content_hash_bytes(&pdf)
+    {
         return Err("PDF worker response was truncated or corrupt".into());
     }
-    Ok(PdfDocument { bytes: pdf, page_count: metadata.page_count, warnings: metadata.warnings })
+    Ok(PdfDocument {
+        bytes: pdf,
+        page_count: metadata.page_count,
+        warnings: metadata.warnings,
+    })
 }
 
 fn publish_pdf(root: &VaultRoot, bytes: &[u8]) -> Result<String, String> {

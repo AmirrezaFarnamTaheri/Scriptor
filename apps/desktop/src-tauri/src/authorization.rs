@@ -343,7 +343,10 @@ fn account_bound_scope(
 ) -> Result<Option<String>, String> {
     let binding = crate::commands::google_calendar::authorization_account_binding(operation)?;
     Ok(match binding {
-        Some(identity) => Some(format!("{}\n[account-binding:{identity}]", scope.unwrap_or_default())),
+        Some(identity) => Some(format!(
+            "{}\n[account-binding:{identity}]",
+            scope.unwrap_or_default()
+        )),
         None => scope.map(str::to_owned),
     })
 }
@@ -427,7 +430,9 @@ pub async fn authorize_sensitive_operation(
     if account_bound_scope(operation, scope.as_deref())? != account_scope {
         return Err("Google account changed during approval. Review the operation again.".into());
     }
-    state.authorization.issue(operation, account_scope, bound_vault_id)
+    state
+        .authorization
+        .issue(operation, account_scope, bound_vault_id)
 }
 
 fn sanitize_scope(value: &str) -> String {

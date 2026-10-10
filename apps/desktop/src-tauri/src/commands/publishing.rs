@@ -658,7 +658,11 @@ mod tests {
         .unwrap();
         assert_eq!(
             spec.args,
-            vec![std::ffi::OsString::from("exec"), "astro".into(), "build".into()]
+            vec![
+                std::ffi::OsString::from("exec"),
+                "astro".into(),
+                "build".into()
+            ]
         );
         assert_eq!(spec.max_output_bytes, 256 * 1024);
         assert_eq!(spec.timeout, Duration::from_secs(300));

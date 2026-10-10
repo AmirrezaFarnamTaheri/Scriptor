@@ -324,7 +324,10 @@ pub(crate) fn authorization_account_binding(
     };
     let tokens = require_tokens(keychain_account)?;
     let generation = google_account_generation(keychain_account, false)?;
-    Ok(Some(format!("{keychain_account}:{}:{generation}", tokens.email)))
+    Ok(Some(format!(
+        "{keychain_account}:{}:{generation}",
+        tokens.email
+    )))
 }
 
 fn google_account_generation(account: &str, advance: bool) -> Result<u64, String> {
@@ -1086,7 +1089,9 @@ fn validate_provider_task(task: GTask) -> Result<GTask, String> {
 
 fn validate_task_etag(etag: &str) -> Result<(), String> {
     if etag.is_empty() || etag.len() > 512 || etag.chars().any(char::is_control) {
-        return Err("Google Task revision missing or invalid. Refresh tasks before writing.".into());
+        return Err(
+            "Google Task revision missing or invalid. Refresh tasks before writing.".into(),
+        );
     }
     Ok(())
 }
@@ -1112,7 +1117,7 @@ fn validate_task_sync_mutation(mutation: &GoogleTaskSyncMutation) -> Result<(), 
         "complete" => {
             validate_google_task_id(mutation.task_id.as_deref().unwrap_or_default())?;
             validate_task_etag(mutation.etag.as_deref().unwrap_or_default())
-        },
+        }
         _ => Err("Unsupported Google Task sync mutation kind".into()),
     }
 }
@@ -2393,7 +2398,11 @@ fn google_task_sync_scope(task_list_id: &str, mutations: &[GoogleTaskSyncMutatio
             mutation.etag.as_deref().unwrap_or_default(),
         ]);
     }
-    format!("Sync {} vault task changes:{}", mutations.len(), google_write_digest(&parts))
+    format!(
+        "Sync {} vault task changes:{}",
+        mutations.len(),
+        google_write_digest(&parts)
+    )
 }
 
 #[derive(Debug, Deserialize)]
@@ -2483,17 +2492,41 @@ fn validate_planner_write(request: &PlannerWrite) -> Result<(), String> {
 
 fn planner_write_scope(request: &PlannerWrite) -> String {
     match request {
-        PlannerWrite::Event { calendar_id, event_id, etag, title, start, end, create } => {
+        PlannerWrite::Event {
+            calendar_id,
+            event_id,
+            etag,
+            title,
+            start,
+            end,
+            create,
+        } => {
             let digest = google_write_digest(&[
-                calendar_id, event_id, etag.as_deref().unwrap_or_default(),
-                title, start, end, if *create { "true" } else { "false" },
+                calendar_id,
+                event_id,
+                etag.as_deref().unwrap_or_default(),
+                title,
+                start,
+                end,
+                if *create { "true" } else { "false" },
             ]);
             format!("Google Calendar event {calendar_id}:{event_id}:{digest}")
         }
-        PlannerWrite::Task { task_list_id, task_id, etag, title, due, done } => {
+        PlannerWrite::Task {
+            task_list_id,
+            task_id,
+            etag,
+            title,
+            due,
+            done,
+        } => {
             let digest = google_write_digest(&[
-                task_list_id, task_id, etag, title,
-                due.as_deref().unwrap_or_default(), if *done { "true" } else { "false" },
+                task_list_id,
+                task_id,
+                etag,
+                title,
+                due.as_deref().unwrap_or_default(),
+                if *done { "true" } else { "false" },
             ]);
             format!("Google Task {task_list_id}:{task_id}:{digest}")
         }
@@ -2725,7 +2758,9 @@ fn update_google_task(
         .send()
         .map_err(|error| format!("failed to update Google Task: {error}"))?;
     if response.status().as_u16() == 409 || response.status().as_u16() == 412 {
-        return Err("Google Task changed since review. Refresh tasks and resolve the conflict.".into());
+        return Err(
+            "Google Task changed since review. Refresh tasks and resolve the conflict.".into(),
+        );
     }
     if !response.status().is_success() {
         return Err(provider_failure(
@@ -2759,7 +2794,9 @@ fn complete_google_task(
         .send()
         .map_err(|error| format!("failed to complete Google Task: {error}"))?;
     if response.status().as_u16() == 409 || response.status().as_u16() == 412 {
-        return Err("Google Task changed since review. Refresh tasks and resolve the conflict.".into());
+        return Err(
+            "Google Task changed since review. Refresh tasks and resolve the conflict.".into(),
+        );
     }
     if !response.status().is_success() {
         return Err(provider_failure(
@@ -2871,9 +2908,15 @@ pub fn google_calendar_create_task(
         &state,
         &authorization_token,
         SensitiveOperation::GoogleTaskWrite,
-        Some(&format!("google-task-create:{}", google_write_digest(&[
-            &task_list_id, &title, notes.as_deref().unwrap_or_default(), due.as_deref().unwrap_or_default(),
-        ]))),
+        Some(&format!(
+            "google-task-create:{}",
+            google_write_digest(&[
+                &task_list_id,
+                &title,
+                notes.as_deref().unwrap_or_default(),
+                due.as_deref().unwrap_or_default(),
+            ])
+        )),
         None,
     )?;
     validate_task_list_id(&task_list_id)?;
@@ -2899,10 +2942,18 @@ pub fn google_calendar_update_task(
         &state,
         &authorization_token,
         SensitiveOperation::GoogleTaskWrite,
-        Some(&format!("google-task-update:{}", google_write_digest(&[
-            &task_list_id, &task_id, &title, &notes, due.as_deref().unwrap_or_default(),
-            status.as_deref().unwrap_or_default(), &etag,
-        ]))),
+        Some(&format!(
+            "google-task-update:{}",
+            google_write_digest(&[
+                &task_list_id,
+                &task_id,
+                &title,
+                &notes,
+                due.as_deref().unwrap_or_default(),
+                status.as_deref().unwrap_or_default(),
+                &etag,
+            ])
+        )),
         None,
     )?;
     validate_task_list_id(&task_list_id)?;
@@ -2935,9 +2986,10 @@ pub fn google_calendar_complete_task(
         &state,
         &authorization_token,
         SensitiveOperation::GoogleTaskWrite,
-        Some(&format!("google-task-complete:{}", google_write_digest(&[
-            &task_list_id, &task_id, &etag,
-        ]))),
+        Some(&format!(
+            "google-task-complete:{}",
+            google_write_digest(&[&task_list_id, &task_id, &etag,])
+        )),
         None,
     )?;
     validate_task_list_id(&task_list_id)?;
@@ -2958,9 +3010,10 @@ pub fn google_calendar_delete_task(
         &state,
         &authorization_token,
         SensitiveOperation::GoogleTaskWrite,
-        Some(&format!("google-task-delete:{}", google_write_digest(&[
-            &task_list_id, &task_id, &etag,
-        ]))),
+        Some(&format!(
+            "google-task-delete:{}",
+            google_write_digest(&[&task_list_id, &task_id, &etag,])
+        )),
         None,
     )?;
     validate_task_list_id(&task_list_id)?;
@@ -2981,7 +3034,9 @@ pub fn google_calendar_delete_task(
         .send()
         .map_err(|error| format!("failed to delete Google Task: {error}"))?;
     if response.status().as_u16() == 409 || response.status().as_u16() == 412 {
-        return Err("Google Task changed since review. Refresh tasks and resolve the conflict.".into());
+        return Err(
+            "Google Task changed since review. Refresh tasks and resolve the conflict.".into(),
+        );
     }
     if !response.status().is_success() {
         return Err(provider_failure(
@@ -3086,10 +3141,10 @@ mod tests {
         assert!(validate_task_sync_mutation(&valid).is_ok());
         let valid_update: GoogleTaskSyncMutation = serde_json::from_str(
             r#"{"kind":"update","taskId":"a","etag":"W/123","title":"A","notes":"B"}"#,
-        ).unwrap();
-        let valid_complete: GoogleTaskSyncMutation = serde_json::from_str(
-            r#"{"kind":"complete","taskId":"a","etag":"W/123"}"#,
-        ).unwrap();
+        )
+        .unwrap();
+        let valid_complete: GoogleTaskSyncMutation =
+            serde_json::from_str(r#"{"kind":"complete","taskId":"a","etag":"W/123"}"#).unwrap();
         assert!(validate_task_sync_mutation(&valid_update).is_ok());
         assert!(validate_task_sync_mutation(&valid_complete).is_ok());
         assert!(validate_task_etag("bad\nheader").is_err());
@@ -3265,21 +3320,35 @@ mod tests {
 
     #[test]
     fn task_sync_scope_discloses_batch_size() {
-        let create: GoogleTaskSyncMutation = serde_json::from_str(
-            r#"{"kind":"create","title":"A","notes":"note","due":null}"#,
-        ).unwrap();
-        let changed: GoogleTaskSyncMutation = serde_json::from_str(
-            r#"{"kind":"create","title":"B","notes":"note","due":null}"#,
-        ).unwrap();
+        let create: GoogleTaskSyncMutation =
+            serde_json::from_str(r#"{"kind":"create","title":"A","notes":"note","due":null}"#)
+                .unwrap();
+        let changed: GoogleTaskSyncMutation =
+            serde_json::from_str(r#"{"kind":"create","title":"B","notes":"note","due":null}"#)
+                .unwrap();
         let one = google_task_sync_scope("@default", &[create]);
         assert!(one.starts_with("Sync 1 vault task changes:"));
-        assert_eq!(one, google_task_sync_scope("@default", &[
-            serde_json::from_str(r#"{"kind":"create","title":"A","notes":"note","due":null}"#).unwrap()
-        ]));
+        assert_eq!(
+            one,
+            google_task_sync_scope(
+                "@default",
+                &[serde_json::from_str(
+                    r#"{"kind":"create","title":"A","notes":"note","due":null}"#
+                )
+                .unwrap()]
+            )
+        );
         assert_ne!(one, google_task_sync_scope("@default", &[changed]));
-        assert_ne!(one, google_task_sync_scope("another", &[
-            serde_json::from_str(r#"{"kind":"create","title":"A","notes":"note","due":null}"#).unwrap()
-        ]));
+        assert_ne!(
+            one,
+            google_task_sync_scope(
+                "another",
+                &[serde_json::from_str(
+                    r#"{"kind":"create","title":"A","notes":"note","due":null}"#
+                )
+                .unwrap()]
+            )
+        );
     }
 
     #[test]
