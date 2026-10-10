@@ -2,7 +2,7 @@
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::commands::vault::validate_expected_vault;
 use crate::state::{AppState, active_session};
-use scriptor_system_bridge::{ProcessSpec, run_process};
+use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, run_process};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::Read;
@@ -305,8 +305,12 @@ fn job_spec(
 ) -> Result<ProcessSpec, String> {
     let mut spec = match request {
         PublicationJob::Build => {
+            // Invoke the reviewed tool directly, not package.json scripts.
+            // Network denial MUST fail closed when the OS sandbox is unavailable.
+            // A separate, manually reviewed dependency installation is required.
             let mut spec = ProcessSpec::new(if cfg!(windows) { "pnpm.cmd" } else { "pnpm" });
-            spec.args = vec!["run".into(), "build".into()];
+            spec.args = vec!["exec".into(), "astro".into(), "build".into()];
+            spec.network_policy = NetworkPolicy::Deny;
             spec
         }
         PublicationJob::Cloudflare {
@@ -460,6 +464,10 @@ async fn run_publication(
         validate_expected_vault(&session.descriptor.id, Some(&expected_vault_id))?;
         let root = site_root(&output_path)?;
         ensure_reviewed_site(session.root.root(), &root)?;
+        // Reject edited executable inputs even if package.json still claims
+        // the expected project name. Do not trust a local "build" script.
+        scriptor_publish_runner::verify_trusted_scaffold(&root)
+            .map_err(|error| error.to_string())?;
         let source_hash = fingerprint(&root, true)?;
         let snapshot = if matches!(request, PublicationJob::Cloudflare { .. }) {
             let stamp = verified_build(&root, &expected_vault_id)?;
@@ -650,10 +658,11 @@ mod tests {
         .unwrap();
         assert_eq!(
             spec.args,
-            vec![std::ffi::OsString::from("run"), "build".into()]
+            vec![std::ffi::OsString::from("exec"), "astro".into(), "build".into()]
         );
         assert_eq!(spec.max_output_bytes, 256 * 1024);
         assert_eq!(spec.timeout, Duration::from_secs(300));
+        assert_eq!(spec.network_policy, NetworkPolicy::Deny);
         assert!(Arc::ptr_eq(spec.cancel_slot.as_ref().unwrap(), &cancel));
     }
 
