@@ -25,6 +25,7 @@ use crate::state::{ActiveSession, AppState, active_session};
 /// Keychain account under which the token bundle JSON is stored.
 const CALENDAR_TOKEN_KEYCHAIN_ACCOUNT: &str = "google.calendar.tokens";
 const GMAIL_TOKEN_KEYCHAIN_ACCOUNT: &str = "google.gmail.tokens";
+const DRIVE_TOKEN_KEYCHAIN_ACCOUNT: &str = "google.drive.collaboration.tokens";
 /// Broker scope shared by all task mutations.
 const TASK_SCOPE: &str = "google-task";
 /// Broker scope for the auth flow.
@@ -305,6 +306,26 @@ fn parse_stored_tokens(json: &str) -> Result<StoredTokens, String> {
 /// Reads only the validated public account identity from the native keychain.
 pub(super) fn stored_google_email(account: &str) -> Result<Option<String>, String> {
     load_tokens(account).map(|tokens| tokens.map(|tokens| tokens.email))
+}
+
+/// Bind sensitive Google writes to the account and credential lifecycle that
+/// was present when the user reviewed the native authorization prompt.
+pub(crate) fn authorization_account_binding(
+    operation: SensitiveOperation,
+) -> Result<Option<String>, String> {
+    let keychain_account = match operation {
+        SensitiveOperation::GoogleCalendarWrite | SensitiveOperation::GoogleTaskWrite => {
+            CALENDAR_TOKEN_KEYCHAIN_ACCOUNT
+        }
+        SensitiveOperation::GoogleGmailWrite | SensitiveOperation::GoogleGmailSend => {
+            GMAIL_TOKEN_KEYCHAIN_ACCOUNT
+        }
+        SensitiveOperation::GoogleDriveWrite => DRIVE_TOKEN_KEYCHAIN_ACCOUNT,
+        _ => return Ok(None),
+    };
+    let tokens = require_tokens(keychain_account)?;
+    let generation = google_account_generation(keychain_account, false)?;
+    Ok(Some(format!("{keychain_account}:{}:{generation}", tokens.email)))
 }
 
 fn google_account_generation(account: &str, advance: bool) -> Result<u64, String> {

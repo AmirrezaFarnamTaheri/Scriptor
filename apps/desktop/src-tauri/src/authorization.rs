@@ -337,6 +337,17 @@ impl AuthorizationBroker {
     }
 }
 
+fn account_bound_scope(
+    operation: SensitiveOperation,
+    scope: Option<&str>,
+) -> Result<Option<String>, String> {
+    let binding = crate::commands::google_calendar::authorization_account_binding(operation)?;
+    Ok(match binding {
+        Some(identity) => Some(format!("{}\n[account-binding:{identity}]", scope.unwrap_or_default())),
+        None => scope.map(str::to_owned),
+    })
+}
+
 pub fn require_sensitive_operation(
     state: &crate::AppState,
     token: &str,
@@ -344,9 +355,10 @@ pub fn require_sensitive_operation(
     scope: Option<&str>,
     expected_vault_id: Option<&str>,
 ) -> Result<(), String> {
+    let bound = account_bound_scope(operation, scope)?;
     state
         .authorization
-        .consume(token, operation, scope, expected_vault_id)
+        .consume(token, operation, bound.as_deref(), expected_vault_id)
 }
 
 #[tauri::command]
@@ -372,6 +384,9 @@ pub async fn authorize_sensitive_operation(
         (None, None)
     };
 
+    // Capture before displaying consent, then recheck after consent so a
+    // reconnect/account change while the dialog is open fails closed.
+    let account_scope = account_bound_scope(operation, scope.as_deref())?;
     let title = operation.title().to_string();
     let impact = operation.impact().to_string();
     let display_scope = scope
@@ -409,7 +424,10 @@ pub async fn authorize_sensitive_operation(
         return Err("operation cancelled by user".into());
     }
 
-    state.authorization.issue(operation, scope, bound_vault_id)
+    if account_bound_scope(operation, scope.as_deref())? != account_scope {
+        return Err("Google account changed during approval. Review the operation again.".into());
+    }
+    state.authorization.issue(operation, account_scope, bound_vault_id)
 }
 
 fn sanitize_scope(value: &str) -> String {
