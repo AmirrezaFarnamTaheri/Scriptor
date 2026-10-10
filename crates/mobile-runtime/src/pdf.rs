@@ -1,7 +1,10 @@
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 use scriptor_export_runner::inprocess_pdf::{
     MAX_ASSET_BYTES, MAX_TOTAL_ASSET_BYTES, PdfAsset, compile_markdown_pdf, markdown_image_paths,
 };
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 use scriptor_vault::RelativeVaultPath;
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 use std::{fs, io::Read, path::Path};
 
 use crate::{MobileRuntime, RuntimeError};
@@ -17,6 +20,21 @@ pub struct MobilePdfSnapshot {
 }
 
 impl MobileRuntime {
+    /// iOS and Android cannot launch this desktop worker or enforce its
+    /// process-level memory cap. Refuse the operation until a native isolated
+    /// service/extension is implemented and tested on real devices.
+    #[cfg(any(target_os = "ios", target_os = "android"))]
+    pub fn export_pdf(
+        &self,
+        scope: u64,
+        path: &str,
+        expected_hash: &str,
+    ) -> Result<MobilePdfSnapshot, RuntimeError> {
+        let _ = (self, scope, path, expected_hash);
+        Err(RuntimeError::Limit("isolated mobile PDF compiler is not available; export requires a native memory-limited worker"))
+    }
+
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
     pub fn export_pdf(
         &self,
         scope: u64,

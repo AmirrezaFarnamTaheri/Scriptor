@@ -1,4 +1,5 @@
-//! Bounded offline PDF snapshots. No subprocess, package fetch, or arbitrary file destination.
+//! Bounded PDF snapshots, compiled in a separate OS-memory-limited worker.
+ //! No external package fetch or arbitrary destination is permitted.
 use std::fs;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
