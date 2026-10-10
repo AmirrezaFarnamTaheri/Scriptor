@@ -129,6 +129,7 @@ export async function collaborationRead(expectedVaultId: string, folderId: strin
 }
 export async function collaborationAppend(expectedVaultId: string, folderId: string, record: SharedRevision, transport: CollaborationTransport = 'drive_json'): Promise<void> {
   requireNative()
+  if (transport === 'google_docs') throw new Error('Legacy Google Docs revisions are read-only. Select Drive JSON for atomic sharing.')
   const validated = parseSharedRevision(record)
   const name = `${validated.id}.json`
   const revisionDigest = await revisionWriteDigest(validated)

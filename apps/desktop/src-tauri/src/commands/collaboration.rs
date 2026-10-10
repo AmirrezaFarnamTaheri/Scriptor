@@ -382,7 +382,10 @@ impl DriveRequest {
                 }
                 Ok(())
             }
-            Self::Append { name, record, .. } | Self::AppendDocsRecord { name, record, .. } => {
+            Self::AppendDocsRecord { .. } => Err(
+                "Legacy Google Docs revision storage is read-only: Google Workspace files cannot be created with a reserved Drive file ID. Select Drive JSON for atomic revision sharing.".into()
+            ),
+            Self::Append { name, record, .. } => {
                 record.validate()?;
                 if name != &format!("{}.json", record.id) {
                     return Err("record name must match its immutable identity".into());
@@ -1081,6 +1084,24 @@ pub fn collaboration_poll_stop(lease_id: String, expected_vault_id: String) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn legacy_docs_revisions_are_read_only_without_atomic_ids() {
+        let record = CollaborationRecord {
+            schema: "scriptor.collaboration.v1".into(),
+            id: "reviewed-id".into(),
+            document: "Research.md".into(),
+            peer_id: "peer-id".into(),
+            base_markdown: String::new(),
+            markdown: "Markdown".into(),
+            created_at: "2026-10-10T00:00:00Z".into(),
+        };
+        assert!(DriveRequest::AppendDocsRecord {
+            folder_id: "folder".into(), name: "reviewed-id.json".into(), record,
+        }.validate().is_err());
+        assert!(DriveRequest::ReadDocsRecord {
+            folder_id: "folder".into(), file_id: "existing-doc".into()
+        }.validate().is_ok());
+    }
     #[test]
     fn generated_revision_ids_have_a_folder_bound_read_scope() {
         let request = DriveRequest::GenerateRevisionId { folder_id: "team-folder".into() };

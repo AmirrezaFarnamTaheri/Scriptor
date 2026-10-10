@@ -78,17 +78,13 @@ test('poll failures back off and stop after three errors without sharing or appl
   expect(await calls(page, 'collaboration_write')).toHaveLength(0)
 })
 
-test('Google Docs opaque transport shares Markdown records and binds polling to the selected host', async ({ page }) => {
+test('Legacy Google Docs opaque revisions remain readable but cannot be shared non-atomically', async ({ page }) => {
   await page.clock.install()
   const panel = await open(page)
   await panel.getByLabel('Revision transport', { exact: true }).selectOption('google_docs')
-  await panel.getByRole('button', { name: 'Share current saved revision', exact: true }).click()
-  const writes = await calls(page, 'collaboration_write')
-  expect(writes).toHaveLength(1)
-  const request = writes[0].payload.request as Record<string, unknown>
-  expect(request.kind).toBe('append_docs_record')
-  expect(request.folder_id).toBe('shared-folder')
-  expect((request.record as Record<string, unknown>).schema).toBe('scriptor.collaboration.v1')
+  await expect(panel.getByRole('button', { name: 'Share current saved revision', exact: true })).toBeDisabled()
+  await expect(panel.getByRole('note')).toContainText('Legacy Google Docs revisions can still be read')
+  expect(await calls(page, 'collaboration_write')).toHaveLength(0)
   await panel.getByLabel('Allow this bounded read-only polling session for the selected folder').check()
   await panel.getByRole('button', { name: 'Start automatic checks', exact: true }).click()
   await expect.poll(() => calls(page, 'collaboration_poll_read')).toHaveLength(1)
