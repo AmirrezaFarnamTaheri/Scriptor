@@ -8,6 +8,9 @@ use std::{
     path::PathBuf,
 };
 const LIMIT: usize = 2 * 1024 * 1024;
+// Each recovery snapshot retains at most two copies of a bounded source file.
+// Cap retained snapshots, separately from the user's Markdown history.
+const SOURCE_RECOVERY_MAX_SNAPSHOTS: usize = 64;
 
 #[derive(Debug, Serialize)]
 pub struct SourceDocument {
@@ -142,6 +145,26 @@ fn save(
     scriptor_vault::fs::atomic_write(&absolute, content.as_bytes()).map_err(|e| e.to_string())?;
     read(session, path)
 }
+fn prune_source_recovery(root: &std::path::Path) -> Result<(), String> {
+    let mut snapshots = Vec::new();
+    for entry in fs::read_dir(root).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if uuid::Uuid::parse_str(name).is_err() { continue }
+        let meta = fs::symlink_metadata(entry.path()).map_err(|error| error.to_string())?;
+        if !meta.is_dir() || meta.file_type().is_symlink() { continue }
+        let created = meta.modified().unwrap_or(std::time::UNIX_EPOCH);
+        snapshots.push((created, name.to_owned(), entry.path()));
+    }
+    snapshots.sort_by(|left, right| (&left.0, &left.1).cmp(&(&right.0, &right.1)));
+    let excess = snapshots.len().saturating_sub(SOURCE_RECOVERY_MAX_SNAPSHOTS - 1);
+    for (_, _, path) in snapshots.into_iter().take(excess) {
+        fs::remove_dir_all(&path).map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
 fn persist_recovery(session: &VaultSession, before: &SourceDocument) -> Result<(), String> {
     let recovery = session.root.root().join(".scriptor/source-recovery");
     let mut prefix = session.root.root().to_path_buf();
@@ -156,6 +179,10 @@ fn persist_recovery(session: &VaultSession, before: &SourceDocument) -> Result<(
             Err(e) => return Err(e.to_string()),
         }
     }
+    // Retain at most 63 previous snapshots before adding the next one. The
+    // vault mutation lock protects this sweep from concurrent source writes.
+    // Only canonical UUID directory names are eligible for deletion.
+    prune_source_recovery(&recovery)?;
     let dir = recovery.join(uuid::Uuid::new_v4().to_string());
     scriptor_vault::fs::create_private_directory(&dir).map_err(|e| e.to_string())?;
     for (name, bytes) in [
@@ -309,6 +336,21 @@ mod tests {
         let receipt: serde_json::Value =
             serde_json::from_slice(&fs::read(recovery.join("receipt.json")).unwrap()).unwrap();
         assert_eq!(receipt["content"], before.content);
+    }
+    #[test]
+    fn source_recovery_has_bounded_retention_without_touching_other_folders() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::create_dir(root.join("unrelated")).unwrap();
+        for _ in 0..(SOURCE_RECOVERY_MAX_SNAPSHOTS + 7) {
+            fs::create_dir(root.join(uuid::Uuid::new_v4().to_string())).unwrap();
+        }
+        prune_source_recovery(root).unwrap();
+        assert!(root.join("unrelated").exists());
+        let retained = fs::read_dir(root).unwrap().filter_map(Result::ok)
+            .filter(|entry| uuid::Uuid::parse_str(&entry.file_name().to_string_lossy()).is_ok())
+            .count();
+        assert_eq!(retained, SOURCE_RECOVERY_MAX_SNAPSHOTS - 1);
     }
     #[test]
     fn source_creation_is_strictly_missing_and_supports_tex_and_python() {

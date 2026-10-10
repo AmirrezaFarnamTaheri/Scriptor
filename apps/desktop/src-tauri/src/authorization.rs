@@ -167,13 +167,13 @@ impl SensitiveOperation {
                 "Scriptor will open your browser to sign in to Google and store the resulting access tokens in the operating-system keychain."
             }
             Self::GoogleCalendarDisconnect => {
-                "Scriptor will revoke the current Google access token when possible and remove the saved Google credentials from the operating-system keychain."
+                "Scriptor will remove this service's saved Google credentials from the operating-system keychain on this device. It does not revoke the Google account grant; manage third-party access in your Google account settings."
             }
             Self::GoogleGmailAuth => {
                 "Scriptor will open your browser to grant Gmail manager access. It stores resulting access tokens in the operating-system keychain and never receives your Google password."
             }
             Self::GoogleGmailDisconnect => {
-                "Scriptor will revoke the Gmail access token when possible and remove it from the operating-system keychain. Calendar and Tasks remain connected."
+                "Scriptor will remove this device's saved Gmail credentials from the operating-system keychain. It does not revoke the Google account grant; Calendar and Tasks remain connected."
             }
             Self::GoogleGmailWrite => {
                 "The selected Gmail messages will be updated, archived, moved, marked read or unread, or moved to trash on your behalf."
