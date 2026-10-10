@@ -4,9 +4,11 @@ use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use scriptor_export_runner::inprocess_pdf::{
-    BUNDLED_ASSET_NOTICES, MAX_ASSET_BYTES, MAX_MARKDOWN_BYTES, MAX_TOTAL_ASSET_BYTES, PdfAsset,
-    compile_markdown_pdf, markdown_image_paths,
+    BUNDLED_ASSET_NOTICES, MAX_ASSET_BYTES, MAX_MARKDOWN_BYTES, MAX_TOTAL_ASSET_BYTES,
+    MAX_PDF_BYTES, PdfAsset, PdfDocument, markdown_image_paths,
 };
+use scriptor_export_runner::inprocess_pdf::worker::{PdfWorkerRequest, PdfWorkerReceipt, PDF_WORKER_MARKER};
+use scriptor_system_bridge::{ProcessSpec, run_process};
 use scriptor_vault::{RelativeVaultPath, VaultRoot};
 use serde::Serialize;
 
@@ -86,6 +88,62 @@ fn snapshot_assets(
         assets.push(PdfAsset { path, bytes });
     }
     Ok(assets)
+}
+
+/// The compiler runs in the packaged desktop executable's separate worker
+/// process. The broker terminates timed-out workers; the worker applies its OS
+/// memory limit BEFORE reading or compiling the bounded snapshot.
+fn compile_pdf_isolated(
+    markdown: &str,
+    title: &str,
+    assets: Vec<PdfAsset>,
+) -> Result<PdfDocument, String> {
+    let private = tempfile::tempdir().map_err(|error| error.to_string())?;
+    let input = private.path().join("request.json");
+    let output = private.path().join("result.pdf");
+    let receipt = private.path().join("receipt.json");
+    let request = PdfWorkerRequest {
+        markdown: markdown.to_owned(),
+        title: Some(title.to_owned()),
+        assets,
+    };
+    let encoded = serde_json::to_vec(&request).map_err(|error| error.to_string())?;
+    if encoded.len() > 140 * 1024 * 1024 {
+        return Err("Offline PDF request exceeds its isolated-worker transport bound".into());
+    }
+    let mut file = fs::OpenOptions::new().write(true).create_new(true)
+        .open(&input).map_err(|error| error.to_string())?;
+    file.write_all(&encoded).and_then(|()| file.sync_all())
+        .map_err(|error| error.to_string())?;
+    drop(file);
+
+    let executable = std::env::current_exe().map_err(|error| error.to_string())?;
+    let spec = ProcessSpec::new(executable)
+        .arg(PDF_WORKER_MARKER)
+        .arg(input.as_os_str())
+        .arg(output.as_os_str())
+        .arg(receipt.as_os_str())
+        .current_dir(private.path())
+        .timeout(std::time::Duration::from_secs(30))
+        .max_output_bytes(4096);
+    let result = run_process(spec).map_err(|error| format!("Isolated PDF worker could not finish: {error}"))?;
+    if result.exit_code != 0 || result.timed_out {
+        return Err(format!("Isolated PDF worker failed (exit {}): {}", result.exit_code, result.stderr));
+    }
+    let pdf = fs::read(&output).map_err(|error| format!("PDF worker did not publish output: {error}"))?;
+    if pdf.len() > MAX_PDF_BYTES || !pdf.starts_with(b"%PDF-")
+        || !pdf.trim_ascii_end().ends_with(b"%%EOF") {
+        return Err("PDF worker returned invalid or oversized output".into());
+    }
+    let metadata: PdfWorkerReceipt = serde_json::from_slice(
+        &fs::read(&receipt).map_err(|error| error.to_string())?
+    ).map_err(|_| "PDF worker returned invalid metadata")?;
+    if metadata.page_count == 0 || metadata.page_count > 256
+        || metadata.warnings.len() > 4
+        || metadata.sha256 != scriptor_vault::content_hash_bytes(&pdf) {
+        return Err("PDF worker response was truncated or corrupt".into());
+    }
+    Ok(PdfDocument { bytes: pdf, page_count: metadata.page_count, warnings: metadata.warnings })
 }
 
 fn publish_pdf(root: &VaultRoot, bytes: &[u8]) -> Result<String, String> {
@@ -168,7 +226,7 @@ pub async fn export_pdf_inprocess(
     let pdf = tauri::async_runtime::spawn_blocking(move || {
         let _lease = lease;
         let assets = snapshot_assets(&root, &note_path, &source_markdown)?;
-        compile_markdown_pdf(&source_markdown, Some(&title), &assets).map_err(|e| e.to_string())
+        compile_pdf_isolated(&source_markdown, &title, assets)
     })
     .await
     .map_err(|e| format!("Offline PDF worker failed: {e}"))??;

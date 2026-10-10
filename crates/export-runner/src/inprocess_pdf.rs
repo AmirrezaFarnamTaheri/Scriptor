@@ -4,10 +4,12 @@
 //! packages. Native adapters own vault authorization and artifact publication.
 
 mod markdown;
+pub mod worker;
 
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
+use serde::{Deserialize, Serialize};
 use typst::diag::{FileError, FileResult};
 use typst::foundations::{Bytes, Datetime, Duration};
 use typst::syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot};
@@ -30,7 +32,7 @@ const MAX_DIAGNOSTIC_BYTES: usize = 4096;
 
 /// A reviewed image snapshot. `path` matches the Markdown image destination,
 /// uses forward slashes, and is a relative logical identifier, not a disk path.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PdfAsset {
     pub path: String,
     pub bytes: Vec<u8>,
