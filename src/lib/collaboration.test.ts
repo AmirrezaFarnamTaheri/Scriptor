@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mergeSharedRevision, parseSharedRevision, sharedRevisionBase, parseCollaborationMapping, collaborationMappingKey } from './collaboration.ts'
+import { mergeSharedRevision, parseSharedRevision, sharedRevisionBase, parseCollaborationMapping, collaborationMappingKey, preparePendingSharedRevision, pendingSharedRevisionKey } from './collaboration.ts'
 
 test('first share preserves incoming content when no common ancestor is known', () => {
   const base = sharedRevisionBase(null, 'notes/a.md')
@@ -78,4 +78,27 @@ test('concurrent format-only edits remain conflicts rather than silently normali
   assert.ok(result.markdown.includes(`<<<<<<< Local\n${local}\n`))
   assert.ok(result.markdown.includes(`||||||| Shared base\n${base}\n`))
   assert.ok(result.markdown.includes(`=======\n${remote}\n`))
+})
+
+test('ambiguous collaboration retry uses the original remote identity and refuses changed drafts', () => {
+  const map = new Map<string, string>()
+  const storage = {
+    getItem: (key: string) => map.get(key) ?? null,
+    setItem: (key: string, value: string) => { map.set(key, value) },
+  }
+  const key = pendingSharedRevisionKey('writer@example.org', 'vault-1', 'folder-1', 'a.md', 'drive_json')
+  const candidate = {
+    schema: 'scriptor.collaboration.v1' as const,
+    id: 'identity-one',
+    document: 'a.md',
+    peer_id: 'peer-one',
+    base_markdown: '',
+    markdown: 'first draft',
+    created_at: '2026-10-10T00:00:00Z',
+  }
+  assert.deepEqual(preparePendingSharedRevision(storage, key, candidate), candidate)
+  const again = { ...candidate, id: 'identity-two', peer_id: 'new-peer', created_at: '2026-10-10T00:01:00Z' }
+  assert.equal(preparePendingSharedRevision(storage, key, again).id, 'identity-one')
+  assert.throws(() => preparePendingSharedRevision(storage, key, { ...again, markdown: 'second draft' }), /previous share/i)
+  assert.notEqual(key, pendingSharedRevisionKey('other@example.org', 'vault-1', 'folder-1', 'a.md', 'drive_json'))
 })

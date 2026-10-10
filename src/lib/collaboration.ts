@@ -45,6 +45,33 @@ export function parseSharedRevision(value: unknown): SharedRevision {
   return result
 }
 
+/** Keep the exact immutable revision identity through an ambiguous provider
+ * timeout, reload, or retry. A changed local draft must first reconcile the
+ * previous pending operation rather than silently mint another remote file. */
+export function preparePendingSharedRevision(
+  storage: Pick<Storage, 'getItem' | 'setItem'>,
+  key: string,
+  candidate: SharedRevision,
+): SharedRevision {
+  const prior = storage.getItem(key)
+  if (prior !== null) {
+    if (prior.length > 4 * 1024 * 1024) throw new Error('Pending shared revision exceeds its size limit')
+    const previous = parseSharedRevision(JSON.parse(prior))
+    if (previous.document !== candidate.document || previous.base_markdown !== candidate.base_markdown
+      || previous.markdown !== candidate.markdown) {
+      throw new Error('A previous share may have succeeded. Restore the prior saved note and retry that pending revision before sharing new changes.')
+    }
+    return previous
+  }
+  const record = parseSharedRevision(candidate)
+  storage.setItem(key, JSON.stringify(record))
+  return record
+}
+
+export function pendingSharedRevisionKey(account: string, vaultId: string, folderId: string, path: string, transport: string): string {
+  return `scriptor:collaboration:pending:${JSON.stringify([account, vaultId, folderId, path, transport])}`
+}
+
 /** A conservative three-way merge: separated edit spans merge, overlaps retain all three versions. */
 export function mergeSharedRevision(base: string, local: string, remote: string): { markdown: string; conflict: boolean } {
   if (local === remote || remote === base) return { markdown: local, conflict: false }

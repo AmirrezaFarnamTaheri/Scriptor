@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { collaborationAppend, collaborationConnect, collaborationDisconnect, collaborationList, collaborationRead, vaultReadNote, vaultSaveNote } from '../bridge/commands'
-import { hasUnresolvedSharedConflict, mergeSharedRevision, sharedRevisionBase, parseCollaborationMapping, type SharedRevision } from '../lib/collaboration'
+import { hasUnresolvedSharedConflict, mergeSharedRevision, sharedRevisionBase, parseCollaborationMapping, preparePendingSharedRevision, pendingSharedRevisionKey, type SharedRevision } from '../lib/collaboration'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { collaborationReadDocs, collaborationCreateDocs } from '../bridge/commands/collaboration'
 import type { CollaborationTransport } from '../bridge/commands/collaboration'
@@ -255,9 +255,15 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           const note = await vaultReadNote(path!)
           if (note.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
           if (current !== epoch.current) return
-          const record: SharedRevision = { schema: 'scriptor.collaboration.v1', id: crypto.randomUUID(), document: path!, peer_id: peer.current,
+          const pendingKey = pendingSharedRevisionKey(account, vaultId!, folderId, path!, transport)
+          const candidate: SharedRevision = { schema: 'scriptor.collaboration.v1', id: crypto.randomUUID(), document: path!, peer_id: peer.current,
             base_markdown: sharedRevisionBase(base.current, path!), markdown: note.markdown, created_at: new Date().toISOString() }
+          const record = preparePendingSharedRevision(localStorage, pendingKey, candidate)
+          // Account/vault/folder/path ownership is encoded in the storage key.
+          // Preserve the same peer and revision UUID on retries after timeouts.
+          peer.current = record.peer_id
           await collaborationAppend(vaultId!, folderId, record, transport)
+          localStorage.removeItem(pendingKey)
           if (current === epoch.current) setMessage(`Revision shared. Local note was unchanged.${remember(note.markdown)}`)
         })}>Share current saved revision</button>
         <button disabled={busy || !folderId || !vaultId || !account} onClick={() => void run(current => list(current))}>Refresh shared revisions</button>
