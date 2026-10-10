@@ -75,7 +75,7 @@ test('Drive discovers and deduplicates folders, authorizes creation, and persist
   await panel.getByRole('button', { name: 'Save folder and transport', exact: true }).click()
   await expect(panel.getByRole('status').filter({ hasText: 'saved for this vault' })).toContainText('saved for this vault')
   const history = await calls(page)
-  expect(history).toEqual(expect.arrayContaining([expect.objectContaining({ cmd: 'authorize_sensitive_operation', payload: expect.objectContaining({ operation: 'google_drive_write', scope: 'drive:folders:create' }) })]))
+  expect(history).toEqual(expect.arrayContaining([expect.objectContaining({ cmd: 'authorize_sensitive_operation', payload: expect.objectContaining({ operation: 'google_drive_write', scope: expect.stringMatching(/^drive:folders:create:[a-f0-9]{64}$/) }) })]))
   const save = history.filter(call => call.cmd === 'vault_save_config_cmd').at(-1)!
   expect(save.payload.expectedVaultId).toBe('screenshot-vault')
   expect((save.payload.config as { calendar_sync: unknown }).calendar_sync).toEqual(expect.objectContaining({ google_drive_folder_id: 'created-folder', google_drive_transport: 'google_docs' }))

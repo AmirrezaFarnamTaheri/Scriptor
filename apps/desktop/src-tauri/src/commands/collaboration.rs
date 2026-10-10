@@ -1064,7 +1064,8 @@ mod tests {
             name: "Research".into(),
         };
         assert!(create.validate().is_ok());
-        assert_eq!(create.scope(), "drive:folders:create");
+        assert!(create.scope().starts_with("drive:folders:create:"));
+        assert_ne!(create.scope(), DriveRequest::CreateFolder { name: "Another".into() }.scope());
         assert!(
             DriveRequest::CreateFolder { name: "\n".into() }
                 .validate()

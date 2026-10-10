@@ -109,9 +109,9 @@ test('Gmail archive, trash and send use distinct reviewed authorization scopes',
   const history = await calls(page)
   const approvals = history.filter(call => call.cmd === 'authorize_sensitive_operation').map(call => call.payload)
   expect(approvals).toEqual(expect.arrayContaining([
-    expect.objectContaining({ operation: 'google_gmail_write', scope: 'a1' }),
-    expect.objectContaining({ operation: 'google_gmail_write', scope: 'a2' }),
-    expect.objectContaining({ operation: 'google_gmail_send', scope: 'gmail-send' }),
+    expect.objectContaining({ operation: 'google_gmail_write', scope: expect.stringMatching(/^gmail-modify:a1:[a-f0-9]{64}$/) }),
+    expect.objectContaining({ operation: 'google_gmail_write', scope: 'gmail-trash:a2' }),
+    expect.objectContaining({ operation: 'google_gmail_send', scope: expect.stringMatching(/^gmail-send:[a-f0-9]{64}$/) }),
   ]))
   const sent = history.find(call => call.cmd === 'google_gmail_send_message')
   expect(sent?.payload.authorizationToken).toBe('e2e-authorization-token')
