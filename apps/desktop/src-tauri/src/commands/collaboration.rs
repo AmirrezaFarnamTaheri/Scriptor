@@ -285,6 +285,10 @@ pub enum DriveRequest {
     ListFolders {
         page_token: Option<String>,
     },
+    /// Drive-generated file ID, reserved by Google for an atomic create.
+    GenerateRevisionId {
+        folder_id: String,
+    },
     CreateFolder {
         name: String,
     },
@@ -393,6 +397,7 @@ impl DriveRequest {
             Self::ListFolders { .. } | Self::CreateFolder { .. } => "root",
             Self::List { folder_id, .. }
             | Self::ListDocs { folder_id, .. }
+            | Self::GenerateRevisionId { folder_id }
             | Self::Read { folder_id, .. }
             | Self::ReadDocs { folder_id, .. }
             | Self::ReadDocsRecord { folder_id, .. }
@@ -404,6 +409,7 @@ impl DriveRequest {
     fn scope(&self) -> String {
         match self {
             Self::ListFolders { .. } => "drive:folders:list".into(),
+            Self::GenerateRevisionId { folder_id } => format!("drive:revision-id:{folder_id}"),
             Self::CreateFolder { name } => {
                 format!("drive:folders:create:{}", drive_write_digest(&[name]))
             },
@@ -558,6 +564,20 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
     let client = http_client()?;
     let token = refresh_if_needed(&client, ACCOUNT)?;
     match request {
+        DriveRequest::GenerateRevisionId { .. } => {
+            let response = bounded_json(
+                client.get(format!("{API}/generateIds"))
+                    .bearer_auth(&token)
+                    .query(&[("count", "1"), ("space", "drive"), ("type", "files")])
+                    .send().map_err(|error| error.to_string())?,
+            )?;
+            let ids = response.get("ids").and_then(Value::as_array)
+                .ok_or("Google Drive did not allocate a revision identity")?;
+            if ids.len() != 1 { return Err("Google Drive returned an invalid number of revision identities".into()); }
+            let id = ids[0].as_str().ok_or("Invalid Drive-generated revision identity")?;
+            validate_id(id)?;
+            Ok(json!({"id": id}))
+        }
         DriveRequest::ListFolders { page_token } => list_resources(
             &client,
             &token,
@@ -815,27 +835,39 @@ fn exchange(request: DriveRequest) -> Result<Value, String> {
                 return Ok(file.clone());
             }
             let boundary = format!("scriptor-{}", uuid::Uuid::new_v4());
-            let metadata = json!({"name": name, "mimeType": "application/json", "parents": [folder_id], "appProperties": {"scriptorCollaboration": "1"}});
+            // The pre-generated file ID is the immutable revision identity:
+            // two clients submitting the same record cannot create two files.
+            let metadata = json!({"id": record.id, "name": name, "mimeType": "application/json", "parents": [folder_id], "appProperties": {"scriptorCollaboration": "1"}});
             let multipart = format!(
                 "--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n{metadata}\r\n--{boundary}\r\nContent-Type: application/json\r\n\r\n{body}\r\n--{boundary}--\r\n"
             );
-            bounded_json(
-                client
-                    .post(UPLOAD)
+            let response = client.post(UPLOAD).bearer_auth(&token)
+                .query(&[("uploadType", "multipart"), ("fields", "id,name"), ("supportsAllDrives", "true")])
+                .header("Content-Type", format!("multipart/related; boundary={boundary}"))
+                .body(multipart).send().map_err(|error| error.to_string())?;
+            if response.status() == reqwest::StatusCode::CONFLICT {
+                // A concurrent writer won: accept only its identical record in
+                // the selected folder, never treat a bare 409 as success.
+                let meta = bounded_json(client.get(format!("{API}/{}", record.id))
                     .bearer_auth(&token)
-                    .query(&[
-                        ("uploadType", "multipart"),
-                        ("fields", "id,name"),
-                        ("supportsAllDrives", "true"),
-                    ])
-                    .header(
-                        "Content-Type",
-                        format!("multipart/related; boundary={boundary}"),
-                    )
-                    .body(multipart)
-                    .send()
-                    .map_err(|error| error.to_string())?,
-            )
+                    .query(&[("fields", "parents,appProperties,trashed"), ("supportsAllDrives", "true")])
+                    .send().map_err(|error| error.to_string())?)?;
+                let belongs = meta.get("parents").and_then(Value::as_array)
+                    .is_some_and(|parents| parents.iter().any(|value| value.as_str() == Some(folder_id.as_str())));
+                if !belongs || meta.get("trashed").and_then(Value::as_bool) == Some(true)
+                    || meta.pointer("/appProperties/scriptorCollaboration").and_then(Value::as_str) != Some("1") {
+                    return Err("Conflicting revision identity is outside the approved folder".into());
+                }
+                let existing = bounded_json(client.get(format!("{API}/{}", record.id))
+                    .bearer_auth(&token)
+                    .query(&[("alt", "media"), ("supportsAllDrives", "true")])
+                    .send().map_err(|error| error.to_string())?)?;
+                if existing != serde_json::to_value(&record).map_err(|error| error.to_string())? {
+                    return Err("Concurrent revision identity has different content".into());
+                }
+                return Ok(json!({"id":record.id,"name":name}));
+            }
+            bounded_json(response)
         }
     }
 }

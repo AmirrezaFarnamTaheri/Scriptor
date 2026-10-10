@@ -17,6 +17,21 @@ async function revisionWriteDigest(record: SharedRevision): Promise<string> {
   ])
 }
 
+/** Reserve the file ID on Google's server before review/upload. */
+export async function collaborationGenerateRevisionId(expectedVaultId: string, folderId: string): Promise<string> {
+  requireNative()
+  const authorizationToken = await authorizeSensitiveOperation('google_drive_read', `drive:revision-id:${folderId}`)
+  const result: unknown = await invoke('collaboration_read', {
+    request: { kind: 'generate_revision_id', folder_id: folderId },
+    expectedVaultId, authorizationToken,
+  })
+  if (!result || typeof result !== 'object' || !('id' in result)
+    || typeof result.id !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(result.id)) {
+    throw new Error('Google Drive did not allocate a valid immutable revision ID')
+  }
+  return result.id
+}
+
 export async function collaborationGetAccount(): Promise<string | null> {
   requireNative()
   const result: unknown = await invoke('collaboration_get_account')

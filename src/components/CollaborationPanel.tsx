@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { collaborationAppend, collaborationConnect, collaborationDisconnect, collaborationList, collaborationRead, vaultReadNote, vaultSaveNote } from '../bridge/commands'
 import { hasUnresolvedSharedConflict, mergeSharedRevision, sharedRevisionBase, parseCollaborationMapping, preparePendingSharedRevision, pendingSharedRevisionKey, type SharedRevision } from '../lib/collaboration'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
-import { collaborationReadDocs, collaborationCreateDocs } from '../bridge/commands/collaboration'
+import { collaborationReadDocs, collaborationCreateDocs, collaborationGenerateRevisionId } from '../bridge/commands/collaboration'
 import type { CollaborationTransport } from '../bridge/commands/collaboration'
 import { translateGoogleDoc, docsPlainTextExport } from '../lib/collaborationDocs'
 import { useCollaborationPolling } from '../hooks/useCollaborationPolling'
@@ -256,7 +256,12 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           if (note.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
           if (current !== epoch.current) return
           const pendingKey = pendingSharedRevisionKey(account, vaultId!, folderId, path!, transport)
-          const candidate: SharedRevision = { schema: 'scriptor.collaboration.v1', id: crypto.randomUUID(), document: path!, peer_id: peer.current,
+          const existingPending = localStorage.getItem(pendingKey)
+          const allocatedId = existingPending === null && transport === 'drive_json'
+            ? await collaborationGenerateRevisionId(vaultId!, folderId)
+            : crypto.randomUUID()
+          if (current !== epoch.current) return
+          const candidate: SharedRevision = { schema: 'scriptor.collaboration.v1', id: allocatedId, document: path!, peer_id: peer.current,
             base_markdown: sharedRevisionBase(base.current, path!), markdown: note.markdown, created_at: new Date().toISOString() }
           const record = preparePendingSharedRevision(localStorage, pendingKey, candidate)
           // Account/vault/folder/path ownership is encoded in the storage key.
