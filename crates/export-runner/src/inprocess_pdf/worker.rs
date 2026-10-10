@@ -12,6 +12,7 @@ use super::{MAX_ASSET_BYTES, MAX_MARKDOWN_BYTES, MAX_PDF_BYTES, MAX_TOTAL_ASSET_
 
 pub const PDF_WORKER_MARKER: &str = "--scriptor-offline-pdf-worker";
 const MAX_REQUEST_BYTES: u64 = 140 * 1024 * 1024;
+#[cfg(any(target_os = "linux", windows))]
 const HARD_MEMORY_BYTES: usize = 1536 * 1024 * 1024;
 
 #[derive(Debug, Serialize, Deserialize)]

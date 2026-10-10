@@ -6656,6 +6656,7 @@ version = "1.2.8"
 dependencies = [
  "chrono",
  "hex",
+ "libc",
  "log",
  "pulldown-cmark",
  "scriptor-system-bridge",
@@ -6669,6 +6670,7 @@ dependencies = [
  "typst-layout",
  "typst-pdf",
  "uuid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
