@@ -323,12 +323,12 @@ export const TaskPanel = memo(function TaskPanel({
       if (cancelled) return
       setAllVaultTasks(rows)
       setVaultTasksComplete(more.length === 0)
-      if (more.length) setVaultTaskLoadError(t('tasks.google.incompleteVaultTasks'))
+      if (more.length) setVaultTaskLoadError('tasks.google.incompleteVaultTasks')
     })().catch(() => {
       if (!cancelled) {
         setAllVaultTasks([])
         setVaultTasksComplete(false)
-        setVaultTaskLoadError(t('tasks.google.vaultTaskLoadError'))
+        setVaultTaskLoadError('tasks.google.vaultTaskLoadError')
       }
     })
     return () => {
@@ -408,7 +408,7 @@ export const TaskPanel = memo(function TaskPanel({
             </div>
           </div>
           {calendarSync.error ? <p className="error-state" role="alert">{calendarSync.error}</p> : null}
-          {vaultTaskLoadError && <p className="error-state" role="alert">{vaultTaskLoadError}</p>}
+          {vaultTaskLoadError && <p className="error-state" role="alert">{t(vaultTaskLoadError)}</p>}
           {vaultSyncSummary && <p className="health-subtitle" role="status">{vaultSyncSummary}</p>}
 
           {calendarConfig.show_events_in_tasks ? (
