@@ -1161,7 +1161,9 @@
       "noTasks": "No Google Tasks loaded.",
       "complete": "Complete",
       "pushingVaultTasks": "Pushing vault tasks…",
-      "pushResult": "{{created}} created · {{updated}} updated · {{skipped}} already aligned · {{failed}} failed · {{pending}} pending approval"
+      "pushResult": "{{created}} created · {{updated}} updated · {{skipped}} already aligned · {{failed}} failed · {{pending}} pending approval",
+      "incompleteVaultTasks": "The vault contains more than 20,000 tasks. Full mirroring is disabled; use local task filtering.",
+      "vaultTaskLoadError": "Could not load the complete vault task collection. Mirroring is unavailable until it reloads."
     }
   },
   "vaultSidebar": {
@@ -1247,5 +1249,8 @@
     "localRemoved": "Local block removed. Its Google event remains unchanged.",
     "cancelAfterActive": "Stopping after the active change. A sent provider request cannot be recalled.",
     "cancelledReview": "Review cancelled. No further changes applied."
+  },
+  "collaborationAtomic": {
+    "legacyDocsReadOnly": "Legacy Google Docs revisions can still be read, but new revision sharing is disabled because Google cannot atomically reserve native Docs file IDs. Choose Drive JSON to share safely."
   }
 }

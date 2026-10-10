@@ -323,12 +323,12 @@ export const TaskPanel = memo(function TaskPanel({
       if (cancelled) return
       setAllVaultTasks(rows)
       setVaultTasksComplete(more.length === 0)
-      if (more.length) setVaultTaskLoadError('The vault contains more than 20,000 tasks. Full mirroring is disabled; use local task filtering.')
+      if (more.length) setVaultTaskLoadError(t('tasks.google.incompleteVaultTasks'))
     })().catch(() => {
       if (!cancelled) {
         setAllVaultTasks([])
         setVaultTasksComplete(false)
-        setVaultTaskLoadError('Could not load the complete vault task collection. Mirroring is unavailable until it reloads.')
+        setVaultTaskLoadError(t('tasks.google.vaultTaskLoadError'))
       }
     })
     return () => {

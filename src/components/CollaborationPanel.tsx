@@ -25,7 +25,7 @@ export interface CollaborationPanelProps {
 
 /** Every remote transfer is authorized by the native broker; previews never write notes. */
 export default function CollaborationPanel({ path, vaultId, googleConfig, onClose, onApplied, runSourceNoteMutation }: CollaborationPanelProps) {
-  const { locale } = useI18n()
+  const { locale, t } = useI18n()
   const copy = GOOGLE_COLLABORATION_COPY[locale]
   const [initial] = useState(() => {
     try { return { ...parseGoogleCollaborationSetup(googleConfig), error: '' } }
@@ -250,7 +250,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         })}
         onSave={() => void run(async current => { await persistSetup(); if (current === epoch.current) { setMessage(copy.bindingSaved); await onApplied() } })} />
       <p>Mapped local note: <bdi>{path ?? 'Select a note'}</bdi></p>
-      {transport === 'google_docs' && <p role="note">Legacy Google Docs revisions can still be read, but new revision sharing is disabled because Google cannot atomically reserve native Docs file IDs. Choose Drive JSON to share safely.</p>}
+      {transport === 'google_docs' && <p role="note">{t('collaborationAtomic.legacyDocsReadOnly')}</p>}
       <div className="collaboration-actions">
         <button disabled={busy || !folderId || !path || !vaultId || !account || transport === 'google_docs'} onClick={() => void run(async current => {
           const note = await vaultReadNote(path!)

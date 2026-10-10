@@ -1161,7 +1161,9 @@
       "noTasks": "Keine Google Tasks geladen.",
       "complete": "Erledigen",
       "pushingVaultTasks": "Vault-Aufgaben werden übertragen…",
-      "pushResult": "{{created}} erstellt · {{updated}} aktualisiert · {{skipped}} bereits synchron · {{failed}} fehlgeschlagen · {{pending}} noch ausstehend"
+      "pushResult": "{{created}} erstellt · {{updated}} aktualisiert · {{skipped}} bereits synchron · {{failed}} fehlgeschlagen · {{pending}} noch ausstehend",
+      "incompleteVaultTasks": "Dieser Tresor enthält mehr als 20.000 Aufgaben. Die vollständige Synchronisierung ist deaktiviert; verwenden Sie lokale Aufgabenfilter.",
+      "vaultTaskLoadError": "Die vollständige Aufgabenliste konnte nicht geladen werden. Die Synchronisierung ist bis zum erneuten Laden nicht verfügbar."
     }
   },
   "vaultSidebar": {
@@ -1247,5 +1249,8 @@
     "localRemoved": "Lokaler Block entfernt. Das Google-Ereignis bleibt unverändert.",
     "cancelAfterActive": "Nach der laufenden Änderung beenden. Eine gesendete Anbieteranfrage kann nicht zurückgerufen werden.",
     "cancelledReview": "Prüfung abgebrochen. Keine weiteren Änderungen übernommen."
+  },
+  "collaborationAtomic": {
+    "legacyDocsReadOnly": "Vorhandene Google-Docs-Revisionen bleiben lesbar. Neue Revisionen können dort nicht sicher erstellt werden, da Google Docs keine atomar reservierten Datei-IDs unterstützt. Wählen Sie Drive JSON für die sichere Freigabe."
   }
 }
