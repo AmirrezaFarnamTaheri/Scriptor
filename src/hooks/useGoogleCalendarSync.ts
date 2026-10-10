@@ -416,7 +416,9 @@ export function useGoogleCalendarSync({
     async (taskId: string) => {
       const currentLifecycle = lifecycleGenerationRef.current
       try {
-        await googleCalendarCompleteTask(taskListId, taskId)
+        const etag = tasks.find(task => task.id === taskId)?.etag
+        if (!etag) throw new Error('Refresh the Google Tasks list before changing a task without a revision.')
+        await googleCalendarCompleteTask(taskListId, taskId, etag)
         if (currentLifecycle === lifecycleGenerationRef.current) {
           taskMutationRevisionRef.current += 1
           setTasks((prev) =>
@@ -433,14 +435,16 @@ export function useGoogleCalendarSync({
         }
       }
     },
-    [taskListId],
+    [taskListId, tasks],
   )
 
   const deleteTask = useCallback(
     async (taskId: string) => {
       const currentLifecycle = lifecycleGenerationRef.current
       try {
-        await googleCalendarDeleteTask(taskListId, taskId)
+        const etag = tasks.find(task => task.id === taskId)?.etag
+        if (!etag) throw new Error('Refresh the Google Tasks list before deleting a task without a revision.')
+        await googleCalendarDeleteTask(taskListId, taskId, etag)
         if (currentLifecycle === lifecycleGenerationRef.current) {
           taskMutationRevisionRef.current += 1
           setTasks((prev) => prev.filter((task) => task.id !== taskId))
@@ -451,7 +455,7 @@ export function useGoogleCalendarSync({
         }
       }
     },
-    [taskListId],
+    [taskListId, tasks],
   )
 
   const syncVaultTasks = useCallback(async (): Promise<VaultTaskSyncResult> => {
@@ -473,7 +477,7 @@ export function useGoogleCalendarSync({
           // and title-only matches cannot establish ownership across vaults.
           const legacyMarker = `${SOURCE_MARKER_PREFIX} ${task.id}`
 
-          let matchingRemote = tasks.find((remoteTask) => {
+          const matchingRemote = tasks.find((remoteTask) => {
             if (matchedRemoteIds.has(remoteTask.id)) return false
             const markerLines = (remoteTask.notes ?? '').split('\n')
             return markerLines.includes(marker) || markerLines.includes(legacyMarker)
@@ -486,7 +490,8 @@ export function useGoogleCalendarSync({
               skipped += 1
             } else {
               matchedRemoteIds.add(matchingRemote.id)
-              mutations.push({ kind: 'complete', taskId: matchingRemote.id })
+              if (!matchingRemote.etag) throw new Error('Google Task revisions are missing. Refresh before mirroring.')
+              mutations.push({ kind: 'complete', taskId: matchingRemote.id, etag: matchingRemote.etag })
             }
             continue
           }
@@ -506,9 +511,11 @@ export function useGoogleCalendarSync({
               continue
             }
 
+            if (!matchingRemote.etag) throw new Error('Google Task revisions are missing. Refresh before mirroring.')
             mutations.push({
               kind: 'update',
               taskId: matchingRemote.id,
+              etag: matchingRemote.etag,
               title: task.text,
               notes: desiredNotes,
               due: desiredDue,
@@ -538,7 +545,8 @@ export function useGoogleCalendarSync({
           continue
         }
         matchedRemoteIds.add(remoteTask.id)
-        mutations.push({ kind: 'complete', taskId: remoteTask.id })
+        if (!remoteTask.etag) throw new Error('Google Task revisions are missing. Refresh before mirroring.')
+        mutations.push({ kind: 'complete', taskId: remoteTask.id, etag: remoteTask.etag })
       }
 
       if (mutations.length === 0) {

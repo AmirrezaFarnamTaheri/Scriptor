@@ -728,7 +728,7 @@ pub fn query_tasks_page(
     sql.push_str(" WHERE ");
     sql.push_str(&predicates.join(" AND "));
     sql.push_str(" ORDER BY t.due_at ASC NULLS LAST, t.source_note_id, t.line, t.id LIMIT ? OFFSET ?");
-    values.push(Value::Integer(i64::from(limit.min(1_000))));
+    values.push(Value::Integer(i64::from(limit)));
     values.push(Value::Integer(i64::from(offset)));
 
     let mut stmt = conn.prepare_cached(&sql)?;

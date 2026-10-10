@@ -1064,6 +1064,13 @@ fn validate_provider_task(task: GTask) -> Result<GTask, String> {
     Ok(task)
 }
 
+fn validate_task_etag(etag: &str) -> Result<(), String> {
+    if etag.is_empty() || etag.len() > 512 || etag.chars().any(char::is_control) {
+        return Err("Google Task revision missing or invalid. Refresh tasks before writing.".into());
+    }
+    Ok(())
+}
+
 fn validate_task_sync_mutation(mutation: &GoogleTaskSyncMutation) -> Result<(), String> {
     match mutation.kind.as_str() {
         "create" => validate_task_fields(
@@ -1074,6 +1081,7 @@ fn validate_task_sync_mutation(mutation: &GoogleTaskSyncMutation) -> Result<(), 
         ),
         "update" => {
             validate_google_task_id(mutation.task_id.as_deref().unwrap_or_default())?;
+            validate_task_etag(mutation.etag.as_deref().unwrap_or_default())?;
             validate_task_fields(
                 mutation.title.as_deref().unwrap_or_default(),
                 mutation.notes.as_deref(),
@@ -1081,7 +1089,10 @@ fn validate_task_sync_mutation(mutation: &GoogleTaskSyncMutation) -> Result<(), 
                 mutation.status.as_deref(),
             )
         }
-        "complete" => validate_google_task_id(mutation.task_id.as_deref().unwrap_or_default()),
+        "complete" => {
+            validate_google_task_id(mutation.task_id.as_deref().unwrap_or_default())?;
+            validate_task_etag(mutation.etag.as_deref().unwrap_or_default())
+        },
         _ => Err("Unsupported Google Task sync mutation kind".into()),
     }
 }
@@ -2304,6 +2315,7 @@ pub struct GoogleTaskSyncMutation {
     notes: Option<String>,
     due: Option<String>,
     status: Option<String>,
+    etag: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2321,6 +2333,7 @@ struct GoogleTaskUpdateInput {
     notes: String,
     due: Option<String>,
     status: Option<String>,
+    etag: String,
 }
 
 fn google_task_sync_scope(count: usize) -> String {
@@ -2610,6 +2623,7 @@ fn update_google_task(
     update: GoogleTaskUpdateInput,
 ) -> Result<GoogleTask, String> {
     validate_google_task_id(&update.task_id)?;
+    validate_task_etag(&update.etag)?;
     validate_task_fields(
         &update.title,
         Some(&update.notes),
@@ -2639,9 +2653,13 @@ fn update_google_task(
     let response = client
         .patch(url)
         .bearer_auth(access_token)
+        .header("If-Match", &update.etag)
         .json(&serde_json::Value::Object(body))
         .send()
         .map_err(|error| format!("failed to update Google Task: {error}"))?;
+    if response.status().as_u16() == 409 || response.status().as_u16() == 412 {
+        return Err("Google Task changed since review. Refresh tasks and resolve the conflict.".into());
+    }
     if !response.status().is_success() {
         return Err(provider_failure(
             response.status(),
@@ -2657,8 +2675,10 @@ fn complete_google_task(
     access_token: &str,
     task_list_id: &str,
     task_id: String,
+    etag: String,
 ) -> Result<(), String> {
     validate_google_task_id(&task_id)?;
+    validate_task_etag(&etag)?;
     let url = format!(
         "{TASKS_ENDPOINT}/{}/tasks/{}",
         percent_encode(task_list_id),
@@ -2667,9 +2687,13 @@ fn complete_google_task(
     let response = client
         .patch(url)
         .bearer_auth(access_token)
+        .header("If-Match", etag)
         .json(&serde_json::json!({ "status": "completed" }))
         .send()
         .map_err(|error| format!("failed to complete Google Task: {error}"))?;
+    if response.status().as_u16() == 409 || response.status().as_u16() == 412 {
+        return Err("Google Task changed since review. Refresh tasks and resolve the conflict.".into());
+    }
     if !response.status().is_success() {
         return Err(provider_failure(
             response.status(),
@@ -2735,6 +2759,7 @@ pub fn google_calendar_apply_task_sync(
                     notes: mutation.notes.unwrap_or_default(),
                     due: mutation.due,
                     status: mutation.status,
+                    etag: mutation.etag.unwrap_or_default(),
                 },
             )
             .map(|_| ()),
@@ -2743,6 +2768,7 @@ pub fn google_calendar_apply_task_sync(
                 &access_token,
                 &task_list_id,
                 mutation.task_id.unwrap_or_default(),
+                mutation.etag.unwrap_or_default(),
             ),
             _ => Err(format!(
                 "unsupported Google Task sync mutation kind: {kind}"
@@ -2797,6 +2823,7 @@ pub fn google_calendar_update_task(
     notes: String,
     due: Option<String>,
     status: Option<String>,
+    etag: String,
     authorization_token: String,
 ) -> Result<GoogleTask, String> {
     require_sensitive_operation(
@@ -2819,6 +2846,7 @@ pub fn google_calendar_update_task(
             notes,
             due,
             status,
+            etag,
         },
     )
 }
@@ -2828,6 +2856,7 @@ pub fn google_calendar_complete_task(
     state: tauri::State<AppState>,
     task_list_id: String,
     task_id: String,
+    etag: String,
     authorization_token: String,
 ) -> Result<(), String> {
     require_sensitive_operation(
@@ -2840,7 +2869,7 @@ pub fn google_calendar_complete_task(
     validate_task_list_id(&task_list_id)?;
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
-    complete_google_task(&client, &access_token, &task_list_id, task_id)
+    complete_google_task(&client, &access_token, &task_list_id, task_id, etag)
 }
 
 #[tauri::command]
@@ -2848,6 +2877,7 @@ pub fn google_calendar_delete_task(
     state: tauri::State<AppState>,
     task_list_id: String,
     task_id: String,
+    etag: String,
     authorization_token: String,
 ) -> Result<(), String> {
     require_sensitive_operation(
@@ -2859,6 +2889,7 @@ pub fn google_calendar_delete_task(
     )?;
     validate_task_list_id(&task_list_id)?;
     validate_google_task_id(&task_id)?;
+    validate_task_etag(&etag)?;
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
 
@@ -2870,8 +2901,12 @@ pub fn google_calendar_delete_task(
     let response = client
         .delete(url)
         .bearer_auth(&access_token)
+        .header("If-Match", etag)
         .send()
         .map_err(|error| format!("failed to delete Google Task: {error}"))?;
+    if response.status().as_u16() == 409 || response.status().as_u16() == 412 {
+        return Err("Google Task changed since review. Refresh tasks and resolve the conflict.".into());
+    }
     if !response.status().is_success() {
         return Err(provider_failure(
             response.status(),
@@ -2973,9 +3008,20 @@ mod tests {
         )
         .unwrap();
         assert!(validate_task_sync_mutation(&valid).is_ok());
+        let valid_update: GoogleTaskSyncMutation = serde_json::from_str(
+            r#"{"kind":"update","taskId":"a","etag":"W/123","title":"A","notes":"B"}"#,
+        ).unwrap();
+        let valid_complete: GoogleTaskSyncMutation = serde_json::from_str(
+            r#"{"kind":"complete","taskId":"a","etag":"W/123"}"#,
+        ).unwrap();
+        assert!(validate_task_sync_mutation(&valid_update).is_ok());
+        assert!(validate_task_sync_mutation(&valid_complete).is_ok());
+        assert!(validate_task_etag("bad\nheader").is_err());
         for invalid in [
             r#"{"kind":"update","taskId":"a","title":"injected\nheader"}"#,
             r#"{"kind":"create","title":"A","due":"tomorrow"}"#,
+            r#"{"kind":"update","taskId":"a","title":"A","notes":"B"}"#,
+            r#"{"kind":"complete","taskId":"a"}"#,
             r#"{"kind":"update","taskId":"a","title":"A","status":"unknown"}"#,
             r#"{"kind":"complete","taskId":""}"#,
             r#"{"kind":"delete","taskId":"a"}"#,

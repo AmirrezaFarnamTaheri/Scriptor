@@ -121,6 +121,7 @@ fn should_skip_backup_path(relative: &Path) -> bool {
                         | "tmp"
                         | "restore-journal"
                         | "recovery"
+                        | "source-recovery"
                 )
         }
         _ => false,

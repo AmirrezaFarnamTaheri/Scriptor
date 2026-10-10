@@ -57,8 +57,8 @@ export interface GoogleTask {
 
 export type GoogleTaskSyncMutation =
   | { kind: 'create'; title: string; notes?: string | null; due?: string | null }
-  | { kind: 'update'; taskId: string; title: string; notes: string; due?: string | null; status?: 'needsAction' | 'completed' }
-  | { kind: 'complete'; taskId: string }
+  | { kind: 'update'; taskId: string; etag: string; title: string; notes: string; due?: string | null; status?: 'needsAction' | 'completed' }
+  | { kind: 'complete'; taskId: string; etag: string }
 
 export interface GoogleTaskSyncMutationResult {
   kind: GoogleTaskSyncMutation['kind']
@@ -160,6 +160,7 @@ export async function googleCalendarUpdateTask(args: {
   notes: string
   due?: string | null
   status?: 'needsAction' | 'completed'
+  etag: string
 }): Promise<GoogleTask> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
@@ -170,6 +171,7 @@ export async function googleCalendarUpdateTask(args: {
     notes: args.notes,
     due: args.due ?? null,
     status: args.status ?? null,
+    etag: args.etag,
     authorizationToken,
   })
 }
@@ -177,16 +179,17 @@ export async function googleCalendarUpdateTask(args: {
 export async function googleCalendarCompleteTask(
   taskListId: string,
   taskId: string,
+  etag: string,
 ): Promise<void> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
-  await invoke('google_calendar_complete_task', { taskListId, taskId, authorizationToken })
+  await invoke('google_calendar_complete_task', { taskListId, taskId, etag, authorizationToken })
 }
 
-export async function googleCalendarDeleteTask(taskListId: string, taskId: string): Promise<void> {
+export async function googleCalendarDeleteTask(taskListId: string, taskId: string, etag: string): Promise<void> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
-  await invoke('google_calendar_delete_task', { taskListId, taskId, authorizationToken })
+  await invoke('google_calendar_delete_task', { taskListId, taskId, etag, authorizationToken })
 }
 
 export type PlannerWrite =
