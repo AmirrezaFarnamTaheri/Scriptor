@@ -133,8 +133,7 @@ export async function collaborationAppend(expectedVaultId: string, folderId: str
   const validated = parseSharedRevision(record)
   const name = `${validated.id}.json`
   const revisionDigest = await revisionWriteDigest(validated)
-  const authorizationToken = await authorizeSensitiveOperation('google_drive_write', transport === 'google_docs'
-    ? `drive:docs-record:append:${folderId}:${name}:${revisionDigest}`
-    : `drive:append:${folderId}:${name}:${revisionDigest}`)
-  await invoke('collaboration_write', { request: { kind: transport === 'google_docs' ? 'append_docs_record' : 'append', folder_id: folderId, name, record: validated }, expectedVaultId, authorizationToken })
+  const authorizationToken = await authorizeSensitiveOperation('google_drive_write',
+    `drive:append:${folderId}:${name}:${revisionDigest}`)
+  await invoke('collaboration_write', { request: { kind: 'append', folder_id: folderId, name, record: validated }, expectedVaultId, authorizationToken })
 }
