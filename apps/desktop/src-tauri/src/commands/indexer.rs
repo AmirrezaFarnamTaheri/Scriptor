@@ -340,6 +340,7 @@ pub fn indexer_query_tasks(
     due_before: Option<String>,
     due_after: Option<String>,
     limit: Option<u32>,
+    offset: Option<u32>,
 ) -> Result<Vec<TaskRow>, String> {
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|e| e.to_string())?;
@@ -349,11 +350,12 @@ pub fn indexer_query_tasks(
         due_before,
         due_after,
     };
-    query_tasks(
+    scriptor_indexer::tasks::query_tasks_page(
         &cache,
         &session.descriptor.id,
         &filter,
-        limit.unwrap_or(200),
+        limit.unwrap_or(200).min(1_000),
+        offset.unwrap_or(0),
     )
     .map_err(|e| e.to_string())
 }

@@ -120,8 +120,10 @@ async fn mobile_request(
                 // app while the user chooses a provider; its returned selection
                 // grants this immutable snapshot write, never a new vault root.
                 let result = (|| -> Result<(), String> {
-                    let options = serde_json::from_value::<tauri_plugin_fs::OpenOptions>(json!({ "read": false, "write": true, "create": true, "truncate": true })).map_err(|error| error.to_string())?;
-                    let mut file = app.fs().open(destination.clone(), options).map_err(|error| error.to_string())?;
+                    // Never truncate an existing file in a provider-backed picker: interrupted
+                    // writes must not destroy the user's previous document.
+                    let options = serde_json::from_value::<tauri_plugin_fs::OpenOptions>(json!({ "read": false, "write": true, "createNew": true })).map_err(|error| error.to_string())?;
+                    let mut file = app.fs().open(destination.clone(), options).map_err(|error| format!("Choose a new output filename (existing files are never overwritten): {error}"))?;
                     file.write_all(&pdf.bytes).map_err(|error| format!("PDF write failed; the selected destination may contain a partial file: {error}"))?;
                     file.flush().map_err(|error| error.to_string())?;
                     Ok(())

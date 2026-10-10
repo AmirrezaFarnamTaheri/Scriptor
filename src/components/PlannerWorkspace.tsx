@@ -55,6 +55,7 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
   const [bases,setBases] = useState(() => readBases(baseKey))
   const [day,setDay] = useState(formatLocalDate())
   const [taskId,setTaskId] = useState('')
+  const [taskSearch,setTaskSearch] = useState('')
   const [start,setStart] = useState(`${formatLocalDate()}T09:00`)
   const [end,setEnd] = useState(`${formatLocalDate()}T10:00`)
   const [eventId,setEventId] = useState('')
@@ -72,6 +73,13 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
     return () => { mountedRef.current = false; cancelRef.current = true }
   }, [])
   const days = useMemo(() => weekDays(day), [day])
+  // Bound DOM option counts without hiding tasks past an arbitrary index.
+  const taskChoices = useMemo(() => {
+    const query = taskSearch.trim().toLocaleLowerCase()
+    const selected = tasks.find(task => task.id === taskId)
+    const matches = tasks.filter(task => task.id !== taskId && (!query || task.title.toLocaleLowerCase().includes(query) || (task.sourceNotePath ?? '').toLocaleLowerCase().includes(query))).slice(0, 199)
+    return selected ? [selected, ...matches] : matches.slice(0, 200)
+  }, [tasks, taskId, taskSearch])
   const saveBlocks = (next: PlannerBlock[]) => {
     if (!contextCurrent()) return
     if (next.length > 500) throw new Error('Planner supports up to 500 mapped time blocks')
@@ -193,7 +201,9 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
       </section>)}
     </div>
     <form className="planner-schedule" onSubmit={event=>{event.preventDefault();schedule()}}>
-      <label>Vault task<select value={taskId} onChange={e=>setTaskId(e.target.value)} required><option value="">Choose task</option>{tasks.map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label>
+      <label>Search vault tasks<input type="search" value={taskSearch} onChange={event=>setTaskSearch(event.target.value)} placeholder="Task title or note path" /></label>
+       <label>Vault task<select value={taskId} onChange={e=>setTaskId(e.target.value)} required><option value="">Choose task</option>{taskChoices.map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label>
+       <p className="health-subtitle" role="status">Showing {taskChoices.length} of {tasks.length} tasks. Search to find any task in the loaded vault.</p>
       <label>Start<input type="datetime-local" value={start} onChange={e=>setStart(e.target.value)} required/></label><label>End<input type="datetime-local" value={end} onChange={e=>setEnd(e.target.value)} required/></label>
       <label>Google event<select value={eventId} onChange={e=>{setEventId(e.target.value);const event=events.find(row=>row.id===e.target.value);if(event && !event.allDay){setStart(inputTime(event.start));setEnd(inputTime(event.end))}}}><option value="">Create event when synced</option>{events.filter(event=>!event.allDay && event.status!=='cancelled').map(event=><option key={event.id} value={event.id}>{event.summary}</option>)}</select></label>
       <button type="submit" className="toolbar-button" disabled={busy}>Save time block</button>

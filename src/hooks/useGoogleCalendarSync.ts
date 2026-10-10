@@ -165,10 +165,10 @@ function taskDueKey(value: string | null | undefined): string | null {
   return match?.[1] ?? null
 }
 
-function reconciledTaskNotes(remoteNotes: string | null, marker: string): string {
-  const preserved = (remoteNotes ?? '')
-    .split('\n')
-    .filter((line) => !line.startsWith(SOURCE_MARKER_PREFIX) && line.trim().length > 0)
+function reconciledTaskNotes(remoteNotes: string | null, marker: string, legacyMarker: string): string {
+  // Never remove unrelated user text or another vault's ownership marker.
+  if (!remoteNotes) return marker
+  const preserved = remoteNotes.split('\n').filter(line => line !== marker && line !== legacyMarker)
   return [...preserved, marker].join('\n')
 }
 
@@ -479,18 +479,8 @@ export function useGoogleCalendarSync({
             return markerLines.includes(marker) || markerLines.includes(legacyMarker)
           })
 
-          // A note move can legitimately change native task identity. Rebind a
-          // single unambiguous Scriptor-authored task by title; duplicate titles
-          // remain conservative rather than guessing.
-          if (!matchingRemote) {
-            const titleMatches = tasks.filter((remoteTask) =>
-              !matchedRemoteIds.has(remoteTask.id)
-              && remoteTask.title === task.text
-              && hasVaultSourceMarker(remoteTask, vaultId),
-            )
-            if (titleMatches.length === 1) matchingRemote = titleMatches[0]
-          }
-
+          // A title is not a stable provider identity. A moved or renamed
+          // task needs an explicit rebind review instead of guessing by title.
           if (task.checked) {
             if (!matchingRemote || matchingRemote.status === 'completed') {
               skipped += 1
@@ -504,7 +494,7 @@ export function useGoogleCalendarSync({
           if (matchingRemote) {
             matchedRemoteIds.add(matchingRemote.id)
             const desiredDue = normalizeTaskDue(task.dueDate)
-            const desiredNotes = reconciledTaskNotes(matchingRemote.notes, marker)
+            const desiredNotes = reconciledTaskNotes(matchingRemote.notes, marker, legacyMarker)
             const needsUpdate =
               matchingRemote.status === 'completed'
               || matchingRemote.title !== task.text
