@@ -9,6 +9,7 @@ import { useCanvasBoard } from '../hooks/useCanvasBoard'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { CanvasExportMenu } from './canvas/CanvasExportMenu'
 import { CanvasStage } from './canvas/CanvasStage'
+import { CanvasRelationEditor } from './canvas/CanvasRelationEditor'
 import { EmptyState } from './EmptyState'
 import { MutationConfirmation } from './chrome/MutationConfirmation'
 
@@ -151,6 +152,16 @@ export function CanvasPanel({
     }))
   }
 
+  const addRelationConnector = () => {
+    const id = crypto.randomUUID()
+    addBlock({ id, kind: 'connector', shapeKind: 'arrow', layerId: defaultLayerId,
+      bounds: { x: -120, y: -20, width: 240, height: 40 },
+      zIndex: blocks.reduce((max, block) => Math.max(max, block.zIndex), 0) + 1,
+      contentRef: 'Note relation' })
+    setSelectedBlockIds([id])
+    setActiveTool('select')
+  }
+
   const selectedBlock = useMemo(
     () => document.blocks.find((block) => block.id === selectedBlockIds[0]) ?? null,
     [document.blocks, selectedBlockIds],
@@ -169,7 +180,7 @@ export function CanvasPanel({
   }
 
   return (
-    <div ref={dialogRef} className="canvas-overlay" role="dialog" aria-modal="true" aria-label="Canvas board" data-help-topic="canvas">
+    <div ref={dialogRef} className={`canvas-overlay${selectedBlock?.kind === 'connector' ? ' canvas-overlay-with-relation' : ''}`} role="dialog" aria-modal="true" aria-label="Canvas board" data-help-topic="canvas">
       <header className="canvas-header">
         <h2 id="canvas-board-title">{document.title}</h2>
         <div className="canvas-board-picker">
@@ -189,7 +200,7 @@ export function CanvasPanel({
               </select>
             </label>
           ) : null}
-          <button type="button" disabled={!vaultOpen} onClick={() => void createBoard()}>
+          <button type="button" className="toolbar-button" disabled={!vaultOpen} onClick={() => void createBoard()}>
             New board
           </button>
         </div>
@@ -223,6 +234,7 @@ export function CanvasPanel({
             disabled={!vaultOpen || blocks.length === 0}
             onExport={(format) => void exportSnapshot(format)}
           />
+          <button type="button" className="toolbar-button" disabled={!vaultOpen} onClick={addRelationConnector}>Add note relation</button>
           {activePath ? (
             <button type="button" className="toolbar-button" disabled={selectedBlockIds.length === 0} onClick={linkSelectedToActiveNote}>
               Link to active note
@@ -253,13 +265,32 @@ export function CanvasPanel({
         />
       ) : null}
 
+      {selectedBlock?.kind === 'connector' ? (
+        <CanvasRelationEditor
+          key={`${document.id}:${selectedBlock.id}:${JSON.stringify(document.relations?.find((relation) => relation.connectorBlockId === selectedBlock.id))}`}
+          connectorBlockId={selectedBlock.id}
+          activePath={activePath}
+          relation={document.relations?.find((relation) => relation.connectorBlockId === selectedBlock.id)}
+          onSave={(relation) => {
+            updateDocument((current) => ({ ...current, relations: [...(current.relations ?? []).filter((entry) => entry.connectorBlockId !== selectedBlock.id), relation], updatedAt: new Date().toISOString() }))
+            setStatus('Saved explicit note relation. The graph refreshes after the board is saved.')
+          }}
+          onRemove={() => {
+            updateDocument((current) => ({ ...current, relations: (current.relations ?? []).filter((entry) => entry.connectorBlockId !== selectedBlock.id), updatedAt: new Date().toISOString() }))
+            setStatus('Removed note relation.')
+          }}
+        />
+      ) : null}
+
       <div className="canvas-stage">
         {blocks.length === 0 ? (
           <EmptyState
             className="canvas-empty-state"
             icon={<Plus />}
             title="Start your research board"
-            description="Add a card now, or choose a template or tool above."
+            description={templates.length > 0
+              ? 'Add a card now, or choose a template above.'
+              : 'Add your first card to start arranging ideas.'}
             action={vaultOpen ? { label: 'Add first card', onClick: addStarterCard } : undefined}
           />
         ) : null}
@@ -287,10 +318,9 @@ export function CanvasPanel({
         <span>{status}</span>
         {selectedBlockIds.length > 0 ? (
           <>
-            <span className="sr-only">
+            <span>
               Selected {selectedBlockIds.length} block{selectedBlockIds.length === 1 ? '' : 's'}
             </span>
-            <code>{selectedBlockIds.join(', ')}</code>
           </>
         ) : null}
       </footer>

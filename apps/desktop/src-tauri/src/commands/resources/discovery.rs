@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -15,11 +16,53 @@ use super::{
 
 const VERSION_OUTPUT_LIMIT: usize = 16 * 1024;
 const MAX_VERSION_LINE_CHARS: usize = 180;
-const MAX_RESOURCE_FILES: usize = 2_048;
-const MAX_RESOURCE_BYTES: u64 = 64 * 1024 * 1024;
+pub(super) const MAX_RESOURCE_FILES: usize = 2_048;
+pub(super) const MAX_RESOURCE_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_EXTENSION_ENTRIES: usize = 8_192;
 const MAX_PARALLEL_TARGET_PROBES: usize = 8;
 const MAX_RESOURCE_SCAN_DEPTH: usize = 4;
+pub(super) const MAX_RESOURCE_ENTRIES: usize = MAX_RESOURCE_FILES * (MAX_RESOURCE_SCAN_DEPTH + 1);
+
+pub(super) fn ignored_resource_metadata(name: &std::ffi::OsStr) -> bool {
+    name.to_str().is_some_and(|name| {
+        name.eq_ignore_ascii_case(".DS_Store")
+            || name.eq_ignore_ascii_case("Thumbs.db")
+            || name.eq_ignore_ascii_case("desktop.ini")
+    })
+}
+
+fn read_resource_file(path: &Path, limit: u64) -> Result<Vec<u8>, String> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|error| format!("failed to inspect {}: {error}", path.display()))?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(format!(
+            "resource input must be a regular file: {}",
+            path.display()
+        ));
+    }
+    let file = fs::File::open(path)
+        .map_err(|error| format!("failed to open {}: {error}", path.display()))?;
+    let metadata = file
+        .metadata()
+        .map_err(|error| format!("failed to inspect {}: {error}", path.display()))?;
+    if !metadata.is_file() || metadata.len() > limit {
+        return Err(format!(
+            "resource file exceeds its bound or is not a regular file: {}",
+            path.display()
+        ));
+    }
+    let mut bytes = Vec::new();
+    file.take(limit + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+    if bytes.len() as u64 > limit {
+        return Err(format!(
+            "resource file exceeds its size limit: {}",
+            path.display()
+        ));
+    }
+    Ok(bytes)
+}
 
 pub fn collect_inventory() -> Result<ResourceInventory, String> {
     let home = home_dir()?;
@@ -365,7 +408,7 @@ fn read_resource(
     manifest: &Path,
     kind: &str,
 ) -> Option<ResourceInstance> {
-    let bytes = fs::read(manifest).ok()?;
+    let bytes = read_resource_file(manifest, MAX_RESOURCE_BYTES).ok()?;
     let content = String::from_utf8_lossy(&bytes);
     let resource_path = if kind == "instruction" {
         manifest
@@ -566,8 +609,7 @@ pub fn hash_resource_directory(path: &Path) -> Result<String, String> {
         ));
     }
     if metadata.is_file() {
-        let bytes = fs::read(path)
-            .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+        let bytes = read_resource_file(path, MAX_RESOURCE_BYTES)?;
         return Ok(hash_file_material(
             path.file_name()
                 .and_then(|value| value.to_str())
@@ -581,7 +623,8 @@ pub fn hash_resource_directory(path: &Path) -> Result<String, String> {
 
     let mut files = Vec::new();
     let mut total_bytes = 0u64;
-    collect_resource_files(path, path, 0, &mut files, &mut total_bytes)?;
+    let mut visited = 0usize;
+    collect_resource_files(path, path, 0, &mut files, &mut total_bytes, &mut visited)?;
     files.sort_by(|left, right| left.0.cmp(&right.0));
     if files.is_empty()
         || !files.iter().any(|(relative, _)| {
@@ -614,6 +657,7 @@ fn collect_resource_files(
     depth: usize,
     files: &mut Vec<(String, Vec<u8>)>,
     total_bytes: &mut u64,
+    visited: &mut usize,
 ) -> Result<(), String> {
     if depth > MAX_RESOURCE_SCAN_DEPTH {
         return Err(format!(
@@ -625,8 +669,15 @@ fn collect_resource_files(
         .map_err(|error| format!("failed to read {}: {error}", directory.display()))?
     {
         let entry = entry.map_err(|error| format!("failed to read directory entry: {error}"))?;
-        if entry.file_name().to_string_lossy().starts_with('.') {
+        if ignored_resource_metadata(&entry.file_name()) {
             continue;
+        }
+        *visited += 1;
+        if *visited > MAX_RESOURCE_ENTRIES {
+            return Err(format!(
+                "resource exceeds {MAX_RESOURCE_ENTRIES} entries: {}",
+                root.display()
+            ));
         }
         let path = entry.path();
         let metadata = fs::symlink_metadata(&path)
@@ -638,28 +689,15 @@ fn collect_resource_files(
             ));
         }
         if metadata.is_dir() {
-            collect_resource_files(root, &path, depth + 1, files, total_bytes)?;
+            collect_resource_files(root, &path, depth + 1, files, total_bytes, visited)?;
             continue;
         }
         if !metadata.is_file() {
-            continue;
+            return Err(format!("unsupported resource type: {}", path.display()));
         }
         if files.len() >= MAX_RESOURCE_FILES {
             return Err(format!(
                 "resource exceeds {MAX_RESOURCE_FILES} files: {}",
-                root.display()
-            ));
-        }
-        if metadata.len() > MAX_RESOURCE_BYTES {
-            return Err(format!(
-                "resource file exceeds the size limit: {}",
-                path.display()
-            ));
-        }
-        *total_bytes = total_bytes.saturating_add(metadata.len());
-        if *total_bytes > MAX_RESOURCE_BYTES {
-            return Err(format!(
-                "resource exceeds the total size limit: {}",
                 root.display()
             ));
         }
@@ -668,8 +706,8 @@ fn collect_resource_files(
             .map_err(|_| format!("resource file escaped its root: {}", path.display()))?
             .to_string_lossy()
             .replace('\\', "/");
-        let bytes = fs::read(&path)
-            .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+        let bytes = read_resource_file(&path, MAX_RESOURCE_BYTES.saturating_sub(*total_bytes))?;
+        *total_bytes += bytes.len() as u64;
         files.push((relative, bytes));
     }
     Ok(())
@@ -980,6 +1018,41 @@ fn now_ms() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resource_reads_enforce_the_requested_bound_and_regular_file_type() {
+        let root = tempfile::tempdir().unwrap();
+        let file = root.path().join("SKILL.md");
+        fs::write(&file, b"abcdef").unwrap();
+
+        assert!(read_resource_file(&file, 5).is_err());
+        assert_eq!(read_resource_file(&file, 6).unwrap(), b"abcdef");
+        assert!(read_resource_file(root.path(), 6).is_err());
+        assert!(read_resource_file(&root.path().join("missing.md"), 6).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resource_reads_reject_observed_symbolic_links() {
+        let root = tempfile::tempdir().unwrap();
+        let file = root.path().join("SKILL.md");
+        let linked = root.path().join("linked.md");
+        fs::write(&file, b"private").unwrap();
+        std::os::unix::fs::symlink(&file, &linked).unwrap();
+
+        assert!(read_resource_file(&linked, 64).is_err());
+        assert_eq!(fs::read(&file).unwrap(), b"private");
+    }
+
+    #[test]
+    fn resource_metadata_exclusions_are_explicit_and_preserve_hidden_content() {
+        for name in [".DS_Store", "thumbs.DB", "Desktop.ini"] {
+            assert!(ignored_resource_metadata(std::ffi::OsStr::new(name)));
+        }
+        for name in [".env", ".runtime", ".script.py", ".DS_Store.backup"] {
+            assert!(!ignored_resource_metadata(std::ffi::OsStr::new(name)));
+        }
+    }
 
     #[test]
     fn normalizes_line_endings_and_trailing_space() {

@@ -95,7 +95,8 @@ export function installScreenshotBridge(): void {
         return [
           {
             key: 'smith2024',
-            type: 'article',
+            entry_type: 'article',
+            source_path: 'references.bib',
             title: 'Research Methods',
             author: 'Smith, Jane',
             year: '2024',

@@ -54,7 +54,9 @@ async function measure(page: Page) {
 
     const vault = strip.querySelector('.repo-vault') as HTMLElement | null
     const vaultVisible = Boolean(vault && vault.getBoundingClientRect().width > 0)
-    const summaryTop = summary.length ? summary[0].getBoundingClientRect().top : 0
+    const summaryBounds = summary.length ? summary[0].getBoundingClientRect() : null
+    const summaryCenter = summaryBounds ? summaryBounds.top + summaryBounds.height / 2 : 0
+    const vaultBounds = vault?.getBoundingClientRect()
 
     return {
       // The summary row, not the whole strip: expanding the dock opens its panel
@@ -67,7 +69,7 @@ async function measure(page: Page) {
       repoVisible,
       vaultVisible,
       vaultOnOwnLine: vaultVisible
-        && vault!.getBoundingClientRect().top > summaryTop + 2,
+        && Boolean(vaultBounds && vaultBounds.top + vaultBounds.height / 2 > summaryCenter + 2),
     }
   }, ROW_TOLERANCE)
 }

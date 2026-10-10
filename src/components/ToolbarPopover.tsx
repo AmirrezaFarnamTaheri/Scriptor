@@ -67,9 +67,19 @@ export function ToolbarPopover({
     const panel = panelRef.current
     if (!trigger || !panel) return
 
-    const triggerRect = trigger.getBoundingClientRect()
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
+    // CSS app zoom makes bounding rectangles screen-sized, while inline fixed
+    // positions and scroll dimensions remain in the portal's CSS coordinates.
+    // Native WebView zoom removes the body zoom property and needs no conversion.
+    const zoom = Number.parseFloat(document.body.style.zoom) || 1
+    const screenRect = trigger.getBoundingClientRect()
+    const triggerRect = {
+      left: screenRect.left / zoom,
+      top: screenRect.top / zoom,
+      bottom: screenRect.bottom / zoom,
+      width: screenRect.width / zoom,
+    }
+    const viewportWidth = window.innerWidth / zoom
+    const viewportHeight = window.innerHeight / zoom
     const maximumWidth = Math.max(0, viewportWidth - VIEWPORT_PADDING * 2)
     const minimumWidth = Math.min(
       Math.max(MIN_POPOVER_WIDTH, triggerRect.width),
@@ -113,19 +123,16 @@ export function ToolbarPopover({
     panel.style.left = `${clamp(triggerRect.left, VIEWPORT_PADDING, maximumLeft)}px`
     panel.style.maxHeight = `${availableHeight}px`
     panel.dataset.positioned = 'true'
+    // Make the positioned portal focusable in this layout transaction. The
+    // inherited hidden state can otherwise survive through the first frame.
+    panel.style.visibility = 'visible'
   }, [triggerRef])
 
   useLayoutEffect(() => {
     if (!open) return undefined
 
     updatePosition()
-    const frame = window.requestAnimationFrame(() => {
-      updatePosition()
-      const activeElement = document.activeElement
-      if (activeElement !== document.body && activeElement !== triggerRef.current) return
-      const panel = panelRef.current
-      if (panel) menuItems(panel)[0]?.focus()
-    })
+    const frame = window.requestAnimationFrame(updatePosition)
     const resizeObserver = typeof ResizeObserver === 'undefined'
       ? null
       : new ResizeObserver(updatePosition)
@@ -150,6 +157,26 @@ export function ToolbarPopover({
   useEffect(() => {
     if (!open) return undefined
 
+    // Opening can precede the portal descendants becoming visible. Retry while
+    // the opening control still owns focus, stopping on success, user movement
+    // or cleanup rather than silently leaving a visible menu unfocused.
+    const origin = document.activeElement
+    let focusFrame = 0
+    let focusAttempts = 0
+    const focusInitialItem = () => {
+      const panel = panelRef.current
+      if (!panel || panel.contains(document.activeElement)) return
+      const active = document.activeElement
+      if (active !== origin && active !== triggerRef.current && active !== document.body) return
+      const item = menuItems(panel)[0]
+      if (!item) return
+      if (getComputedStyle(item).visibility === 'visible') item.focus({ preventScroll: true })
+      if (document.activeElement !== item && ++focusAttempts < 60) focusFrame = window.requestAnimationFrame(focusInitialItem)
+    }
+    // Let the activating key and its focus-restoration microtasks finish before
+    // transferring focus. A synchronous success can be undone by that dispatch.
+    focusFrame = window.requestAnimationFrame(focusInitialItem)
+
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target
       if (!(target instanceof Node)) return
@@ -166,6 +193,7 @@ export function ToolbarPopover({
     document.addEventListener('pointerdown', handlePointerDown)
     document.addEventListener('keydown', handleKeyDown)
     return () => {
+      window.cancelAnimationFrame(focusFrame)
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
     }

@@ -185,15 +185,18 @@ function AppTopBarImpl({
   )
 
   const positionCustomize = useCallback(() => {
+    const zoom = Number.parseFloat(document.body.style.zoom) || 1
+    const viewportWidth = window.innerWidth / zoom
+    const viewportHeight = window.innerHeight / zoom
     const rect = customizeAnchorRef.current?.getBoundingClientRect()
     const popup = customizePopupRef.current?.getBoundingClientRect()
-    const width = popup?.width ?? 264
-    const height = popup?.height ?? Math.min(420, window.innerHeight * 0.7)
-    const anchorRight = rect?.right ?? 272
-    const anchorBottom = rect?.bottom ?? 58
+    const width = popup ? popup.width / zoom : Math.min(264, viewportWidth - 16)
+    const height = popup ? popup.height / zoom : Math.min(420, viewportHeight * 0.7)
+    const anchorRight = rect ? rect.right / zoom : 272
+    const anchorBottom = rect ? rect.bottom / zoom : 58
     const next = {
-      x: Math.max(8, Math.min(anchorRight - width, window.innerWidth - width - 8)),
-      y: Math.max(8, Math.min(anchorBottom + 6, window.innerHeight - height - 8)),
+      x: Math.max(8, Math.min(anchorRight - width, viewportWidth - width - 8)),
+      y: Math.max(8, Math.min(anchorBottom + 6, viewportHeight - height - 8)),
     }
     setCustomizePos((current) => (
       current?.x === next.x && current?.y === next.y ? current : next
@@ -244,15 +247,10 @@ function AppTopBarImpl({
   const onHeaderContextMenu = useCallback(
     (event: React.MouseEvent) => {
       event.preventDefault()
-      const rect = customizeAnchorRef.current?.getBoundingClientRect()
-      setCustomizePos(
-        rect
-          ? { x: Math.min(event.clientX, rect.right), y: rect.bottom + 6 }
-          : { x: event.clientX, y: 64 },
-      )
+      positionCustomize()
       setCustomizeOpen(true)
     },
-    [],
+    [positionCustomize],
   )
 
   if (chrome?.showTopBar === false) return null

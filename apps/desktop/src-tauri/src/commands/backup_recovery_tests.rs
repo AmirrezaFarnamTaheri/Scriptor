@@ -53,7 +53,22 @@ fn rollback_copy_failure_after_clear_preserves_recovery_journal() {
     );
     assert_eq!(
         fs::read_to_string(journal.join("state")).expect("state retained"),
-        "promoting"
+        "rollback-in-progress"
+    );
+
+    // The durable state records that clearing began. A subsequent vault open
+    // must retry this rollback rather than discard its only surviving copy.
+    fs::remove_file(rollback.join("unsupported-link.md")).expect("repair rollback snapshot");
+    fs::write(rollback.join("original.md"), "# Original\n").expect("rollback note");
+    recover_interrupted_restore(root).expect("retry interrupted rollback");
+    assert_eq!(
+        fs::read_to_string(root.join("original.md")).expect("restored original"),
+        "# Original\n"
+    );
+    assert!(!root.join("partial.md").exists());
+    assert!(
+        !journal.exists(),
+        "successful retry must remove the journal"
     );
 }
 

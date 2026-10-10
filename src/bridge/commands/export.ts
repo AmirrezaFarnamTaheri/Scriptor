@@ -9,12 +9,30 @@ export async function exportDiscover(): Promise<PandocDiscovery> {
   return invoke<PandocDiscovery>('export_discover')
 }
 
+export interface OfflinePdfOutput {
+  artifact_path: string
+  page_count: number
+  warnings: string[]
+  duration_ms: number
+}
+
+export async function exportPdfInprocess(notePath: string, sourceMarkdown: string, expectedVaultId: string): Promise<OfflinePdfOutput> {
+  requireNative()
+  return invoke<OfflinePdfOutput>('export_pdf_inprocess', { notePath, sourceMarkdown, expectedVaultId })
+}
+
+export async function exportPdfLicenses(): Promise<string> {
+  requireNative()
+  return invoke<string>('export_pdf_licenses')
+}
+
 export async function exportRunNote(
   notePath: string,
   format: string,
   dryRun = false,
   extraPandocArgs: string[] = [],
   outputSubdirectory?: string,
+  expectedVaultId?: string,
 ): Promise<ExportJobOutput> {
   requireNative()
   return invoke<ExportJobOutput>('export_run_note', {
@@ -23,6 +41,7 @@ export async function exportRunNote(
     dryRun,
     extraPandocArgs,
     outputSubdirectory: outputSubdirectory ?? null,
+    expectedVaultId: expectedVaultId ?? null,
   })
 }
 
@@ -32,6 +51,7 @@ export async function exportStartNote(
   dryRun = false,
   extraPandocArgs: string[] = [],
   outputSubdirectory?: string,
+  expectedVaultId?: string,
 ): Promise<ExportJobStarted> {
   requireNative()
   return invoke<ExportJobStarted>('export_start_note', {
@@ -40,12 +60,13 @@ export async function exportStartNote(
     dryRun,
     extraPandocArgs,
     outputSubdirectory: outputSubdirectory ?? null,
+    expectedVaultId: expectedVaultId ?? null,
   })
 }
 
-export async function exportCancel(): Promise<boolean> {
+export async function exportCancel(expectedVaultId?: string): Promise<boolean> {
   requireNative()
-  return invoke<boolean>('export_cancel')
+  return invoke<boolean>('export_cancel', { expectedVaultId: expectedVaultId ?? null })
 }
 
 export interface PdfTranslateOutput {
@@ -76,6 +97,7 @@ export async function exportRunMarkdown(
   dryRun = false,
   extraPandocArgs: string[] = [],
   outputSubdirectory?: string,
+  expectedVaultId?: string,
 ): Promise<ExportJobOutput> {
   requireNative()
   return invoke<ExportJobOutput>('export_run_markdown', {
@@ -85,5 +107,6 @@ export async function exportRunMarkdown(
     dryRun,
     extraPandocArgs,
     outputSubdirectory: outputSubdirectory ?? null,
+    expectedVaultId: expectedVaultId ?? null,
   })
 }

@@ -1,4 +1,6 @@
 import { Suspense } from 'react'
+import type { PluginManifest, PluginRuntimePolicy } from '@scriptor/core/contracts/plugin'
+import type { PluginWorkspaceDefinition } from '@scriptor/plugin-api'
 
 import type { TemplateDefinition } from '../../lib/knowledge/templates'
 import type { AppTheme, AppearanceMode, ResolvedAppearance } from '../../hooks/useAppTheme'
@@ -23,6 +25,13 @@ interface CapabilityWorkflowOverlaysProps {
   onThemeChange: (theme: AppTheme) => void
   onClosePluginManager: () => void
   onOpenPluginMarketplace: () => void
+  registeredWorkspaces?: readonly PluginWorkspaceDefinition[]
+  workspacePolicies?: Readonly<Record<string, PluginRuntimePolicy | null>>
+  vaultId?: string | null
+  safeMode?: boolean
+  onOpenPluginWorkspace?: (view: PluginWorkspaceDefinition) => boolean | Promise<boolean>
+  registeredPluginManifests?: readonly PluginManifest[]
+  onSetPluginEnabled?: (id: string, enabled: boolean) => Promise<boolean>
 }
 
 export function CapabilityWorkflowOverlays(props: CapabilityWorkflowOverlaysProps) {
@@ -48,6 +57,13 @@ export function CapabilityWorkflowOverlays(props: CapabilityWorkflowOverlaysProp
               resolvedAppearance={props.resolvedAppearance}
               onThemeChange={props.onThemeChange}
               onOpenPluginMarketplace={props.onOpenPluginMarketplace}
+              registeredWorkspaces={props.registeredWorkspaces}
+              workspacePolicies={props.workspacePolicies}
+              vaultId={props.vaultId}
+              safeMode={props.safeMode}
+              onOpenPluginWorkspace={props.onOpenPluginWorkspace}
+              registeredPluginManifests={props.registeredPluginManifests}
+              onSetPluginEnabled={props.onSetPluginEnabled}
             />
           </Suspense>
         </ErrorBoundary>

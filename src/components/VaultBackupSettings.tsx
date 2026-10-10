@@ -52,6 +52,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
           type="number"
           min={5}
           max={10080}
+          disabled={!settings.enabled}
           value={settings.intervalMinutes}
           onChange={(event) => setSettings({ intervalMinutes: Math.max(5, Number(event.target.value) || 60) })}
         />
@@ -79,7 +80,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
 
       <div className="settings-actions">
         <button type="button" className="toolbar-button" disabled={isBusy} onClick={() => void triggerBackup()}>
-          {isBusy ? 'Backing up...' : 'Backup Now'}
+          {isBusy ? 'Backing up…' : 'Back up now'}
         </button>
       </div>
 
@@ -119,7 +120,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
           </ul>
         </>
       ) : (
-        <p className="health-subtitle">No backups yet. Click &quot;Backup Now&quot; to create one.</p>
+        <p className="health-subtitle">No backups yet. Use &quot;Back up now&quot; to create one.</p>
       )}
     </div>
   )

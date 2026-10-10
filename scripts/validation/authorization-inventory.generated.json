@@ -2,6 +2,479 @@
   "schemaVersion": 1,
   "commands": [
     {
+      "name": "publishing_build_site",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "publish_build",
+      "authorizationVariant": "PublishBuild",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "publishing_deploy_site",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "publish_deploy",
+      "authorizationVariant": "PublishDeploy",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "publishing_configure_domain",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "publish_deploy",
+      "authorizationVariant": "PublishDeploy",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "publishing_cancel_job",
+      "owner": "apps/desktop/src-tauri/src/commands/publishing.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "reference_usage_preview",
+      "owner": "apps/desktop/src-tauri/src/commands/research_capture.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "none",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "degraded",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "capture_extract_preview",
+      "owner": "apps/desktop/src-tauri/src/commands/research_capture.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "web_clip",
+      "authorizationVariant": "WebClip",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "zotero_import_preview",
+      "owner": "apps/desktop/src-tauri/src/commands/research_capture.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "zotero_read",
+      "authorizationVariant": "ZoteroRead",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "indexer_asset_usage",
+      "owner": "apps/desktop/src-tauri/src/commands/indexer.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "none",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "degraded",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "google_planner_write_event",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_calendar_write",
+      "authorizationVariant": "GoogleCalendarWrite",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "google_planner_write_task",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_task_write",
+      "authorizationVariant": "GoogleTaskWrite",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_inspect",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "none",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_set_api_key",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "keychain_write",
+      "authorizationVariant": "KeychainWrite",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_delete_api_key",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "keychain_delete",
+      "authorizationVariant": "KeychainDelete",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_connect",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_drive_auth",
+      "authorizationVariant": "GoogleDriveAuth",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_disconnect",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "keychain_delete",
+      "authorizationVariant": "KeychainDelete",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_get_account",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_read",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_drive_read",
+      "authorizationVariant": "GoogleDriveRead",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_write",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_drive_write",
+      "authorizationVariant": "GoogleDriveWrite",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_poll_start",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_drive_read",
+      "authorizationVariant": "GoogleDriveRead",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_poll_read",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "vault-bound-finite-poll-lease",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_poll_stop",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "vault-bound-finite-poll-lease",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "health_repair_plan",
+      "owner": "apps/desktop/src-tauri/src/commands/health_repair.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "expected-vault",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "health_repair_receipts",
+      "owner": "apps/desktop/src-tauri/src/commands/health_repair.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "expected-vault",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "health_repair_apply",
+      "owner": "apps/desktop/src-tauri/src/commands/health_repair.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "apply_bulk_fix",
+      "authorizationVariant": "ApplyBulkFix",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "health_repair_restore",
+      "owner": "apps/desktop/src-tauri/src/commands/health_repair.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "restore_history",
+      "authorizationVariant": "RestoreHistory",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "runtime_kernel_start",
+      "owner": "apps/desktop/src-tauri/src/commands/code_chunk/runtime.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "code_execution",
+      "authorizationVariant": "CodeExecution",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "runtime_kernel_run",
+      "owner": "apps/desktop/src-tauri/src/commands/code_chunk/runtime.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "code_execution",
+      "authorizationVariant": "CodeExecution",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "runtime_kernel_status",
+      "owner": "apps/desktop/src-tauri/src/commands/code_chunk/runtime.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "expected-vault-kernel",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "runtime_kernel_stop",
+      "owner": "apps/desktop/src-tauri/src/commands/code_chunk/runtime.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "expected-vault-kernel",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "source_file_read",
+      "owner": "apps/desktop/src-tauri/src/commands/source_files.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "expected-vault-source-file",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "source_file_save",
+      "owner": "apps/desktop/src-tauri/src/commands/source_files.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "expected-vault-content-hash",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "source_file_create",
+      "owner": "apps/desktop/src-tauri/src/commands/source_files.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "expected-vault-create-only",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "overleaf_read",
+      "owner": "apps/desktop/src-tauri/src/commands/overleaf.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "git_pull",
+      "authorizationVariant": "GitPull",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "overleaf_push",
+      "owner": "apps/desktop/src-tauri/src/commands/overleaf.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "git_push",
+      "authorizationVariant": "GitPush",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "export_pdf_inprocess",
+      "owner": "apps/desktop/src-tauri/src/commands/export_pdf.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "expected-vault-export-capability",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "export_pdf_licenses",
+      "owner": "apps/desktop/src-tauri/src/commands/export_pdf.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value"
+      ]
+    },
+    {
       "name": "ai_provider_delete_api_key",
       "owner": "apps/desktop/src-tauri/src/commands/system.rs",
       "authorizationClass": "brokered-sensitive",
@@ -928,6 +1401,34 @@
       ]
     },
     {
+      "name": "google_calendar_list_calendars",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
+      "name": "google_calendar_list_task_lists",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "google_calendar_list_events",
       "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
       "authorizationClass": "read-only",
@@ -1028,6 +1529,20 @@
         "degraded",
         "failed",
         "recovered"
+      ]
+    },
+    {
+      "name": "google_gmail_list_messages_page",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
       ]
     },
     {

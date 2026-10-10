@@ -44,6 +44,34 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 
 ### State coverage and evidence boundaries
 
+Workflow evidence is also attached to the hosted functional browser report.
+The **Workflow state screenshots** workflow runs the selected populated and
+recovery suites independently and preserves their reports against the exact
+review commit; the full functional suite remains a separate required check.
+`e2e/visual-state-evidence.ts` records a viewport image and a detail image after
+the test has asserted the relevant content and settled layout. The viewport
+retains surrounding chrome and clipping context; the detail image makes small
+controls readable. These attachments are reviewed state evidence, separate from
+stable baseline comparisons and the published gallery files above.
+
+| Workflow suite | Captured states |
+|---|---|
+| `google-ecosystem-workflows.spec.ts` | Drive folder discovery, cancelled creation, saved/restored binding and persistence error; Docs preview, conflict, loss consent and creation; Calendar resource selection, read-only review and applied import; Persian RTL and restored app zoom |
+| `google-gmail-workflows.spec.ts` | Inbox, deduplicated pages, literal-text detail and import; populated/empty search, pagination and provider errors; disconnected account; retained compose drafts after cancellation/failure; dark mode and narrow RTL app zoom |
+| `source-files.spec.ts` | Populated source formats, saved LaTeX diagnostics, source conflict and discard decisions, including dark mode |
+| `overleaf-workflows.spec.ts` | Nested source review and stale-source rejection |
+| `runtime-kernel.spec.ts` | Running/session states, stdout, variables, decoded plot and lifecycle failures |
+| `asset-media.spec.ts` | Decoded image, audio controls and rejected-media alert |
+| `workspace-shortcuts.spec.ts` | Customization, open overflow menu, persistence error and restored app zoom |
+| `workspace-leaves.spec.ts` | Multiple groups, moved panels and restored inactive leaves |
+| `semantic-visual-states.spec.ts` | Populated 2D/3D projection, rotation/tilt, similarity results, threshold-empty results and provider failure preserving measurements |
+
+Image and plot fixtures use deterministic representative 320×200 PNGs; tests
+check their decoded dimensions before capture. They verify display and control
+layout, not a real camera asset or Python-generated plot. Google fixtures never
+access live accounts. Authored captures become execution evidence only when
+their hosted suite passes for the recorded commit and the images are inspected.
+
 The screenshot suite includes the following docs-only scenarios in addition to the opening panels:
 
 | State | Readiness asserted before capture |

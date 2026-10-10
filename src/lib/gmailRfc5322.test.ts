@@ -79,3 +79,36 @@ test('buildGmailMarkdown preserves identifiers and prefers complete body text ov
   assert.match(markdown, /Complete message body/)
   assert.ok(!markdown.endsWith('short snippet\n'))
 })
+
+test('Gmail import keeps provider HTML and Markdown syntax inert while preserving text', () => {
+  const markdown = buildGmailMarkdown({ id: 'a1', threadId: 'b1', subject: 'Title\n# injected',
+    from: '<img src=x onerror=alert(1)>', date: 'today', snippet: '',
+    plainText: '<script>alert(1)</script>\n![beacon](https://example.com/pixel)\n[run](command:danger)' })
+  // YAML scalars preserve metadata verbatim; only the rendered body interprets
+  // Markdown/HTML, so its escaping must be checked independently.
+  assert.ok(markdown.includes('from: "<img src=x onerror=alert(1)>"'))
+  const body = markdown.slice(markdown.indexOf('\n---\n') + 5)
+  assert.ok(!body.includes('<script>'))
+  assert.ok(!body.includes('<img'))
+  assert.ok(!body.includes('\n# injected'))
+  assert.match(body, /&lt;script&gt;/)
+  assert.ok(body.includes('\\!\\[beacon\\]\\(https://example\\.com/pixel\\)'))
+  assert.ok(body.includes('\\[run\\]\\(command:danger\\)'))
+})
+
+test('Gmail MIME encodes Unicode subjects and rejects header control characters', () => {
+  const encoded = buildRfc5322Message('person@example.com', 'سلام '.repeat(30), 'body')
+  const decoded = Buffer.from(encoded, 'base64url').toString('utf8')
+  assert.match(decoded, /Subject: =\?UTF-8\?B\?/)
+  assert.ok(decoded.split('\r\n').every(line => line.length <= 998))
+  assert.throws(() => buildRfc5322Message('person@example.com', 'bad\0subject', 'body'), /control/i)
+})
+
+test('Gmail MIME wraps long UTF-8 body lines without changing their text', () => {
+  const body = 'سلام'.repeat(400)
+  const envelope = Buffer.from(buildRfc5322Message('person@example.com', 'Long body', body), 'base64url').toString('utf8')
+  assert.match(envelope, /Content-Transfer-Encoding: base64/)
+  assert.ok(envelope.split('\r\n').every(line => line.length <= 998))
+  const encodedBody = envelope.split('\r\n\r\n')[1]
+  assert.equal(Buffer.from(encodedBody, 'base64').toString('utf8'), body)
+})

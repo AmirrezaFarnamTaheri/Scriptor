@@ -17,6 +17,14 @@ use commands::canvas::{
     canvas_save_document, canvas_snapshot, canvas_template_dry_run,
 };
 use commands::code_chunk::code_chunk_run;
+use commands::code_chunk::runtime::{
+    runtime_kernel_run, runtime_kernel_start, runtime_kernel_status, runtime_kernel_stop,
+};
+use commands::collaboration::{
+    collaboration_connect, collaboration_disconnect, collaboration_get_account,
+    collaboration_poll_read, collaboration_poll_start, collaboration_poll_stop, collaboration_read,
+    collaboration_write,
+};
 use commands::daemon::{
     daemon_backlinks, daemon_endpoint, daemon_export_cancel, daemon_export_job_status,
     daemon_export_run_markdown, daemon_export_run_note, daemon_export_start_note,
@@ -29,6 +37,7 @@ use commands::export::{
     export_cancel, export_discover, export_run_markdown, export_run_note, export_start_note,
     pdf_translate,
 };
+use commands::export_pdf::{export_pdf_inprocess, export_pdf_licenses};
 use commands::git::{
     git_apply_merged_conflict_cmd, git_commit_cmd, git_pull_cmd, git_push_cmd,
     git_read_conflict_markers_cmd, git_resolve_conflict_cmd, git_show_head_file_cmd,
@@ -37,12 +46,18 @@ use commands::git::{
 use commands::google_calendar::{
     google_calendar_apply_task_sync, google_calendar_complete_task, google_calendar_create_task,
     google_calendar_delete_task, google_calendar_disconnect, google_calendar_get_authed_email,
-    google_calendar_list_events, google_calendar_list_tasks, google_calendar_start_auth,
-    google_calendar_update_task, google_gmail_disconnect, google_gmail_get_authed_email,
-    google_gmail_get_message, google_gmail_list_messages, google_gmail_modify_message,
+    google_calendar_list_calendars, google_calendar_list_events, google_calendar_list_task_lists,
+    google_calendar_list_tasks, google_calendar_start_auth, google_calendar_update_task,
+    google_gmail_disconnect, google_gmail_get_authed_email, google_gmail_get_message,
+    google_gmail_list_messages, google_gmail_list_messages_page, google_gmail_modify_message,
     google_gmail_send_message, google_gmail_start_auth, google_gmail_trash_message,
 };
+use commands::google_calendar::{google_planner_write_event, google_planner_write_task};
+use commands::health_repair::{
+    health_repair_apply, health_repair_plan, health_repair_receipts, health_repair_restore,
+};
 use commands::history::vault_restore_note_history_revision;
+use commands::indexer::indexer_asset_usage;
 use commands::indexer::{
     indexer_apply_filesystem_changes, indexer_backlinks, indexer_batch_note_meta,
     indexer_evaluate_view, indexer_execute_dql, indexer_graph, indexer_health_diagnostics,
@@ -54,15 +69,26 @@ use commands::indexer::{
     indexer_update_note, indexer_update_task,
 };
 use commands::latex::{latex_cancel_compile, latex_compile, latex_discover_tectonic};
+use commands::overleaf::{overleaf_push, overleaf_read};
 use commands::plugin_state::{plugin_state_get, plugin_state_set_enabled};
 use commands::publish::{vault_publish_apply_starlight, vault_publish_plan_starlight};
+use commands::publishing::{
+    publishing_build_site, publishing_cancel_job, publishing_configure_domain,
+    publishing_deploy_site,
+};
 use commands::reader::{
     reader_load_annotations, reader_read_document, reader_save_annotations, reader_viewer_location,
+};
+use commands::research_capture::{
+    capture_extract_preview, reference_usage_preview, zotero_import_preview,
 };
 use commands::resources::{
     resource_apply_plan, resource_create_dedup_plan, resource_create_plan, resource_inventory,
 };
-use commands::semantic::{semantic_search, semantic_sync};
+use commands::semantic::{
+    semantic_delete_api_key, semantic_inspect, semantic_search, semantic_set_api_key, semantic_sync,
+};
+use commands::source_files::{source_file_create, source_file_read, source_file_save};
 use commands::system::{
     ai_provider_delete_api_key, ai_provider_has_api_key, ai_provider_propose_draft,
     ai_provider_set_api_key, copy_text_to_clipboard, diagnostics_append_event,
@@ -178,7 +204,32 @@ pub fn run() {
             indexer_graph,
             semantic_search,
             semantic_sync,
+            indexer_asset_usage,
+            semantic_inspect,
+            capture_extract_preview,
+            zotero_import_preview,
+            reference_usage_preview,
+            publishing_build_site,
+            publishing_deploy_site,
+            publishing_cancel_job,
+            publishing_configure_domain,
+            semantic_set_api_key,
+            semantic_delete_api_key,
             export_discover,
+            export_pdf_inprocess,
+            export_pdf_licenses,
+            source_file_read,
+            source_file_save,
+            source_file_create,
+            overleaf_read,
+            overleaf_push,
+            health_repair_plan,
+            health_repair_apply,
+            health_repair_restore,
+            health_repair_receipts,
+            collaboration_poll_start,
+            collaboration_poll_read,
+            collaboration_poll_stop,
             export_run_note,
             export_run_markdown,
             export_start_note,
@@ -232,6 +283,10 @@ pub fn run() {
             canvas_load_document,
             canvas_list_documents,
             code_chunk_run,
+            runtime_kernel_start,
+            runtime_kernel_run,
+            runtime_kernel_status,
+            runtime_kernel_stop,
             vault_publish_plan_starlight,
             vault_publish_apply_starlight,
             latex_discover_tectonic,
@@ -265,16 +320,26 @@ pub fn run() {
             system_info,
             vault_export_audit_log,
             google_calendar_start_auth,
+            google_planner_write_event,
+            google_planner_write_task,
+            collaboration_connect,
+            collaboration_disconnect,
+            collaboration_get_account,
+            collaboration_read,
+            collaboration_write,
             google_gmail_start_auth,
             google_gmail_disconnect,
             google_gmail_get_authed_email,
             google_gmail_list_messages,
+            google_gmail_list_messages_page,
             google_gmail_get_message,
             google_gmail_modify_message,
             google_gmail_trash_message,
             google_gmail_send_message,
             google_calendar_disconnect,
             google_calendar_list_events,
+            google_calendar_list_calendars,
+            google_calendar_list_task_lists,
             google_calendar_list_tasks,
             google_calendar_get_authed_email,
             google_calendar_apply_task_sync,

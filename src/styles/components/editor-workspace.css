@@ -529,9 +529,11 @@ body.is-split-resizing .editor-preview-pane {
 .tab-item {
   min-width: 140px;
   max-width: 248px;
-  height: 34px;
+  min-height: 34px;
+  padding-inline: 6px;
   display: inline-grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(32px, auto);
   align-items: center;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -559,13 +561,23 @@ body.is-split-resizing .editor-preview-pane {
   min-width: 0;
   max-width: none;
   width: 100%;
-  height: 32px;
-  padding: 0 6px 0 10px;
+  min-height: 32px;
+  height: auto;
+  align-self: stretch;
+  padding: 0 8px;
   border: 0;
   border-radius: inherit;
   background: transparent;
   box-shadow: none;
   color: inherit;
+}
+
+/* The global Lucide default is 17px; tab glyphs share a 14px box so the
+   leading inset matches the centered close glyph's trailing inset. */
+.tab-item .tab-main > svg,
+.tab-item .tab-icon-button > svg {
+  width: 14px;
+  height: 14px;
 }
 
 .tab-item .tab:hover,
@@ -586,6 +598,8 @@ body.is-split-resizing .editor-preview-pane {
 .tab-reopen {
   width: 30px;
   height: 30px;
+  padding: 0;
+  line-height: 1;
   display: inline-grid;
   place-items: center;
   border-radius: 6px;
@@ -629,11 +643,18 @@ body.is-split-resizing .editor-preview-pane {
 
 .tab-icon-button svg,
 .tab-reopen svg {
+  display: block;
   width: 14px;
   height: 14px;
   margin: 0;
   padding: 0;
   opacity: 1;
+}
+
+@media (pointer: coarse) {
+  html[data-ui-reflow='mobile'] .tab-item .tab {
+    padding-inline: 15px;
+  }
 }
 
 .editor-empty {
@@ -710,7 +731,7 @@ body.is-split-resizing .editor-preview-pane {
 }
 
 .editor-empty small {
-  color: var(--faint);
+  color: var(--muted);
   font-size: 11px;
   letter-spacing: 0.015em;
 }

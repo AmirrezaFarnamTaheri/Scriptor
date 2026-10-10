@@ -24,7 +24,11 @@ pub enum SensitiveOperation {
     GitPull,
     GitPush,
     GoogleCalendarAuth,
+    GoogleCalendarWrite,
     GoogleCalendarDisconnect,
+    GoogleDriveAuth,
+    GoogleDriveRead,
+    GoogleDriveWrite,
     GoogleGmailAuth,
     GoogleGmailDisconnect,
     GoogleGmailWrite,
@@ -37,9 +41,13 @@ pub enum SensitiveOperation {
     PdfTranslation,
     PlantUmlExecution,
     PublishSite,
+    PublishBuild,
+    PublishDeploy,
     ResourceSync,
     RestoreBackup,
     RestoreHistory,
+    WebClip,
+    ZoteroRead,
 }
 
 impl SensitiveOperation {
@@ -60,11 +68,18 @@ impl SensitiveOperation {
                 | Self::PublishSite
                 | Self::RestoreBackup
                 | Self::RestoreHistory
+                | Self::GoogleDriveRead
+                | Self::GoogleDriveWrite
+                | Self::PublishBuild
+                | Self::PublishDeploy
         )
     }
 
     fn title(self) -> &'static str {
         match self {
+            Self::GoogleDriveAuth => "Connect a Google Drive collaboration account",
+            Self::GoogleDriveRead => "Read the selected Google Drive collaboration folder",
+            Self::GoogleDriveWrite => "Share the reviewed collaboration change with Google Drive",
             Self::AiNetworkRequest => "Send note content to an AI provider",
             Self::ApplyBulkFix => "Apply automated fixes across the current vault",
             Self::ApplyGitConflict => "Replace a conflicted file with merged content",
@@ -76,6 +91,7 @@ impl SensitiveOperation {
             Self::GitPull => "Pull remote Git changes",
             Self::GitPush => "Push local Git commits",
             Self::GoogleCalendarAuth => "Connect your Google account",
+            Self::GoogleCalendarWrite => "Modify the reviewed Google Calendar event",
             Self::GoogleCalendarDisconnect => "Disconnect your Google account",
             Self::GoogleGmailAuth => "Connect Gmail manager",
             Self::GoogleGmailDisconnect => "Disconnect Gmail manager",
@@ -89,14 +105,42 @@ impl SensitiveOperation {
             Self::PdfTranslation => "Run the configured PDF translation tool",
             Self::PlantUmlExecution => "Run a local PlantUML renderer",
             Self::PublishSite => "Publish this vault as a site",
+            Self::PublishBuild => "Build the reviewed local site",
+            Self::PublishDeploy => "Deploy the reviewed site or configure its domain",
             Self::ResourceSync => "Apply the reviewed agent resource sync plan",
             Self::RestoreBackup => "Replace vault contents from a snapshot",
             Self::RestoreHistory => "Replace a note with a historical revision",
+            Self::WebClip => "Preview content from this web page",
+            Self::ZoteroRead => "Preview your Zotero library",
         }
     }
 
     fn impact(self) -> &'static str {
         match self {
+            Self::PublishBuild => {
+                "The selected managed site project will run its build through the process broker. It may install locked dependencies and download packages; output is bounded and cancellable."
+            }
+            Self::PublishDeploy => {
+                "The reviewed built site will be uploaded to the selected Cloudflare Pages project, or the selected custom domain will be attached to that project. This changes the configured external resource."
+            }
+            Self::WebClip => {
+                "The selected public HTTPS page will be fetched for a bounded local preview. No note is written until you review and save it."
+            }
+            Self::ZoteroRead => {
+                "The provided read key will fetch a bounded page of reference metadata from the official Zotero API. No library item is changed; import requires a separate local review."
+            }
+            Self::GoogleCalendarWrite => {
+                "The selected event will be created or updated in Google Calendar after the reviewed change and revision check. No other calendar event is changed."
+            }
+            Self::GoogleDriveAuth => {
+                "Google Drive access is requested in your browser. Credentials stay in the operating-system keychain. Scriptor confines collaboration requests to the folder you approve."
+            }
+            Self::GoogleDriveRead => {
+                "Bounded collaboration records in the selected shared folder will be downloaded. They remain untrusted until validated."
+            }
+            Self::GoogleDriveWrite => {
+                "The reviewed note change will be uploaded as an immutable collaboration record visible to people with access to the shared folder."
+            }
             Self::AiNetworkRequest => {
                 "The selected note content and instruction will be sent to the configured endpoint."
             }
@@ -123,13 +167,13 @@ impl SensitiveOperation {
                 "Scriptor will open your browser to sign in to Google and store the resulting access tokens in the operating-system keychain."
             }
             Self::GoogleCalendarDisconnect => {
-                "Scriptor will revoke the current Google access token when possible and remove the saved Google credentials from the operating-system keychain."
+                "Scriptor will remove this service's saved Google credentials from the operating-system keychain on this device. It does not revoke the Google account grant; manage third-party access in your Google account settings."
             }
             Self::GoogleGmailAuth => {
                 "Scriptor will open your browser to grant Gmail manager access. It stores resulting access tokens in the operating-system keychain and never receives your Google password."
             }
             Self::GoogleGmailDisconnect => {
-                "Scriptor will revoke the Gmail access token when possible and remove it from the operating-system keychain. Calendar and Tasks remain connected."
+                "Scriptor will remove this device's saved Gmail credentials from the operating-system keychain. It does not revoke the Google account grant; Calendar and Tasks remain connected."
             }
             Self::GoogleGmailWrite => {
                 "The selected Gmail messages will be updated, archived, moved, marked read or unread, or moved to trash on your behalf."
@@ -293,6 +337,20 @@ impl AuthorizationBroker {
     }
 }
 
+fn account_bound_scope(
+    operation: SensitiveOperation,
+    scope: Option<&str>,
+) -> Result<Option<String>, String> {
+    let binding = crate::commands::google_calendar::authorization_account_binding(operation)?;
+    Ok(match binding {
+        Some(identity) => Some(format!(
+            "{}\n[account-binding:{identity}]",
+            scope.unwrap_or_default()
+        )),
+        None => scope.map(str::to_owned),
+    })
+}
+
 pub fn require_sensitive_operation(
     state: &crate::AppState,
     token: &str,
@@ -300,9 +358,10 @@ pub fn require_sensitive_operation(
     scope: Option<&str>,
     expected_vault_id: Option<&str>,
 ) -> Result<(), String> {
+    let bound = account_bound_scope(operation, scope)?;
     state
         .authorization
-        .consume(token, operation, scope, expected_vault_id)
+        .consume(token, operation, bound.as_deref(), expected_vault_id)
 }
 
 #[tauri::command]
@@ -328,6 +387,9 @@ pub async fn authorize_sensitive_operation(
         (None, None)
     };
 
+    // Capture before displaying consent, then recheck after consent so a
+    // reconnect/account change while the dialog is open fails closed.
+    let account_scope = account_bound_scope(operation, scope.as_deref())?;
     let title = operation.title().to_string();
     let impact = operation.impact().to_string();
     let display_scope = scope
@@ -365,7 +427,12 @@ pub async fn authorize_sensitive_operation(
         return Err("operation cancelled by user".into());
     }
 
-    state.authorization.issue(operation, scope, bound_vault_id)
+    if account_bound_scope(operation, scope.as_deref())? != account_scope {
+        return Err("Google account changed during approval. Review the operation again.".into());
+    }
+    state
+        .authorization
+        .issue(operation, account_scope, bound_vault_id)
 }
 
 fn sanitize_scope(value: &str) -> String {

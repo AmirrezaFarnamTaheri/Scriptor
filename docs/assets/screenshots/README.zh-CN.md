@@ -18,7 +18,13 @@
 | graph.png | 已审查的 graph | Docs + 稳定视觉覆盖 |
 | canvas.png | 用于可视化排列笔记的空间 Canvas | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
 | git-panel.png | 版本控制状态、commit、pull/push | VISUAL-REVIEW, STORE-MIGRATION |
-| mcp-panel.png | 已审查 MCP panel | Docs + 稳定视觉覆盖 |
+| mcp-panel.png | MCP 授权模式和引导配方 | README / docs |
+| mcp-tools.png | Tools 页只读笔记大纲及结果 | README / docs |
+| mcp-audit.png | 只读大纲调用后的审计记录 | README / docs |
+| settings-appearance.png | Appearance：调色板、昼夜、字体和密度 | README / docs |
+| plugin-permissions.png | 启用前 Vault Lint 必需读取许可确认 | README / docs |
+| plugins-installed.png | Vault Lint 已启用，可撤销本库授权 | README / docs |
+| empty-note.png | 无活动笔记，操作留在空状态卡内 | README / docs |
 | settings.png | Runtime/vault config、外观、诊断 | VISUAL-REVIEW, STORE-MIGRATION |
 | publish-center.png | 已审查 Publish Center | Docs + 稳定视觉覆盖 |
 | vault-health.png | 带 lint 和 health score 的 vault dashboard | VISUAL-REVIEW, RELEASE-CHECKLIST |
@@ -27,7 +33,7 @@
 | note-history.png | 可 restore 的修订时间线 | VISUAL-REVIEW |
 | keyboard-shortcuts.png | 快捷键编辑器 | VISUAL-REVIEW |
 | onboarding-tour.png | 首次运行产品导览 | VISUAL-REVIEW |
-| plugins.png | Plugin marketplace 发现与管理 | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
+| plugins.png | 许可审阅前已安装的第一方插件管理 | README / docs |
 | editor-recovery.png | Editor recovery fallback | VISUAL-REVIEW, RELEASE-CHECKLIST |
 | mcp-sharing-inventory.png | MCP sharing 与资源 inventory | VISUAL-REVIEW |
 | toolbar-typography.png | Typography toolbar popover | VISUAL-REVIEW |
@@ -38,6 +44,24 @@
 | task-list-preview.png | 带交互式复选框的已渲染任务列表项 | VISUAL-REVIEW |
 | workspace-selector.png | 顶部栏中的工作区选择器与当前仓库标识 | VISUAL-REVIEW |
 
+### 状态覆盖与证据边界
+
+**Workflow state screenshots**独立运行选定状态/恢复套件，保留准确审查提交的报告；完整功能套件仍单独必需。`e2e/visual-state-evidence.ts`在内容断言和布局稳定后生成视口图与细节图。这是状态证据，与稳定基线及公开图库分开。
+
+| 套件 | 状态 |
+|---|---|
+| `google-ecosystem-workflows.spec.ts` | Drive 文件夹发现、取消、绑定持久化/错误；Docs 预览、冲突、损失同意、创建；Calendar 选择、只读审阅、导入；波斯语 RTL 与缩放 |
+| `google-gmail-workflows.spec.ts` | 收件箱、去重分页、字面文本、导入、搜索、分页及提供商错误、断开、保留草稿、深色/RTL/缩放 |
+| `source-files.spec.ts` | 源格式、LaTeX 诊断、冲突/放弃及深色模式 |
+| `overleaf-workflows.spec.ts` | 嵌套源审阅和过期拒绝 |
+| `runtime-kernel.spec.ts` | 会话、stdout、变量、解码图与生命周期失败 |
+| `asset-media.spec.ts` | 解码图、音频控件及拒绝提示 |
+| `workspace-shortcuts.spec.ts` | 自定义、溢出菜单、持久化错误、缩放 |
+| `workspace-leaves.spec.ts` | 多组、移动面板、恢复非活动叶 |
+| `semantic-visual-states.spec.ts` | 2D/3D 投影、旋转、相似结果、阈值空结果、失败时保留测量 |
+
+图片/绘图为确定性 320×200 PNG，截图前检查解码尺寸。它们验证显示和布局，不证明真实相机或 Python 图。Google 测试不访问真实账户。只有记录提交的托管套件通过且图片被审阅，捕获才成为执行证据。其他 docs-only 状态覆盖插件许可/启用/撤销、MCP Outline/Audit、Appearance、Canvas、密集图、triage、Help、原生库选择、RTL、德语紧凑布局、缩放/设备比例、加载、大库及深色对话框。它们不证明外部 MCP、原生授权或第三方安装。原生 `<select>`按语义验证，不宣称系统弹出列表是可靠截图目标。
+
 ### 新鲜度与接受标准
 
 文档 PNG 是**基于当前源码的新鲜截图**，不是已存 Playwright comparison baseline 的副本。测试首先将稳定后的页面直接捕获到 `docs/assets/screenshots/`，随后独立执行 `toHaveScreenshot`，与 `e2e/screenshots.spec.ts-snapshots/` 中稳定 Windows baseline 比较。
@@ -46,7 +70,7 @@
 
 稳定 Windows baseline 仍是视觉回归的接受面。刻意的像素变更必须审查，并使用 `--update-snapshots=all` 明确刷新；绝不能通过提高全局容差隐藏视觉失败。
 
-Pull request 的 **Visual review** workflow 是视觉回归 gate 的唯一 owner。它首先只读比较当前渲染与 committed baseline；只有比较失败时才运行诊断性的 `--update-snapshots=all`，用于生成当前图像与 baseline drift 证据，绝不会自动接受视觉变化。功能性 browser E2E 保留在主 CI 中，因此干净的 PR 不会把 visual suite 重复执行两遍。
+**Visual review**在固定 Windows 运行机仅比较一次，使用 `--update-snapshots=none`；PR 不重写基线。失败已有 actual/diff、trace、视频和新文档截图。基线变化只来自明确 refresh。`visual-review.zip`将唯一当前图片放在 `images/`；`image-manifest.json`记录 SHA-256、大小及所有来源路径。完全相同图片只存一次，不上传平行原始结果/基线目录。
 
 响应式与状态审查截图（`workspace-mobile`、`workspace-tablet`、mobile vault/inspector、editor recovery、MCP inventory、toolbar popover）来自实时测试输出；除非测试明确使用 `toHaveScreenshot`，否则不会晋升为稳定像素 baseline。
 
@@ -68,7 +92,7 @@ pnpm screenshots:capture:web
 
 `-UpdateBaselines` 使用 `--update-snapshots=all` 重新生成全部稳定 Windows snapshots，从最新 Playwright 输出刷新 docs-only 状态截图，并保留 `screenshots.spec.ts` 写入的文档截图。它**不会**把存储的 baseline PNG 覆盖到 docs 目录。
 
-仓库还提供手动 **Refresh documentation screenshots** workflow。请在 review branch 而非 `main` 上运行。它使用固定 `windows-2025` runner 与 Edge，执行 capture contract tests，重新生成 docs 与稳定 Windows baseline，在不更新 snapshot 的情况下验证完整 visual suite，并只将生成的 PNG 变更提交回所选分支。
+发布成功后，`release.yml`在 `main`调度 **Refresh documentation screenshots**。捕获当前 main 源码，不是发布标签像素；独立流程须自行成功。也可手动选审查分支。固定 Windows/Edge 检查捕获契约、更新文档/基线、无更新验证完整视觉套件，仅提交生成 PNG。清单包按 SHA-256 去重。推送不强制；分支前进时安全失败，检查后重新运行。
 
 ### E2E 模式 build
 

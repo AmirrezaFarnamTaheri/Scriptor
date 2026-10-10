@@ -11,9 +11,9 @@
 }
 
 .plugin-manager-modal {
-  width: min(800px, calc(100vw - 16px));
+  width: min(800px, calc(var(--app-viewport-width, 100vw) - 16px));
   max-width: 800px;
-  max-height: calc(100dvh - 16px);
+  max-height: calc(var(--app-viewport-height, 100dvh) - 16px);
   min-height: 0;
   background-color: var(--surface);
   color: var(--ink);
@@ -31,6 +31,12 @@
   justify-content: space-between;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border);
+}
+
+.plugin-marketplace-link {
+  align-self: flex-start;
+  max-width: calc(100% - 48px);
+  margin: 16px 24px;
 }
 
 .plugin-manager-header h2 {
@@ -241,8 +247,12 @@
 .plugin-card-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+.plugin-card-actions .toolbar-button { min-height: 44px; }
+.plugin-workspace-unavailable { display: block; max-width: 28ch; color: var(--muted); overflow-wrap: anywhere; }
 
 .toggle-switch {
   position: relative;
@@ -325,8 +335,8 @@
 
 @media (max-width: 520px) {
   .plugin-manager-modal {
-    width: min(100%, calc(100vw - 12px));
-    max-height: calc(100dvh - 12px);
+    width: min(100%, calc(var(--app-viewport-width, 100vw) - 12px));
+    max-height: calc(var(--app-viewport-height, 100dvh) - 12px);
   }
 
   .plugin-manager-header {

@@ -41,6 +41,8 @@ Vault-Einstellungen liegen in `.scriptor/config.json`. Snippets, Exportprofile u
 
 Nutzen Sie die Workspace-Modi in der oberen Leiste — **Writing**, **Knowledge**, **Publish**, **Review**, **Automation** — um Toolbar und Command Palette auf die aktuelle Aufgabe auszurichten.
 
+Die kompakte Shortcut-Leiste ist konfigurierbar: Befehle, Reihenfolge, Beschriftungen und Größen lassen sich wählen; Einträge können angeheftet oder die Leiste ausgeblendet werden. Auch bei ausgeblendeter Leiste bleibt die Anpassung über die Command Palette erreichbar.
+
 ## Zentrale Arbeitsabläufe
 
 | Aufgabe | Desktop | Terminal (`scriptor tui`) |
@@ -75,6 +77,10 @@ Dry-run-Exportvorschauen funktionieren ohne Pandoc. Details zu Erkennung, Overri
 ## Optional: Headless Engine
 
 Aktivieren Sie **Settings → Headless engine**, um Indizierung, Suche, Backlinks, Graph, Git-Status und Exportjobs über den lokalen Daemon auszuführen. Vault-Öffnen und Canvas bleiben für geringe Latenz im Prozess. Siehe [`docs/architecture/IPC_DAEMON.de.md`](../architecture/IPC_DAEMON.de.md).
+
+## Optional: Google-Integrationen
+
+Die experimentellen Desktop-Integrationen unterstützen geprüfte Markdown-Zusammenarbeit über Drive oder Docs, Planung mit Calendar und Tasks sowie ein Gmail-Plugin. Konfigurieren Sie den öffentlichen Desktop-OAuth-Client unter **Settings → Integrations** und verbinden Sie jede benötigte Dienstgruppe separat. Lokale Notizen bleiben maßgeblich; Schreibzugriffe beim Anbieter benötigen Zustimmung. Der [Google-Leitfaden](GOOGLE_INTEGRATIONS.de.md) erklärt Ressourcenauswahl, Arbeitsabläufe und Wiederherstellung.
 
 ## Weiterführende Dokumentation
 

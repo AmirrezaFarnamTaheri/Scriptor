@@ -5,7 +5,7 @@ import { getProgress, HelpProgressStore } from '../../lib/help/progress'
 import { parseHelpRequest } from '../../lib/help/request'
 import { contextGuide, findGuideTarget, isVisibleHelpTarget } from '../../lib/help/context'
 import { HELP_EVENT, HELP_STORAGE_KEY, type HelpGuide, type HelpRequest } from '../../lib/help/types'
-import { HELP_BY_ID } from '../../lib/help/catalog'
+import { getGuide, helpLocale, HELP_BY_ID } from '../../lib/help/catalog'
 import { helpLabels } from '../../lib/help/labels'
 import { useI18n } from '../../lib/i18n'
 import { toFocusRestorer, type FocusRestorer } from '../../lib/overlayEscapeCoordinator'
@@ -150,7 +150,8 @@ export function HelpRuntime() {
     const acknowledge = () => store.dispatch({ type: 'introduce', id: invitation.id })
     return (
       <HelpInvitation
-        guide={invitation}
+        guide={getGuide(invitation.id, locale)}
+        locale={helpLocale(locale)}
         labels={labels}
         onGuide={() => { acknowledge(); open({ id: invitation.id, view: 'guide' }) }}
         onTour={() => { acknowledge(); open({ id: invitation.id, view: 'tour' }) }}

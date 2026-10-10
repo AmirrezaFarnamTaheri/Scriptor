@@ -110,4 +110,34 @@ SQLite использует WAL, foreign keys, busy timeouts, current-schema val
 
 ## Известная архитектурная работа
 
+### Проверяемые процессы исходников, синхронизации и отображения
+
+Исследовательские поверхности используют существующие границы vault/indexer. Таблица сначала сохраняет редактор и удерживает исходно показанную ревизию; изменённый источник требует перезагрузки и проверки. Capture/Zotero показывают импорт до записи отсутствующего назначения в исходный vault. Credentials остаются в памяти, смена ключа сбрасывает pagination.
+
+PDF/EPUB ограничены 128 MiB; растровые изображения/аудио — 32 MiB, активные SVG/HTML исключены. MIME проверяется, object URL отзывается при смене источника/unmount. Протокол Reader выдаёт встроенный viewer, не произвольные пути.
+
+Receipt связывает публикацию с fingerprints исходников/вывода. Deployment получает только приватный ограниченный временный snapshot, сверенный с receipt и удаляемый в конце. Адаптеры экспериментальны до доказательств packaging и live-provider.
+
+Переименование сохраняет черновики до нативной мутации. Ошибка отменяет операцию и оставляет черновик; ссылки обновляются под охраной ревизии/навигации. Нативные stale-checks решающие. Уникальные имена recovery защищают старые backups. История читает максимум последние 256 KiB и 200 валидных записей; запись больше 16 KiB отклоняется, история больше 1 MiB уплотняется под vault-lock. Rename-recovery хранится отдельно без автоподчистки.
+
+Цитаты разрешаются по текущей библиографии в текстовых узлах до sanitization. Группы сохраняют префиксы, локаторы и подавление автора; отсутствующий ключ оставляет исходник с доступной меткой. Код, ссылки и существующие цитаты исключены. Preview автор/год не меняет Markdown и не заменяет CSL.
+
+`useWorkspaceShortcutPreferences` валидирует ограниченные версионные UI-данные; `WorkspaceShortcutBar` использует текущий каталог. Подписи/размеры не хранят исполняемых команд. Ошибка сохраняет черновик; palette восстанавливает скрытые строки.
+
+`useWorkspaceComposition` связывает валидные vault-leaves с двумя dock-группами. Восстановление ссылок не активирует владельцев; навигация требует согласия. Скрытые/перемещённые вкладки сохраняют mounted-владельцев; вложенные диалоги не дают скрыть владельца. Lifecycle действует на лист, dirty-редакторы открываются последовательно. Основной редактор один; боковые Markdown-листы — read-only snapshots. Module manager проверяет manifest и текущую plugin-policy до сохранения preferences.
+
+Отдельные исходники используют `commands/source_files.rs`, явный список текстовых форматов, bounded UTF-8, hash-save, строгое создание и immutable recovery. Они не входят в метаданные/историю Markdown-прозы. Несохранённая навигация решается до смены vault; вытесненные решения не блокируют переключение.
+
+`calendar_sync` сохраняет публичную привязку папки/транспорта и OAuth client ID без миграции. Drive/Docs, Calendar/Tasks, Gmail имеют три отдельные OS-keychain записи с сервисными grants. Discovery валидирует bounded-страницы, отвергает частичные результаты/циклы и сохраняет write-roles Calendar. Смена аккаунта инвалидирует потребителей/reviews; OAuth-генерации не дают позднему login восстановить отключённые credentials. Локальное удаление не отзывает весь grant Google; это отдельное действие в аккаунте.
+
+Продолжения удерживают исходные vault/account. Смена аккаунта инвалидирует discovery, сообщения, reviews и imports. Planner-блоки локальны; mappings/baselines принадлежат подтверждённому аккаунту и выбранному календарю/списку. Поздний ответ unmounted-planner не переписывает активный. Gmail перепроверяет контекст до save/index/navigation; отправленная запись может закончиться, устаревшие последствия подавляются.
+
+Drive JSON и opaque Docs используют общую revision/conflict-модель и одноразовый нативный grant. Docs проверяет canonical envelope/checksum с сохранением Markdown-байтов. Rich-text преобразуется отдельно после review; медиа не переносится. [Руководство Google](guides/GOOGLE_INTEGRATIONS.ru.md).
+
+Overleaf использует фиксированный Git-host через broker. Изолированный свежий repo сохраняет весь remote-index и материализует только выбранный blob; проверки объектов обходят текстовые фильтры. Review HEAD/содержимого предшествует обычному non-force push; локальная запись защищена content-CAS.
+
+Постоянные Python-kernels — vault-owned broker-процессы конечной жизни, с разрешением на ячейку/источник, bounded output и собственными plots. Нативная transition-guard блокирует позднюю регистрацию; смена vault и restore останавливают старые kernels. Другие языки выполняются отдельно.
+
+Graphviz — встроенный WebAssembly в отменяемом worker с deadline. DOT-fences и Diagram studio делят клиент; SVG показывается пассивной картинкой. Offline PDF остаётся native с ограниченными asset-snapshots, notices и уникальными artifacts. Renderer-fixtures не доказывают packaging/live-provider.
+
 Adapter layer сохраняет composition root, но quick capture, rename transactions, deletion, telemetry, shortcuts, sidebar actions, auxiliary workspace data, settings vault configuration, MCP tool contracts, daemon command catalog/support, daemon transport tests, CLI command-line schema и CLI benchmarks уже имеют сфокусированных owners. Дальнейшая декомпозиция идёт через характеризованные vertical workflows поверх typed application services, а не через big-bang rewrite. См. capability ledger.

@@ -1,11 +1,13 @@
 import { useState, useSyncExternalStore } from 'react'
-import { getGuide } from '../../lib/help/catalog'
+import { getGuide, helpCategory } from '../../lib/help/catalog'
+import type { HelpLocale } from '../../lib/help/translationTypes'
 import { getProgress, type HelpProgressStore } from '../../lib/help/progress'
 import type { HelpLabels } from '../../lib/help/labels'
 import type { HelpGuide, HelpView } from '../../lib/help/types'
 
 interface HelpTopicProps {
   guide: HelpGuide
+  locale: HelpLocale
   view: HelpView
   labels: HelpLabels
   store: HelpProgressStore
@@ -14,7 +16,8 @@ interface HelpTopicProps {
   onReveal: (guide: HelpGuide, selector?: string) => boolean
 }
 
-export function HelpTopic({ guide, view, labels, store, onView, onGuide, onReveal }: HelpTopicProps) {
+export function HelpTopic({ guide, locale, view, labels, store, onView, onGuide, onReveal }: HelpTopicProps) {
+  const direction = locale === 'fa' ? 'rtl' : 'ltr'
   const { preferences } = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
   const progress = getProgress(preferences, guide.id)
   const stepIndex = Math.min(progress.step, guide.steps.length - 1)
@@ -31,8 +34,8 @@ export function HelpTopic({ guide, view, labels, store, onView, onGuide, onRevea
   }
   return (
     <article className="help-topic">
-      <div className="help-topic-heading" lang="en" dir="ltr">
-        <p className="help-eyebrow">{guide.category}{guide.experimental ? ` · ${labels.experimental}` : ''}</p>
+      <div className="help-topic-heading" lang={locale} dir={direction}>
+        <p className="help-eyebrow">{helpCategory(guide.category, locale)}{guide.experimental ? ` · ${labels.experimental}` : ''}</p>
         <h2>{guide.title}</h2>
       </div>
       <div className="help-view-actions" role="group" aria-label={labels.title}>
@@ -41,15 +44,15 @@ export function HelpTopic({ guide, view, labels, store, onView, onGuide, onRevea
         <button type="button" className="toolbar-button" aria-pressed={view === 'tour'} onClick={start}>{progress.step > 0 && !progress.completed ? labels.resume : labels.start}</button>
       </div>
       <dl className="help-preflight">
-        <dt>{labels.entry}</dt><dd lang="en" dir="ltr">{guide.entry}</dd>
-        <dt>{labels.prerequisite}</dt><dd lang="en" dir="ltr">{guide.prerequisite}</dd>
-        <dt>{labels.safety}</dt><dd lang="en" dir="ltr">{guide.safety}</dd>
+        <dt>{labels.entry}</dt><dd lang={locale} dir={direction}>{guide.entry}</dd>
+        <dt>{labels.prerequisite}</dt><dd lang={locale} dir={direction}>{guide.prerequisite}</dd>
+        <dt>{labels.safety}</dt><dd lang={locale} dir={direction}>{guide.safety}</dd>
       </dl>
       {view === 'tour' ? (
         <section className="help-tour" aria-label={labels.tour}>
           <p className="help-step-count" role="status">{labels.step} {stepIndex + 1} {labels.of} {guide.steps.length}</p>
           <progress max={guide.steps.length} value={stepIndex + 1} aria-label={labels.tour} />
-          <div lang="en" dir="ltr"><h3>{step[0]}</h3><p>{step[1]}</p></div>
+          <div lang={locale} dir={direction}><h3>{step[0]}</h3><p>{step[1]}</p></div>
           <button type="button" className="toolbar-button" onClick={() => setMissing(!onReveal(guide, step[2]))}>{labels.locate}</button>
           <p className="help-note">{labels.returnHint}</p>
           {missing ? <p className="help-notice" role="status">{labels.missing}</p> : null}
@@ -64,21 +67,21 @@ export function HelpTopic({ guide, view, labels, store, onView, onGuide, onRevea
         </section>
       ) : null}
       {view === 'guide' ? (
-        <ol className="help-guide-steps" lang="en" dir="ltr">
+        <ol className="help-guide-steps" lang={locale} dir={direction}>
           {guide.steps.map(([title, instruction]) => <li key={title}><h3>{title}</h3><p>{instruction}</p></li>)}
         </ol>
       ) : null}
       {view !== 'tour' ? (
         <section className="help-questions" aria-label={labels.questions}>
           <h3>{labels.questions}</h3>
-          {guide.questions.map(([question, answer]) => <details key={question} open={view === 'questions'} lang="en" dir="ltr"><summary>{question}</summary><p>{answer}</p></details>)}
+          {guide.questions.map(([question, answer]) => <details key={question} open={view === 'questions'} lang={locale} dir={direction}><summary>{question}</summary><p>{answer}</p></details>)}
         </section>
       ) : null}
       {progress.completed ? <p role="status">{labels.read}</p> : null}
       {progress.completed || progress.step > 0 ? <button type="button" className="toolbar-button" onClick={() => { store.dispatch({ type: 'restart', id: guide.id }); onView('tour'); setMissing(false) }}>{labels.restart}</button> : null}
       <nav className="help-related" aria-label={labels.related}>
         <h3>{labels.related}</h3>
-        {guide.related.map((id) => <button key={id} type="button" className="toolbar-button" onClick={() => onGuide(id)} lang="en" dir="ltr">{getGuide(id).title}</button>)}
+        {guide.related.map((id) => <button key={id} type="button" className="toolbar-button" onClick={() => onGuide(id)} lang={locale} dir={direction}>{getGuide(id, locale).title}</button>)}
       </nav>
     </article>
   )

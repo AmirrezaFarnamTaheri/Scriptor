@@ -39,6 +39,12 @@ test('extracts simple bracket and inline', () => {
   assert.deepEqual(extractPandocCitationKeys('Text [@key] and @inline.'), ['key', 'inline'])
 })
 
+test('email addresses, URL handles and escaped at signs are not citation keys', () => {
+  assert.deepEqual(extractPandocCitationKeys('Contact alice@example.com or /users/@alice and \\@literal.'), [])
+  assert.deepEqual(extractPandocCitationKeys('سلام@example.com; cite @smith2026.'), ['smith2026'])
+  assert.deepEqual(extractPandocCitationKeys('𝓪@example.com and 𐐀@literal; cite @smith2026.'), ['smith2026'])
+})
+
 test('maps bibliography entry types for citeproc', () => {
   assert.equal(mapBibliographyEntryType('book'), 'book')
   assert.equal(mapBibliographyEntryType('article'), 'article-journal')

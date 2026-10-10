@@ -1,0 +1,21 @@
+[package]
+name = "scriptor-mobile"
+version = "1.2.8"
+edition = "2024"
+license.workspace = true
+
+[lib]
+name = "scriptor_mobile_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+scriptor-mobile-runtime = { path = "../../../crates/mobile-runtime", features = ["pdf"] }
+scriptor-export-runner = { path = "../../../crates/export-runner", features = ["inprocess-pdf"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

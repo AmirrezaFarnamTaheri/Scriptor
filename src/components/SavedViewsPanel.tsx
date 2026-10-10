@@ -8,6 +8,7 @@ import { loadVaultPresetJson, saveVaultPresetJson, VAULT_SAVED_VIEWS_PATH } from
 import type { ViewNoteHit } from '../types/vault'
 import { expectArray, expectRecord, expectString } from '../lib/runtimeSchema'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
+import { DatabaseStudioPanel } from './DatabaseStudioPanel'
 
 interface SavedViewsPanelProps {
   embedded?: boolean
@@ -15,6 +16,7 @@ interface SavedViewsPanelProps {
   vaultId?: string | null
   onClose: () => void
   onOpenNote: (path: string) => void
+  runSourceNoteMutation?: (path:string,mutation:()=>Promise<void>)=>Promise<boolean>
   promptText: (request: {
     title: string
     label: string
@@ -125,9 +127,11 @@ export const SavedViewsPanel = memo(function SavedViewsPanel({
   vaultId = null,
   onClose,
   onOpenNote,
+  runSourceNoteMutation,
   promptText,
 }: SavedViewsPanelProps) {
   const canQuery = vaultOpen && isNativeBridgeAvailable()
+  const [studioOpen, setStudioOpen] = useState(false)
   const [titleContains, setTitleContains] = useState('')
   const [tagHas, setTagHas] = useState('')
   const [pathMatches, setPathMatches] = useState('')
@@ -311,8 +315,10 @@ export const SavedViewsPanel = memo(function SavedViewsPanel({
     </>
   )
 
+  if (studioOpen) return <DatabaseStudioPanel key={vaultId} vaultOpen={vaultOpen} vaultId={vaultId} onClose={() => setStudioOpen(false)} onOpenNote={onOpenNote} embedded={embedded} runSourceNoteMutation={runSourceNoteMutation} />
+
   if (embedded) {
-    return <div className="knowledge-workbench-embed">{body}</div>
+    return <div className="knowledge-workbench-embed"><button type="button" className="toolbar-button saved-views-studio-action" onClick={() => setStudioOpen(true)}>Open Database Studio</button>{body}</div>
   }
 
   return (
@@ -335,6 +341,7 @@ export const SavedViewsPanel = memo(function SavedViewsPanel({
             <X />
           </button>
         </header>
+        <button type="button" className="toolbar-button saved-views-studio-action" onClick={() => setStudioOpen(true)}>Open Database Studio</button>
         {body}
       </section>
     </div>

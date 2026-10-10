@@ -110,4 +110,34 @@ SQLite verwendet WAL, Foreign Keys, Busy Timeouts, Current-Schema Validation, FT
 
 ## Bekannte Architekturarbeit
 
+### Geprüfte Quell-, Synchronisations- und Rendering-Abläufe
+
+Forschungsoberflächen nutzen bestehende Vault-/Indexer-Grenzen. Tabellenänderungen speichern zuerst den Editor und behalten die ursprünglich gezeigte Revision; veränderte Quellen benötigen Neuladen und Review. Capture und Zotero zeigen Importvorschauen vor einem an den ursprünglichen Vault gebundenen Schreibzugriff auf ein noch fehlendes Ziel. Zugangsdaten bleiben im Speicher; Schlüsselwechsel setzen die Pagination zurück.
+
+PDF/EPUB-Vorschauen sind auf 128 MiB begrenzt, Rasterbilder/Audio auf 32 MiB. Aktive SVG-/HTML-Dateien sind ausgeschlossen. MIME-Typen werden geprüft, Objekt-URLs bei Quellenwechsel/Unmount widerrufen. Das Reader-Protokoll liefert gebündelten Viewer-Code, keine beliebigen Dateipfade.
+
+Build-Receipts binden Veröffentlichung an Quell-/Ausgabefingerprints. Deployment verwendet einen privaten, begrenzten, gegen den Receipt geprüften temporären Snapshot; er wird danach entfernt. Anbieter- und Packaging-Nachweise bleiben Voraussetzung für die experimentellen Adapter.
+
+Umbenennen speichert offene Entwürfe vor nativen Änderungen. Fehlgeschlagene Saves brechen ab und behalten den Entwurf; Linkänderungen respektieren Revision und Navigation. Native Stale-Checks bleiben maßgeblich. Eindeutige Recovery-Dateinamen schützen ältere Patch-Datensätze. Aktivitätslesen prüft höchstens die letzten 256 KiB und liefert maximal 200 gültige Einträge; Anhängen lehnt über 16 KiB ab und kompaktiert über 1 MiB unter dem Vault-Lock. Rename-Recovery wird separat ohne automatische Löschung aufbewahrt.
+
+Zitate werden vor der abschließenden Sanitization aus Textknoten gegen die aktuelle Bibliografie aufgelöst. Gruppen erhalten Präfixe, Fundstellen und Autorunterdrückung; fehlende Schlüssel behalten die Quelle mit zugänglicher Markierung. Code, Links und bestehende Zitatmarkierung sind ausgenommen. Die Autor/Jahr-Vorschau verändert kein Markdown und ersetzt keinen CSL-Export.
+
+`useWorkspaceShortcutPreferences` prüft begrenzte versionierte UI-Daten; `WorkspaceShortcutBar` verwendet den aktuellen Befehlskatalog. Labels und Maße enthalten keine ausführbaren Befehle. Speicherfehler erhalten den Entwurf; versteckte Leisten sind über die Palette erreichbar.
+
+`useWorkspaceComposition` bindet validierte Vault-Blätter an zwei Dock-Gruppen. Wiederherstellung aktiviert keine Eigentümer automatisch; Navigation benötigt deren Zustimmung. Verdeckte/verschobene Tabs behalten ihre gemounteten Eigentümer, verschachtelte Dialoge verhindern das Verbergen. Lebenszyklusentscheidungen gelten pro Blatt; dirty Editoren erscheinen sequenziell. Der Schreibeditor bleibt einmalig, Neben-Markdown-Blätter sind schreibgeschützte Snapshots. Modulstart prüft den kanonischen Manifest und die aktuelle Plugin-Policy vor dem Speichern von Präferenzen.
+
+Separate Quelldateien verwenden `commands/source_files.rs`: explizite Textformat-Allowlist, begrenztes UTF-8, Hash-Saves, strikte Erstellung und unveränderliche Recovery. Sie gelangen nicht in Markdown-Prosa-Metadaten oder deren Historie. Ungespeicherte Navigation wird vor Vault-Wechsel entschieden; überholte Entscheidungen blockieren ihn nicht.
+
+`calendar_sync` speichert öffentliche Ordner-/Transportbindung und Desktop-OAuth-Client-ID ohne erforderliche Migration. Drive/Docs, Calendar/Tasks und Gmail besitzen drei getrennte OS-Keychain-Datensätze mit dienstspezifischen Grants. Discovery validiert begrenzte Seiten, verwirft Teilresultate und Pagination-Zyklen und erhält Calendar-Schreibrollen. Kontowechsel invalidiert vorbereitete Reviews und andere Verbraucher; native OAuth-Generationen verhindern verspätete Wiederanmeldung nach Trennung. Lokales Entfernen widerruft nicht den gesamten Google-App-Grant; das bleibt eine ausdrückliche Aktion im Google-Konto.
+
+Fortsetzungen behalten Ursprungs-Vault und Konto. Kontowechsel invalidiert Discovery, Nachrichten, Reviews und Imports. Planner-Blöcke bleiben lokal; Provider-Mappings und Baselines gehören zum bestätigten Konto und ausgewählten Kalender/Task-Liste. Unmount verhindert späte Überschreibung aktiver Blöcke. Gmail prüft Kontext vor Save, Indexierung und Navigation erneut; bereits gesendete Schreibvorgänge können enden, veraltete Folgeeffekte werden unterdrückt.
+
+Drive-JSON und opaque Docs teilen das Revisions-/Konfliktmodell und den nativen Einmal-Grant. Docs prüft einen kanonisch kodierten Umschlag samt Prüfsumme und erhält Markdown-Bytes. Rich-Text-Konversion wird separat geprüft; Medien werden nicht übertragen. [Google-Leitfaden](guides/GOOGLE_INTEGRATIONS.de.md).
+
+Overleaf nutzt festen Git-Host über den Process Broker. Ein isoliertes frisches Repository erhält den gesamten Remote-Index und materialisiert nur den ausgewählten Blob; Objektprüfungen vermeiden Textfilter. Review von HEAD/Inhalt geht gewöhnlichem nicht erzwungenem Push voraus; lokales Anwenden verwendet Content-CAS.
+
+Persistente Python-Kernel sind Vault-eigene Broker-Prozesse mit begrenzter Lebensdauer, quellgebundener Zellberechtigung, begrenzter Ausgabe und eigenen Plot-Artefakten. Native Übergangssperren verhindern späte Registrierung; Vault-Wechsel und Restore stoppen alte Kernel. Andere Sprachen nutzen separate frische Ausführung.
+
+Graphviz läuft als gebündeltes WebAssembly in einem abbrechbaren Worker mit Deadline. DOT-Fences und Diagram studio verwenden denselben Client; SVG bleibt passives Bild. Offline-PDF-Satz bleibt nativ mit begrenzten Asset-Snapshots, gebündelten Hinweisen und eindeutigen Artefakten. Renderer-Fixtures beweisen weder Packaging noch Live-Provider.
+
 Die Adapter Layer behält eine Composition Root, aber Quick Capture, Rename Transactions, Deletion, Telemetry, Shortcuts, Sidebar Actions, Auxiliary Workspace Data, Settings Vault Configuration, MCP Tool Contracts, Daemon Command Catalog/Support, Daemon Transport Tests, CLI Command-Line Schema und CLI Benchmarks haben fokussierte Owners. Weitere Dekomposition erfolgt über charakterisierte Vertical Workflows auf typisierten Application Services, nicht per Big-Bang-Rewrite. Siehe Capability Ledger.

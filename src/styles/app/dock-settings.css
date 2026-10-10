@@ -45,6 +45,7 @@
 }
 
 .status-strip {
+  container: status-chrome / inline-size;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
@@ -58,7 +59,7 @@
   min-width: 0;
   display: grid;
   /* jobs | dock-chrome toggle | progress | repo-state */
-  grid-template-columns: auto auto minmax(260px, 620px) minmax(0, 1fr);
+  grid-template-columns: auto auto minmax(260px, 1fr) minmax(0, auto);
   align-items: center;
   gap: 10px;
 }
@@ -268,7 +269,13 @@
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  background: var(--panel);
+  background: linear-gradient(var(--panel), var(--panel)), var(--bg);
+}
+
+.dock-list mark {
+  color: var(--ink-strong);
+  background: var(--accent-soft);
+  font-weight: 700;
 }
 
 .dock-list {
@@ -344,8 +351,8 @@
 .bibliography-panel,
 .task-panel.unified-panel-shell,
 .kanban-panel.unified-panel-shell {
-  width: min(720px, calc(100vw - 32px));
-  max-height: min(80vh, 720px);
+  width: min(720px, calc(var(--app-viewport-width, 100vw) - 32px));
+  max-height: min(calc(var(--app-viewport-height, 100dvh) * 0.8), 720px);
 }
 
 .settings-panel header,
@@ -628,7 +635,7 @@
 }
 
 .kanban-column {
-  flex: 0 0 220px;
+  flex: 1 0 220px;
   display: flex;
   flex-direction: column;
   background: var(--surface, var(--panel));
@@ -845,31 +852,46 @@
   color: var(--amber);
 }
 
+.tag-browser-panel,
+.tag-browser-embed {
+  container: tag-browser / inline-size;
+  min-width: 0;
+}
+
 .tag-browser-body {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   min-height: 280px;
+  min-width: 0;
 }
 
 .tag-list {
+  min-width: 0;
   list-style: none;
   margin: 0;
   padding: 8px;
-  border-right: 1px solid var(--border);
+  border-inline-end: 1px solid var(--border);
   overflow: auto;
 }
 
 .tag-list button {
   width: 100%;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   border: 0;
   border-radius: 8px;
   padding: 8px 10px;
   background: transparent;
-  text-align: left;
+  text-align: start;
+}
+
+.tag-list button span,
+.tag-notes-header strong,
+.tag-notes .dock-list button {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .tag-list button.active,
@@ -878,12 +900,14 @@
 }
 
 .tag-notes {
+  min-width: 0;
   padding: 12px 14px;
   overflow: auto;
 }
 
 .tag-notes-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -894,6 +918,26 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* Use available pane width so restored app zoom and embedded workbenches
+   reflow even when the physical window is wider than a mobile breakpoint. */
+@container tag-browser (max-width: 560px) {
+  .tag-browser-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tag-list {
+    max-height: 180px;
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--border);
+  }
+
+  .tag-notes-actions > button {
+    min-height: 44px;
+    max-width: 100%;
+    white-space: normal;
+  }
 }
 
 .outline-row {
@@ -933,6 +977,14 @@
   flex-wrap: nowrap;
   color: var(--muted);
   font-size: 13px;
+}
+
+.repo-vault {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .diagnostics-opt-in {

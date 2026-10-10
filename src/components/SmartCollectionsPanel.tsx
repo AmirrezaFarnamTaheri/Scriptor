@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Database, Play, Plus, Trash2 } from 'lucide-react'
+import { Database, RefreshCw, Plus, Trash2 } from 'lucide-react'
 
 import { indexerExecuteDql } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
@@ -65,6 +65,7 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
   const [collections, setCollections] = useState<SmartCollection[]>(() => loadCollections())
   const [activeId, setActiveId] = useState(collections[0]?.id ?? '')
   const [results, setResults] = useState<KnowledgeNoteSummary[]>([])
+  const [queryState, setQueryState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [status, setStatus] = useState('Select a collection to run its DQL query.')
   const [draftLabel, setDraftLabel] = useState('')
   const [draftQuery, setDraftQuery] = useState('path has #tag')
@@ -101,11 +102,13 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
         outbound_links: 0,
       }))
       setResults(mapped)
+      setQueryState('success')
       const durationMs = Math.round(performance.now() - started)
       setStatus(`${mapped.length} note(s) matched "${collection.label}" in ${durationMs}ms.`)
     } catch (error) {
       if (requestId !== requestIdRef.current) return
       setResults([])
+      setQueryState('error')
       setStatus(error instanceof Error ? error.message : 'Search failed')
     }
   }, [])
@@ -116,9 +119,11 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
       if (!canQuery) {
         setStatus('Open a vault in the desktop app to run DQL collections.')
         setResults([])
+        setQueryState('idle')
         return
       }
       setResults([])
+      setQueryState('loading')
       setStatus(`Running "${collection.label}"…`)
       void executeQuery(collection, requestId)
     },
@@ -127,11 +132,18 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
 
   useEffect(() => {
     const requestId = ++requestIdRef.current
-    if (!canQuery || !activeCollection) return
+    if (!canQuery || !activeCollection) {
+      setResults([])
+      setQueryState('idle')
+      setStatus('Open a vault in the desktop app to run DQL collections.')
+      return
+    }
     setResults([])
+    setQueryState('loading')
     setStatus(`Running "${activeCollection.label}"…`)
     void executeQuery(activeCollection, requestId)
-  }, [activeCollection, canQuery, executeQuery])
+    return () => { requestIdRef.current += 1 }
+  }, [activeCollection, canQuery, executeQuery, vaultId])
 
   const addCollection = () => {
     const label = draftLabel.trim()
@@ -153,7 +165,7 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
   }
 
   return (
-    <div className={`smart-collections-panel${embedded ? ' knowledge-workbench-embed' : ''}`} data-help-topic="collections">
+    <div className={`smart-collections-panel${embedded ? ' knowledge-workbench-embed' : ''}`} data-help-topic="collections" aria-busy={queryState === 'loading'}>
       {!embedded ? (
         <header className="smart-collections-header">
           <h3>
@@ -175,14 +187,14 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
           ) : null}
         </header>
       ) : (
-        <p className="health-subtitle">{status}</p>
+        <p className="health-subtitle" role={queryState === 'error' ? 'alert' : 'status'}>{status}</p>
       )}
 
       <div className="smart-collections-layout">
         <aside className="smart-collections-sidebar" aria-label="Collection list">
           {collections.map((collection) => (
             <div key={collection.id} className={activeId === collection.id ? 'smart-collection active' : 'smart-collection'}>
-              <button type="button" onClick={() => setActiveId(collection.id)}>
+              <button type="button" className="toolbar-button smart-collection-select" onClick={() => setActiveId(collection.id)}>
                 {collection.label}
               </button>
               <button
@@ -202,21 +214,21 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
             <>
               <div className="smart-collections-toolbar">
                 <code className="smart-collection-query">{activeCollection.query}</code>
-                <button type="button" className="toolbar-button" onClick={() => runQuery(activeCollection)}>
-                  <Play size={14} />
+                <button type="button" className="toolbar-button" disabled={!canQuery || queryState === 'loading'} onClick={() => runQuery(activeCollection)}>
+                  <RefreshCw size={14} />
                   Refresh
                 </button>
               </div>
               {embedded ? null : (
-                <p className="health-subtitle">
+                <p className="health-subtitle" role={queryState === 'error' ? 'alert' : 'status'}>
                   {status}
                 </p>
               )}
-              {results.length === 0 ? (
+              {queryState === 'success' && results.length === 0 ? (
                 <p className="empty-state">No notes matched this collection.</p>
-              ) : (
+              ) : results.length > 0 ? (
                 <VirtualKnowledgeNoteList notes={results} onOpenNote={onOpenNote} triageLabel="Open" />
-              )}
+              ) : null}
             </>
           ) : (
             <p className="empty-state">Add a smart collection to get started.</p>

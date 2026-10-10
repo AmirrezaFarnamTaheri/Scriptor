@@ -14,8 +14,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+tempfile = "3"
 mimalloc = { workspace = true }
-scriptor-export-runner = { path = "../../../crates/export-runner" }
+scriptor-export-runner = { path = "../../../crates/export-runner", features = ["inprocess-pdf"] }
 scriptor-canvas-engine = { path = "../../../crates/canvas-engine" }
 scriptor-daemon = { path = "../../../crates/daemon" }
 scriptor-ipc = { path = "../../../crates/ipc" }
@@ -24,6 +25,7 @@ scriptor-indexer = { path = "../../../crates/indexer" }
 scriptor-native-git = { path = "../../../crates/native-git" }
 scriptor-publish-runner = { path = "../../../crates/publish-runner" }
 scriptor-vault = { path = "../../../crates/vault" }
+scriptor-capture = { path = "../../../crates/capture" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
@@ -43,4 +45,3 @@ base64 = "0.23"
 # Root package metadata for the desktop app.
 
 [dev-dependencies]
-tempfile = "3"

@@ -8,6 +8,7 @@
 }
 
 .vault-panel {
+  container: vault-rail / inline-size;
   display: flex;
   flex-direction: column;
   background: linear-gradient(170deg, var(--sidebar) 0%, color-mix(in oklch, var(--sidebar) 90%, transparent) 100%);
@@ -192,8 +193,9 @@
 }
 
 .snippets-panel {
-  width: min(760px, calc(100vw - 32px));
-  max-height: min(82vh, 720px);
+  container-type: inline-size;
+  width: min(760px, calc(var(--app-viewport-width, 100vw) - 32px));
+  max-height: min(calc(var(--app-viewport-height, 100dvh) * 0.82), 720px);
   overflow: hidden;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -219,6 +221,7 @@
 }
 
 .snippets-layout {
+  min-width: 0;
   min-height: 0;
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr);
@@ -238,10 +241,12 @@
   list-style: none;
   overflow: auto;
   display: grid;
+  align-content: start;
   gap: 4px;
 }
 
 .snippets-layout aside button {
+  overflow-wrap: anywhere;
   width: 100%;
   padding: 6px 8px;
   border-radius: 6px;
@@ -256,6 +261,7 @@
 }
 
 .snippets-editor {
+  min-width: 0;
   min-height: 0;
   overflow: auto;
   display: grid;
@@ -263,6 +269,7 @@
 }
 
 .snippets-editor label {
+  min-width: 0;
   display: grid;
   gap: 6px;
   font-size: 13px;
@@ -270,6 +277,8 @@
 
 .snippets-editor input,
 .snippets-editor textarea {
+  min-width: 0;
+  width: 100%;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -281,6 +290,29 @@
   resize: vertical;
   font-family: var(--mono, ui-monospace, monospace);
   font-size: 12px;
+}
+
+.snippets-panel header > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Use the card's available width: physical-window media queries miss app zoom. */
+@container (max-width: 560px) {
+  .snippets-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: start;
+    overflow: auto;
+  }
+
+  .snippets-layout aside ul {
+    max-height: 96px;
+  }
+
+  .snippets-editor {
+    overflow: visible;
+  }
 }
 
 .snippets-footer {
@@ -461,4 +493,47 @@
   .editor-loading-shimmer {
     animation: none;
   }
+}
+.note-label {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.daily-note-button > svg {
+  flex: none;
+}
+
+@container vault-rail (max-width: 220px) {
+  .vault-nav-tabs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .daily-note-nav {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .daily-note-button {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+}
+
+.note-label-prefix {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-label-identity { flex-shrink: 0; white-space: nowrap; }
+.note-label-folder {
+  color: var(--muted);
+  margin-inline-start: auto;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

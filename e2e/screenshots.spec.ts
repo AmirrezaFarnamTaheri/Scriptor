@@ -499,7 +499,7 @@ test('note history panel', async ({ page }) => {
   await historyOption.click()
   const historyPanel = page.getByRole('dialog', { name: 'Note history' })
   await expect(historyPanel).toBeVisible()
-  await expect(historyPanel.getByText(/words/)).toBeVisible()
+  await expect(historyPanel.getByText(/^\d+ words$/)).toBeVisible()
   await expect(historyPanel.getByText('Compare before restoring')).toBeVisible()
   await expect(historyPanel.getByLabel('Current note and selected revision comparison')).toBeVisible()
   await settleLayout(page)

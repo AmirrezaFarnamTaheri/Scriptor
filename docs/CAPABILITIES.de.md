@@ -1,69 +1,75 @@
-# Scriptor-Funktionen
+# Scriptor: Fähigkeiten und Arbeitsbereiche
 
 [English](CAPABILITIES.md) · [فارسی](CAPABILITIES.fa.md) · [简体中文](CAPABILITIES.zh-CN.md) · [Русский](CAPABILITIES.ru.md) · **Deutsch** · [Español](CAPABILITIES.es.md)
 
-Visuelle Referenzen für funktionsgesteuerte Oberflächen werden in der [Visual-Review-Galerie](./VISUAL-REVIEW.md) und im [kanonischen Screenshot-Inventar](assets/screenshots/README.de.md) gepflegt, darunter [Graph](assets/screenshots/graph.png), [Canvas](assets/screenshots/canvas.png), [MCP](assets/screenshots/mcp-panel.png) und [Plugins](assets/screenshots/plugins.png). Screenshots zeigen nur den UI-Zustand; native Autorisierung und Vault-Zustand bleiben maßgeblich.
+Scriptor verbindet lokale Markdown-Dateien mit Bearbeitung, Recherche, Veröffentlichung und ausdrücklich erlaubter Automatisierung. Diese Übersicht beschreibt die aktuelle Oberfläche und ihre Zuständigkeiten. Der [Reifegrad-Ledger](CAPABILITY-MATURITY.md) unterscheidet ausgelieferte, experimentelle und reine Designfähigkeiten; ein sichtbarer Schalter allein belegt keinen produktiven Support.
 
-Ausgelieferte Produktoberflächen und Release-Validierung für **v1.0.0**.
+Die [visuelle Galerie](VISUAL-REVIEW.de.md) und das [Screenshot-Verzeichnis](assets/screenshots/README.de.md) zeigen konkrete UI-Zustände. Bilder belegen weder native Berechtigungen noch den tatsächlichen Vault-Zustand.
 
-Die benutzerorientierte Feature-Tour steht im Haupt-[`README.de.md`](../README.de.md), die maßgebliche Reifegradbewertung in [`CAPABILITY-MATURITY.de.md`](./CAPABILITY-MATURITY.de.md). Diese Seite erfasst das Auslieferungsmanifest von v1.0.0 und die Befehle zur Release-Validierung.
-
-## In v1.0.0 enthalten
+## Kernbereiche
 
 | Bereich | Referenz |
 |---|---|
 | Desktop-Shell (Tauri 2) | `apps/desktop/` |
-| Vault-Kernel + Indexer | `crates/vault`, `crates/indexer` |
-| Headless-Daemon-IPC | [`architecture/IPC_DAEMON.de.md`](./architecture/IPC_DAEMON.de.md) |
-| Terminal-UI | [`architecture/TUI_PARITY.de.md`](./architecture/TUI_PARITY.de.md) |
-| Plugin-System (Safe Mode + Marketplace) | [`architecture/PLUGIN_SYSTEM.de.md`](./architecture/PLUGIN_SYSTEM.de.md) |
-| Plugin-Autorenleitfaden + Hello World | [`plugins/AUTHOR_GUIDE.de.md`](./plugins/AUTHOR_GUIDE.de.md) |
-| MCP: 22 Tools mit geprüften Drafts | `packages/mcp/`; dauerhafte Mutationsprüfung: `crates/vault/src/mcp_audit.rs`, `crates/daemon/src/automation_stdio.rs` |
-| Export (Pandoc) | `crates/export-runner`, `@scriptor/export` |
-| Canvas-Engine (resvg-Worker-Offload) | `crates/canvas-engine`, `@scriptor/canvas` |
+| Vault-Kernel und Indexer | `crates/vault`, `crates/indexer` |
+| Lokaler Headless-Daemon und IPC | [IPC](architecture/IPC_DAEMON.md) |
+| Terminaloberfläche | [TUI](architecture/TUI_PARITY.md) |
+| Plugins, sicherer Modus und eigener Katalog | [Plugin system](architecture/PLUGIN_SYSTEM.md) |
+| Plugin-Autorenleitfaden und Hello World | [Author guide](plugins/AUTHOR_GUIDE.md) |
+| 22 MCP-Werkzeuge mit geprüften Entwürfen | `packages/mcp/` |
+| Export mit Pandoc | `crates/export-runner`, `@scriptor/export` |
+| Canvas-Engine mit resvg-Worker | `crates/canvas-engine`, `@scriptor/canvas` |
 | Virtualisierter Vault-Baum | `src/components/app/VirtualNoteList.tsx` |
-| Design-Tokens (414 extrahierte Zeilen) | `src/styles/tokens/components.css` |
-| Visual-Regression-Tests | `playwright.visual.config.ts` |
-| axe-core-CI-Gate | `check:a11y-axe` in `check:release` |
-| Dokumentations-Screenshots | `docs/assets/screenshots/` |
-| Release-Packaging + Trust-Nachweise für unsignierte Installer | `scripts/release/`, `.github/workflows/release.yml` |
+| Design-Tokens | `src/styles/tokens/components.css` |
+| Visuelle Regression | `playwright.visual.config.ts` |
+| axe-core-Gate in CI | `check:a11y-axe`, `check:release` |
+| Dokumentationsbilder | `docs/assets/screenshots/` |
+| Release-Paketierung und Evidenz der unsignierten Vertrauenspolitik | `scripts/release/`, `.github/workflows/release.yml` |
 
-## Headless Engine
+Dauerhafte MCP-Mutationsprotokolle liegen in `crates/vault/src/mcp_audit.rs` und `crates/daemon/src/automation_stdio.rs`.
 
-Wenn **Settings → Headless engine** aktiviert ist, laufen Indizierung, Suche, Backlinks, Graph, Git-Status, Gesundheitsdiagnosen, Speichern/Umbenennen von Notizen und Exportjobs über den lokalen Daemon. Vault-Öffnen, Scan und Canvas bleiben für schnelle Reaktion im Prozess. Siehe [`architecture/IPC_DAEMON.de.md`](./architecture/IPC_DAEMON.de.md).
+## Experimentelle Abläufe
 
-## Release-Validierung
+| Arbeitsablauf | Verhalten und Anleitung |
+|---|---|
+| Eigenständige Quelldateien | LaTeX, Code und verwandte Textformate mit geschützten Speichervorgängen; Ausführung und Kompilierung erfolgen ausdrücklich. Siehe [Reifegrad](CAPABILITY-MATURITY.md). |
+| Google-Verbindungen | Unabhängige Kontoverbindungen, geprüfte Drive/Docs-Revisionen, Calendar/Tasks-Planung und optionales Gmail. Siehe [Google-Leitfaden](guides/GOOGLE_INTEGRATIONS.de.md). |
+| Overleaf-Austausch | Geprüfter Quelldateiaustausch über Git mit festem Zielhost. Siehe [Architektur](ARCHITECTURE.de.md). |
+| Runtime und semantischer Inspektor | Ausführung mit Berechtigung und anbieterabhängige Embedding-Inspektion. Native, Anbieter- und Paketnachweise bleiben getrennte [Prüfanforderungen](VERIFICATION.de.md). |
+| Arbeitsbereich zusammenstellen | Haupt- und Nebenbereiche, verschiebbare Panels und anpassbare Kurzbefehle; versteckte Einträge bleiben über die Befehlspalette erreichbar. Siehe [Erste Schritte](guides/GETTING_STARTED.de.md). |
+
+## Headless-Engine
+
+Mit **Settings → Headless engine** laufen Indexierung, Suche, Rückverweise, Graph, Git-Status, Gesundheitsdiagnosen, Speichern/Umbenennen und Exportjobs über den lokalen Daemon. Vault-Öffnen, Scan und Canvas bleiben zur schnellen Reaktion im Prozess. Der [IPC-Vertrag](architecture/IPC_DAEMON.md) beschreibt die Grenze.
+
+## Verifikation
+
+Verfahren stehen in [CONTRIBUTING.de.md](../CONTRIBUTING.de.md), aktuelle Ergebnisse und offene Gates in [VERIFICATION.de.md](VERIFICATION.de.md). Für die aktuelle Prüfung laufen ausführbare Checks ausschließlich auf GitHub-Workern. Browser-Testdaten belegen kontrolliertes Verhalten und Layout, keine Live-Anbieterzugriffe, installierten Clients oder Release-Reife. Workflow-Evidenz muss Commit und Diagnoseartefakte erhalten.
 
 ```powershell
-pnpm check:release   # Full local release gate (includes axe-core CI gate)
-pnpm check:daemon    # IPC smoke
-pnpm check:tui       # Terminal UI smoke
-pnpm check:a11y      # Static accessibility checks
-pnpm check:a11y-axe  # axe-core WCAG 2a/2aa/2.1aa automated audit
-pnpm check:plugins   # Plugin manifest + marketplace catalog
-pnpm check:mcp       # MCP tool manifest validation
-pnpm check:contracts # TypeScript contract packages
-pnpm check:canvas    # Canvas engine contracts
-pnpm check:editor    # Editor engine contracts
-pnpm check:renderer  # Renderer contracts
-pnpm check:export    # Export pipeline contracts
-pnpm check:knowledge # Knowledge graph contracts
-pnpm check:citations # Citation engine contracts
-pnpm check:headless  # Headless runner contracts
-pnpm check:perf      # Performance baseline check
-pnpm test:rust       # Rust unit and integration tests
-pnpm test:visual     # Visual regression Playwright tests
-pnpm test:e2e        # Playwright end-to-end tests
+pnpm check:release
+pnpm check:daemon
+pnpm check:tui
+pnpm check:a11y
+pnpm check:a11y-axe
+pnpm check:plugins
+pnpm check:mcp
+pnpm check:contracts
+pnpm check:canvas
+pnpm check:editor
+pnpm check:renderer
+pnpm check:export
+pnpm check:knowledge
+pnpm check:citations
+pnpm check:headless
+pnpm check:perf
+pnpm test:rust
+pnpm test:visual
+pnpm test:e2e
 ```
 
-CI spiegelt diese Prüfungen in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+[CI](../.github/workflows/ci.yml)
 
-## Verwandte Dokumente
+## Weitere Dokumente
 
-| Dokument | Zweck |
-|---|---|
-| [`guides/GETTING_STARTED.de.md`](./guides/GETTING_STARTED.de.md) | Anleitung für den ersten Start |
-| [`release/PANDOC_STRATEGY.de.md`](./release/PANDOC_STRATEGY.de.md) | Export-Voraussetzungen |
-| [`release/SIGNING.de.md`](./release/SIGNING.de.md) | Installer-Trust- und Signing-Richtlinie |
-| [`../PRODUCT.de.md`](../PRODUCT.de.md) | Produktprinzipien |
-| [`../CHANGELOG.md`](../CHANGELOG.md) | Release-Historie |
+[Pandoc-Voraussetzungen](release/PANDOC_STRATEGY.md) · [Installer-Vertrauen](release/SIGNING.md) · [Produktprinzipien](../PRODUCT.md) · [Änderungen](../CHANGELOG.md)

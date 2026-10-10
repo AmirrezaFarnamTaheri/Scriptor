@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::ErrorKind;
+use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
 
 #[cfg(windows)]
@@ -7,7 +7,10 @@ use std::os::windows::fs::FileTypeExt;
 
 use scriptor_system_bridge::scriptor_data_dir;
 
-use super::discovery::hash_resource_directory;
+use super::discovery::{
+    MAX_RESOURCE_BYTES, MAX_RESOURCE_ENTRIES, MAX_RESOURCE_FILES, hash_resource_directory,
+    ignored_resource_metadata,
+};
 use super::{OperationKind, PlannedOperation, ResourceOperationReceipt};
 
 const MAX_RESOURCE_COPY_DEPTH: usize = 4;
@@ -98,6 +101,16 @@ fn apply_copy(
     if staged_hash != operation.expected_source_hash {
         remove_if_exists(&staging)?;
         return Err("staged resource did not match the approved source hash".into());
+    }
+
+    // Copying can take time. Recheck the reviewed destination immediately
+    // before quarantine/promotion so edits made during staging are retained.
+    if let Err(error) = revalidate_operation(operation) {
+        let cleanup = remove_if_exists(&staging)
+            .err()
+            .map(|cleanup_error| format!("; staging cleanup also failed: {cleanup_error}"))
+            .unwrap_or_default();
+        return Err(format!("{error}{cleanup}"));
     }
 
     let quarantine = if destination.exists() {
@@ -208,6 +221,12 @@ fn move_with_verified_copy(
     destination: &Path,
     expected_hash: Option<&str>,
 ) -> Result<(), String> {
+    require_missing_destination(destination)?;
+    if let Some(expected) = expected_hash
+        && hash_resource_directory(source)? != expected
+    {
+        return Err(format!("source changed before move: {}", source.display()));
+    }
     if fs::rename(source, destination).is_ok() {
         if let Some(expected) = expected_hash {
             let moved_hash = hash_resource_directory(destination)?;
@@ -229,18 +248,10 @@ fn move_with_verified_copy(
         }
         return Ok(());
     }
-    if let Err(error) = copy_resource(source, destination) {
-        let cleanup = remove_if_exists(destination)
-            .err()
-            .map(|cleanup_error| {
-                format!(
-                    "; failed to clean partial destination {}: {cleanup_error}",
-                    destination.display()
-                )
-            })
-            .unwrap_or_default();
-        return Err(format!("{error}{cleanup}"));
-    }
+    // A failed rename is not permission to merge into or delete a destination
+    // created by another actor. The copy path owns only paths it creates.
+    require_missing_destination(destination)?;
+    copy_resource(source, destination)?;
     if let Some(expected) = expected_hash {
         let copied_hash = hash_resource_directory(destination)?;
         if copied_hash != expected {
@@ -259,14 +270,49 @@ fn move_with_verified_copy(
             ));
         }
     }
+    if let Some(expected) = expected_hash
+        && hash_resource_directory(source)? != expected
+    {
+        remove_if_exists(destination)?;
+        return Err(format!(
+            "source changed during copy; original content retained: {}",
+            source.display()
+        ));
+    }
     remove_if_exists(source)
 }
 
-fn copy_resource(source: &Path, destination: &Path) -> Result<(), String> {
-    copy_resource_at_depth(source, destination, 0)
+fn require_missing_destination(destination: &Path) -> Result<(), String> {
+    match fs::symlink_metadata(destination) {
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Ok(_) => Err(format!(
+            "refusing to replace an existing resource destination: {}",
+            destination.display()
+        )),
+        Err(error) => Err(format!(
+            "failed to inspect resource destination {}: {error}",
+            destination.display()
+        )),
+    }
 }
 
-fn copy_resource_at_depth(source: &Path, destination: &Path, depth: usize) -> Result<(), String> {
+fn copy_resource(source: &Path, destination: &Path) -> Result<(), String> {
+    copy_resource_at_depth(source, destination, 0, &mut CopyBudget::default())
+}
+
+#[derive(Default)]
+struct CopyBudget {
+    files: usize,
+    bytes: u64,
+    entries: usize,
+}
+
+fn copy_resource_at_depth(
+    source: &Path,
+    destination: &Path,
+    depth: usize,
+    budget: &mut CopyBudget,
+) -> Result<(), String> {
     if depth > MAX_RESOURCE_COPY_DEPTH {
         return Err(format!(
             "resource exceeds the maximum nesting depth: {}",
@@ -282,57 +328,125 @@ fn copy_resource_at_depth(source: &Path, destination: &Path, depth: usize) -> Re
         ));
     }
     if metadata.is_file() {
-        fs::copy(source, destination).map_err(|error| {
-            format!(
-                "failed to copy {} to {}: {error}",
-                source.display(),
-                destination.display()
-            )
-        })?;
-        return Ok(());
+        return copy_file_exclusively(source, destination, budget);
     }
     if !metadata.is_dir() {
         return Err(format!("unsupported resource type: {}", source.display()));
     }
 
-    fs::create_dir_all(destination).map_err(|error| {
+    scriptor_vault::fs::create_private_directory(destination).map_err(|error| {
         format!(
             "failed to create staging directory {}: {error}",
             destination.display()
         )
     })?;
-    for entry in fs::read_dir(source)
-        .map_err(|error| format!("failed to read {}: {error}", source.display()))?
-    {
-        let entry = entry.map_err(|error| format!("failed to read directory entry: {error}"))?;
-        let child_source = entry.path();
-        let child_destination = destination.join(entry.file_name());
-        let child_metadata = fs::symlink_metadata(&child_source)
-            .map_err(|error| format!("failed to inspect {}: {error}", child_source.display()))?;
-        if child_metadata.file_type().is_symlink() {
-            return Err(format!(
-                "nested symlinks are not copied automatically: {}",
-                child_source.display()
-            ));
-        }
-        if child_metadata.is_dir() {
-            copy_resource_at_depth(&child_source, &child_destination, depth + 1)?;
-        } else if child_metadata.is_file() {
-            fs::copy(&child_source, &child_destination).map_err(|error| {
-                format!(
-                    "failed to copy {} to {}: {error}",
-                    child_source.display(),
-                    child_destination.display()
-                )
+    let result = (|| {
+        for entry in fs::read_dir(source)
+            .map_err(|error| format!("failed to read {}: {error}", source.display()))?
+        {
+            let entry =
+                entry.map_err(|error| format!("failed to read directory entry: {error}"))?;
+            if ignored_resource_metadata(&entry.file_name()) {
+                continue;
+            }
+            budget.entries += 1;
+            if budget.entries > MAX_RESOURCE_ENTRIES {
+                return Err(format!(
+                    "resource exceeds {MAX_RESOURCE_ENTRIES} entries: {}",
+                    source.display()
+                ));
+            }
+            let child_source = entry.path();
+            let child_destination = destination.join(entry.file_name());
+            let child_metadata = fs::symlink_metadata(&child_source).map_err(|error| {
+                format!("failed to inspect {}: {error}", child_source.display())
             })?;
+            if child_metadata.file_type().is_symlink() {
+                return Err(format!(
+                    "nested symlinks are not copied automatically: {}",
+                    child_source.display()
+                ));
+            }
+            if child_metadata.is_dir() {
+                copy_resource_at_depth(&child_source, &child_destination, depth + 1, budget)?;
+            } else if child_metadata.is_file() {
+                copy_file_exclusively(&child_source, &child_destination, budget)?;
+            } else {
+                return Err(format!(
+                    "unsupported resource type: {}",
+                    child_source.display()
+                ));
+            }
         }
+        fs::set_permissions(destination, metadata.permissions()).map_err(|error| {
+            format!(
+                "failed to preserve directory permissions for {}: {error}",
+                destination.display()
+            )
+        })?;
+        Ok(())
+    })();
+    if let Err(error) = result {
+        // The exclusive create above proves this directory belongs to this
+        // copy operation. Never perform this cleanup on an AlreadyExists path.
+        let cleanup = remove_if_exists(destination)
+            .err()
+            .map(|cleanup_error| format!("; partial copy cleanup failed: {cleanup_error}"))
+            .unwrap_or_default();
+        return Err(format!("{error}{cleanup}"));
     }
-    fs::set_permissions(destination, metadata.permissions()).map_err(|error| {
-        format!(
-            "failed to preserve directory permissions for {}: {error}",
+    Ok(())
+}
+
+fn copy_file_exclusively(
+    source: &Path,
+    destination: &Path,
+    budget: &mut CopyBudget,
+) -> Result<(), String> {
+    if budget.files >= MAX_RESOURCE_FILES {
+        return Err(format!(
+            "resource exceeds {MAX_RESOURCE_FILES} files: {}",
+            source.display()
+        ));
+    }
+    let input = fs::File::open(source)
+        .map_err(|error| format!("failed to open {}: {error}", source.display()))?;
+    let metadata = input
+        .metadata()
+        .map_err(|error| format!("failed to inspect {}: {error}", source.display()))?;
+    if !metadata.is_file() {
+        return Err(format!("unsupported resource type: {}", source.display()));
+    }
+    let remaining = MAX_RESOURCE_BYTES.saturating_sub(budget.bytes);
+    if metadata.len() > remaining {
+        return Err(format!(
+            "resource exceeds its size limit: {}",
+            source.display()
+        ));
+    }
+    budget.files += 1;
+    let mut input = input.take(remaining + 1);
+    let mut output = scriptor_vault::fs::create_private_file(destination)
+        .map_err(|error| format!("failed to create {}: {error}", destination.display()))?;
+    let result = std::io::copy(&mut input, &mut output).and_then(|bytes| {
+        if bytes > remaining {
+            return Err(std::io::Error::other("resource exceeds its size limit"));
+        }
+        budget.bytes += bytes;
+        output.set_permissions(metadata.permissions())
+    });
+    drop(output);
+    if let Err(error) = result {
+        let cleanup = remove_if_exists(destination)
+            .err()
+            .map(|cleanup_error| format!("; partial file cleanup failed: {cleanup_error}"))
+            .unwrap_or_default();
+        return Err(format!(
+            "failed to copy {} to {}: {error}{cleanup}",
+            source.display(),
             destination.display()
-        )
-    })?;
+        ));
+    }
     Ok(())
 }
 
@@ -423,7 +537,131 @@ mod tests {
     use super::*;
 
     #[test]
-    fn resource_hash_ignores_dot_prefixed_metadata() {
+    fn verified_move_preserves_a_destination_created_after_review() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source");
+        let destination = dir.path().join("destination");
+        fs::create_dir(&source).unwrap();
+        fs::create_dir(&destination).unwrap();
+        fs::write(source.join("SKILL.md"), "approved source").unwrap();
+        fs::write(destination.join("SKILL.md"), "new user edits").unwrap();
+        fs::write(destination.join("unrelated.txt"), "keep this too").unwrap();
+        let expected = hash_resource_directory(&source).unwrap();
+
+        assert!(move_with_verified_copy(&source, &destination, Some(&expected)).is_err());
+
+        assert_eq!(
+            fs::read_to_string(source.join("SKILL.md")).unwrap(),
+            "approved source"
+        );
+        assert_eq!(
+            fs::read_to_string(destination.join("SKILL.md")).unwrap(),
+            "new user edits"
+        );
+        assert_eq!(
+            fs::read_to_string(destination.join("unrelated.txt")).unwrap(),
+            "keep this too"
+        );
+    }
+
+    #[test]
+    fn copy_never_merges_with_or_overwrites_an_existing_destination() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source");
+        let destination = dir.path().join("destination");
+        fs::create_dir(&source).unwrap();
+        fs::create_dir(&destination).unwrap();
+        fs::write(source.join("SKILL.md"), "source").unwrap();
+        fs::write(destination.join("SKILL.md"), "destination").unwrap();
+
+        assert!(copy_resource(&source, &destination).is_err());
+        assert!(copy_resource(&source.join("SKILL.md"), &destination.join("SKILL.md")).is_err());
+        assert_eq!(
+            fs::read_to_string(destination.join("SKILL.md")).unwrap(),
+            "destination"
+        );
+    }
+
+    #[test]
+    fn hidden_resource_content_is_hashed_copied_and_rechecked() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source");
+        let destination = dir.path().join("destination");
+        fs::create_dir_all(source.join(".runtime")).unwrap();
+        fs::write(source.join("SKILL.md"), "# Example\n").unwrap();
+        fs::write(source.join(".runtime/run.py"), "print(1)\n").unwrap();
+        fs::write(source.join(".DS_Store"), "metadata").unwrap();
+        let before = hash_resource_directory(&source).unwrap();
+
+        fs::write(source.join(".runtime/run.py"), "print(2)\n").unwrap();
+        let after = hash_resource_directory(&source).unwrap();
+
+        assert_ne!(
+            before, after,
+            "hidden code must participate in reviewed hashes"
+        );
+        copy_resource(&source, &destination).unwrap();
+        assert_eq!(
+            fs::read_to_string(destination.join(".runtime/run.py")).unwrap(),
+            "print(2)\n"
+        );
+        assert!(!destination.join(".DS_Store").exists());
+        assert_eq!(hash_resource_directory(&destination).unwrap(), after);
+        assert!(
+            move_with_verified_copy(&source, &dir.path().join("moved"), Some(&before)).is_err()
+        );
+        assert!(source.exists());
+    }
+
+    #[test]
+    fn hidden_oversized_content_cannot_bypass_resource_limits() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source");
+        let destination = dir.path().join("destination");
+        fs::create_dir(&source).unwrap();
+        fs::write(source.join("SKILL.md"), "# Example\n").unwrap();
+        fs::File::create(source.join(".oversized.bin"))
+            .unwrap()
+            .set_len(MAX_RESOURCE_BYTES + 1)
+            .unwrap();
+
+        assert!(hash_resource_directory(&source).is_err());
+        assert!(copy_resource(&source, &destination).is_err());
+        assert!(
+            !destination.exists(),
+            "an owned partial copy must be cleaned"
+        );
+    }
+
+    #[test]
+    fn copy_enforces_file_byte_and_entry_budgets_without_retaining_partial_outputs() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source");
+        fs::create_dir(&source).unwrap();
+        fs::write(source.join("SKILL.md"), "ab").unwrap();
+        for mut budget in [
+            CopyBudget {
+                files: MAX_RESOURCE_FILES,
+                ..CopyBudget::default()
+            },
+            CopyBudget {
+                bytes: MAX_RESOURCE_BYTES - 1,
+                ..CopyBudget::default()
+            },
+            CopyBudget {
+                entries: MAX_RESOURCE_ENTRIES,
+                ..CopyBudget::default()
+            },
+        ] {
+            let destination = dir.path().join(uuid::Uuid::new_v4().to_string());
+            assert!(copy_resource_at_depth(&source, &destination, 0, &mut budget).is_err());
+            assert!(!destination.exists());
+        }
+        assert_eq!(fs::read_to_string(source.join("SKILL.md")).unwrap(), "ab");
+    }
+
+    #[test]
+    fn resource_hash_ignores_operating_system_metadata() {
         let dir = tempfile::tempdir().expect("tempdir");
         fs::write(
             dir.path().join("SKILL.md"),
@@ -431,11 +669,13 @@ mod tests {
         )
         .expect("write manifest");
         let before = hash_resource_directory(dir.path()).expect("hash before metadata");
-        fs::write(dir.path().join(".DS_Store"), b"finder metadata").expect("write metadata");
+        for name in [".DS_Store", "Thumbs.db", "desktop.ini"] {
+            fs::write(dir.path().join(name), b"operating system metadata").expect("write metadata");
+        }
         let after = hash_resource_directory(dir.path()).expect("hash after metadata");
         assert_eq!(
             before, after,
-            "dot-prefixed metadata must not affect resource hashes"
+            "explicit operating system metadata must not affect resource hashes"
         );
     }
 

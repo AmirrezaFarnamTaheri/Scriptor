@@ -109,3 +109,5 @@ A fecha de 2026-08-09:
 ## Verificación visual
 
 Los proyectos de Playwright cubren temas claro/oscuro, breakpoints de escritorio/móvil, superficies modales, editor/vista previa, knowledge workbench, ajustes, grafo y estados principales de los workflows. El release candidate congelado exige además revisión manual al 200 % de zoom, con lector de pantalla y en la shell nativa hasta que dichas comprobaciones estén automatizadas de forma fiable. Los umbrales de snapshots no deben ocultar desplazamientos de página completa. Consulte [`docs/validation/FRONTEND_QUALITY.es.md`](docs/validation/FRONTEND_QUALITY.es.md).
+
+Los accesos a espacios de trabajo son opcionales. El inicio muestra acciones compactas de escritura; el usuario añade otras herramientas. Puede ocultar la fila, fijar accesos o moverlos al menú, cambiar su orden y nombre y ajustar el ancho y el texto dentro de límites. La paleta permite recuperar una fila oculta; los objetivos táctiles conservan al menos 44px.

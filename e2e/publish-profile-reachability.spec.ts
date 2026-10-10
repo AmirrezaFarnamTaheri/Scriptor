@@ -7,7 +7,7 @@ import { launchApp, openCommandPalette, runCommand, waitForWorkspace } from './h
  * Every export profile has to be reachable in one continuous list. The list used to
  * carry its own `max-height` + `overflow-y` inside a panel body that already
  * scrolls, so it became a nested scroll: a card was cut through mid-badge with no
- * affordance, and two of the six profiles sat entirely below the inner fold. The
+ * affordance, and the final profiles sat entirely below the inner fold. The
  * panel body is the only thing that should scroll.
  */
 async function openPublishCenter(page: Page) {
@@ -25,9 +25,9 @@ test('every export profile sits in the panel scroll, not a nested one', async ({
   const dialog = await openPublishCenter(page)
   const list = page.locator('.publish-profile-list')
 
-  // The seeded vault ships six profiles: HTML, PDF, DOCX, LaTeX, ePub, Reveal.js.
+  // The seed includes the original six profiles and both reviewed PDF compilers.
   const cards = list.locator('li')
-  await expect(cards).toHaveCount(6)
+  await expect(cards).toHaveCount(8)
 
   const geometry = await list.evaluate((node) => ({
     scrollHeight: node.scrollHeight,

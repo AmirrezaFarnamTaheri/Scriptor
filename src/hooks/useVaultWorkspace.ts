@@ -40,6 +40,7 @@ import { useWorkspaceNoteFactory } from './useWorkspaceNoteFactory'
 import { useWorkspaceFilesystemSync } from './useWorkspaceFilesystemSync'
 import { useDaemonConfigEvents } from './useDaemonConfigEvents'
 import { buildVaultSections, buildVaultSectionsFromSummaries } from './vault/helpers'
+import { prepareVaultSwitch } from '../lib/vaultSwitchGuard'
 
 type WorkspaceStatus = 'idle' | 'opening' | 'indexing' | 'ready' | 'error'
 
@@ -156,6 +157,7 @@ export function useVaultWorkspace(options?: {
   const loadGraphRef = useRef<(focusPath?: string | null) => Promise<void>>(async () => {})
   const exportProfilesRef = useRef<ExportProfile[]>([])
   const vaultOpenRequestIdRef = useRef(0)
+  const configRefreshSequence = useRef(0)
   const logActivity = useCallback((kind: ActivityEntry['kind'], message: string, detail?: string) => {
     const entry = createActivityEntry(kind, message, detail)
     setActivityLog((entries) => [entry, ...entries].slice(0, 100))
@@ -182,15 +184,19 @@ export function useVaultWorkspace(options?: {
   const noteCount = useMemo(() => entries.filter((entry) => entry.kind === 'note').length, [entries])
 
   const refreshVaultConfig = useCallback(async (targetVault = vault) => {
+    const sequence = ++configRefreshSequence.current
+    const requestId = vaultOpenRequestIdRef.current
     if (!targetVault) {
       setVaultConfig(DEFAULT_VAULT_CONFIG)
-      return
+      return false
     }
     try {
-      const loaded = await vaultLoadConfig()
+      const loaded = await vaultLoadConfig(targetVault.id)
+      if (sequence !== configRefreshSequence.current || requestId !== vaultOpenRequestIdRef.current) return false
       setVaultConfig(mergeLoadedVaultConfig(loaded))
+      return true
     } catch {
-      setVaultConfig(DEFAULT_VAULT_CONFIG)
+      return false
     }
   }, [vault])
 
@@ -318,6 +324,7 @@ export function useVaultWorkspace(options?: {
     exportWithProfile,
     cancelExport,
   } = useWorkspaceExport({
+    vaultId: vault?.id ?? null,
     activePath: editor.activePath,
     draftMarkdown: editor.draftMarkdown,
     vaultConfig,
@@ -430,7 +437,7 @@ export function useVaultWorkspace(options?: {
     }
   }, [abortVaultReplacement, clearSearch, finishVaultReplacement, loadBacklinks, prepareForVaultReplacement, refreshGit, refreshVault, refreshVaultConfig, refreshVaultEntries, refreshVaultSnippets, runSearch, searchQuery, setBacklinks, setHealthDiagnostics])
 
-  const rename = useWorkspaceRename({ activePath, setError, logActivity, refreshVault, openNote, loadGraph })
+  const rename = useWorkspaceRename({ activePath, setError, logActivity, refreshVault, openNote, loadGraph, flushAllPendingSaves: editor.flushAllPendingSaves, runNoteMutation: editor.runNoteMutation })
 
   useWorkspaceFilesystemSync({
     vault,
@@ -457,12 +464,16 @@ export function useVaultWorkspace(options?: {
   }, [loadGraph])
 
   const openVaultAt = useCallback(
-    async (rootPath: string) => {
+    async (rootPath: string): Promise<{ status: 'opened' | 'failed' | 'cancelled'; isCurrent: () => boolean }> => {
       const requestId = ++vaultOpenRequestIdRef.current
+      const isCurrent = () => requestId === vaultOpenRequestIdRef.current
+      const cancelled = { status: 'cancelled' as const, isCurrent }
+      if (!await prepareVaultSwitch() || !isCurrent()) return cancelled
       const saved = await resetNoteNavigation()
-      if (!saved || requestId !== vaultOpenRequestIdRef.current) {
+      if (!isCurrent()) return cancelled
+      if (!saved) {
         setStatus(vault ? 'ready' : 'idle')
-        return
+        return cancelled
       }
 
       setStatus('opening')
@@ -471,7 +482,7 @@ export function useVaultWorkspace(options?: {
 
       try {
         const opened = await vaultOpen(rootPath)
-        if (requestId !== vaultOpenRequestIdRef.current) return
+        if (!isCurrent()) return cancelled
         setVault(opened.vault)
         onVaultChanged?.(opened.vault.id)
         setStatus('indexing')
@@ -489,7 +500,7 @@ export function useVaultWorkspace(options?: {
           indexerRebuild(),
           vaultReadWorkspaceSession().catch(() => null),
         ])
-        if (requestId !== vaultOpenRequestIdRef.current) return
+        if (!isCurrent()) return cancelled
 
         setEntries(scanned)
         setSections(buildVaultSections(scanned))
@@ -501,7 +512,7 @@ export function useVaultWorkspace(options?: {
         // restored. A user action after "ready" must never be overwritten by a
         // later startup tab restore.
         if (savedSession?.open_tabs?.length) {
-          if (requestId !== vaultOpenRequestIdRef.current) return
+          if (!isCurrent()) return cancelled
           onSessionLayoutRestore?.({
             collapsedFolders: savedSession.collapsed_folders ?? {},
             sidebarView: savedSession.sidebar_view === 'inbox' ? 'inbox' : 'vault',
@@ -512,11 +523,11 @@ export function useVaultWorkspace(options?: {
             () => requestId === vaultOpenRequestIdRef.current,
           )
         } else {
-          if (requestId !== vaultOpenRequestIdRef.current) return
+          if (!isCurrent()) return cancelled
           const firstNote = scanned.find((entry) => entry.kind === 'note')
           if (firstNote) await openNote(firstNote.path, () => requestId === vaultOpenRequestIdRef.current)
         }
-        if (requestId !== vaultOpenRequestIdRef.current) return
+        if (!isCurrent()) return cancelled
         setStatus('ready')
         void Promise.all([
           refreshHealth(opened.vault),
@@ -529,7 +540,7 @@ export function useVaultWorkspace(options?: {
         })
         try {
           const persisted = await vaultReadActivityLog(100)
-          if (requestId !== vaultOpenRequestIdRef.current) return
+          if (!isCurrent()) return cancelled
           if (persisted.length > 0) {
             setActivityLog(persisted.map((row) => ({
               id: row.id,
@@ -542,14 +553,16 @@ export function useVaultWorkspace(options?: {
         } catch {
           // activity log is optional until first write
         }
-        if (requestId !== vaultOpenRequestIdRef.current) return
+        if (!isCurrent()) return cancelled
         logActivity('success', `Opened vault ${opened.vault.name}`, rootPath)
+        return { status: 'opened', isCurrent }
       } catch (caught) {
-        if (requestId !== vaultOpenRequestIdRef.current) return
+        if (!isCurrent()) return cancelled
         setStatus('error')
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Failed to open vault', message)
+        return { status: 'failed', isCurrent }
       }
     },
     [clearSearch, logActivity, onSessionLayoutRestore, onVaultChanged, openNote, refreshGit, refreshHealth, refreshNoteSummaries, refreshVaultConfig, refreshVaultSnippets, resetNoteNavigation, restoreEditorSession, setHealth, setHealthDiagnostics, setRebuild, vault],

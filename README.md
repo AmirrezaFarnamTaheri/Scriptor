@@ -73,6 +73,10 @@ The [screenshot catalog](docs/assets/screenshots/README.md) also covers dark mod
 
 See [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) for the current status of shipped, experimental, and design-only features.
 
+The experimental [Google integration guide](docs/guides/GOOGLE_INTEGRATIONS.md)
+explains account setup, reviewed Drive/Docs collaboration, Calendar/Tasks
+planning and Gmail workflows, including recovery and support limits.
+
 ## Get Scriptor
 
 Production installers are published as GitHub Release assets. The current version is **1.2.8**.

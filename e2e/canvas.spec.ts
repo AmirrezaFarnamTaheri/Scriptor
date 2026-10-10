@@ -112,6 +112,24 @@ async function addTableBlock(panel: Locator): Promise<Locator> {
 }
 
 test.describe('Canvas panel', () => {
+  test('explicit Canvas relation edits are undoable and removable', async ({ page }) => {
+    const panel = await openCanvas(page)
+    await panel.getByRole('button', { name: 'Add note relation', exact: true }).click()
+    const form = panel.getByRole('form', { name: 'Connector note relation' })
+    await expect(form).toBeVisible()
+    await form.getByLabel('From note').fill('Research/question.md')
+    await form.getByLabel('To note').fill('Research/evidence.md')
+    await form.getByLabel('Relation', { exact: true }).fill('supports')
+    await form.getByRole('button', { name: 'Save relation', exact: true }).click()
+    await expect(form.getByRole('button', { name: 'Remove relation' })).toBeVisible()
+    await panel.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect(form.getByRole('button', { name: 'Remove relation' })).toHaveCount(0)
+    await panel.getByRole('button', { name: 'Redo', exact: true }).click()
+    await expect(form.getByRole('button', { name: 'Remove relation' })).toBeVisible()
+    await form.getByRole('button', { name: 'Remove relation' }).click()
+    await expect(form.getByRole('button', { name: 'Remove relation' })).toHaveCount(0)
+  })
+
   test('opens via command palette', async ({ page }) => {
     const panel = await openCanvas(page)
     await expect(panel.locator('.canvas-stage')).toBeVisible()
@@ -129,6 +147,14 @@ test.describe('Canvas panel', () => {
     const block = await addTableBlock(panel)
     await expect(block).toHaveAttribute('aria-label', /table:/)
     await expect(panel.locator('.canvas-header')).toContainText('1 block')
+    await expect.poll(() => block.locator('th').first().evaluate(element => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 1
+      const context = canvas.getContext('2d')!
+      context.fillStyle = getComputedStyle(element).backgroundColor
+      context.fillRect(0, 0, 1, 1)
+      return context.getImageData(0, 0, 1, 1).data[3]
+    })).toBe(255)
   })
 
   test('canvas has accessible toolbar', async ({ page }) => {

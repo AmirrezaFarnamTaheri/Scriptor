@@ -116,7 +116,7 @@ for (const [command, title, selector] of [
   })
 }
 
-test('Help stays readable at 375px and explicitly marks English guide content in Persian UI', async ({ page }) => {
+test('Help stays readable at 375px with translated Persian guide content and language semantics', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await page.addInitScript(() => localStorage.setItem('scriptor:locale', 'fa'))
   await launchApp(page)
@@ -124,8 +124,15 @@ test('Help stays readable at 375px and explicitly marks English guide content in
   const dialog = page.locator('dialog.help-center')
   await expect(dialog).toBeVisible()
   await expect(dialog).toHaveAttribute('dir', 'rtl')
-  await expect(dialog.locator('.help-language-notice')).toBeVisible()
-  await expect(dialog.locator('.help-topic-heading')).toHaveAttribute('lang', 'en')
+  const heading = dialog.locator('.help-topic-heading')
+  await expect(heading).toHaveAttribute('lang', 'fa')
+  await expect(heading).toHaveAttribute('dir', 'rtl')
+  await expect(heading.getByRole('heading')).toHaveText(/[\u0600-\u06ff]/)
+  const steps = dialog.locator('.help-guide-steps')
+  await expect(steps).toHaveAttribute('lang', 'fa')
+  await expect(steps).toHaveAttribute('dir', 'rtl')
+  await expect(steps.getByRole('listitem')).not.toHaveCount(0)
+  await expect(steps).toContainText(/[\u0600-\u06ff]/)
   await expect.poll(() => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
   await page.keyboard.press('Escape')
   await expect(dialog).toBeHidden()

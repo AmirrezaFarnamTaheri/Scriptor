@@ -21,6 +21,7 @@ pub fn canvas_boards_dir(vault_root: &Path) -> PathBuf {
 }
 
 pub fn save_document(vault_root: &Path, document: &CanvasDocument) -> Result<PathBuf, CanvasError> {
+    crate::scene::validate_relations(document)?;
     let dir = canvas_boards_dir(vault_root);
     fs::create_dir_all(&dir).map_err(|source| CanvasError::IoWrite {
         path: dir.clone(),
@@ -41,7 +42,10 @@ pub fn load_document(vault_root: &Path, canvas_id: &str) -> Result<CanvasDocumen
     let dir = canvas_boards_dir(vault_root);
     let path = dir.join(board_file_name(canvas_id)?);
     let raw = fs::read_to_string(&path).map_err(|source| CanvasError::IoRead { path, source })?;
-    parse_document_json(&raw).map_err(|error| CanvasError::InvalidDocument(error.to_string()))
+    let document = parse_document_json(&raw)
+        .map_err(|error| CanvasError::InvalidDocument(error.to_string()))?;
+    crate::scene::validate_relations(&document)?;
+    Ok(document)
 }
 
 pub fn list_documents(vault_root: &Path) -> Result<Vec<CanvasDocumentSummary>, CanvasError> {

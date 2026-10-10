@@ -59,7 +59,9 @@ pub fn backup_note_content(
     let content =
         fs::read_to_string(absolute).map_err(|source| VaultError::io(absolute, source))?;
     let hash = path_hash(relative_path);
-    let name = format!("{}.md", &hash[..16]);
+    // Recovery records must keep the version they captured. A path-only name
+    // caused later renames to overwrite the backup referenced by older logs.
+    let name = format!("{}-{}.md", &hash[..16], uuid::Uuid::new_v4());
     let backup_dir = root
         .root()
         .join(".scriptor")
@@ -90,4 +92,31 @@ pub fn collect_rename_backups(
         }
     }
     Ok(backups)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn backups_preserve_each_version_of_the_same_note() {
+        let dir = std::env::temp_dir().join(format!("scriptor-backup-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let root = VaultRoot::open(&dir).unwrap();
+        let path = dir.join("note.md");
+        fs::write(&path, "first version").unwrap();
+        let first = backup_note_content(&root, &path, "note.md").unwrap();
+        fs::write(&path, "second version").unwrap();
+        let second = backup_note_content(&root, &path, "note.md").unwrap();
+        assert_ne!(first, second);
+        assert_eq!(
+            fs::read_to_string(dir.join(first)).unwrap(),
+            "first version"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join(second)).unwrap(),
+            "second version"
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
 }

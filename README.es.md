@@ -28,7 +28,7 @@ Scriptor está pensado para proyectos de larga duración como libros, tesis, doc
 
 | Trabaja con tu material | Lo que aporta Scriptor |
 |---|---|
-| **Escribir y revisar** | Vistas de código fuente, dividida y renderizada; navegación por esquema; snippets; editor configurable; historial de notas |
+| **Escribir y revisar** | Fuente y vistas visuales Preview/Split editables; salida de solo lectura en el Inspector; esquema; snippets; editor configurable; historial |
 | **Construir evidencia** | Wikilinks, backlinks, citas, exploración del grafo, comprobaciones de estado y reparación de enlaces sin resolver |
 | **Publicar de forma reproducible** | Perfiles Pandoc con nombre para HTML, PDF, DOCX, LaTeX, ePub y Reveal.js |
 | **Automatizar con límites claros** | Flujos conscientes de Git, herramientas MCP auditables, plugins con permisos y un daemon local |
@@ -45,9 +45,19 @@ Scriptor está pensado para proyectos de larga duración como libros, tesis, doc
 
 | Amplía el espacio de trabajo | Publica desde perfiles con nombre |
 |---|---|
-| ![Mercado de plugins](docs/assets/screenshots/plugins.png) | ![Centro de publicación](docs/assets/screenshots/publish-center.png) |
+| ![Gestión de plugins propios instalados](docs/assets/screenshots/plugins.png) | ![Centro de publicación](docs/assets/screenshots/publish-center.png) |
 
 El [catálogo de capturas](docs/assets/screenshots/README.es.md) también cubre modo oscuro, Git, resolución de conflictos, paleta de comandos, MCP, ajustes, salud del vault, historial de notas, atajos de teclado, onboarding y diseños compactos. El script de captura espera a que los datos y paneles terminen de cargar y falla si una pantalla permanece en estado de carga o degradado.
+
+Estos ejemplos usan el vault de pruebas E2E. La tienda de plugins es un catálogo experimental propio, no un mercado público. Los resultados MCP proceden del puente local de pruebas, no de un cliente externo.
+
+| Autorización MCP y recetas guiadas | Outline de solo lectura en Tools |
+|---|---|
+| ![Autorización MCP y recetas guiadas](docs/assets/screenshots/mcp-panel.png) | ![Outline de solo lectura en Tools](docs/assets/screenshots/mcp-tools.png) |
+
+| Permiso de lectura de Vault Lint antes de activar | Appearance: paleta, día/noche, fuente y densidad |
+|---|---|
+| ![Permiso de lectura de Vault Lint antes de activar](docs/assets/screenshots/plugin-permissions.png) | ![Appearance: paleta, día/noche, fuente y densidad](docs/assets/screenshots/settings-appearance.png) |
 
 ## Funciones
 
@@ -62,6 +72,8 @@ El [catálogo de capturas](docs/assets/screenshots/README.es.md) también cubre 
 - **Ortografía** — Hunspell multirregional y LanguageTool opcional
 
 Consulta [`docs/CAPABILITY-MATURITY.es.md`](docs/CAPABILITY-MATURITY.es.md) para conocer el estado actual de las funciones publicadas, experimentales y únicamente diseñadas.
+
+Las integraciones experimentales de escritorio permiten colaboración Markdown revisada mediante Drive o Docs, planificación con Calendar y Tasks y un plugin de Gmail. Configure el cliente OAuth público de escritorio en **Settings → Integrations** y conecte por separado cada grupo de servicios necesario. Las notas locales siguen siendo la fuente principal; las escrituras en el proveedor requieren aprobación. La [guía de Google](docs/guides/GOOGLE_INTEGRATIONS.es.md) explica selección de recursos, flujos y recuperación.
 
 <a id="download"></a>
 ## Obtener Scriptor
