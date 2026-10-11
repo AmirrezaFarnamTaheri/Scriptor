@@ -39,13 +39,15 @@ export function safeExternalUrl(value: string | null | undefined): string | null
 /** Return a safe external URL encoded as an unambiguous Markdown destination. */
 export function safeExternalMarkdownDestination(value: string | null | undefined): string | null {
   const url = safeExternalUrl(value)
-  return url === null ? null : `<${url}>`
+  // An opaque mailto URL can retain raw angle brackets in its canonical href.
+  // Encode them before surrounding it with Markdown destination delimiters.
+  return url === null ? null : `<${url.replace(/[<>]/g, (ch) => ch === '<' ? '%3C' : '%3E')}>`
 }
 
 /** Escape a provider-controlled label without allowing it to create Markdown syntax. */
 export function safeExternalMarkdownText(value: string | null | undefined): string {
   if (typeof value !== 'string') return ''
-  return value.replace(/[\x00-\x1f\x7f-\x9f]+/g, ' ').replace(/[\\`*_{}\[\]()#+.!|<>~-]/g, '\\$&')
+  return value.replace(/[\x00-\x1f\x7f-\x9f]+/g, ' ').replace(/[\\`*_{}[\]()#+.!|<>~-]/g, '\\$&')
 }
 
 /** True when `value` is a URL safe to render as a link or open externally. */

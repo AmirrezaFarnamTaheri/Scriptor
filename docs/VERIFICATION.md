@@ -26,8 +26,8 @@ holds the current five-service scope, worker results and provider limits.
 [Dependency limitations](validation/SUPPLY-CHAIN-2026-10-04.md) remain explicit;
 an unrelated passing lane does not clear a failed audit or release gate.
 
-Current proof is recorded in dated audit records rather than accumulated in
-product guides:
+Historical provenance is linked below, while current PR verification outcomes
+are consolidated in this record:
 
 - [Cross-product audit](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md)
 - [Visual and zoom review](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md)
@@ -41,6 +41,34 @@ enforcement applies to maintained product and contributor documentation.
 Provenance-sensitive audit records under `docs/validation/` and archived
 documents remain exempt; active user guides do not.
 
+## PR #160 remediation evidence — October 11, 2026
+
+This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.
+
+| Source and environment | Recorded outcome | Classification and limitation |
+|---|---|---|
+| `e753f83c6ce2704bdbfaed4d6ddecca6791647b3` · GitHub main | [CI run 38122794749](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/38122794749): 7/8 jobs passed; Browser E2E failed canvas status assertion (465 pass, one fail) | **Failed** at baseline; not evidence about changes on PR #160 |
+| Locally patched source archive derived from `e753f83` · Node 22 harness | 19/19 Canvas hook regressions, 245/245 source tests and 63/63 infrastructure/release-contract tests passed | **Isolated source-harness verification**; patch not a Git commit; no native/WebView execution |
+| Same patched archive · policy scripts | Frontend quality (793 TS/CSS), documentation contracts (15 documents), Tauri bridge contracts (195 bridged commands / 205 handlers), authorization inventory (55 brokered / 95 read-only / 55 local mutation), immutable actions (13 workflows / 85 uses), locale keys (three locales / 1,102 each), Cargo workspace metadata (21 packages), RustSec exception ledger (12 entries), CSS policy (72 stylesheets) passed | **Static validation only**; no security, cross-platform or provider certification |
+| `2df6ca8583b8833c91231bb5904738bc407b7ab0` · GitHub PR #160 | [CI run 38131002060](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/38131002060): Browser E2E, supply chain, Rust tests, container, frontend/a11y, and Windows release/performance passed; contracts/lint failed on `no-useless-escape` in `safeExternalUrl.ts:48` | **Failed overall**; one lint issue, corrected in the subsequent change, requires new exact-head CI |
+| `2df6ca85` · GitHub PR #160 auxiliary workflows | [Desktop compile](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/38131002023) passed Linux/macOS/Windows; [Visual review](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/38131002008), [workflow screenshots](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/38131002067), and [documentation localization](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/38131002011) passed | **Verified for that revision only**; newer commits require new runs |
+
+Additional isolated renderer runner results included safe-external-URL, merge, citation, headless and Canvas cases. Full local installation was blocked by package registry access; Cargo, native desktop execution and a supported browser were not available in that earlier local environment. No paired startup, editor-latency, CPU, memory or throughput measurements were obtained.
+
+### Outstanding engineering and verification
+
+| Priority | Concern | Acceptance evidence still needed |
+|---|---|---|
+| P1 | Updated exact PR head | Frozen dependency installation, warning-zero lint, contracts, Cargo tests, full Browser E2E, Desktop compile, Visual review and locale workflow on that SHA |
+| P2 · CAN-08 | Native `canvas_save_document` may commit the board and then return an error from `sync_relations` | Explicit committed-write receipt with separately reported relation-index warning, native forced-index-failure regression, and correct renderer retry policy |
+| P1 | Vault crash/power-loss and native authorization | Restore-journal interruption on supported OSs; expired, wrong-vault, denied and oversized command cases with no unauthorized effects |
+| P1 | Live Google/provider and packaged OAuth | Controlled accounts, scope/consent/token lifecycle and disconnect/recovery evidence for packaged apps |
+| P2 | Process and plugin isolation | Resource/time/process-tree termination and memory/CPU-bound checks on supported platforms |
+| P2 | Editor fidelity | Large documents, IME, RTL, source/preview, tables, math, citations and format round trips with no unintended changes |
+| P2 | Manual UI and accessibility | Keyboard/screen-reader checks and 320–1440px, RTL, 200% zoom, high-contrast and reduced-motion review |
+| P2 | Performance scale | Comparable same-host before/after startup, search/index, memory and large-vault results |
+
+A missing manual measurement is not a demonstrated product bug. These historical results do not replace the immutable source identity and artifact evidence required for release.
 ## Repository-native checks
 
 Hosted workers run the repository checks from the repository root:

@@ -201,6 +201,8 @@ function harness(options = {}) {
     unmount,
     saveCalls,
     savedDisks,
+    // Positional hook slots: document is index 1, status is index 4.
+    // Revisit these mappings if useCanvasBoard changes hook declaration order.
     currentDocument: () => slots[1],
     currentStatus: () => slots[4],
     timers,

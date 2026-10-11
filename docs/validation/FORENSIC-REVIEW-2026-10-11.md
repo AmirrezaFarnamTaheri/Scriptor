@@ -13,33 +13,13 @@ supported remedy. A subsequent targeted review identified and addressed the
 provider URL-to-Markdown boundary below. The resulting source changes require
 exact-head hosted verification.
 
-## Evidence classes
+## Method and coverage
 
-| Class | Evidence used | Disposition |
-|---|---|---|
-| T2 — implementation | Tracked source tree, package/workspace manifests, lockfiles, architecture/product/design contracts, CI workflow, validation scripts | Inspected and statically checked where the repository provides a deterministic check |
-| T3 — history | Current `main` tip and recent remediation commits | Confirms that review findings through 2026-10-10 were actively repaired; it does not certify the current tip |
-| T4 — documentation | Product, design, architecture, capability maturity and verification records | Cross-checked against ownership and validation contracts; not used as standalone runtime proof |
-| T1 — runtime | No new eligible local product execution | Absent for this revision; hosted workers are required by `docs/VERIFICATION.md` |
-
-## Corpus accounting
-
-| Category | Inventory | Review status | Notes |
-|---|---:|---|---|
-| Tracked files | 33,172 | Inventory complete | Includes source, fixtures, generated/vendor assets, documentation and release evidence |
-| Frontend TypeScript/CSS | 793 policy-scanned | Static policy check passed | Token use, unsafe casts and forbidden UI patterns are covered by `frontend-quality.mjs` and `css-custom-properties.mjs` |
-| Rust source | 242 policy-scanned | Static source contract passed | Module resolution, process-broker routing and unsafe-block documentation are checked by `rust-source-contracts.mjs` |
-| Package source | 737 files across 16 packages | Static boundary check passed | No undeclared deep imports or package cycles reported by `deep-module-boundaries.mjs` |
-| Workspace manifests | 21 Cargo packages | Static lock/dependency check passed | `cargo-lock-workspace-deps.mjs` completed successfully |
-| Native bridge | 195 bridge commands / 205 handlers | Static contract check passed | `tauri-command-contracts.mjs` completed successfully |
-| Authorization catalog | 205 classified operations | Static inventory passed | 55 brokered, 95 read-only and 55 local-mutation commands reported by `authorization-inventory.mjs` |
-| Locales | 3 locales / 1,102 keys each | Static parity check passed | `i18n-parity.mjs` completed successfully |
-| Workflows | 13 workflows / 85 third-party action uses | Static pin policy passed | Immutable action identities are enforced by `action-pins.mjs` |
-| Vendored PDF bundles | 2 minified artifacts | Inventory-only | Their provenance and delivery boundary, rather than minified semantics, are the relevant review target |
-
-The static totals are tool output, not a claim that every source line received
-individual semantic review. Generated, binary and vendored artifacts were not
-mistaken for first-party implementation.
+This source/architecture inspection did not certify all first-party lines or
+execute the product on every supported platform. Generated/vendored data and
+large synthetic fixtures were distinguished from application code. The
+[verification record](../VERIFICATION.md#pr-160-remediation-evidence--october-11-2026)
+owns execution outcomes, inventory statistics and environment limitations.
 
 ## Architecture and cross-layer findings
 
@@ -103,28 +83,11 @@ mistaken for first-party implementation.
 - **Residual risk:** An audit can only report known advisories and cannot prove
   a dependency is exploit-free.
 
-## Static validation recorded during this review
+## Verification provenance
 
-The following dependency-free repository checks completed successfully before
-an environment-dependent check was reached:
-
-- module-size/ownership ratchet;
-- CSS custom-property policy;
-- frontend-quality policy;
-- action pin policy;
-- deep module-boundary and package-cycle policy;
-- locale parity;
-- documentation contracts;
-- Rust source contracts;
-- authorization inventory;
-- Tauri command contracts;
-- Cargo workspace dependency/lock contract.
-
-`source-contracts.mjs` reached its embedded TypeScript test dispatch, but the
-local Node 20 executable rejected `--experimental-strip-types`, a Node 22
-feature required by this repository. `plugin-rust-gates.mjs` could not invoke
-Cargo because Cargo is not installed locally. These are environment limitations,
-not pass or failure evidence for the source under review.
+The static policy runs, unsupported local toolchain and later hosted validation
+appear in [Verification](../VERIFICATION.md#pr-160-remediation-evidence--october-11-2026).
+Static review must not be presented as a native or live-provider result.
 
 ## Rejected and unverified hypotheses
 
@@ -156,7 +119,6 @@ Markdown structure even though it passed the scheme allow-list.
 The fix returns `URL.href` for canonical external values and adds
 `safeExternalMarkdownDestination`, which wraps canonical destinations in angle
 brackets. Calendar agenda generation now uses that Markdown-specific helper.
-The regression suite covers control-character normalization and URLs containing
-spaces/parentheses. `git diff --check` passed; TypeScript execution remains
-blocked locally by the repository's Node 22 requirement and must be run on the
-hosted exact-head matrix.
+The regression cases cover canonicalization, Markdown delimiters, opaque `mailto:`
+paths and literal provider titles/locations. For command results and execution
+limitations, consult the [verification record](../VERIFICATION.md).

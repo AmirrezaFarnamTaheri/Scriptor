@@ -42,6 +42,12 @@ test('wraps provider URLs as an unambiguous Markdown destination', () => {
   )
 })
 
+test('encodes opaque mailto angle brackets before wrapping Markdown destinations', () => {
+  assert.equal(safeExternalUrl('mailto:a@example.com>'), 'mailto:a@example.com>')
+  assert.equal(safeExternalMarkdownDestination('mailto:a@example.com>'), '<mailto:a@example.com%3E>')
+  assert.equal(safeExternalMarkdownDestination('mailto:<help@example.com>'), '<mailto:%3Chelp@example.com%3E>')
+})
+
 test('renders untrusted event labels as literal single-line Markdown', () => {
   const escaped = safeExternalMarkdownText('Planning\n- **Spoofed** [Join](https://evil.example)')
   assert.equal(escaped.includes('\n'), false)
