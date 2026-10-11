@@ -94,12 +94,16 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     crdtRef.current = sync
     return sync.subscribe((remote) => {
       templateGuardRef.current.invalidate()
-      setDocument((current) => ({
-        ...remote,
-        vaultId: current.vaultId,
-        title: current.title,
-        layers: current.layers.length > 0 ? current.layers : remote.layers,
-      }))
+      setDocument((current) => {
+        const next = {
+          ...remote,
+          vaultId: current.vaultId,
+          title: current.title,
+          layers: current.layers.length > 0 ? current.layers : remote.layers,
+        }
+        documentRef.current = next
+        return next
+      })
     })
   }, [crdtEnabled, document.id])
 

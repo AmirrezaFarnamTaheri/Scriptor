@@ -68,8 +68,10 @@ export function CanvasPanel({
     ids: [],
   }))
   const selectedBlockIds = useMemo(
-    () => (selection.boardId === document.id ? selection.ids : []),
-    [document.id, selection],
+    () => selection.boardId === document.id
+      ? selection.ids.filter((id) => document.blocks.some((block) => block.id === id))
+      : [],
+    [document.blocks, document.id, selection],
   )
   const setSelectedBlockIds = (ids: string[]) => setSelection({ boardId: document.id, ids })
   const [activeTool, setActiveTool] = useState(canvasTools[0]?.id ?? 'select')
@@ -211,8 +213,14 @@ export function CanvasPanel({
               </select>
             </label>
           ) : null}
-          <button type="button" className="toolbar-button" disabled={!vaultOpen || creatingBoard} onClick={() => void createBoard()}>
-            New board
+          <button
+            type="button"
+            className="toolbar-button"
+            disabled={!vaultOpen || creatingBoard}
+            aria-busy={creatingBoard}
+            onClick={() => void createBoard()}
+          >
+            {creatingBoard ? 'Creating board…' : 'New board'}
           </button>
         </div>
         <span aria-label={`${document.blocks.length} canvas ${document.blocks.length === 1 ? 'block' : 'blocks'}`}>
