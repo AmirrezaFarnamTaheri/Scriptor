@@ -735,7 +735,10 @@ export function installE2eBridge(): void {
               canvasDocumentJson,
             ]
             const document = JSON.parse(canvasDocumentJson) as { id: string }
-            return `.scriptor/canvas/${document.id}.json`
+            return {
+              path: `.scriptor/canvas/${document.id}.json`,
+              indexWarning: null,
+            }
           }
           if (cmd === 'canvas_apply_template') {
             const request = payload as { sceneJson?: string; templateId?: string }

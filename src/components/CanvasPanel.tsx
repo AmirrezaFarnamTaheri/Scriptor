@@ -51,6 +51,7 @@ export function CanvasPanel({
     setStatus,
     switchBoard,
     createBoard,
+    creatingBoard,
     applyTemplate,
     exportSnapshot,
     updateDocument,
@@ -60,7 +61,19 @@ export function CanvasPanel({
     canRedo,
     flushPendingSave,
   } = useCanvasBoard(vaultId, vaultOpen, crdtEnabled)
-  const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([])
+  // Selection belongs to a board, not to the panel's lifetime. A new board
+  // cannot inherit selected block IDs (or enabled actions) from the old one.
+  const [selection, setSelection] = useState<{ boardId: string; ids: string[] }>(() => ({
+    boardId: document.id,
+    ids: [],
+  }))
+  const selectedBlockIds = useMemo(
+    () => selection.boardId === document.id
+      ? selection.ids.filter((id) => document.blocks.some((block) => block.id === id))
+      : [],
+    [document.blocks, document.id, selection],
+  )
+  const setSelectedBlockIds = (ids: string[]) => setSelection({ boardId: document.id, ids })
   const [activeTool, setActiveTool] = useState(canvasTools[0]?.id ?? 'select')
   const [closeSaveError, setCloseSaveError] = useState<string | null>(null)
 
@@ -200,8 +213,14 @@ export function CanvasPanel({
               </select>
             </label>
           ) : null}
-          <button type="button" className="toolbar-button" disabled={!vaultOpen} onClick={() => void createBoard()}>
-            New board
+          <button
+            type="button"
+            className="toolbar-button"
+            disabled={!vaultOpen || creatingBoard}
+            aria-busy={creatingBoard}
+            onClick={() => void createBoard()}
+          >
+            {creatingBoard ? 'Creating board…' : 'New board'}
           </button>
         </div>
         <span aria-label={`${document.blocks.length} canvas ${document.blocks.length === 1 ? 'block' : 'blocks'}`}>
@@ -303,11 +322,7 @@ export function CanvasPanel({
           defaultLayerId={defaultLayerId}
           onSelectBlocks={(ids) => {
             setSelectedBlockIds(ids)
-            setStatus(
-              ids.length === 0
-                ? 'Selection cleared'
-                : `Selected ${ids.length} block${ids.length === 1 ? '' : 's'}`,
-            )
+            if (ids.length === 0) setStatus('Selection cleared.')
           }}
           onAddBlock={addBlock}
           onUpdateBlock={updateBlock}

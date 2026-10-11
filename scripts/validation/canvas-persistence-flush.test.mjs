@@ -171,6 +171,7 @@ function harness(options = {}) {
     console,
     structuredClone: globalThis.structuredClone ?? ((obj) => JSON.parse(JSON.stringify(obj))),
     JSON,
+    Error,
   })
 
   const render = (vaultId = 'vault-test', vaultOpen = true, crdtEnabled = false) => {
@@ -200,6 +201,10 @@ function harness(options = {}) {
     unmount,
     saveCalls,
     savedDisks,
+    // Positional hook slots: document is index 1, status is index 4.
+    // Revisit these mappings if useCanvasBoard changes hook declaration order.
+    currentDocument: () => slots[1],
+    currentStatus: () => slots[4],
     timers,
     fireTimers,
     commands,
@@ -398,4 +403,206 @@ test('unmount rejects a late native template response without scheduling persist
   await flushMicrotasks()
 
   assert.equal(h.saveCalls.length, 0)
+})
+
+test('a committed canvas write remains successful when the board list refresh fails', async () => {
+  let failList = false
+  const h = harness({
+    commandOverrides: {
+      canvasListDocuments: async () => {
+        if (failList) throw new Error('board list temporarily unavailable')
+        return []
+      },
+    },
+  })
+  const board = h.render()
+  await flushMicrotasks()
+  board.updateDocument((current) => ({ ...current, title: 'Saved revision' }))
+  failList = true
+  assert.equal(await board.flushPendingSave(), true, 'a successful native save must not be retried as a failure')
+  assert.equal(h.saveCalls.length, 1)
+  assert.match(h.currentStatus(), /saved/i)
+  assert.doesNotMatch(h.currentStatus(), /vault:\/\/|[a-f0-9]{8}-[a-f0-9]{4}-/)
+})
+
+test('failed board creation keeps the previous document selected and editable', async () => {
+  const h = harness({
+    commandOverrides: { canvasSaveDocument: async () => { throw new Error('disk full') } },
+  })
+  const board = h.render()
+  await flushMicrotasks()
+  const originalTitle = board.document.title
+  await board.createBoard('Unsaved board')
+  assert.equal(h.currentDocument().title, originalTitle)
+  assert.match(h.currentStatus(), /disk full/)
+})
+
+test('a late successful board creation cannot replace intervening local edits', async () => {
+  const save = deferred()
+  const started = deferred()
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async () => {
+        started.resolve()
+        return save.promise
+      },
+    },
+  })
+  const board = h.render()
+  await flushMicrotasks()
+  const creating = board.createBoard('New board')
+  await started.promise
+  assert.equal(h.currentDocument().title, 'Research board', 'pending creation must not replace the active board')
+  board.updateDocument((current) => ({ ...current, title: 'Edited while creating' }))
+  save.resolve('vault://saved/new-board')
+  await creating
+  assert.equal(h.currentDocument().title, 'Edited while creating')
+})
+
+test('a late initial board load must not discard an edit made while loading', async () => {
+  const started = deferred()
+  const loading = deferred()
+  const h = harness({
+    commandOverrides: {
+      canvasListDocuments: async () => [{ id: 'saved-board' }],
+      canvasLoadDocument: async () => {
+        started.resolve()
+        return loading.promise
+      },
+    },
+  })
+  const board = h.render()
+  await started.promise
+  board.updateDocument((current) => ({ ...current, title: 'Local typing while board loads' }))
+  loading.resolve(JSON.stringify({ id: 'saved-board', title: 'Stale loaded board', layers: [], blocks: [] }))
+  await flushMicrotasks()
+  assert.equal(h.currentDocument().title, 'Local typing while board loads')
+})
+
+test('a board switch must not discard an edit made while its target is loading', async () => {
+  const started = deferred()
+  const loading = deferred()
+  const h = harness({
+    commandOverrides: {
+      canvasLoadDocument: async () => {
+        started.resolve()
+        return loading.promise
+      },
+    },
+  })
+  const board = h.render()
+  await flushMicrotasks()
+  const switching = board.switchBoard('saved-board')
+  await started.promise
+  board.updateDocument((current) => ({ ...current, title: 'Changed before load completed' }))
+  loading.resolve(JSON.stringify({ id: 'saved-board', title: 'Stale target board', layers: [], blocks: [] }))
+  await switching
+  assert.equal(h.currentDocument().title, 'Changed before load completed')
+})
+
+test('board creation paused on a previous save cannot cross a vault lifecycle change', async () => {
+  const writing = deferred()
+  const started = deferred()
+  const saveCalls = []
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async (json, vault) => {
+        saveCalls.push({ json, vault })
+        started.resolve()
+        return writing.promise
+      },
+    },
+  })
+  const board = h.render('old-vault')
+  await flushMicrotasks()
+  board.updateDocument((current) => ({ ...current, title: 'Unsaved older vault' }))
+  h.fireTimers()
+  await started.promise
+  const creating = board.createBoard('Should not be created in the wrong vault')
+  h.render('new-vault')
+  writing.resolve('vault://old-vault/canvas/old-board')
+  await creating
+  assert.equal(saveCalls.length, 1, 'creation should not write another board after vault switch')
+})
+
+test('an edit before initial board-list hydration resolves prevents late board installation', async () => {
+  const list = deferred()
+  let loadCalls = 0
+  const h = harness({
+    commandOverrides: {
+      canvasListDocuments: async () => list.promise,
+      canvasLoadDocument: async () => {
+        loadCalls++
+        return JSON.stringify({ id: 'saved-board', title: 'Unwanted board', layers: [], blocks: [] })
+      },
+    },
+  })
+  const board = h.render()
+  board.updateDocument((current) => ({ ...current, title: 'Started writing' }))
+  list.resolve([{ id: 'saved-board' }])
+  await flushMicrotasks()
+  assert.equal(loadCalls, 0)
+  assert.equal(h.currentDocument().title, 'Started writing')
+})
+
+test('a failed initial list read does not reset an edit made while waiting', async () => {
+  const list = deferred()
+  const h = harness({ commandOverrides: { canvasListDocuments: async () => list.promise } })
+  const board = h.render()
+  board.updateDocument((current) => ({ ...current, title: 'Retain edit on load failure' }))
+  list.reject(new Error('temporarily inaccessible'))
+  await flushMicrotasks()
+  assert.equal(h.currentDocument().title, 'Retain edit on load failure')
+})
+
+test('a board switch awaiting a save cannot load into a different vault', async () => {
+  const writing = deferred()
+  const started = deferred()
+  let loadCalls = 0
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async () => {
+        started.resolve()
+        return writing.promise
+      },
+      canvasLoadDocument: async () => {
+        loadCalls++
+        return JSON.stringify({ id: 'old-board', title: 'Wrong vault', layers: [], blocks: [] })
+      },
+    },
+  })
+  const board = h.render('old-vault')
+  await flushMicrotasks()
+  board.updateDocument((current) => ({ ...current, title: 'Unsaved old data' }))
+  h.fireTimers()
+  await started.promise
+  const switching = board.switchBoard('old-board')
+  h.render('new-vault')
+  writing.resolve('vault://old-vault/canvas/old-board')
+  await switching
+  assert.equal(loadCalls, 0, 'old-vault switch cannot load after a vault change')
+})
+
+test('concurrent new-board requests do not duplicate the native creation write', async () => {
+  const writing = deferred()
+  const started = deferred()
+  let saves = 0
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async () => {
+        saves++
+        started.resolve()
+        return writing.promise
+      },
+    },
+  })
+  const board = h.render()
+  await flushMicrotasks()
+  const first = board.createBoard('Only once')
+  await started.promise
+  await board.createBoard('Unexpected second board')
+  writing.resolve('vault://saved/new-board')
+  await first
+  assert.equal(saves, 1)
+  assert.equal(h.currentDocument().title, 'Only once')
 })

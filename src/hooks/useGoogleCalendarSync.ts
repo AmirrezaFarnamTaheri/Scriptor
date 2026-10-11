@@ -30,7 +30,7 @@ import {
   type GoogleCalendarResource,
   type GoogleTaskListResource,
 } from '../bridge/commands/google_calendar.ts'
-import { safeExternalUrl } from '../lib/safeExternalUrl.ts'
+import { safeExternalMarkdownDestination, safeExternalMarkdownText } from '../lib/safeExternalUrl.ts'
 import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors.ts'
 
 export type CalendarSyncStatus =
@@ -629,8 +629,8 @@ export function useGoogleCalendarSync({
     const lines = [`## Today, ${new Date().toLocaleDateString()}\n`]
     for (const event of today) {
       const time = event.allDay ? 'All day' : `${formatTime(event.start)} – ${formatTime(event.end)}`
-      const joinUrl = safeExternalUrl(event.meetingLink)
-      lines.push(`- **${event.summary}** — ${time}${event.location ? ` @ ${event.location}` : ''}${joinUrl ? ` [Join](${joinUrl})` : ''}`)
+      const joinUrl = safeExternalMarkdownDestination(event.meetingLink)
+      lines.push(`- **${safeExternalMarkdownText(event.summary)}** — ${time}${event.location ? ` @ ${safeExternalMarkdownText(event.location)}` : ''}${joinUrl ? ` [Join](${joinUrl})` : ''}`)
     }
     return lines.join('\n')
   }, [events])

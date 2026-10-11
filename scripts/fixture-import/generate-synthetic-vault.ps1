@@ -7,4 +7,5 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "../..")
 
-cargo run -p scriptor-cli -- generate-vault $Output --count $Count --prefix $Prefix
+cargo run --locked -p scriptor-cli -- generate-vault $Output --count $Count --prefix $Prefix
+if ($LASTEXITCODE -ne 0) { throw "Synthetic vault generation failed ($LASTEXITCODE): $Output" }
