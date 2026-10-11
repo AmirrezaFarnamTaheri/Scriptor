@@ -45,7 +45,7 @@ export function safeExternalMarkdownDestination(value: string | null | undefined
 /** Escape a provider-controlled label without allowing it to create Markdown syntax. */
 export function safeExternalMarkdownText(value: string | null | undefined): string {
   if (typeof value !== 'string') return ''
-  return value.replace(/[\x00-\x1f\x7f-\x9f]+/g, ' ').replace(/[\\`*_{}\[\]()#+.!|<>~-]/g, '\\/** True when `value` is a URL safe to render as a link or open externally. */')
+  return value.replace(/[\x00-\x1f\x7f-\x9f]+/g, ' ').replace(/[\\`*_{}\[\]()#+.!|<>~-]/g, '\\$&')
 }
 
 /** True when `value` is a URL safe to render as a link or open externally. */
