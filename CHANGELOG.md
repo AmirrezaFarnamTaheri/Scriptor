@@ -15,6 +15,8 @@
 
 ### Fixed
 
+- Preserve live canvas edits against late board-list hydration, board reads, and vault transitions; keep failed new-board creations from displacing the current document and disable duplicate creation requests. Treat a failed derived-list refresh as a warning after a successful canvas write, scope selection to the active board, and replace internal save filenames in status text with clear confirmation. Add deterministic regression coverage and a canvas E2E regression for selection ownership. See [the dated engineering audit](docs/validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md).
+
 - Defer initial toolbar-menu focus until the activating key's focus-restoration microtasks finish, while preserving visible-item retries and user navigation; include dispatch-order regressions in hosted workflow review.
 - Keep Gmail and shortcut-storage errors readable in themed surfaces, retaining a red severity marker with hosted contrast checks; reject citation-like suffixes following supplementary Unicode letters.
 - Match planner review, semantic inspector and restored-workspace buttons to themed controls; keep compact timed-event text within its block and distinguish Gmail provider failures from empty results.

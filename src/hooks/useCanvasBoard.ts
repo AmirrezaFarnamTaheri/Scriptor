@@ -40,6 +40,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const [boards, setBoards] = useState<CanvasBoardSummary[]>([])
   const [activeBoardId, setActiveBoardId] = useState<string | null>(null)
   const [status, setStatus] = useState('Loading board…')
+  const [creatingBoard, setCreatingBoard] = useState(false)
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
   const saveTimer = useRef<number | null>(null)
@@ -55,6 +56,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const saveTailRef = useRef<Promise<boolean>>(Promise.resolve(true))
   const latestSaveSequenceRef = useRef(0)
   const mountedRef = useRef(true)
+  const createInProgressRef = useRef(false)
 
   useEffect(() => {
     documentRef.current = document
@@ -126,11 +128,19 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     ): Promise<boolean> => {
       const task = saveTailRef.current.then(async () => {
         try {
-          const path = await canvasSaveDocument(JSON.stringify(payload.document), payload.vaultId)
+          await canvasSaveDocument(JSON.stringify(payload.document), payload.vaultId)
           if (updateUi && mountedRef.current && isCurrent()) {
-            setStatus(`Saved to ${path}`)
+            setStatus('Canvas saved.')
             setActiveBoardId(payload.document.id)
-            await refreshBoardList(isCurrent)
+            try {
+              await refreshBoardList(isCurrent)
+            } catch {
+              // Refreshing a derived board listing must never turn a completed
+              // disk write into a failed save or queue a duplicate retry.
+              if (mountedRef.current && isCurrent()) {
+                setStatus('Canvas saved, but the board list could not refresh.')
+              }
+            }
           }
           return true
         } catch (error) {
@@ -181,8 +191,15 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       templateGuardRef.current.invalidate()
       const lifecycle = lifecycleGuardRef.current.snapshot()
       const request = loadGuardRef.current.issue()
+      const beforeLoad = documentRef.current
       const json = await canvasLoadDocument(boardId)
       if (!lifecycleGuardRef.current.isCurrent(lifecycle) || !loadGuardRef.current.isCurrent(request)) return
+      if (documentRef.current !== beforeLoad) {
+        // Editing may continue while the native read runs. Never install an
+        // older board response over a newer unsaved document.
+        setStatus('Board changed while loading; kept your edits.')
+        return
+      }
       const parsed: unknown = JSON.parse(json)
       const candidate = parsed as Partial<CanvasDocument> | null
       if (
@@ -214,6 +231,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
 
     let cancelled = false
     const lifecycle = lifecycleGuardRef.current.snapshot()
+    const beforeHydration = documentRef.current
     const isCurrent = () => !cancelled && lifecycleGuardRef.current.isCurrent(lifecycle)
     void (async () => {
       try {
@@ -230,6 +248,9 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
 
         const summaries = await refreshBoardList(isCurrent)
         if (!isCurrent()) return
+        // A user can edit a freshly opened empty board before this query
+        // resolves. Late hydration must not install a different document.
+        if (documentRef.current !== beforeHydration) return
 
         if (summaries.length > 0) {
           await loadBoard(summaries[0]!.id)
@@ -243,7 +264,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
           setStatus('New board ready.')
         }
       } catch (error) {
-        if (isCurrent()) {
+        if (isCurrent() && documentRef.current === beforeHydration) {
           const fallback = createEmptyDocument(vaultId, 'Research board')
           setDocument(fallback)
           documentRef.current = fallback
@@ -355,8 +376,16 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     async (boardId: string) => {
       if (boardId === activeBoardId) return
       templateGuardRef.current.invalidate()
-      if (!(await flushPendingSave())) {
+      const lifecycle = lifecycleGuardRef.current.snapshot()
+      const beforeSwitch = documentRef.current
+      const saved = await flushPendingSave()
+      if (!lifecycleGuardRef.current.isCurrent(lifecycle)) return
+      if (!saved) {
         setStatus('Could not switch boards because the current board has unsaved changes.')
+        return
+      }
+      if (documentRef.current !== beforeSwitch) {
+        setStatus('Board changed during switching; kept your edits.')
         return
       }
       try {
@@ -370,37 +399,78 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
 
   const createBoard = useCallback(
     async (title = 'Untitled board') => {
-      if (!vaultId) return
-      templateGuardRef.current.invalidate()
-      if (!(await flushPendingSave())) {
-        setStatus('Could not create a board because the current board has unsaved changes.')
-        return
-      }
-      const created = createEmptyDocument(vaultId, title)
-      setDocument(created)
-      documentRef.current = created
-      resetHistory(created)
-      setActiveBoardId(created.id)
-      if (isNativeBridgeAvailable() && vaultOpen) {
-        try {
-          const path = await canvasSaveDocument(JSON.stringify(created), vaultId)
-          setStatus(`Created ${title} at ${path}`)
-          await refreshBoardList()
-        } catch (error) {
-          setStatus(error instanceof Error ? error.message : 'Could not create board.')
+      if (!vaultId || createInProgressRef.current) return
+      createInProgressRef.current = true
+      setCreatingBoard(true)
+      try {
+        templateGuardRef.current.invalidate()
+        const lifecycle = lifecycleGuardRef.current.snapshot()
+        const original = documentRef.current
+        const saved = await flushPendingSave()
+        if (!lifecycleGuardRef.current.isCurrent(lifecycle)) return
+        if (!saved) {
+          setStatus('Could not create a board because the current board has unsaved changes.')
+          return
         }
-      } else {
-        setBoards((current) => [
-          {
-            id: created.id,
-            title: created.title,
-            updatedAt: created.updatedAt,
-            blockCount: 0,
-            path: '',
-          },
-          ...current,
-        ])
-        setStatus(`Created ${title} (preview).`)
+        if (documentRef.current !== original) {
+          setStatus('Board changed during creation; kept your edits.')
+          return
+        }
+
+        const request = templateGuardRef.current.issue()
+        const inSameVault = () => mountedRef.current && lifecycleGuardRef.current.isCurrent(lifecycle)
+        const canSelect = () =>
+          inSameVault() && templateGuardRef.current.isCurrent(request) && documentRef.current === original
+        const created = createEmptyDocument(vaultId, title)
+        const native = isNativeBridgeAvailable() && vaultOpen
+
+        if (native) {
+          try {
+            // Keep the current board editable until the replacement is durable.
+            // A failed creation must not become the selected unsaved board.
+            await canvasSaveDocument(JSON.stringify(created), vaultId)
+          } catch (error) {
+            if (canSelect()) setStatus(error instanceof Error ? error.message : 'Could not create board.')
+            return
+          }
+        }
+
+        if (!canSelect()) {
+          // The new board was saved, but a newer edit/selection/vault owns the
+          // screen. Preserve that work instead of applying a stale response.
+          if (native && inSameVault()) {
+            setStatus(`Created ${title}; kept the current board open.`)
+            try {
+              await refreshBoardList(inSameVault)
+            } catch {
+              if (inSameVault()) setStatus('New board saved, but the board list could not refresh.')
+            }
+          }
+          return
+        }
+
+        documentRef.current = created
+        setDocument(created)
+        resetHistory(created)
+        setActiveBoardId(created.id)
+        setStatus(native ? `Created ${title}.` : `Created ${title} (preview).`)
+        if (native) {
+          try {
+            await refreshBoardList(inSameVault)
+          } catch {
+            if (inSameVault() && documentRef.current.id === created.id) {
+              setStatus('New board saved, but the board list could not refresh.')
+            }
+          }
+        } else {
+          setBoards((current) => [
+            { id: created.id, title: created.title, updatedAt: created.updatedAt, blockCount: 0, path: '' },
+            ...current,
+          ])
+        }
+      } finally {
+        createInProgressRef.current = false
+        if (mountedRef.current) setCreatingBoard(false)
       }
     },
     [flushPendingSave, refreshBoardList, resetHistory, vaultId, vaultOpen],
@@ -525,6 +595,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     setStatus,
     switchBoard,
     createBoard,
+    creatingBoard,
     applyTemplate,
     updateDocument,
     exportSnapshot,

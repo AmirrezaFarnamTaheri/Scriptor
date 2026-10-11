@@ -229,7 +229,18 @@ test.describe('Canvas panel', () => {
         { timeout: 5000 },
       )
       .toBe(1)
-    await expect(panel.locator('.canvas-footer')).toContainText('Saved to .scriptor/canvas/')
+    await expect(panel.locator('.canvas-footer')).toContainText('Canvas saved.')
+  })
+
+  test('creating a board cannot retain selection from the previous board', async ({ page }) => {
+    const panel = await openCanvas(page)
+    await panel.getByRole('button', { name: 'Add first card' }).click()
+    await expect(panel.locator('.canvas-footer')).toContainText('Selected 1 block')
+
+    await panel.getByRole('button', { name: 'New board' }).click()
+    await expect(panel.getByRole('heading', { name: 'Untitled board' })).toBeVisible()
+    await expect(panel.locator('.canvas-footer')).not.toContainText('Selected 1 block')
+    await expect(panel.locator('.canvas-block.selected')).toHaveCount(0)
   })
 
   test('canvas undo reverts last action and redo restores it', async ({ page }) => {
