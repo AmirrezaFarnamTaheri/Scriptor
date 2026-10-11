@@ -33,7 +33,19 @@ export function safeExternalUrl(value: string | null | undefined): string | null
   }
 
   if (!ALLOWED_SCHEMES.includes(parsed.protocol)) return null
-  return trimmed
+  return parsed.href
+}
+
+/** Return a safe external URL encoded as an unambiguous Markdown destination. */
+export function safeExternalMarkdownDestination(value: string | null | undefined): string | null {
+  const url = safeExternalUrl(value)
+  return url === null ? null : `<${url}>`
+}
+
+/** Escape a provider-controlled label without allowing it to create Markdown syntax. */
+export function safeExternalMarkdownText(value: string | null | undefined): string {
+  if (typeof value !== 'string') return ''
+  return value.replace(/[\x00-\x1f\x7f-\x9f]+/g, ' ').replace(/[\\`*_{}\[\]()#+.!|<>~-]/g, '\\/** True when `value` is a URL safe to render as a link or open externally. */')
 }
 
 /** True when `value` is a URL safe to render as a link or open externally. */

@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { isSafeExternalUrl, safeExternalUrl } from './safeExternalUrl.ts'
+import { isSafeExternalUrl, safeExternalMarkdownDestination, safeExternalMarkdownText, safeExternalUrl } from './safeExternalUrl.ts'
 
 test('accepts an https URL and returns it unchanged', () => {
   assert.equal(safeExternalUrl('https://meet.example.com/abc-defg'), 'https://meet.example.com/abc-defg')
@@ -26,6 +26,29 @@ test('accepts a mailto URL for explicit contact actions', () => {
 
 test('trims surrounding whitespace before returning the URL', () => {
   assert.equal(safeExternalUrl('  https://example.com/x  '), 'https://example.com/x')
+})
+
+test('returns the canonical URL instead of control characters accepted by the parser', () => {
+  assert.equal(
+    safeExternalUrl('https://example.com/\n[untrusted](https://evil.example)'),
+    'https://example.com/[untrusted](https://evil.example)',
+  )
+})
+
+test('wraps provider URLs as an unambiguous Markdown destination', () => {
+  assert.equal(
+    safeExternalMarkdownDestination('https://example.com/path (meeting)'),
+    '<https://example.com/path%20(meeting)>',
+  )
+})
+
+test('renders untrusted event labels as literal single-line Markdown', () => {
+  const escaped = safeExternalMarkdownText('Planning\n- **Spoofed** [Join](https://evil.example)')
+  assert.equal(escaped.includes('\n'), false)
+  assert.equal(escaped.includes('**Spoofed**'), false)
+  assert.equal(escaped.includes('[Join]('), false)
+  assert.ok(escaped.includes('\\[Join\\]'))
+  assert.equal(safeExternalMarkdownText(null), '')
 })
 
 test('rejects a javascript: payload', () => {

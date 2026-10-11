@@ -775,6 +775,13 @@
   text-decoration-style: dotted;
 }
 
+/* Palette and appearance can differ. CodeMirror's dark surface must retain
+ * readable links even when a light palette supplies a darker accent. */
+[data-appearance='dark'] .cm-wikilink,
+[data-appearance='dark'] .cm-wikilink-embed {
+  color: color-mix(in srgb, var(--primary) 35%, #fff 65%);
+}
+
 .portal-panel .portal-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);

@@ -173,3 +173,9 @@ The isolated renderer validation runners also passed for safe external URLs (15 
 4. Track CAN-08 as an explicit follow-up until the save/indexer partial-success contract has a native regression test and an unambiguous renderer outcome.
 
 **No claim is made that all conceivable Scriptor defects have been resolved.** The demonstrated improvement is bounded to the listed Canvas state and persistence paths, backed by local regression results; the broader repository and release confidence must be established with separate exact-commit evidence.
+
+## PR consolidation review (2026-10-11)
+
+This branch also integrates the independently reviewed provider URL/Markdown fix from #159, npm dependency updates from #157, Rust minor updates from #158, and the Wasmtime 49.0.2 update from #154. The Rust lockfile combines both resolutions, retains compatible current versions, and was statically checked for missing and ambiguous dependency references. No local Cargo resolver or build verification is claimed. Hosted exact-head validation of this combined dependency graph remains mandatory.
+
+Review follow-ups: provider-controlled event summaries and locations are escaped into literal single-line Markdown in addition to canonical URL destinations; CodeMirror link contrast is adjusted for light-palette/dark-appearance combinations with an explicit browser regression. The npm dependency PR's prior 2.55:1 contrast failure and the baseline canvas save-status failure are addressed in source, subject to hosted browser proof. The native canvas save/index partial-success contract remains unresolved.

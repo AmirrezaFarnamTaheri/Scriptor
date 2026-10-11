@@ -176,10 +176,30 @@ test.describe('Frontend polish regressions', () => {
     await page.getByRole('menuitem', { name: 'Switch to CodeMirror editor' }).click()
     await page.locator('header.topbar').getByRole('button', { name: /Switch to dark appearance/ }).click()
     await expect(page.locator('.cm-editor')).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark')
     const dark = await contrastFailures()
     expect(dark.filter((node) => node.target.some((target) => target.includes('cm-line') || target.includes('cm-heading')))).toEqual([])
   })
 
+  test('CodeMirror wikilinks meet contrast with a light palette and dark appearance', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('scriptor:app-theme', 'light')
+      localStorage.setItem('scriptor:appearance-mode', 'dark')
+    })
+    await launchApp(page)
+    await page.locator('.editor-toolbar').getByRole('button', { name: 'Tools', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Switch to CodeMirror editor' }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark')
+    await expect(page.locator('.cm-editor')).toBeVisible()
+    await expect(page.locator('.cm-wikilink').first()).toBeVisible()
+    await page.addScriptTag({ path: axeScript })
+    const failures = await page.evaluate(async () => {
+      const axe = (window as Window & { axe: { run: (root: Document, options: unknown) => Promise<{ violations: Array<{ id: string; nodes: Array<{ target: string[] }> }> }> } }).axe
+      const result = await axe.run(document, { runOnly: ['color-contrast'] })
+      return result.violations.flatMap((violation) => violation.nodes.flatMap((node) => node.target.filter((target) => target.includes('cm-wikilink'))))
+    })
+    expect(failures).toEqual([])
+  })
   for (const zoom of [0.7, 2]) {
     test(`app zoom ${zoom} keeps the workspace exactly within the viewport`, async ({ page }) => {
       await page.addInitScript((factor) => localStorage.setItem('scriptor:ui-zoom', String(factor)), zoom)
