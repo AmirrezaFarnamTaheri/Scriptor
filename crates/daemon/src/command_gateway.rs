@@ -746,6 +746,9 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let session = state.require_session()?;
             let scene_json = require_str(payload, "scene_json")?;
             let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
+            if document.vault_id != session.descriptor.id {
+                return Err("canvas document vault does not match the active vault".to_string());
+            }
             let path =
                 save_document(session.root.root(), &document).map_err(|error| error.to_string())?;
             Ok(json!({
