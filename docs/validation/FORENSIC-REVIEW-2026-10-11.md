@@ -141,3 +141,20 @@ support inventing a rewrite, relaxing release gates, promoting experimental
 features, or claiming current runtime certification. The highest-value next
 step is the existing hosted exact-head verification matrix; any failing job
 should be traced from its artifact and fixed minimally with a regression test.
+
+## Follow-up remediation — provider URL Markdown boundary
+
+A deeper review found one concrete P2 data-integrity/security issue in the
+calendar agenda export path. `safeExternalUrl` returned the trimmed input after
+checking the parsed scheme. The URL parser removes control characters while
+building its canonical `href`, but the original value was then interpolated
+into Markdown. A provider value containing a newline could therefore influence
+Markdown structure even though it passed the scheme allow-list.
+
+The fix returns `URL.href` for canonical external values and adds
+`safeExternalMarkdownDestination`, which wraps canonical destinations in angle
+brackets. Calendar agenda generation now uses that Markdown-specific helper.
+The regression suite covers control-character normalization and URLs containing
+spaces/parentheses. `git diff --check` passed; TypeScript execution remains
+blocked locally by the repository's Node 22 requirement and must be run on the
+hosted exact-head matrix.

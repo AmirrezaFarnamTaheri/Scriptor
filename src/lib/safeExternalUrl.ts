@@ -33,7 +33,13 @@ export function safeExternalUrl(value: string | null | undefined): string | null
   }
 
   if (!ALLOWED_SCHEMES.includes(parsed.protocol)) return null
-  return trimmed
+  return parsed.href
+}
+
+/** Return a safe external URL encoded as an unambiguous Markdown destination. */
+export function safeExternalMarkdownDestination(value: string | null | undefined): string | null {
+  const url = safeExternalUrl(value)
+  return url === null ? null : `<${url}>`
 }
 
 /** True when `value` is a URL safe to render as a link or open externally. */
