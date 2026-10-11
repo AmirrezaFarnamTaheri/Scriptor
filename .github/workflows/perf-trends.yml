@@ -8,6 +8,11 @@ on:
   schedule:
     - cron: "0 3 * * *" # nightly 5k trend
     - cron: "0 4 * * 6" # weekly 25k deep run (Saturday)
+  pull_request:
+    paths:
+      - '.github/workflows/perf-trends.yml'
+      - 'scripts/benchmarks/bench-large.ps1'
+      - 'scripts/fixture-import/generate-synthetic-vault.ps1'
   workflow_dispatch:
     inputs:
       size:
@@ -23,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: perf-trends-${{ github.event.schedule || github.event.inputs.size }}
+  group: perf-trends-${{ github.event.schedule || github.event.inputs.size || github.event.pull_request.number }}
   cancel-in-progress: false
 
 env:
@@ -37,7 +42,7 @@ defaults:
 
 jobs:
   bench:
-    name: Vault benchmark (${{ github.event.schedule == '0 4 * * 6' && '25k weekly' || (github.event.inputs.size || '5k nightly') }})
+    name: Vault benchmark (${{ github.event_name == 'pull_request' && '5k PR smoke' || (github.event.schedule == '0 4 * * 6' && '25k weekly' || (github.event.inputs.size || '5k nightly')) }})
     runs-on: windows-2025
     timeout-minutes: 90
     steps:
