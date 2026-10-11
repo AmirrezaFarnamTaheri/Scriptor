@@ -94,16 +94,15 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     crdtRef.current = sync
     return sync.subscribe((remote) => {
       templateGuardRef.current.invalidate()
-      setDocument((current) => {
-        const next = {
-          ...remote,
-          vaultId: current.vaultId,
-          title: current.title,
-          layers: current.layers.length > 0 ? current.layers : remote.layers,
-        }
-        documentRef.current = next
-        return next
-      })
+      const current = documentRef.current
+      const next = {
+        ...remote,
+        vaultId: current.vaultId,
+        title: current.title,
+        layers: current.layers.length > 0 ? current.layers : remote.layers,
+      }
+      documentRef.current = next
+      setDocument(next)
     })
   }, [crdtEnabled, document.id])
 
@@ -132,9 +131,9 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     ): Promise<boolean> => {
       const task = saveTailRef.current.then(async () => {
         try {
-          await canvasSaveDocument(JSON.stringify(payload.document), payload.vaultId)
+          const result = await canvasSaveDocument(JSON.stringify(payload.document), payload.vaultId)
           if (updateUi && mountedRef.current && isCurrent()) {
-            setStatus('Canvas saved.')
+            setStatus(result.indexWarning ? 'Canvas saved, but relation indexing needs attention.' : 'Canvas saved.')
             setActiveBoardId(payload.document.id)
             try {
               await refreshBoardList(isCurrent)
@@ -428,11 +427,13 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         const created = createEmptyDocument(vaultId, title)
         const native = isNativeBridgeAvailable() && vaultOpen
 
+        let creationWarning: string | null = null
         if (native) {
           try {
             // Keep the current board editable until the replacement is durable.
             // A failed creation must not become the selected unsaved board.
-            await canvasSaveDocument(JSON.stringify(created), vaultId)
+            const result = await canvasSaveDocument(JSON.stringify(created), vaultId)
+            creationWarning = result.indexWarning ?? null
           } catch (error) {
             if (canSelect()) setStatus(error instanceof Error ? error.message : 'Could not create board.')
             return
@@ -457,7 +458,11 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         setDocument(created)
         resetHistory(created)
         setActiveBoardId(created.id)
-        setStatus(native ? `Created ${title}.` : `Created ${title} (preview).`)
+        setStatus(creationWarning
+          ? 'Created the board, but relation indexing needs attention.'
+          : native
+            ? `Created ${title}.`
+            : `Created ${title} (preview).`)
         if (native) {
           try {
             await refreshBoardList(inSameVault)

@@ -143,12 +143,19 @@ pub fn canvas_snapshot(
         .map_err(|error| error.to_string())
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CanvasSaveOutput {
+    pub path: String,
+    pub index_warning: Option<String>,
+}
+
 #[tauri::command]
 pub fn canvas_save_document(
     state: tauri::State<AppState>,
     scene_json: String,
     expected_vault_id: Option<String>,
-) -> Result<String, String> {
+) -> Result<CanvasSaveOutput, String> {
     let session = require_canvas_capability(&state)?;
     crate::commands::vault::validate_expected_vault(
         &session.descriptor.id,
@@ -160,8 +167,10 @@ pub fn canvas_save_document(
         Some(&document.vault_id),
     )?;
     let path = save_document(session.root.root(), &document).map_err(|error| error.to_string())?;
-    sync_relations(&session)?;
-    Ok(path.display().to_string())
+    Ok(CanvasSaveOutput {
+        path: path.display().to_string(),
+        index_warning: sync_relations(&session).err(),
+    })
 }
 
 fn sync_relations(session: &scriptor_vault::VaultSession) -> Result<(), String> {

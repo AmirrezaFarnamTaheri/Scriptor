@@ -105,8 +105,13 @@ export async function canvasLoadDocument(canvasId: string): Promise<string> {
   return nativeInvoke<string>('canvas_load_document', { canvasId })
 }
 
-export async function canvasSaveDocument(sceneJson: string, expectedVaultId?: string | null): Promise<string> {
-  return nativeInvoke<string>('canvas_save_document', {
+export interface CanvasSaveOutput {
+  path: string
+  indexWarning?: string | null
+}
+
+export async function canvasSaveDocument(sceneJson: string, expectedVaultId?: string | null): Promise<CanvasSaveOutput> {
+  return nativeInvoke<CanvasSaveOutput>('canvas_save_document', {
     sceneJson,
     expectedVaultId: expectedVaultId ?? null,
   })
