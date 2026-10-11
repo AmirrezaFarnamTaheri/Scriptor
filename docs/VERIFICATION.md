@@ -65,7 +65,7 @@ Additional isolated renderer runner results included safe-external-URL, merge, c
 | Priority | Concern | Acceptance evidence still needed |
 |---|---|---|
 | P1 | Updated exact PR head | Frozen dependency installation, warning-zero lint, contracts, Cargo tests, full Browser E2E, Desktop compile, Visual review and locale workflow on that SHA |
-| P2 · CAN-08 | Native `canvas_save_document` may commit the board and then return an error from `sync_relations` | Explicit committed-write receipt with separately reported relation-index warning, native forced-index-failure regression, and correct renderer retry policy |
+| P2 · CAN-08 | Native save/index partial-success handling | Typed `CanvasSaveOutput` now separates committed persistence from optional relation-index warnings; native forced-index-failure and crash-recovery verification remain required |
 | P1 | Vault crash/power-loss and native authorization | Restore-journal interruption on supported OSs; expired, wrong-vault, denied and oversized command cases with no unauthorized effects |
 | P1 | Live Google/provider and packaged OAuth | Controlled accounts, scope/consent/token lifecycle and disconnect/recovery evidence for packaged apps |
 | P2 | Process and plugin isolation | Resource/time/process-tree termination and memory/CPU-bound checks on supported platforms |

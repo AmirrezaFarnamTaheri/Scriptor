@@ -17,7 +17,7 @@ This is the technical analysis of the Canvas workflow at Scriptor 1.2.8, based o
 | CAN-05 | Switch/create lifecycle | Vault/document could change during pending flush, allowing stale continuation | Bind each operation to document and lifecycle before awaiting flush, reject stale continuation |
 | CAN-06 | Canvas footer | Save confirmation exposed internal `.scriptor/canvas/canvas-<UUID>.json`, conflicting with readable status contract | Report `Canvas saved.` without internal identifiers; align the E2E/guide expectations |
 | CAN-07 | Board selection | Selection persisted after board identity changed | Associate selected card IDs with current document ID |
-| CAN-08 | Native save/index boundary | A durable board write followed by `sync_relations` failure is returned as generic `Err`, encouraging incorrect retries | **Not repaired:** needs typed committed-write receipt and native failure-injection verification |
+| CAN-08 | Native save/index boundary | A durable board write followed by `sync_relations` failure was returned as generic `Err`, encouraging incorrect retries | Return a typed committed-write receipt with separately classified index warnings; renderer retries only actual write failures |
 
 The original source-level harness controlled asynchronous native call completion to reproduce stale hydration, stale reads, failed creation and failed derived-list refresh. See the verification record for results and limits rather than interpreting this table as exhaustive runtime proof.
 
@@ -32,7 +32,7 @@ The original source-level harness controlled asynchronous native call completion
 
 ## Native partial-success boundary
 
-`apps/desktop/src-tauri/src/commands/canvas.rs` invokes native Canvas persistence and then relation-index synchronization. The command's unstructured `Result<String, String>` cannot tell the renderer whether an error happened **before** or **after** durable persistence. When the relation index fails after writing, the renderer may show a false failure and replay a committed save. A robust fix needs a typed write receipt with committed path/revision and separately classified index warnings, including stable Rust↔TypeScript contract generation and native fault-injection tests. Do not infer durability by parsing error strings.
+`apps/desktop/src-tauri/src/commands/canvas.rs` persists the board and returns a typed `CanvasSaveOutput` containing the committed path plus an optional relation-index warning. The renderer treats the committed write as successful and surfaces indexing attention separately, so a post-write indexing problem cannot trigger a duplicate save. Native fault-injection and crash-recovery verification remain required.
 
 ## Other inspection leads (not confirmed defects)
 
