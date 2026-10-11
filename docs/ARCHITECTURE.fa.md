@@ -1,24 +1,22 @@
 <div dir="ltr" align="center">
+
 [English](ARCHITECTURE.md) · **فارسی** · [简体中文](ARCHITECTURE.zh-CN.md) · [Русский](ARCHITECTURE.ru.md) · [Deutsch](ARCHITECTURE.de.md) · [Español](ARCHITECTURE.es.md)
+
 </div>
 
 <div dir="rtl" lang="fa" align="right">
 
-<div dir="rtl" lang="fa">
-
 # معماری فعلی
-
-[<bdi dir="ltr">English</bdi>](ARCHITECTURE.md) · [简体中文](ARCHITECTURE.zh-CN.md) · [Русский](ARCHITECTURE.ru.md) · [<bdi dir="ltr">Deutsch</bdi>](ARCHITECTURE.de.md) · [<bdi dir="ltr">Espa</bdi>ñ<bdi dir="ltr">ol</bdi>](ARCHITECTURE.es.md) · **فارسی**
 
 **وضعیت:** نقشه پیاده‌سازی فعلی. نسخه مرجع محصول در [`VERSION`](../VERSION) است؛ پیشنهادهای صرفاً طراحی در اسناد جدا قرار دارند و در [`CAPABILITY-MATURITY.md`](CAPABILITY-MATURITY.md) علامت‌گذاری می‌شوند.
 
 ## توپولوژی <bdi dir="ltr">Runtime</bdi>
 
+
 </div>
 
-<div dir="ltr">
+<div dir="ltr" align="left">
 
-<div dir="ltr">
 ```text
 React renderer
   -> typed bridge commands
@@ -32,11 +30,11 @@ CLI/TUI and MCP
   -> daemon IPC (scriptor-ipc envelopes)
   -> daemon handlers and shared kernel crates
 ```
-</div>
 
 </div>
 
-<div dir="rtl" lang="fa">
+<div dir="rtl" lang="fa" align="right">
+
 
 <bdi dir="ltr">renderer</bdi> یک <bdi dir="ltr">authority boundary</bdi> نیست. عملیات <bdi dir="ltr">native</bdi> مستقل از <bdi dir="ltr">state</bdi> رابط کاربری، <bdi dir="ltr">scope</bdi>، <bdi dir="ltr">authorization</bdi>، <bdi dir="ltr">runtime payload</bdi>، <bdi dir="ltr">path</bdi>، <bdi dir="ltr">process policy</bdi> و <bdi dir="ltr">cancellation</bdi> را اعتبارسنجی می‌کنند.
 
@@ -128,9 +126,36 @@ CLI/TUI and MCP
 
 ## کار معماری شناخته‌شده
 
+### گردش‌کارهای بازبینی‌شده منبع، همگام‌سازی و نمایش
+
+سطوح پژوهش از مرزهای موجود مخزن و نمایه‌ساز استفاده می‌کنند. ویرایش جدول ابتدا ویرایشگر را ذخیره و revision نمایش‌داده‌شده اولیه را حفظ می‌کند؛ منبع تغییرکرده به بارگذاری دوباره و بازبینی نیاز دارد. Capture و Zotero پیش از نوشتن در مقصد ناموجودِ مخزن مبدأ پیش‌نمایش می‌دهند. اعتبارنامه در حافظه می‌ماند و تغییر کلید صفحه‌بندی را بازنشانی می‌کند.
+
+PDF و EPUB سقف 128 MiB دارند؛ تصویر شطرنجی و صدا سقف جداگانه 32 MiB دارند و SVG و HTML فعال حذف می‌شوند. MIME بررسی و URL شیء هنگام تغییر منبع یا بسته‌شدن نما آزاد می‌شود. پروتکل Reader کد بسته‌بندی‌شده نمایشگر را ارائه می‌کند، نه مسیر دلخواه فایل.
+
+رسید ساخت، انتشار را به اثرانگشت منبع و خروجی پیوند می‌دهد. استقرار از snapshot خصوصی، محدود و موقت استفاده می‌کند که با رسید تطبیق داده شده و در پایان حذف می‌شود. این آداپتورها تا شواهد بسته واقعی و ارائه‌دهنده زنده آزمایشی می‌مانند.
+
+تغییر نام پیش‌نویس را پیش از تغییر بومی ذخیره می‌کند. شکست ذخیره عملیات را متوقف و پیش‌نویس را حفظ می‌کند؛ اصلاح پیوند تابع revision و پیمایش است و بررسی منبع قدیمی در لایه بومی مرجع می‌ماند. نام یکتای فایل بازیابی از پشتیبان قبلی حفاظت می‌کند. تاریخچه فعالیت حداکثر 256 KiB پایانی و 200 رکورد معتبر را می‌خواند؛ رکورد بالای 16 KiB رد و تاریخچه بالای 1 MiB زیر قفل مخزن فشرده می‌شود. بازیابی تغییر نام جدا و بدون حذف خودکار نگهداری می‌شود.
+
+ارجاع‌ها پیش از پاک‌سازی نهایی در گره متن با کتابنامه جاری حل می‌شوند. گروه‌ها پیشوند، محل و حذف نام مؤلف را حفظ می‌کنند؛ کلید ناموجود متن منبع را با نشان دسترس‌پذیر حفظ می‌کند. کد، پیوند و ارجاع موجود مستثنا هستند. پیش‌نمایش مؤلف/سال Markdown را تغییر نمی‌دهد و جایگزین خروجی CSL نیست.
+
+`useWorkspaceShortcutPreferences` داده محلی نسخه‌دار و محدود را بررسی می‌کند؛ `WorkspaceShortcutBar` فقط فهرست فرمان جاری را حل می‌کند. برچسب و اندازه فرمان اجرایی ذخیره نمی‌کنند. شکست ذخیره پیش‌نویس را حفظ می‌کند و پالت فرمان ردیف پنهان را بازیابی می‌کند.
+
+`useWorkspaceComposition` برگه‌های معتبر هر مخزن را به دو گروه پنل متصل می‌کند. بازیابی مرجع، مالک را خودکار فعال نمی‌کند؛ پیمایش به تأیید مالک نیاز دارد. برگه پنهان یا جابه‌جا مالک نصب‌شده را نگه می‌دارد و گفت‌وگوی تو‌در‌تو مانع پنهان شدن است. چرخه‌عمر برای هر برگه است؛ ویرایشگرهای تغییرکرده به‌ترتیب آشکار می‌شوند. ویرایشگر اصلی یکتا و برگه Markdown جانبی snapshot فقط‌خواندنی است. مدیر ماژول manifest مرجع و سیاست جاری افزونه را پیش از ذخیره ترجیحات بررسی می‌کند.
+
+فایل منبع مستقل از `commands/source_files.rs` با فهرست صریح قالب متن، UTF-8 محدود، ذخیره hash، ایجاد سخت‌گیرانه و بازیابی تغییرناپذیر استفاده می‌کند. وارد فراداده یا تاریخچه نثر Markdown نمی‌شود. تصمیم ذخیره‌نشده پیش از تغییر مخزن پایان می‌یابد؛ تصمیم منسوخ انتظار بی‌پایان ایجاد نمی‌کند.
+
+`calendar_sync` پیوند عمومی پوشه/انتقال و شناسه عمومی OAuth را بدون نیاز به مهاجرت نگه می‌دارد. Drive/Docs، Calendar/Tasks و Gmail سه رکورد مستقل در keychain سیستم با مجوز اختصاصی دارند. کشف منابع صفحات محدود را بررسی و نتایج ناقص و چرخه صفحه‌بندی را رد می‌کند و نقش نوشتن تقویم را حفظ می‌کند. تغییر حساب مصرف‌کنندگان و بازبینی‌های آماده را بی‌اعتبار می‌کند؛ نسل بومی OAuth مانع بازگشت اعتبارنامه قطع‌شده توسط ورود دیرهنگام می‌شود. حذف محلی اعتبارنامه کل مجوز برنامه گوگل را لغو نمی‌کند؛ آن اقدام صریح در حساب گوگل است.
+
+ادامه عملیات، مخزن و حساب مبدأ را حفظ می‌کند. تغییر حساب کشف، پیام، بازبینی و واردسازی را بی‌اعتبار می‌کند. بلوک Planner محلی است؛ نگاشت و baseline به حساب و تقویم/فهرست تأییدشده تعلق دارند. پاسخ دیرهنگام نمای بسته‌شده Planner فعال را بازنویسی نمی‌کند. Gmail پیش از ذخیره، نمایه و پیمایش زمینه را دوباره بررسی می‌کند؛ نوشتن ارسال‌شده ممکن است تمام شود اما اثر بعدی قدیمی متوقف می‌شود.
+
+Drive JSON و سند opaque در Docs مدل revision/تعارض و مجوز یک‌بار بومی مشترک دارند. Docs پوشش کدگذاری‌شده مرجع و checksum را بررسی و بایت Markdown را حفظ می‌کند. تبدیل متن غنی بازبینی جدا دارد؛ رسانه منتقل نمی‌شود. [راهنمای گوگل](guides/GOOGLE_INTEGRATIONS.fa.md).
+
+Overleaf از Git با میزبان ثابت و واسطه فرایند استفاده می‌کند. مخزن تازه جدا کل نمایه دوردست را حفظ و فقط blob منتخب را ایجاد می‌کند؛ بررسی شیء مانع تغییر توسط فیلتر متنی Git است. بازبینی HEAD و محتوا پیش از push معمولی بدون اجبار انجام و اعمال محلی با CAS محتوا محافظت می‌شود.
+
+کرنل Python پایدار فرایند واسطه متعلق به مخزن با عمر محدود، مجوز هر سلول وابسته به منبع، خروجی محدود و نمودار متعلق به خود است. محافظ انتقال بومی مانع ثبت دیرهنگام می‌شود؛ بازکردن مخزن و بازیابی کرنل قبلی را متوقف می‌کنند. اجرای تازه زبان‌های دیگر جدا است.
+
+Graphviz در WebAssembly بسته‌شده و worker لغوشدنی با مهلت اجرا می‌شود. بلوک DOT و Diagram studio کارخواه مشترک دارند؛ SVG تصویر غیرفعال است. حروف‌چینی PDF آفلاین بومی با snapshot محدود دارایی، اعلان بسته‌شده و خروجی یکتا می‌ماند. داده آزمایشی رابط، بسته‌بندی یا سرویس زنده را ثابت نمی‌کند.
+
 <bdi dir="ltr">adapter</bdi> <bdi dir="ltr">layer</bdi> هنوز <bdi dir="ltr">composition root</bdi> دارد، اما <bdi dir="ltr">quick capture</bdi>، <bdi dir="ltr">rename transaction</bdi>، <bdi dir="ltr">deletion</bdi>، <bdi dir="ltr">telemetry</bdi>، <bdi dir="ltr">shortcut</bdi>، <bdi dir="ltr">sidebar action</bdi>، <bdi dir="ltr">auxiliary workspace data</bdi>، <bdi dir="ltr">settings vault configuration</bdi>، <bdi dir="ltr">MCP tool contract</bdi>، <bdi dir="ltr">daemon command catalog/support</bdi>، <bdi dir="ltr">daemon transport tests</bdi>، <bdi dir="ltr">CLI command-line schema</bdi> و <bdi dir="ltr">CLI benchmarks owner</bdi> متمرکز دارند. <bdi dir="ltr">decomposition</bdi> بعدی از طریق <bdi dir="ltr">vertical workflow</bdi>های <bdi dir="ltr">characterize</bdi>شده روی <bdi dir="ltr">typed application services</bdi> انجام می‌شود، نه <bdi dir="ltr">big-bang rewrite. capability ledger</bdi> را ببینید.
-
-</div>
-
 
 </div>

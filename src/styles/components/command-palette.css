@@ -3,10 +3,10 @@
 .command-palette-overlay {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: calc(var(--comp-modal-z, 40) + 1);
   display: grid;
   place-items: start center;
-  padding-top: 12vh;
+  padding-top: calc(var(--app-viewport-height, 100dvh) * 0.12);
   background: color-mix(in oklch, var(--overlay) 92%, var(--ink-strong));
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -15,7 +15,10 @@
 
 .command-palette {
   position: relative;
-  width: min(640px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  width: min(640px, calc(var(--app-viewport-width, 100vw) - 32px));
+  max-height: calc(var(--app-viewport-height, 100dvh) * 0.88 - 16px);
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--dialog-bg, var(--bg-elevated));
@@ -27,9 +30,11 @@
 }
 
 .command-palette-header {
+  flex: none;
   display: flex;
   align-items: center;
-  padding: 0 16px;
+  gap: 12px;
+  padding: 8px 16px;
   border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
 }
 
@@ -38,19 +43,21 @@
   height: 20px;
   color: var(--primary);
   opacity: 0.8;
-  margin-right: 12px;
+  flex: none;
 }
 
 .command-palette input {
   flex: 1;
   width: 100%;
+  min-width: 0;
+  min-height: 40px;
   border: 0;
-  padding: 14px 0;
+  border-radius: var(--radius-sm);
+  padding: 8px;
   background: transparent;
   color: var(--ink-strong);
   font-size: 16px;
   font-weight: 500;
-  outline: none;
 }
 
 .command-palette input::placeholder {
@@ -59,6 +66,7 @@
 }
 
 .command-palette-scope-hint {
+  flex: none;
   min-height: 30px;
   margin: 0;
   padding: 7px 16px;
@@ -91,10 +99,11 @@
 }
 
 .command-palette ul {
+  min-height: 0;
   list-style: none;
   margin: 0;
   padding: 8px;
-  max-height: min(54vh, 420px);
+  max-height: min(calc(var(--app-viewport-height, 100dvh) * 0.54), 420px);
   overflow: auto;
   scrollbar-width: thin;
 }
@@ -199,6 +208,7 @@
 
   .command-palette {
     width: 100%;
+    max-height: calc(var(--app-viewport-height, 100dvh) - 100px - env(safe-area-inset-bottom, 0px));
     border-bottom-left-radius: var(--radius-xl);
     border-bottom-right-radius: var(--radius-xl);
   }

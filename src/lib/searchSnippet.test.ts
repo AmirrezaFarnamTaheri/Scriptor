@@ -3,7 +3,7 @@ import { test } from 'node:test'
 
 import { TASK_CHECKBOX_CHARS } from '@scriptor/core/task'
 
-import { formatSearchSnippet } from './searchSnippet.ts'
+import { formatSearchSnippet, searchSnippetParts } from './searchSnippet.ts'
 
 test('search preview removes FTS marker brackets and Markdown wikilink syntax', () => {
   assert.equal(
@@ -44,4 +44,16 @@ test('search preview preserves semantic-only descriptions and collapses whitespa
     formatSearchSnippet('  semantic match · score 0.913  '),
     'semantic match · score 0.913',
   )
+})
+test('query matches are visibly separable while cleaned snippets retain context', () => {
+  const parts=searchSnippetParts('## [[Research]] findings on [[Methods|methods]] and context.','research methods')
+  assert.equal(parts.map(part=>part.text).join(''),'Research findings on methods and context.')
+  assert.deepEqual(parts.filter(part=>part.matched).map(part=>part.text),['Research','methods'])
+  assert.deepEqual(searchSnippetParts('An ordinary link [[Methodology]]','unrelated').filter(part=>part.matched),[])
+})
+test('query highlight preserves Unicode text and does not execute HTML or advanced query syntax', () => {
+  assert.deepEqual(searchSnippetParts('کتاب و کتابخانه','کتاب').filter(part=>part.matched).map(part=>part.text),['کتاب'])
+  const parts=searchSnippetParts('<img onerror=alert(1)> methods','methods OR path:private.md')
+  assert.equal(parts.map(part=>part.text).join(''),'<img onerror=alert(1)> methods')
+  assert.deepEqual(parts.filter(part=>part.matched).map(part=>part.text),['methods'])
 })

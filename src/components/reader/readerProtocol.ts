@@ -8,7 +8,7 @@ export interface ReaderViewerLocation {
 export type ReaderInboundMessage =
   | { type: 'READY' }
   | { type: 'LOADED' }
-  | { type: 'POSITION'; position: string }
+  | { type: 'POSITION'; position: string; section?: number }
   | { type: 'SELECTION'; anchor: string; quote: string }
   | { type: 'SELECTION_CLEAR' }
   | { type: 'ERROR'; message: string }
@@ -29,8 +29,11 @@ export function parseReaderInboundMessage(value: unknown): ReaderInboundMessage 
     case 'SELECTION_CLEAR':
       return { type: value.type }
     case 'POSITION':
-      return typeof value.position === 'string'
-        ? { type: 'POSITION', position: value.position }
+      if (typeof value.position !== 'string') return null
+      if (value.section === undefined) return { type: 'POSITION', position: value.position }
+      return typeof value.section === 'number' && Number.isSafeInteger(value.section)
+        && value.section > 0 && value.section <= 1_000_000
+        ? { type: 'POSITION', position: value.position, section: value.section }
         : null
     case 'SELECTION':
       return typeof value.anchor === 'string' && typeof value.quote === 'string'

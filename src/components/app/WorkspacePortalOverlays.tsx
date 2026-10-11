@@ -68,6 +68,8 @@ export const WorkspacePortalOverlays = memo(function WorkspacePortalOverlays({
         >
           <Suspense fallback={<PanelFallback />}>
             <NoteHistoryPanel
+              key={`${workspace.vault?.id}:${workspace.activePath}`}
+              vaultId={workspace.vault?.id??null}
               path={workspace.activePath}
               onClose={onCloseNoteHistory}
               onRestored={() => {

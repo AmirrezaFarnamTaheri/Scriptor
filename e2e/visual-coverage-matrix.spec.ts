@@ -125,7 +125,7 @@ test.describe('visual coverage matrix', () => {
 
     await expect(page.locator('html')).toHaveAttribute('data-ui-reflow', 'stacked')
     await expectNoHorizontalOverflow(page)
-    const editor = await page.locator('.editor-panel').boundingBox()
+    const editor = await page.locator('.editor-panel[data-help-topic="editor"]').boundingBox()
     expect(editor).not.toBeNull()
     expect(editor?.width ?? 0).toBeGreaterThan(240)
   })
@@ -254,7 +254,7 @@ test.describe('visual coverage matrix', () => {
     await settleLayout(page)
 
     await expectNoHorizontalOverflow(page)
-    const editor = await page.locator('.editor-panel').boundingBox()
+    const editor = await page.locator('.editor-panel[data-help-topic="editor"]').boundingBox()
     expect(editor).not.toBeNull()
     expect(editor?.width ?? 0).toBeGreaterThan(260)
   })
@@ -274,7 +274,7 @@ test.describe('visual coverage matrix', () => {
       await waitForWorkspace(scaledPage)
       await settleLayout(scaledPage)
       await expectNoHorizontalOverflow(scaledPage)
-      const editor = await scaledPage.locator('.editor-panel').boundingBox()
+      const editor = await scaledPage.locator('.editor-panel[data-help-topic="editor"]').boundingBox()
       expect(editor).not.toBeNull()
       expect(editor?.width ?? 0).toBeGreaterThan(300)
     } finally {

@@ -181,6 +181,11 @@ pub struct CalendarSyncConfig {
     pub google_calendar_id: Option<String>,
     #[serde(default)]
     pub google_task_list_id: Option<String>,
+    /// Public resource bindings shared by the Google integration surfaces.
+    #[serde(default)]
+    pub google_drive_folder_id: Option<String>,
+    #[serde(default)]
+    pub google_drive_transport: Option<GoogleDriveTransport>,
     #[serde(default = "default_calendar_lookahead_days")]
     pub lookahead_days: u32,
     #[serde(default)]
@@ -193,6 +198,13 @@ pub struct CalendarSyncConfig {
 
 fn default_calendar_lookahead_days() -> u32 {
     14
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum GoogleDriveTransport {
+    DriveJson,
+    GoogleDocs,
 }
 
 /// Prose / wikilink autosuggest tuning. Mirrors `autosuggest?` in TS.

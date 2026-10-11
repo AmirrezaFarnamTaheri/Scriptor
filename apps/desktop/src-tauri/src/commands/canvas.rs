@@ -61,7 +61,10 @@ pub fn canvas_apply_template(
 ) -> Result<TemplateApplyOutput, String> {
     let session = require_canvas_capability(&state)?;
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
-    apply_template(session.root.root(), &document, &template_id).map_err(|error| error.to_string())
+    let output = apply_template(session.root.root(), &document, &template_id)
+        .map_err(|error| error.to_string())?;
+    sync_relations(&session)?;
+    Ok(output)
 }
 
 #[tauri::command]
@@ -72,6 +75,7 @@ pub fn canvas_restore_template(
     let session = require_canvas_capability(&state)?;
     let document = restore_template_checkpoint(session.root.root(), &patch_id)
         .map_err(|error| error.to_string())?;
+    sync_relations(&session)?;
     document_to_json(&document).map_err(|error| error.to_string())
 }
 
@@ -156,7 +160,22 @@ pub fn canvas_save_document(
         Some(&document.vault_id),
     )?;
     let path = save_document(session.root.root(), &document).map_err(|error| error.to_string())?;
+    sync_relations(&session)?;
     Ok(path.display().to_string())
+}
+
+fn sync_relations(session: &scriptor_vault::VaultSession) -> Result<(), String> {
+    let cache =
+        scriptor_indexer::open_cache_for_session(session).map_err(|error| error.to_string())?;
+    let report = scriptor_indexer::sync_canvas_relations(&cache, session)
+        .map_err(|error| format!("Canvas was saved, but relation indexing failed: {error}. Rebuild the index before relying on graph or DQL."))?;
+    if report.skipped > 0 {
+        return Err(format!(
+            "Canvas was saved; {} malformed boards were skipped during relation indexing. Repair those boards and rebuild the index.",
+            report.skipped
+        ));
+    }
+    Ok(())
 }
 
 #[tauri::command]

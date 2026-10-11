@@ -147,7 +147,6 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
             placeholder={t('commandPalette.placeholder')} aria-label={t('commandPalette.ariaLabel')}
             aria-controls="command-palette-list"
             aria-activedescendant={mergedCommands[selectedIndex] ? `command-palette-item-${mergedCommands[selectedIndex].id}` : undefined}
-            autoFocus
           />
         </div>
         <p className="command-palette-scope-hint">

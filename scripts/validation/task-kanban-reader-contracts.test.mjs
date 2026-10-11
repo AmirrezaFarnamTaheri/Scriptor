@@ -109,13 +109,15 @@ test('successful task and kanban mutations reconcile the active editor from disk
 test('overlapping vault opens cannot publish stale state or errors', () => {
   assert.match(vaultWorkspace, /const vaultOpenRequestIdRef = useRef\(0\)/)
   assert.match(vaultWorkspace, /const requestId = \+\+vaultOpenRequestIdRef\.current/)
+  assert.match(vaultWorkspace, /const isCurrent = \(\) => requestId === vaultOpenRequestIdRef\.current/)
+  assert.match(vaultWorkspace, /const cancelled = \{ status: 'cancelled' as const, isCurrent \}/)
   assert.match(
     vaultWorkspace,
-    /const opened = await vaultOpen\(rootPath\)\s+if \(requestId !== vaultOpenRequestIdRef\.current\) return/,
+    /const opened = await vaultOpen\(rootPath\)\s+if \(!isCurrent\(\)\) return cancelled/,
   )
   assert.match(
     vaultWorkspace,
-    /catch \(caught\) \{\s+if \(requestId !== vaultOpenRequestIdRef\.current\) return/,
+    /catch \(caught\) \{\s+if \(!isCurrent\(\)\) return cancelled/,
   )
   assert.match(
     vaultWorkspace,
@@ -123,11 +125,11 @@ test('overlapping vault opens cannot publish stale state or errors', () => {
   )
   assert.match(
     vaultWorkspace,
-    /const persisted = await vaultReadActivityLog\(100\)\s+if \(requestId !== vaultOpenRequestIdRef\.current\) return/,
+    /const persisted = await vaultReadActivityLog\(100\)\s+if \(!isCurrent\(\)\) return cancelled/,
   )
   assert.match(
     vaultWorkspace,
-    /if \(savedSession\?\.open_tabs\?\.length\) \{\s+if \(requestId !== vaultOpenRequestIdRef\.current\) return/,
+    /if \(savedSession\?\.open_tabs\?\.length\) \{\s+if \(!isCurrent\(\)\) return cancelled/,
   )
   assert.match(
     vaultWorkspace,

@@ -8,6 +8,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores([
     'dist',
+    '**/dist/**',
     'dist-ssr',
     'dist-e2e',
     'dist-visual-e2e',

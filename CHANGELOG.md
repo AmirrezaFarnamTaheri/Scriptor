@@ -2,7 +2,95 @@
 
 ## Unreleased
 
+- Give the sticky mobile editor mode control and reader annotation dialog opaque themed bases so underlying icons and prose cannot show through them.
+- Apply opaque themed bases to Canvas table headings and the output dock header, with rendered alpha checks for the shared sticky-surface pattern.
+- Bound shared modal surfaces to the effective viewport under app zoom, keeping headers and history restoration actions reachable at 200%.
+
+### Added
+
+- Capture paired viewport/detail evidence for populated Google, source, Overleaf, runtime, media, semantic and customizable workspace states on hosted workers, with coherent guides in all six documentation languages.
+- Complete the five existing Google integration setup flows: shared public desktop client configuration, independent Drive/Docs, Calendar/Tasks and Gmail connections, discoverable calendars, task lists, folders and Docs, persisted collaboration bindings, and paginated Gmail browsing. Provider changes retain native approval and reviewed imports.
+- Make workspace shortcuts optional and persistent: compact writing defaults, add/remove and pin-to-row or overflow placement, reordering, custom names, widths and text sizes, with a palette route to restore a hidden row.
+- Add workspace accessibility audits across light/dark appearance and desktop/narrow RTL layouts, with downloadable violation details. Run full verification on hosted GitHub workers, including draft PRs.
+
 ### Fixed
+
+- Defer initial toolbar-menu focus until the activating key's focus-restoration microtasks finish, while preserving visible-item retries and user navigation; include dispatch-order regressions in hosted workflow review.
+- Keep Gmail and shortcut-storage errors readable in themed surfaces, retaining a red severity marker with hosted contrast checks; reject citation-like suffixes following supplementary Unicode letters.
+- Match planner review, semantic inspector and restored-workspace buttons to themed controls; keep compact timed-event text within its block and distinguish Gmail provider failures from empty results.
+- Give Overleaf source review a padded, bounded scrolling body and a persistent close header; capture screenshot detail from the asserted state anchor rather than scrolling back to a panel introduction.
+- Isolate Gmail message content from the interface direction and align frontend citation token boundaries with the native indexer so email addresses and URL handles do not produce false citation warnings.
+- Make positioned toolbar portals explicitly visible before acquiring keyboard focus, preserve provider error causes, and keep screenshot state anchors fully inside the visible scrollport.
+- Preserve the current workspace during delayed startup path resolution and distinguish unavailable recent-vault opening from success before selecting the default vault. Restore command-palette focus to its originating control and retain modal text-field shortcut ownership.
+- Guard Google account changes and delayed imports across vault replacement, preserve independent credentials when disconnecting, reject incomplete or cyclic provider listings, support discovered shared-drive resources consistently, and validate Tasks character limits before batch writes. Parse Gmail's actual `mimeType` payload and render imported message text literally.
+- Restrict interface SVG sizing to icons so Mermaid diagrams and mathematical glyphs retain their intended geometry. Reflow tag browsing at the available pane width, with populated tag-action and readable-diagram regressions.
+- Resolve DOM-independent Markdown utilities in preview workers, retaining browser exports in production's main bundle and verifying healthy inspector output alongside editable math diagrams.
+- Reflow Git rows at their actual content width with measured virtual-row spacing, initialize toolbar-menu keyboard focus after its portal is positioned, and preserve top-bar reset-button clearance. Bound screenshot readiness with stage diagnostics and add paused/running animation regressions.
+- Remove the duplicate inner frame from the ordinary mobile/tablet mode selector while retaining its standalone border at high app zoom.
+- Convert toolbar-menu and top-bar popup positioning into the zoomed page's coordinates, reflow the toolbar customizer and wrap final tour actions, with keyboard, scrolling and complete-tour regressions.
+- Align vulnerable transitive KaTeX copies with the patched renderer dependency, retaining the existing integrity pin and adding real Mermaid math-label compatibility coverage.
+- Size legacy dialogs and the command palette against the effective app-zoom viewport, reflow snippet/theme editors at their own width, and prevent frontmatter fields and conflict choices from overflowing. Add 48 hosted zoom regressions with screenshot attachments.
+- Serialize Mermaid configuration and rendering across previews and exports, restore settings after failures, and preserve diagram preparation error causes.
+- Keep bibliography dialogs within the effective zoomed viewport and focus the health summary before its lower maintenance controls can scroll the opening view.
+- Retain export and publication operation ownership through vault transitions without resetting pending locks from effects.
+- Apply shared panel divider clearance in the loaded stylesheet, preserve desktop footer identity beside progress, normalize diagram renderer line endings, and disambiguate Unix process-group termination arguments. Add hosted geometry regressions without relaxing visual comparisons.
+- Make sticky inspector tabs and template dialogs opaque over underlying text, load visible vault placeholders, capture the top of print pages, and show readable EPUB section labels while retaining precise navigation anchors.
+- Bind exports and publication plans to their originating vault, serialize competing export profiles, preserve successful exports after auxiliary refresh failures, and keep dry-run diagram previews free of asset writes.
+- Respect enclosing Markdown fences and preserve list/blockquote containers during diagram export, stop on preparation failures, encode generated image destinations, and omit separator-only bibliography metadata rows.
+- Rasterize exported Mermaid diagrams with SVG labels so Chromium can save real PNG assets; protect the export label setting from document overrides and restore interactive preview configuration afterward.
+- Protect source, repair and Python-session recovery content with private Unix storage; refuse linked vault lock storage, ambiguous or incomplete Drive identity searches, and resource-copy destinations containing existing data.
+- Reject URL-shaped local reader paths consistently across platforms, retain recoverable backup state after interrupted rollback, and use the daemon's actual identity for headless export jobs.
+- Reflow asset, diagram and capture content at the available pane width; theme repair and quick-capture inputs and retain attached checkbox text. Expand worker regression coverage for narrow panes and delayed workflow ownership.
+- Balance note-tab controls and close-button spacing, separate the health badge from its header divider, and localize first-party activity labels in German and Persian workspaces.
+- Correct history comparison column placement, prevent narrow-rail note-label overlap, preserve calendar-icon geometry, and normalize palette focus clearance, collection spacing, toolbar customization and conflict-dialog controls. Review every hosted image through per-image ledgers and strengthen loaded-PDF and held-loading evidence.
+- Keep Portal Pin attached to its checkbox, theme Portal and planner controls, separate Support/module content from dividers, and prevent header-section overlap at intermediate magnification. Normalize template close icons and retain real newlines in snippet evidence.
+- Use consistent SVG close controls in outline, text-prompt, link-rewrite and external-link dialogs, and allocate footer status space at the available width under magnification.
+- Preserve recovered IPC frames, reject ambiguous Drive revision identities, redact deployment credentials in timeout errors, and stop Unix descendants that ignore graceful termination.
+- Apply the selected interface font to body text and controls, repair an undefined planner color token, and guard mobile revision previews against late completion after closing history.
+- Keep release-download credentials on their original HTTPS origin and preserve existing binaries until size/digest checks and atomic promotion complete.
+- Bound MCP diagnostic history and redact retained text before truncation. Add sync content-preservation cases from the supplied multi-service archive assessment.
+
+### Added
+
+- Add bounded per-vault workspace tabs with main/side docking, ordering, saved references, guarded closure and inert restoration. Preserve source drafts and Python ownership across tab changes; integrate permission-aware plugin workspaces into the module manager and activity navigation.
+
+- Add vault-owned persistent Python sessions in Runtime console with reviewed environments, per-cell consent, live output, bounded variables/PNG plots and stop/restart. Guard pending startup ownership and require confirmed shutdown before vault changes.
+- Add standalone source editing with byte-preserving save/recovery, reviewed Overleaf source exchange, and opaque Markdown revision hosting through Google Docs. Add local Graphviz DOT rendering with bounded cancellable workers, plus live Mermaid preview and diagram zoom/pan.
+- Add reviewed vault repair plans with immutable recovery receipts, source checks and fail-closed asset reference scans. Add measured vocabulary evolution from retained revision sources and readable search match emphasis.
+- Add bounded offline Markdown-to-PDF typesetting with bundled fonts, local raster snapshots and third-party notices. Add finite, explicitly authorized Drive polling and reviewed Google Docs text-copy workflows.
+
+- Add Database Studio filters, table/list/gallery views, guarded scalar metadata edits, saved view recovery and bounded declarative formulas/aggregates. Add reviewed capture and paginated Zotero imports, citation usage, abstracts and literature note creation.
+- Add vault-scoped raster image and audio previews with type checks, 32 MiB limits and local URL cleanup; PDF/EPUB annotation behavior remains separate. Add real revision heatmaps and descriptive vocabulary comparison.
+- Add Publishing Studio review/build/deployment controls with bounded logs, source receipt checks and immutable deployment snapshots. External deployment remains an explicit configured action; live provider verification is pending.
+- Add passive original-source capture snapshots and complete authored German/Persian Help bodies with localized search, answers and walkthroughs.
+
+- Add bounded, permission-gated declarative plugin workspaces and first-party Diagram Studio, Asset Deck, Runtime Console, and Semantic Inspector entry points. Research notes preserve their source links; asset usage comes from the derived link index with explicit partial-result reporting.
+- Add measured embedding diagnostics and PCA projections, provider/model provenance checks, opt-in reindexing, and secure semantic credential controls.
+- Add explicit Canvas note relations with board/connector provenance, graph and DQL visibility, transactional reconciliation, and undo/redo editing.
+- Add reviewed weekly task/event planning, Google provider revision checks, and vault-content checks before applying imported task changes.
+- Add an opt-in Typst PDF export profile and bounded compiler preflight through the shared process broker.
+- Add Google Drive collaboration transport with separate read/write consent, immutable revisions, conservative three-way merge previews, and stale-checked local application. Live account verification remains pending.
+- Add the offline mobile kernel and touch-oriented mobile application; see `docs/validation/REVIEW-PR-STATUS.md` for platform verification status.
+
+### Fixed
+
+- Keep checkbox text attached to its control, stack narrow plugin headings, theme fresh source/publishing forms, and restore visible focus outlines. Reflow workspace chrome through maximum app zoom while keeping panel fields and tab actions reachable; expand visual regression coverage for populated forms, both appearances and text directions.
+
+- Keep modal keyboard focus inside expandable sections, constrain header tooltips in narrow RTL layouts, and provide larger database, publishing and collaboration touch controls. Keep capture controls locked while an ignored pending operation finishes.
+
+- Distinguish explicit permanent Google OAuth refresh errors from temporary or malformed responses; bound token response reads, validate token values and expiry arithmetic, and keep raw authentication responses out of error messages.
+- Preserve displayed source revisions in coordinated database edits; reset Zotero previews when account keys change; restore a reload action after interrupted saved-view loading.
+- Bound writing-history sidecars and validate dates; reject ambiguous/structured frontmatter cell edits, retain unique asset recovery copies and restrict diagram processing output and local-file/network access.
+- Decline publication when YAML keys can ambiguously override privacy metadata, and clear article-specific attribution when extracting a different source.
+
+- Use the installed CSL processor's string-return contract for complete citations, preserve narrative/grouped citation semantics, and map bibliography entries correctly after sorting without repeatedly regenerating the bibliography. Invalidate stale formatting when references change.
+- Preserve the distinguishing part of long note filenames and expose folders for duplicate basenames in the note rail.
+
+- Preserve pending editor drafts before note, tag, section, and block renames; refresh rewritten active backlinks and keep failed rename dialogs open.
+- Bound activity-history reads and compact oversized histories; keep each rename recovery backup immutable instead of overwriting earlier versions.
+- Correct report-confirmed Canvas, Kanban, snippet, graph-label, collection-state, settings, status, RTL navigation, tag-count, and inspector-metric presentation defects. Record current-source dispositions for both review reports in `docs/validation/REPORT-REVIEW.md`.
+- Format resolved bracket citations in rendered output while preserving missing keys and literal code examples; suppress unopened-vault health metrics and display unknown measurements honestly.
+- Keep custom theme values readable on narrow screens, improve empty-editor text contrast, align triage metrics, and draw writing-history values at their final scale from the first frame.
 
 - Stop reporting Scriptor's own extended task markers (`[/]`, `[-]`, `[>]`) as missing link references. The reference lint only recognised GFM's `[ ]` and `[x]`, so every note using an in-progress, cancelled, or forwarded task showed a `Problems 1` warning that no diagnostic could explain — the vault was healthy, the workbench queues were empty, and the single "problem" was a task the app had written itself.
 - Stop the Split and Preview surfaces eating the brackets of `[/]` task lines. The Markdown parser read the extended markers as shortcut link references, and the WYSIWYG view then hid the brackets as link syntax, rendering `- / Draft methodology` instead of the authored `- [/] Draft methodology`.

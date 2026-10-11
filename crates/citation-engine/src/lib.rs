@@ -2,7 +2,7 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
-use biblatex::Bibliography;
+use biblatex::{Bibliography, ChunksExt};
 use hayagriva::io::from_biblatex_str;
 use hayagriva::{Entry, Library};
 use serde::{Deserialize, Serialize};
@@ -45,6 +45,14 @@ pub struct CitationEntryExcerpt {
     pub entry_type: String,
     /// Normalized work types of parent containers (e.g. ["proceedings"] for @inproceedings).
     pub parents: Vec<String>,
+    #[serde(default)]
+    pub abstract_text: Option<String>,
+    #[serde(default)]
+    pub doi: Option<String>,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub file: Option<String>,
 }
 
 pub struct CitationEngine {
@@ -132,6 +140,10 @@ impl CitationEngine {
 /// Excerpt a single hayagriva entry.
 fn entry_excerpt(entry: &Entry) -> CitationEntryExcerpt {
     CitationEntryExcerpt {
+        abstract_text: None,
+        doi: None,
+        url: None,
+        file: None,
         key: entry.key().to_string(),
         title: entry.title().map(|title| title.to_string()),
         authors: entry
@@ -171,7 +183,19 @@ pub fn parse_lenient(content: &str) -> Result<Vec<CitationEntryExcerpt>, Citatio
     let mut excerpts = Vec::new();
     for raw in bibliography.iter() {
         match Entry::try_from(raw) {
-            Ok(entry) => excerpts.push(entry_excerpt(&entry)),
+            Ok(entry) => {
+                let mut excerpt = entry_excerpt(&entry);
+                let field = |name: &str| {
+                    raw.get(name)
+                        .map(|chunks| chunks.format_verbatim())
+                        .filter(|text| !text.trim().is_empty())
+                };
+                excerpt.abstract_text = field("abstract");
+                excerpt.doi = field("doi");
+                excerpt.url = field("url");
+                excerpt.file = field("file");
+                excerpts.push(excerpt);
+            }
             Err(error) => tracing::warn!(
                 key = %raw.key,
                 error = %error,

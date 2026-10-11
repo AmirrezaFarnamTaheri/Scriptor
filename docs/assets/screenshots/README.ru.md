@@ -18,7 +18,13 @@
 | graph.png | Проверенный graph | Docs + стабильное visual coverage |
 | canvas.png | Пространственный Canvas для визуальной организации заметок | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
 | git-panel.png | Status, commit, pull/push | VISUAL-REVIEW, STORE-MIGRATION |
-| mcp-panel.png | Проверенная MCP panel | Docs + стабильное visual coverage |
+| mcp-panel.png | Режимы разрешений MCP и рецепты | README / docs |
+| mcp-tools.png | Read-only Outline во вкладке Tools | README / docs |
+| mcp-audit.png | Audit после read-only Outline | README / docs |
+| settings-appearance.png | Appearance: палитра, день/ночь, шрифт, плотность | README / docs |
+| plugin-permissions.png | Разрешение чтения Vault Lint до включения | README / docs |
+| plugins-installed.png | Vault Lint включён, отзыв для vault | README / docs |
+| empty-note.png | Нет активной заметки, действия внутри пустого состояния | README / docs |
 | settings.png | Runtime/vault config, appearance, diagnostics | VISUAL-REVIEW, STORE-MIGRATION |
 | publish-center.png | Проверенный Publish Center | Docs + стабильное visual coverage |
 | vault-health.png | Dashboard здоровья vault с lint/health scores | VISUAL-REVIEW, RELEASE-CHECKLIST |
@@ -27,7 +33,7 @@
 | note-history.png | Timeline ревизий с restore | VISUAL-REVIEW |
 | keyboard-shortcuts.png | Editor горячих клавиш | VISUAL-REVIEW |
 | onboarding-tour.png | Первый product tour | VISUAL-REVIEW |
-| plugins.png | Discovery и управление plugins | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
+| plugins.png | Установленные собственные плагины до review разрешений | README / docs |
 | editor-recovery.png | Recovery fallback редактора | VISUAL-REVIEW, RELEASE-CHECKLIST |
 | mcp-sharing-inventory.png | MCP sharing/resource inventory | VISUAL-REVIEW |
 | toolbar-typography.png | Typography popover | VISUAL-REVIEW |
@@ -38,6 +44,24 @@
 | task-list-preview.png | Отрендеренные элементы списка задач с интерактивными чекбоксами | VISUAL-REVIEW |
 | workspace-selector.png | Селектор рабочего пространства и идентификатор активного хранилища в верхней панели | VISUAL-REVIEW |
 
+### Покрытие состояний и границы доказательств
+
+**Workflow state screenshots** независимо выполняет выбранные suites состояний/восстановления и сохраняет отчёты точного commit; полная функциональная suite остаётся обязательной отдельно. `e2e/visual-state-evidence.ts` после проверки содержимого/геометрии снимает viewport и детали. Это свидетельства состояний, отдельно от стабильных baseline и галереи.
+
+| Suite | Состояния |
+|---|---|
+| `google-ecosystem-workflows.spec.ts` | Drive: выбор, отмена, binding/ошибка сохранения; Docs: preview, конфликт, согласие на потерю, создание; Calendar: выбор/review/import; персидский RTL и zoom |
+| `google-gmail-workflows.spec.ts` | Inbox, дедупликация, буквальный текст, import/search/pagination, ошибки, отключение, сохранённые черновики, dark/RTL/zoom |
+| `source-files.spec.ts` | Форматы исходников, LaTeX-диагностика, конфликт/отказ, dark |
+| `overleaf-workflows.spec.ts` | Вложенные источники и stale-rejection |
+| `runtime-kernel.spec.ts` | Сессия, stdout, переменные, декодированный plot, lifecycle-ошибки |
+| `asset-media.spec.ts` | Декодированное изображение, audio-controls, отклонение |
+| `workspace-shortcuts.spec.ts` | Настройка, overflow, ошибка сохранения, zoom |
+| `workspace-leaves.spec.ts` | Группы, перемещение и восстановленные неактивные leaves |
+| `semantic-visual-states.spec.ts` | 2D/3D, вращение, сходство, пустой порог, ошибка с сохранением измерений |
+
+Fixtures — детерминированные PNG 320×200 с проверенными декодированными размерами. Они доказывают layout, не камеру или настоящий Python-plot. Google-fixtures не используют live-accounts. Снимки становятся свидетельством выполнения только после успешной hosted-suite точного commit и просмотра изображений. Docs-only состояния охватывают согласие/enable/revoke плагинов, MCP Outline/Audit, Appearance, Canvas, плотный граф, triage, Help, native selector, RTL, компактный немецкий, zoom/scale, loading, большой vault и dark-диалоги. Они не доказывают внешний MCP, нативное разрешение или стороннюю установку. Native `<select>` проверяется семантически; OS-popup не заявлен надёжной целью скриншота.
+
 ### Актуальность и принятие
 
 PNG документации — **свежие снимки текущего исходного кода**, а не копии сохранённых Playwright comparison baselines. Тесты сначала записывают стабилизированную страницу прямо в `docs/assets/screenshots/`, затем независимо выполняют `toHaveScreenshot` против стабильных Windows baselines из `e2e/screenshots.spec.ts-snapshots/`.
@@ -46,7 +70,7 @@ PNG документации — **свежие снимки текущего и
 
 Стабильные Windows baselines остаются acceptance surface visual regression. Намеренные pixel changes проверяются и явно обновляются через `--update-snapshots=all`; failures никогда не скрываются повышением глобальной tolerance.
 
-Pull-request workflow **Visual review** является единственным владельцем visual-regression gate. Сначала он сравнивает текущий render с committed baselines. Диагностический `--update-snapshots=all` запускается только при провале сравнения, чтобы получить актуальные изображения и evidence baseline drift; изменения никогда не принимаются автоматически. Функциональный browser E2E остаётся в основном CI, поэтому зелёный PR не выполняет visual suite дважды.
+**Visual review** выполняет один compare-only проход на закреплённом Windows с `--update-snapshots=none`; PR не переписывает baseline. Ошибки уже сохраняют actual/diff, traces, videos и свежие docs-снимки. Изменять baseline можно только явным refresh. `visual-review.zip` хранит уникальные текущие изображения в `images/`; `image-manifest.json` указывает SHA-256, размер и все пути происхождения. Точные дубликаты сохраняются однажды; параллельные сырые result/baseline деревья не загружаются.
 
 Responsive/state-review captures (`workspace-mobile`, `workspace-tablet`, mobile vault/inspector, editor recovery, MCP inventory, toolbar popovers) создаются из живого test output и не становятся стабильными pixel baselines, если тест явно не использует `toHaveScreenshot`.
 
@@ -68,7 +92,7 @@ pnpm screenshots:capture:web
 
 `-UpdateBaselines` пересоздаёт все стабильные Windows snapshots с `--update-snapshots=all`, обновляет docs-only state-review screenshots из свежего Playwright output и сохраняет docs captures, записанные `screenshots.spec.ts`. Он **не** копирует baseline PNG поверх docs.
 
-Также есть ручной workflow **Refresh documentation screenshots**. Запускайте его на review branch, не на `main`. Он использует закреплённые `windows-2025` и Edge, запускает capture-contract tests, регенерирует docs и Windows baselines, проверяет полную visual suite без snapshot updates и коммитит только сгенерированные PNG в выбранную ветку.
+После публикации `release.yml` вызывает **Refresh documentation screenshots** на `main`. Снимается текущий main, не release-tag; отдельный workflow должен сам завершиться успешно. Можно вручную выбрать review-branch. Закреплённые Windows/Edge проверяют контракты, обновляют docs/baseline, проверяют без updates и коммитят только PNG. Manifest-package дедуплицирует SHA-256. Push не принудительный: продвижение ветки безопасно вызывает отказ и требует повторения.
 
 ### Build в E2E
 

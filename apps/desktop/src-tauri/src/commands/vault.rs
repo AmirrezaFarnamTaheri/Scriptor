@@ -14,10 +14,10 @@ use scriptor_vault::{
     delete_note_guarded, export_text_bundle, lint_vault_fix, list_note_history, list_recent_notes,
     load_vault_config, load_vault_snippets, load_vault_template, open_vault, open_vault_output,
     plan_daily_note, read_activity_log, read_note, read_note_history_revision, read_stats_history,
-    read_workspace_session, record_recent_note, rename_apply_guarded, rename_dry_run, save_note,
+    read_workspace_session, record_recent_note, rename_apply_guarded, rename_dry_run,
     save_note_with_options, save_vault_config, save_vault_snippets, scan_vault_with_roots,
-    section_rename_apply, section_rename_dry_run, set_frontmatter_field, tag_rename_apply,
-    tag_rename_dry_run, write_workspace_session,
+    section_rename_apply, section_rename_dry_run, tag_rename_apply, tag_rename_dry_run,
+    write_frontmatter_field, write_workspace_session,
 };
 use tauri::AppHandle;
 
@@ -38,6 +38,13 @@ pub fn vault_open(
     root_path: String,
 ) -> Result<OpenVaultOutput, String> {
     let _switch = crate::state::lock_recover(&state.vault_switch_lock, "vault switch");
+    let _kernels = super::code_chunk::runtime::vault_transition_guard()?;
+    let previous_vault = crate::state::read_recover(&state.session, "session")
+        .as_ref()
+        .map(|session| session.descriptor.id.clone());
+    if let Some(id) = previous_vault {
+        super::code_chunk::runtime::stop_vault_sessions(&id)?;
+    }
     let path = std::path::Path::new(&root_path);
     if !path.exists() {
         std::fs::create_dir_all(path)
@@ -392,29 +399,21 @@ pub fn vault_frontmatter_set(
     path: String,
     field: String,
     value: String,
+    expected_content_hash: Option<String>,
+    expected_vault_id: Option<String>,
 ) -> Result<FrontmatterFieldOutput, String> {
     let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
-    let document = read_note(&session.descriptor.id, &session.root, &relative)
-        .map_err(|error| error.to_string())?;
-    let markdown = set_frontmatter_field(&document.markdown, &field, &value)
-        .map_err(|error| error.to_string())?;
-    let _saved = save_note(
+    write_frontmatter_field(
         &session.descriptor.id,
         &session.root,
         &relative,
-        &markdown,
-        Some(&document.metadata.content_hash),
+        &field,
+        &value,
+        expected_content_hash.as_deref(),
     )
-    .map_err(|error| error.to_string())?;
-    Ok(FrontmatterFieldOutput {
-        path,
-        field,
-        value: Some(value),
-        markdown: read_note(&session.descriptor.id, &session.root, &relative)
-            .map_err(|error| error.to_string())?
-            .markdown,
-    })
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -439,9 +438,17 @@ pub fn vault_save_asset(
     state: tauri::State<AppState>,
     relative_path: String,
     bytes: Vec<u8>,
+    require_missing: Option<bool>,
+    expected_vault_id: Option<String>,
 ) -> Result<String, String> {
     let session = active_session(&state)?;
-    save_vault_asset(&session.root, &relative_path, &bytes)
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
+    save_vault_asset(
+        &session.root,
+        &relative_path,
+        &bytes,
+        require_missing.unwrap_or(false),
+    )
 }
 
 #[tauri::command]
@@ -580,8 +587,10 @@ pub fn vault_read_note_history_revision(
     state: tauri::State<AppState>,
     path: String,
     revision_id: String,
+    expected_vault_id: Option<String>,
 ) -> Result<String, String> {
     let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     read_note_history_revision(&session.root, &path, &revision_id)
         .map_err(|error| error.to_string())
 }

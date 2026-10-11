@@ -41,6 +41,8 @@ La configuración vive en `.scriptor/config.json`. Los snippets, perfiles de exp
 
 Use los modos de workspace de la barra superior — **Writing**, **Knowledge**, **Publish**, **Review**, **Automation** — para orientar la toolbar y la command palette a la tarea actual.
 
+La fila compacta de accesos es configurable: elija comandos, orden, etiquetas y tamaños, fije elementos u oculte la fila. La personalización sigue disponible desde la paleta de comandos cuando la fila está oculta.
+
 ## Flujos de trabajo principales
 
 | Tarea | Escritorio | Terminal (`scriptor tui`) |
@@ -75,6 +77,10 @@ Las previsualizaciones dry-run funcionan sin Pandoc. Consulte [`docs/release/PAN
 ## Opcional: motor headless
 
 Active **Settings → Headless engine** para enrutar indexación, búsqueda, backlinks, grafo, estado Git y jobs de exportación a través del daemon local. Abrir el vault y canvas permanecen in-process para mantener la respuesta rápida. Consulte [`docs/architecture/IPC_DAEMON.es.md`](../architecture/IPC_DAEMON.es.md).
+
+## Opcional: integraciones de Google
+
+Las integraciones experimentales de escritorio permiten colaboración Markdown revisada mediante Drive o Docs, planificación con Calendar y Tasks y un plugin de Gmail. Configure el cliente OAuth público de escritorio en **Settings → Integrations** y conecte por separado cada grupo de servicios necesario. Las notas locales siguen siendo la fuente principal; las escrituras en el proveedor requieren aprobación. La [guía de Google](GOOGLE_INTEGRATIONS.es.md) explica selección de recursos, flujos y recuperación.
 
 ## Lecturas adicionales
 

@@ -14,6 +14,10 @@ export type SensitiveOperation =
   | 'git_pull'
   | 'git_push'
   | 'google_calendar_auth'
+  | 'google_calendar_write'
+  | 'google_drive_auth'
+  | 'google_drive_read'
+  | 'google_drive_write'
   | 'google_calendar_disconnect'
   | 'google_gmail_auth'
   | 'google_gmail_disconnect'
@@ -27,9 +31,13 @@ export type SensitiveOperation =
   | 'pdf_translation'
   | 'plant_uml_execution'
   | 'publish_site'
+  | 'publish_build'
+  | 'publish_deploy'
   | 'resource_sync'
   | 'restore_backup'
   | 'restore_history'
+  | 'web_clip'
+  | 'zotero_read'
 
 export interface AuthorizationGrant {
   token: string

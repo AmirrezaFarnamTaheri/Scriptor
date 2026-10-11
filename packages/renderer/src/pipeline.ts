@@ -110,6 +110,8 @@ const sanitizeSchema = {
       ['className', 'markup-underline'],
       'style',
       'ariaHidden',
+      'ariaLabel',
+      ['dataResolved', 'true', 'false'],
     ],
     div: [...(defaultSchema.attributes?.div ?? []), 'className', 'dataSourceLine'],
     nav: [...(defaultSchema.attributes?.nav ?? []), 'className', ['className', 'markdown-toc'], 'ariaLabel'],

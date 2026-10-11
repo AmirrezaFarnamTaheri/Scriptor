@@ -91,17 +91,11 @@
           allowScriptedContent: false,
         })
         rendition.hooks?.content?.register(hardenContents)
+        rendition.on('relocated', postPosition)
         await rendition.display()
         status.remove()
-        post({ type: 'POSITION', position: rendition.currentLocation()?.start?.cfi ?? '' })
+        postPosition(await rendition.currentLocation())
         post({ type: 'LOADED' })
-
-        rendition.on('relocated', (location) => {
-          post({ type: 'POSITION', position: location?.start?.cfi ?? '' })
-        })
-        rendition.on('locationChanged', (location) => {
-          post({ type: 'POSITION', position: location?.start?.cfi ?? '' })
-        })
         rendition.on('selected', (cfiRange, contents) => {
           const quote = contents.window.getSelection()?.toString().trim() ?? ''
           if (!quote) return post({ type: 'SELECTION_CLEAR' })
@@ -131,6 +125,15 @@
 
     function replayHighlights() {
       for (const annotation of annotations.values()) applyHighlight(annotation)
+    }
+
+    function postPosition(location) {
+      const start = location?.start
+      if (typeof start?.cfi !== 'string' || !start.cfi) return
+      const section = Number.isSafeInteger(start.index) && start.index >= 0 && start.index < 1_000_000
+        ? start.index + 1
+        : undefined
+      post({ type: 'POSITION', position: start.cfi, ...(section === undefined ? {} : { section }) })
     }
 
     async function goTo(position) {

@@ -2,7 +2,8 @@
 # no longer reads (it warns "The 'pnpm' field in package.json is no longer read").
 # See https://pnpm.io/settings
 overrides:
-  dompurify: ">=3.4.13"
+  # GHSA-p98j-92pf-mc4p is patched in 3.4.16, including transitive renderer/editor copies.
+  dompurify: ">=3.4.16 <4"
   # GHSA-6gmq-8vp8-gcm6 (XML External Entity / doctype handling) affects
   # @xmldom/xmldom >=0.9.0 <=0.9.11. epubjs still pins ^0.9.8 upstream, so the
   # override is the stopgap until it moves its own range past the patch release.
@@ -10,6 +11,9 @@ overrides:
   # GHSA-f23m-r3pf-42rh & GHSA-r5fr-rjxr-66jc affect lodash-es <=4.17.23.
   # chevrotain (pulled by mermaid 12) pins 4.17.23, so override to patched >=4.18.1.
   lodash-es: ">=4.18.1"
+  # GHSA-238p-pmpm-9mq7: align vulnerable Mermaid/rehype transitive copies with
+  # the already-locked direct renderer dependency; retain its integrity hash.
+  "katex@<0.18.2": "0.18.7"
 
 packages:
   - "apps/*"

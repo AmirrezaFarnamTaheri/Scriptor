@@ -1,0 +1,40 @@
+.plugin-workspace,
+.runtime-console {
+  padding: 20px;
+  min-width: 0;
+  color: var(--ink);
+  background: var(--surface);
+  overflow: auto;
+}
+.plugin-workspace p,
+.runtime-console p { overflow-wrap: anywhere; }
+.plugin-workspace h2,
+.runtime-console h2 { font-size: 18px; margin: 0 0 8px; overflow-wrap: anywhere; }
+.plugin-workspace-text { white-space: pre-wrap; }
+.plugin-workspace-section { margin-block: 16px; }
+.plugin-workspace[role='group'] > header { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(220px,100%),1fr)); align-items: start; gap: 12px; padding:0; border:0; }
+.plugin-workspace > header > h2,
+.plugin-workspace > header > p { flex: 1 1 220px; min-width: 0; margin: 0; }
+.plugin-workspace dl { display: flex; gap: 20px; flex-wrap: wrap; }
+.plugin-workspace dl > div { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.plugin-workspace ul { padding-inline-start: 24px; }
+.plugin-workspace li { min-width: 0; overflow-wrap: anywhere; }
+.plugin-workspace dt { color: var(--muted); }
+.plugin-workspace dd { margin: 4px 0; font-variant-numeric: tabular-nums; }
+.plugin-workspace-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.plugin-workspace button,
+.runtime-console button,
+.runtime-console select { min-height: 44px; min-width: 44px; max-width: 100%; box-sizing: border-box; color: var(--ink); background: var(--surface-raised); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
+.plugin-workspace button { white-space: normal; overflow-wrap: anywhere; }
+.plugin-workspace button:focus-visible,
+.runtime-console :is(button, textarea, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.plugin-workspace button:disabled,
+.runtime-console :disabled { opacity: 0.65; cursor: not-allowed; }
+.runtime-console form { display: grid; gap: 12px; }
+.runtime-console label { display: grid; gap: 8px; }
+.runtime-console textarea { box-sizing: border-box; width: 100%; min-height: 180px; resize: vertical; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font: 13px/1.6 var(--font-mono, monospace); color: var(--ink); background: var(--bg); }
+.runtime-console-output { max-height: 360px; overflow: auto; padding: 12px; background: var(--bg); white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono, monospace); }
+@media (max-width: 520px) {
+  .plugin-workspace,
+  .runtime-console { padding: 12px; }
+}

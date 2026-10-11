@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from 'react'
+import { X } from 'lucide-react'
 
 import type { LinkRewritePreview } from '../types/vault'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -49,7 +50,7 @@ export function LinkRewriteDialog({
         <header>
           <h2>{title}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
-            ×
+            <X aria-hidden="true" />
           </button>
         </header>
 

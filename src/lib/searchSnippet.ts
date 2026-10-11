@@ -28,3 +28,25 @@ export function formatSearchSnippet(snippet: string): string {
     .replace(/\s+/g, ' ')
     .trim()
 }
+
+export interface SearchSnippetPart { text: string; matched: boolean }
+
+/** Literal query emphasis is a reading aid, not a reconstruction of FTS rank.
+ * Build React text/mark nodes from these parts; never interpret snippet HTML. */
+export function searchSnippetParts(snippet: string, query: string): SearchSnippetPart[] {
+  const text = formatSearchSnippet(snippet.slice(0,16_384)).normalize('NFC')
+  const plainQuery = query.slice(0,1024).normalize('NFC').replace(/\b(?:path|tag|type|title):(?:"[^"]*"|\S+)/gi,'')
+  const terms = [...new Set((plainQuery.match(/[\p{L}\p{N}]+(?:(?:'|\u200c|\u200d|-)[\p{L}\p{N}]+)*/gu)??[])
+    .filter(term=>term.length<=64&&!/^(AND|OR|NOT|NEAR)$/i.test(term)))].slice(0,32)
+  if(!terms.length)return [{text,matched:false}]
+  const escaped=terms.sort((a,b)=>b.length-a.length).map(term=>term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))
+  const pattern=new RegExp(`(?<![\\p{L}\\p{N}_\\u200c\\u200d])(?:${escaped.join('|')})(?![\\p{L}\\p{N}_\\u200c\\u200d])`,'giu')
+  const parts:SearchSnippetPart[]=[]
+  let offset=0
+  for(const match of text.matchAll(pattern)) {
+    if(match.index>offset)parts.push({text:text.slice(offset,match.index),matched:false})
+    parts.push({text:match[0],matched:true});offset=match.index+match[0].length
+  }
+  if(offset<text.length||!parts.length)parts.push({text:text.slice(offset),matched:false})
+  return parts
+}

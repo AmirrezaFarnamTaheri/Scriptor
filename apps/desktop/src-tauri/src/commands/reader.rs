@@ -1,13 +1,14 @@
 use std::io::Read;
 
-use scriptor_vault::{RelativeVaultPath, atomic_write, lock_vault_update};
+use scriptor_vault::{RelativeVaultPath, VaultRoot, atomic_write, lock_vault_update};
 use serde::{Deserialize, Serialize};
 
+use super::vault::validate_expected_vault;
 use crate::AppState;
 use crate::state::active_session;
 
-const ANNOTATIONS_PATH: &str = ".scriptor/reader/annotations.json";
 const MAX_DOCUMENT_BYTES: u64 = 128 * 1024 * 1024;
+const MAX_MEDIA_PREVIEW_BYTES: u64 = 32 * 1024 * 1024;
 const MAX_ANNOTATION_STORE_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_ANNOTATION_DOCUMENTS: usize = 4_096;
 const MAX_ANNOTATIONS_PER_DOCUMENT: usize = 5_000;
@@ -39,9 +40,11 @@ struct AnnotationStore {
 pub fn reader_read_document(
     state: tauri::State<AppState>,
     rel_path: String,
+    expected_vault_id: Option<String>,
 ) -> Result<tauri::ipc::Response, String> {
     let session = active_session(&state)?;
-    let relative = document_path(&rel_path)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
+    let (relative, maximum_bytes) = readable_media_path(&rel_path)?;
     let path = session
         .root
         .resolve_relative(&relative)
@@ -54,8 +57,11 @@ pub fn reader_read_document(
     if !metadata.is_file() {
         return Err("Reader document must be a regular file".into());
     }
-    if metadata.len() > MAX_DOCUMENT_BYTES {
-        return Err("Reader documents must be 128 MiB or smaller".into());
+    if metadata.len() > maximum_bytes {
+        return Err(format!(
+            "Source previews must be {} MiB or smaller",
+            maximum_bytes / (1024 * 1024)
+        ));
     }
 
     // Keep the size cap tied to the same open handle used for the read. The
@@ -63,12 +69,15 @@ pub fn reader_read_document(
     // `take(MAX + 1)` guarantees the bridge never allocates an unbounded
     // replacement even in that race.
     let mut bytes = Vec::with_capacity(metadata.len() as usize);
-    let mut bounded = file.take(MAX_DOCUMENT_BYTES + 1);
+    let mut bounded = file.take(maximum_bytes + 1);
     bounded
         .read_to_end(&mut bytes)
         .map_err(|error| format!("cannot read reader document: {error}"))?;
-    if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
-        return Err("Reader documents must be 128 MiB or smaller".into());
+    if bytes.len() as u64 > maximum_bytes {
+        return Err(format!(
+            "Source previews must be {} MiB or smaller",
+            maximum_bytes / (1024 * 1024)
+        ));
     }
     Ok(tauri::ipc::Response::new(bytes))
 }
@@ -106,8 +115,10 @@ pub fn reader_viewer_location(document_type: String) -> Result<ReaderViewerLocat
 pub fn reader_load_annotations(
     state: tauri::State<AppState>,
     rel_path: String,
+    expected_vault_id: Option<String>,
 ) -> Result<Vec<ReaderAnnotationRecord>, String> {
     let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     let document = document_path(&rel_path)?.to_string();
     let store = load_store(session.root.root())?;
     Ok(store.documents.get(&document).cloned().unwrap_or_default())
@@ -118,8 +129,10 @@ pub fn reader_save_annotations(
     state: tauri::State<AppState>,
     rel_path: String,
     annotations: Vec<ReaderAnnotationRecord>,
+    expected_vault_id: Option<String>,
 ) -> Result<(), String> {
     let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     let document = document_path(&rel_path)?.to_string();
     save_annotations_for_document(session.root.root(), &document, annotations)
 }
@@ -130,7 +143,7 @@ fn save_annotations_for_document(
     annotations: Vec<ReaderAnnotationRecord>,
 ) -> Result<(), String> {
     validate_annotations(&annotations)?;
-    let store_path = annotation_store_path(root);
+    let store_path = annotation_store_path(root)?;
     let _store_lock = lock_vault_update(&store_path).map_err(|error| error.to_string())?;
     let mut store = load_store_for_write(root)?;
     if !store.documents.contains_key(document) && store.documents.len() >= MAX_ANNOTATION_DOCUMENTS
@@ -145,7 +158,7 @@ fn save_annotations_for_document(
 }
 
 fn document_path(raw: &str) -> Result<RelativeVaultPath, String> {
-    let path = RelativeVaultPath::parse(raw).map_err(|error| error.to_string())?;
+    let path = reader_relative_path(raw)?;
     match raw
         .rsplit('.')
         .next()
@@ -157,9 +170,36 @@ fn document_path(raw: &str) -> Result<RelativeVaultPath, String> {
     }
 }
 
+fn reader_relative_path(raw: &str) -> Result<RelativeVaultPath, String> {
+    // This wire contract must reject URLs and foreign-platform paths equally
+    // on Unix and Windows; Unix otherwise treats ':' and '\\' as filename bytes.
+    if raw.len() > 1024 || raw.contains([':', '\\']) || raw.chars().any(char::is_control) {
+        return Err("Reader requires a literal vault-relative file path".into());
+    }
+    RelativeVaultPath::parse(raw).map_err(|error| error.to_string())
+}
+
+fn readable_media_path(raw: &str) -> Result<(RelativeVaultPath, u64), String> {
+    let suffix = raw
+        .rsplit('.')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if matches!(suffix.as_str(), "pdf" | "epub") {
+        return document_path(raw).map(|path| (path, MAX_DOCUMENT_BYTES));
+    }
+    if !matches!(
+        suffix.as_str(),
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "mp3" | "wav" | "ogg" | "flac"
+    ) {
+        return Err("This media format is not supported for preview".into());
+    }
+    reader_relative_path(raw).map(|path| (path, MAX_MEDIA_PREVIEW_BYTES))
+}
+
 fn load_store(root: &std::path::Path) -> Result<AnnotationStore, String> {
-    let path = annotation_store_path(root);
-    if !path.exists() {
+    let path = annotation_store_path(root)?;
+    if !path.try_exists().map_err(|error| error.to_string())? {
         return Ok(AnnotationStore::default());
     }
     let bytes = read_bounded_file(&path, MAX_ANNOTATION_STORE_BYTES)?;
@@ -171,7 +211,7 @@ fn load_store(root: &std::path::Path) -> Result<AnnotationStore, String> {
 
 fn save_store(root: &std::path::Path, store: &AnnotationStore) -> Result<(), String> {
     validate_store(store)?;
-    let path = annotation_store_path(root);
+    let path = annotation_store_path(root)?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
@@ -185,8 +225,21 @@ fn save_store(root: &std::path::Path, store: &AnnotationStore) -> Result<(), Str
     atomic_write(&path, &payload).map_err(|error| error.to_string())
 }
 
-fn annotation_store_path(root: &std::path::Path) -> std::path::PathBuf {
-    root.join(ANNOTATIONS_PATH)
+fn annotation_store_path(root: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    let vault = VaultRoot::open(root).map_err(|error| error.to_string())?;
+    let parent = RelativeVaultPath::parse(".scriptor/reader").map_err(|error| error.to_string())?;
+    let parent = vault
+        .resolve_relative(&parent)
+        .map_err(|error| error.to_string())?;
+    let path = parent.join("annotations.json");
+    match std::fs::symlink_metadata(&path) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+            Err("Reader annotation store must be a regular file".into())
+        }
+        Ok(_) => Ok(path),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(path),
+        Err(error) => Err(format!("Cannot inspect reader annotation store: {error}")),
+    }
 }
 
 /// A corrupt store is never discarded. On the next attempted write it is
@@ -197,8 +250,11 @@ fn load_store_for_write(root: &std::path::Path) -> Result<AnnotationStore, Strin
     match load_store(root) {
         Ok(store) => Ok(store),
         Err(error) => {
-            let path = annotation_store_path(root);
-            if !path.exists() {
+            if !error.starts_with("Reader annotations are corrupt;") {
+                return Err(error);
+            }
+            let path = annotation_store_path(root)?;
+            if !path.try_exists().map_err(|error| error.to_string())? {
                 return Err(error);
             }
             let parent = path
@@ -363,7 +419,7 @@ mod tests {
     #[test]
     fn corrupt_store_is_quarantined_before_new_annotations_are_saved() {
         let temp = tempfile::tempdir().unwrap();
-        let path = annotation_store_path(temp.path());
+        let path = annotation_store_path(temp.path()).unwrap();
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, b"{not-json").unwrap();
 
@@ -397,5 +453,56 @@ mod tests {
             .map(|index| annotation(&format!("a-{index}")))
             .collect::<Vec<_>>();
         assert!(validate_annotations(&many).is_err());
+    }
+
+    #[test]
+    fn raster_and_audio_previews_are_bounded_without_expanding_annotation_types() {
+        for path in [
+            "assets/picture.PNG",
+            "assets/photo.jpeg",
+            "assets/clip.wav",
+            "assets/clip.mp3",
+            "assets/clip.ogg",
+            "assets/clip.flac",
+        ] {
+            assert_eq!(
+                readable_media_path(path).unwrap().1,
+                MAX_MEDIA_PREVIEW_BYTES
+            );
+            assert!(document_path(path).is_err());
+        }
+        assert_eq!(
+            readable_media_path("papers/book.pdf").unwrap().1,
+            MAX_DOCUMENT_BYTES
+        );
+        for path in [
+            "../private.png",
+            "assets/active.svg",
+            "assets/active.html",
+            "assets/active.js",
+            "https://example.test/a.png",
+            "C:/private.png",
+            "assets\\private.png",
+            "assets/control\n.png",
+        ] {
+            assert!(readable_media_path(path).is_err(), "accepted {path:?}");
+        }
+        assert!(document_path("https://example.test/a.pdf").is_err());
+        assert!(document_path("C:/private.pdf").is_err());
+    }
+
+    #[test]
+    fn non_file_annotation_store_is_rejected_without_quarantine() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join(".scriptor/reader/annotations.json");
+        std::fs::create_dir_all(&path).unwrap();
+        assert!(
+            save_annotations_for_document(temp.path(), "book.pdf", vec![annotation("a")]).is_err()
+        );
+        assert!(path.is_dir());
+        assert_eq!(
+            std::fs::read_dir(path.parent().unwrap()).unwrap().count(),
+            1
+        );
     }
 }

@@ -33,7 +33,7 @@ test.describe('adaptive panel presentation', () => {
     await waitForWorkspace(page)
     await settleLayout(page)
 
-    const editor = page.locator('.editor-panel')
+    const editor = page.locator('.editor-panel[data-help-topic="editor"]')
     const inspector = page.locator('.inspector-panel')
     const before = await editor.boundingBox()
     expect(before).not.toBeNull()
@@ -84,7 +84,7 @@ test.describe('adaptive panel presentation', () => {
     await waitForWorkspace(page)
     await settleLayout(page)
 
-    const editor = page.locator('.editor-panel')
+    const editor = page.locator('.editor-panel[data-help-topic="editor"]')
     const before = await editor.boundingBox()
     expect(before).not.toBeNull()
 

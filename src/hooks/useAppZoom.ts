@@ -65,14 +65,24 @@ export function useAppZoom(): void {
   useEffect(() => {
     let factor = readStoredZoom() ?? 1
     let applyScheduled = false
+    let applyTimer: number | undefined
+    let active = true
+    // Native webview zoom can resolve asynchronously. Serializing writes
+    // prevents a slow older zoom/reset from overwriting the newest CSS
+    // fallback or native factor after rapid keyboard/wheel input.
+    let applyQueue: Promise<void> = Promise.resolve()
 
     const apply = () => {
-      if (applyScheduled) return
       updateZoomReflow(factor)
+      if (applyScheduled) return
       applyScheduled = true
-      window.setTimeout(() => {
+      applyTimer = window.setTimeout(() => {
+        applyTimer = undefined
         applyScheduled = false
-        void applyZoom(factor)
+        const requested = factor
+        applyQueue = applyQueue
+          .catch(() => undefined)
+          .then(() => active ? applyZoom(requested) : undefined)
       }, 60)
     }
 
@@ -140,6 +150,8 @@ export function useAppZoom(): void {
     apply()
 
     return () => {
+      active = false
+      if (applyTimer !== undefined) window.clearTimeout(applyTimer)
       if (resizeFrame) window.cancelAnimationFrame(resizeFrame)
       window.removeEventListener('wheel', onWheel, true)
       window.removeEventListener('keydown', onKeyDown, true)

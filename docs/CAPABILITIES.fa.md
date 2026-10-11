@@ -1,92 +1,91 @@
 <div dir="ltr" align="center">
+
 [English](CAPABILITIES.md) · **فارسی** · [简体中文](CAPABILITIES.zh-CN.md) · [Русский](CAPABILITIES.ru.md) · [Deutsch](CAPABILITIES.de.md) · [Español](CAPABILITIES.es.md)
+
 </div>
 
 <div dir="rtl" lang="fa" align="right">
 
-<div dir="rtl" lang="fa">
+# قابلیت‌های Scriptor
 
-# قابلیت‌های <bdi dir="ltr">Scriptor</bdi>
+برنامه، فایل‌های محلی Markdown را با ویرایش، پژوهش، انتشار و خودکارسازی دارای مجوز صریح ترکیب می‌کند. این نقشه، قابلیت‌های فعلی و مرز مسئولیت آن‌ها را معرفی می‌کند. [دفتر بلوغ قابلیت‌ها](CAPABILITY-MATURITY.md) میان قابلیت منتشرشده، آزمایشی و صرفاً طراحی‌شده تفاوت می‌گذارد؛ دیده شدن یک کنترل، پشتیبانی آماده تولید را ثابت نمی‌کند.
 
-[<bdi dir="ltr">English</bdi>](CAPABILITIES.md) · [简体中文](CAPABILITIES.zh-CN.md) · [Русский](CAPABILITIES.ru.md) · [<bdi dir="ltr">Deutsch</bdi>](CAPABILITIES.de.md) · [<bdi dir="ltr">Espa</bdi>ñ<bdi dir="ltr">ol</bdi>](CAPABILITIES.es.md) · **فارسی**
+[گالری بازبینی بصری](VISUAL-REVIEW.fa.md) و [فهرست تصویرها](assets/screenshots/README.fa.md) وضعیت رابط را نشان می‌دهند. مجوزدهی بومی و وضعیت واقعی خزانه همچنان مرجع هستند.
 
-نمونه‌های بصری سطوحی که بر اساس قابلیت فعال می‌شوند در [گالری بازبینی بصری](./VISUAL-REVIEW.md) و [فهرست مرجع اسکرین‌شات‌ها](assets/screenshots/README.md) نگهداری می‌شوند؛ از جمله [<bdi dir="ltr">Graph</bdi>](assets/screenshots/graph.png)، [<bdi dir="ltr">Canvas</bdi>](assets/screenshots/canvas.png)، [<bdi dir="ltr">MCP</bdi>](assets/screenshots/mcp-panel.png) و [<bdi dir="ltr">Plugins</bdi>](assets/screenshots/plugins.png). اسکرین‌شات‌ها فقط وضعیت رابط کاربری را نشان می‌دهند؛ مجوزدهی بومی و وضعیت واقعی <bdi dir="ltr">vault</bdi> همچنان مرجع نهایی هستند.
-
-این سند سطوح محصولِ منتشرشده و اعتبارسنجی انتشار برای **<bdi dir="ltr">v1.0.0</bdi>** را پوشش می‌دهد.
-
-معرفی قابلیت‌های کاربرمحور در [`README.md`](../README.md) اصلی (بخش <bdi dir="ltr">Features</bdi>) قرار دارد و مرجع رسمی وضعیت بلوغ قابلیت‌ها [`CAPABILITY-MATURITY.md`](./CAPABILITY-MATURITY.md) است. این صفحه مانیفست تحویل <bdi dir="ltr">v1.0.0</bdi> و فرمان‌های اعتبارسنجی انتشار را دنبال می‌کند.
-
-## موارد موجود در <bdi dir="ltr">v1.0.0</bdi>
+## بخش‌های اصلی
 
 | حوزه | مرجع |
 |---|---|
-| پوسته دسکتاپ (<bdi dir="ltr">Tauri</bdi> 2) | <bdi dir="ltr">`apps/desktop/`</bdi> |
-| هسته <bdi dir="ltr">vault</bdi> و <bdi dir="ltr">indexer</bdi> | <bdi dir="ltr">`crates/vault`, `crates/indexer`</bdi> |
-| <bdi dir="ltr">IPC</bdi> مربوط به <bdi dir="ltr">daemon</bdi> بدون رابط | [`architecture/IPC_DAEMON.md`](./architecture/IPC_DAEMON.md) |
-| رابط ترمینالی | [`architecture/TUI_PARITY.md`](./architecture/TUI_PARITY.md) |
-| سامانه افزونه‌ها (<bdi dir="ltr">safe mode</bdi> و <bdi dir="ltr">marketplace</bdi>) | [`architecture/PLUGIN_SYSTEM.md`](./architecture/PLUGIN_SYSTEM.md) |
-| راهنمای توسعه افزونه و <bdi dir="ltr">hello-world</bdi> | [`plugins/AUTHOR_GUIDE.md`](./plugins/AUTHOR_GUIDE.md) |
-| ۲۲ ابزار <bdi dir="ltr">MCP</bdi> با <bdi dir="ltr">draft</bdi>های بازبینی‌شده | <bdi dir="ltr">`packages/mcp/`</bdi>؛ ممیزی پایدار تغییرات: <bdi dir="ltr">`crates/vault/src/mcp_audit.rs`, `crates/daemon/src/automation_stdio.rs`</bdi> |
-| خروجی‌گیری (<bdi dir="ltr">Pandoc</bdi>) | <bdi dir="ltr">`crates/export-runner`, `@scriptor/export`</bdi> |
-| موتور <bdi dir="ltr">Canvas</bdi> (انتقال <bdi dir="ltr">resvg</bdi> به <bdi dir="ltr">worker</bdi>) | <bdi dir="ltr">`crates/canvas-engine`, `@scriptor/canvas`</bdi> |
-| درخت مجازی‌سازی‌شده <bdi dir="ltr">vault</bdi> | <bdi dir="ltr">`src/components/app/VirtualNoteList.tsx`</bdi> |
-| توکن‌های طراحی (۴۱۴ خط استخراج‌شده) | <bdi dir="ltr">`src/styles/tokens/components.css`</bdi> |
-| آزمون‌های <bdi dir="ltr">visual regression</bdi> | <bdi dir="ltr">`playwright.visual.config.ts`</bdi> |
-| دروازه <bdi dir="ltr">CI</bdi> مبتنی بر <bdi dir="ltr">axe-core</bdi> | <bdi dir="ltr">`check:a11y-axe` در `check:release`</bdi> |
-| اسکرین‌شات‌های مستندات | <bdi dir="ltr">`docs/assets/screenshots/`</bdi> |
-| بسته‌بندی انتشار و شواهد اعتمادِ بدون امضا | <bdi dir="ltr">`scripts/release/`, `.github/workflows/release.yml`</bdi> |
+| پوسته دسکتاپ (Tauri 2) | `apps/desktop/` |
+| هسته خزانه و نمایه‌ساز | `crates/vault`, `crates/indexer` |
+| ارتباط IPC موتور بدون رابط | [IPC](architecture/IPC_DAEMON.md) |
+| رابط ترمینالی | [TUI](architecture/TUI_PARITY.md) |
+| افزونه‌ها، حالت امن و فهرست داخلی | [Plugin system](architecture/PLUGIN_SYSTEM.md) |
+| راهنمای ساخت افزونه و Hello World | [Author guide](plugins/AUTHOR_GUIDE.md) |
+| ۲۲ ابزار MCP با پیش‌نویس قابل‌بازبینی | `packages/mcp/` |
+| خروجی‌گیری با Pandoc | `crates/export-runner`, `@scriptor/export` |
+| موتور Canvas با worker مربوط به resvg | `crates/canvas-engine`, `@scriptor/canvas` |
+| درخت مجازی‌شده خزانه | `src/components/app/VirtualNoteList.tsx` |
+| توکن‌های طراحی | `src/styles/tokens/components.css` |
+| آزمون پسرفت بصری | `playwright.visual.config.ts` |
+| دروازه axe-core در CI | `check:a11y-axe`, `check:release` |
+| تصویرهای مستندات | `docs/assets/screenshots/` |
+| بسته‌بندی انتشار و شواهد سیاست بدون امضا | `scripts/release/`, `.github/workflows/release.yml` |
 
-## موتور <bdi dir="ltr">Headless</bdi>
+ممیزی پایدار تغییرهای MCP در `crates/vault/src/mcp_audit.rs` و `crates/daemon/src/automation_stdio.rs` قرار دارد.
 
-وقتی **<bdi dir="ltr">Settings</bdi> → <bdi dir="ltr">Headless engine</bdi>** فعال باشد، نمایه‌سازی، جست‌وجو، <bdi dir="ltr">backlink</bdi>ها، <bdi dir="ltr">graph</bdi>، وضعیت <bdi dir="ltr">Git</bdi>، تشخیص‌های سلامت، ذخیره/تغییرنام یادداشت و <bdi dir="ltr">job</bdi>های خروجی‌گیری از <bdi dir="ltr">daemon</bdi> محلی عبور می‌کنند. بازکردن <bdi dir="ltr">vault</bdi>، <bdi dir="ltr">scan</bdi> و <bdi dir="ltr">Canvas</bdi> برای پاسخ‌گویی سریع داخل همان فرایند باقی می‌مانند. برای جزئیات به [`architecture/IPC_DAEMON.md`](./architecture/IPC_DAEMON.md) مراجعه کنید.
+## گردش‌کارهای آزمایشی
 
-## اعتبارسنجی انتشار
-
-</div>
-
-<div dir="ltr">
-
-<div dir="ltr">
-```powershell
-pnpm check:release   # Full local release gate (includes axe-core CI gate)
-pnpm check:daemon    # IPC smoke
-pnpm check:tui       # Terminal UI smoke
-pnpm check:a11y      # Static accessibility checks
-pnpm check:a11y-axe  # axe-core WCAG 2a/2aa/2.1aa automated audit
-pnpm check:plugins   # Plugin manifest + marketplace catalog
-pnpm check:mcp       # MCP tool manifest validation
-pnpm check:contracts # TypeScript contract packages
-pnpm check:canvas    # Canvas engine contracts
-pnpm check:editor    # Editor engine contracts
-pnpm check:renderer  # Renderer contracts
-pnpm check:export    # Export pipeline contracts
-pnpm check:knowledge # Knowledge graph contracts
-pnpm check:citations # Citation engine contracts
-pnpm check:headless  # Headless runner contracts
-pnpm check:perf      # Performance baseline check
-pnpm test:rust       # Rust unit and integration tests
-pnpm test:visual     # Visual regression Playwright tests
-pnpm test:e2e        # Playwright end-to-end tests
-```
-</div>
-
-</div>
-
-<div dir="rtl" lang="fa">
-
-<bdi dir="ltr">CI</bdi> همین بررسی‌ها را در [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) تکرار می‌کند.
-
-## اسناد مرتبط
-
-| سند | کاربرد |
+| گردش‌کار | رفتار و راهنما |
 |---|---|
-| [`guides/GETTING_STARTED.md`](./guides/GETTING_STARTED.md) | راهنمای اجرای نخست |
-| [`release/PANDOC_STRATEGY.md`](./release/PANDOC_STRATEGY.md) | پیش‌نیازهای خروجی‌گیری |
-| [`release/SIGNING.md`](./release/SIGNING.md) | سیاست اعتماد و امضای نصب‌کننده‌ها |
-| [`../PRODUCT.md`](../PRODUCT.md) | اصول محصول |
-| [`../CHANGELOG.md`](../CHANGELOG.md) | تاریخچه انتشارها |
+| فایل‌های مستقل منبع | ویرایش LaTeX، کد و قالب‌های متنی مرتبط با ذخیره محافظت‌شده؛ اجرا و کامپایل باید صریحاً آغاز شوند. [وضعیت بلوغ](CAPABILITY-MATURITY.md) را ببینید. |
+| اتصال‌های گوگل | اتصال مستقل حساب‌ها، نسخه‌های بررسی‌شده Drive/Docs، برنامه‌ریزی Calendar/Tasks و ایمیل اختیاری. [راهنمای گوگل](guides/GOOGLE_INTEGRATIONS.fa.md) را ببینید. |
+| تبادل با Overleaf | تبادل بررسی‌شده فایل منبع از طریق Git با میزبان ثابت. [معماری](ARCHITECTURE.fa.md) را ببینید. |
+| نشست اجرا و بررسی معنایی | اجرای کد با مجوز و بررسی بردارهای وابسته به سرویس. شواهد بومی، سرویس و بسته نصب، [دروازه‌های مستقل](VERIFICATION.fa.md) دارند. |
+| ترکیب فضای کاری | بخش‌های اصلی و جانبی، پنل‌های جابه‌جاشدنی و میانبرهای قابل‌تنظیم؛ میانبر پنهان از پالت فرمان بازیابی می‌شود. [شروع کار](guides/GETTING_STARTED.fa.md) را ببینید. |
+
+## موتور بدون رابط
+
+با فعال شدن **Settings → Headless engine**، نمایه‌سازی، جست‌وجو، پیوندهای بازگشتی، گراف، وضعیت Git، تشخیص سلامت، ذخیره و تغییرنام یادداشت و خروجی‌گیری از daemon محلی عبور می‌کنند. باز کردن خزانه، اسکن و Canvas برای پاسخ سریع در همان فرایند باقی می‌مانند. [قرارداد IPC](architecture/IPC_DAEMON.md) مرز را توضیح می‌دهد.
+
+## راستی‌آزمایی
+
+روش‌ها در [راهنمای مشارکت](../CONTRIBUTING.fa.md)، نتیجه‌های فعلی و دروازه‌های باز در [گزارش راستی‌آزمایی](VERIFICATION.fa.md) هستند. همه بررسی‌های اجرایی این بازبینی روی workerهای GitHub انجام می‌شوند. داده آزمون مرورگر، رفتار و چیدمان کنترل‌شده را نشان می‌دهد؛ دسترسی واقعی به سرویس، کارکرد نسخه نصب‌شده یا آمادگی انتشار را ثابت نمی‌کند. شواهد گردش‌کار باید شناسه commit و فایل‌های تشخیصی را حفظ کنند.
 
 </div>
 
+<div dir="ltr">
+
+```powershell
+pnpm check:release
+pnpm check:daemon
+pnpm check:tui
+pnpm check:a11y
+pnpm check:a11y-axe
+pnpm check:plugins
+pnpm check:mcp
+pnpm check:contracts
+pnpm check:canvas
+pnpm check:editor
+pnpm check:renderer
+pnpm check:export
+pnpm check:knowledge
+pnpm check:citations
+pnpm check:headless
+pnpm check:perf
+pnpm test:rust
+pnpm test:visual
+pnpm test:e2e
+```
+
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
+[CI](../.github/workflows/ci.yml)
+
+## سندهای مرتبط
+
+[پیش‌نیاز Pandoc](release/PANDOC_STRATEGY.md) · [اعتماد نصب‌کننده](release/SIGNING.md) · [اصول محصول](../PRODUCT.md) · [تغییرات](../CHANGELOG.md)
 
 </div>

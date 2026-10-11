@@ -1,10 +1,31 @@
-import { defineConfig } from 'vite'
+import { createRequire } from 'node:module'
+import { defineConfig, normalizePath } from 'vite'
+import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+
+// These packages' browser exports access document/DOMParser during import.
+// Their default exports are also their documented worker exports. Resolve from
+// the actual importer so pnpm's transitive packages need no hoisted paths.
+function workerSafeMarkdownDependencies(): Plugin {
+  return {
+    name: 'scriptor-worker-safe-markdown-dependencies',
+    enforce: 'pre',
+    resolveId(source, importer) {
+      if (!importer || ![
+        'decode-named-character-reference',
+        'hast-util-from-html-isomorphic',
+      ].includes(source)) return null
+      return normalizePath(createRequire(importer).resolve(source))
+    },
+  }
+}
 
 // Monaco web workers — see src/lib/monaco-environment.ts (MonacoEnvironment.getWorker)
 // https://github.com/microsoft/monaco-editor/blob/main/docs/integrate-esm.md#using-vite
 export default defineConfig({
-  plugins: [react()],
+  // Dev workers share the main plugin pipeline; only these two equivalent
+  // Markdown utilities use the DOM-independent implementation there.
+  plugins: [react(), { ...workerSafeMarkdownDependencies(), apply: 'serve' }],
   resolve: {
     // Linked workspace packages can otherwise resolve a different React copy
     // from pnpm's virtual store, which breaks hooks in production bundles.
@@ -19,6 +40,8 @@ export default defineConfig({
   // origin fetch with no module graph, which works under any protocol.
   worker: {
     format: 'iife',
+    // Build workers have their own plugin pipeline and need fresh instances.
+    plugins: () => [workerSafeMarkdownDependencies()],
   },
   build: {
     manifest: true,

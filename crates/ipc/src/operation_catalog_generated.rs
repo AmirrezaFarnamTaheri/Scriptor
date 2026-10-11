@@ -1,6 +1,7 @@
 // GENERATED from contracts/operations.json. Do not edit by hand.
 /// Daemon RPC operation names and their allowed boundary outcomes.
 pub const RPC_OPERATION_CATALOG: &[(&str, &[&str])] = &[
+    ("EmbeddingsInspect", &["value", "invalid", "failed"]),
     (
         "Backlinks",
         &["value", "absent-optional", "degraded", "failed"],

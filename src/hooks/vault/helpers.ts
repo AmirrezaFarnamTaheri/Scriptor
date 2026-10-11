@@ -1,4 +1,5 @@
 import type { ScannedEntry, VaultSection } from '../../types/vault'
+import { isSourceFilePath } from '../../lib/sourceFile.ts'
 
 export interface OutlineHeading {
   label: string
@@ -48,7 +49,7 @@ export function isReaderDocumentPath(path: string): boolean {
 
 export function buildVaultSections(entries: ScannedEntry[]): VaultSection[] {
   const visibleEntries = entries.filter(
-    (entry) => entry.kind === 'note' || (entry.kind === 'asset' && isReaderDocumentPath(entry.path)),
+    (entry) => entry.kind === 'note' || (entry.kind === 'asset' && (isReaderDocumentPath(entry.path) || isSourceFilePath(entry.path))),
   )
   return buildVaultSectionsFromPaths(visibleEntries.map((entry) => entry.path))
 }

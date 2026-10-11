@@ -202,6 +202,7 @@ export async function daemonExportRunNote(
   dryRun = false,
   extraPandocArgs: string[] = [],
   outputSubdirectory?: string,
+  expectedVaultId?: string,
 ): Promise<import('../../types/vault').ExportJobOutput> {
   requireNative()
   await ensureVaultBarrier()
@@ -211,6 +212,7 @@ export async function daemonExportRunNote(
     dryRun,
     extraPandocArgs,
     outputSubdirectory: outputSubdirectory ?? null,
+    expectedVaultId: expectedVaultId ?? null,
   })
   return parseExportJobOutput(payload)
 }
@@ -222,8 +224,10 @@ export async function daemonExportRunMarkdown(
   dryRun = false,
   extraPandocArgs: string[] = [],
   outputSubdirectory?: string,
+  expectedVaultId?: string,
 ): Promise<import('../../types/vault').ExportJobOutput> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_export_run_markdown', {
     notePath,
     sourceMarkdown,
@@ -231,6 +235,7 @@ export async function daemonExportRunMarkdown(
     dryRun,
     extraPandocArgs,
     outputSubdirectory: outputSubdirectory ?? null,
+    expectedVaultId: expectedVaultId ?? null,
   })
   return parseExportJobOutput(payload)
 }

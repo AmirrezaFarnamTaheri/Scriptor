@@ -1,6 +1,9 @@
 //! Derived cache: parsing, incremental indexing, health reports, and citation validation.
 
+pub mod asset_usage;
 pub mod bibliography;
+pub mod canvas_relations;
+pub use canvas_relations::{CanvasRelationSyncReport, sync_canvas_relations};
 pub mod citation;
 pub mod citations;
 pub mod db;

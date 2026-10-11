@@ -132,7 +132,7 @@ export const TagBrowserPanel = memo(function TagBrowserPanel({
         const summaries = await indexerListTags()
         if (cancelled) return
         setTags(summaries)
-        setLoadStatus(summaries.length === 0 ? 'No tags indexed yet.' : `${summaries.length} tags`)
+        setLoadStatus(summaries.length === 0 ? 'No tags indexed yet.' : `${summaries.length} ${summaries.length === 1 ? 'tag' : 'tags'}`)
       } catch (error) {
         if (!cancelled) {
           setLoadStatus(error instanceof Error ? error.message : 'Could not load tags')
@@ -219,7 +219,7 @@ export const TagBrowserPanel = memo(function TagBrowserPanel({
   )
 
   if (embedded) {
-    return <div className="knowledge-workbench-embed">{body}</div>
+    return <div className="knowledge-workbench-embed tag-browser-embed">{body}</div>
   }
 
   return (

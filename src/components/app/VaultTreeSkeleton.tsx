@@ -1,3 +1,5 @@
+import '../../styles/components/vault-skeleton.css'
+
 export function VaultTreeSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <div className="vault-tree-skeleton" aria-hidden="true">

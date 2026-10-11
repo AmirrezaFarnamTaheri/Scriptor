@@ -85,9 +85,23 @@ pub fn capture_url(raw_url: &str, opts: CaptureOptions) -> Result<CaptureResult,
         timeout_secs: opts.timeout_secs,
     };
     let response = fetch::fetch_html(raw_url, &fetch_opts)?;
+    capture_html(&response.html, &response.final_url, opts)
+}
+
+/// Extract already-fetched HTML; adapters may enforce their own scoped network policy.
+pub fn capture_html(
+    html: &str,
+    final_url: &str,
+    opts: CaptureOptions,
+) -> Result<CaptureResult, CaptureError> {
+    if html.len() > opts.max_bytes {
+        return Err(CaptureError::Markdown(
+            "HTML exceeds capture size bound".into(),
+        ));
+    }
 
     // 2. Sanitize (ammonia) + extract (readability-style)
-    let extracted = extract::extract_content(&response.html, &response.final_url)?;
+    let extracted = extract::extract_content(html, final_url)?;
 
     // 3. Convert to Markdown
     let md = to_markdown::convert(&extracted.body_html, opts.include_tables, opts.include_math)
@@ -96,7 +110,7 @@ pub fn capture_url(raw_url: &str, opts: CaptureOptions) -> Result<CaptureResult,
     let word_count = extracted.body_html.split_whitespace().count();
 
     Ok(CaptureResult {
-        url: response.final_url,
+        url: final_url.to_string(),
         title: extracted.title,
         site_name: extracted.site_name,
         published_at: extracted.published_at,

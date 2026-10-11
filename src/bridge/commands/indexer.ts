@@ -196,6 +196,7 @@ export interface KanbanBoardRow {
 export async function indexerQueryTasks(
   filter: TaskQueryFilter = {},
   limit = 200,
+  offset = 0,
 ): Promise<TaskRow[]> {
   requireNative()
   return invoke<TaskRow[]>('indexer_query_tasks', {
@@ -204,6 +205,7 @@ export async function indexerQueryTasks(
     dueBefore: filter.dueBefore ?? null,
     dueAfter: filter.dueAfter ?? null,
     limit,
+    offset,
   })
 }
 

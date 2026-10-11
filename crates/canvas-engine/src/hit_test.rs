@@ -139,6 +139,7 @@ mod tests {
                     stroke_points: None,
                 },
             ],
+            relations: Vec::new(),
             updated_at: "2026-06-20T00:00:00Z".into(),
         }
     }

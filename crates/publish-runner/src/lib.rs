@@ -18,6 +18,6 @@ pub use compile::{LocalDirSink, PublishApplyInput, PublishApplyOutput, publish_a
 pub use error::PublishError;
 pub use local_site::{
     PUBLISH_STATE_FILE, StarlightSite, apply_starlight_site, plan_starlight_site,
-    resolve_output_path,
+    resolve_output_path, verify_trusted_scaffold,
 };
 pub use plan::{BucketState, PublishCandidate, PublishPlan, PublishPlanOptions, plan_publish};

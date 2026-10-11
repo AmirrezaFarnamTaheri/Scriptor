@@ -7,9 +7,9 @@ use scriptor_indexer::{
     list_bibliography_entries, list_dead_end_notes, list_inbox_notes, list_note_summaries,
     list_orphan_notes, list_recent_files, list_unresolved_link_targets, list_vault_tags,
     load_note_metadata, move_card_in_markdown, note_paths_and_aliases, notes_for_tag,
-    open_cache_for_session, parse_kanban, query_focused_graph, query_tasks, rebuild_index,
-    record_recent_access, resolve_wikilink_target_with_aliases, rewrite_task_markdown,
-    search_notes, sync_note_tasks_from_markdown, task_by_id, traverse_graph,
+    open_cache_for_session, parse_kanban, query_focused_graph, rebuild_index, record_recent_access,
+    resolve_wikilink_target_with_aliases, rewrite_task_markdown, search_notes,
+    sync_note_tasks_from_markdown, task_by_id, traverse_graph,
 };
 use scriptor_vault::{
     RelativeVaultPath, SaveNoteOptions, load_vault_config, read_note, save_note_with_options,
@@ -23,6 +23,21 @@ use super::daemon::{
     bridge_rebuild_index, bridge_search, bridge_update_note_index,
 };
 use super::shared::parse_daemon_json;
+
+#[tauri::command]
+pub fn indexer_asset_usage(
+    state: tauri::State<AppState>,
+    expected_vault_id: String,
+) -> Result<scriptor_indexer::asset_usage::AssetUsageReport, String> {
+    let session = active_session(&state)?;
+    crate::commands::vault::validate_expected_vault(
+        &session.descriptor.id,
+        Some(&expected_vault_id),
+    )?;
+    let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
+    scriptor_indexer::asset_usage::list_asset_usage(&cache, &session)
+        .map_err(|error| error.to_string())
+}
 
 fn require_graph_capability<'a>(
     state: &'a tauri::State<'a, AppState>,
@@ -325,6 +340,7 @@ pub fn indexer_query_tasks(
     due_before: Option<String>,
     due_after: Option<String>,
     limit: Option<u32>,
+    offset: Option<u32>,
 ) -> Result<Vec<TaskRow>, String> {
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|e| e.to_string())?;
@@ -334,11 +350,12 @@ pub fn indexer_query_tasks(
         due_before,
         due_after,
     };
-    query_tasks(
+    scriptor_indexer::tasks::query_tasks_page(
         &cache,
         &session.descriptor.id,
         &filter,
-        limit.unwrap_or(200),
+        limit.unwrap_or(200).min(1_000),
+        offset.unwrap_or(0),
     )
     .map_err(|e| e.to_string())
 }

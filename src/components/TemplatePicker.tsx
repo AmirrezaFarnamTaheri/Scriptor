@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { FileText, FilePlus2 } from 'lucide-react'
+import { FileText, FilePlus2, X } from 'lucide-react'
 import type { TemplateDefinition } from '../lib/knowledge/templates'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -79,7 +79,7 @@ export function TemplatePicker({ templates, onSelect, onClose }: TemplatePickerP
         <header className="template-picker__header">
           <h2 className="template-picker__title">New note from template</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
-            ×
+            <X aria-hidden="true" />
           </button>
         </header>
 

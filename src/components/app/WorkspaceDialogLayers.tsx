@@ -243,6 +243,10 @@ function WorkspaceDialogLayersImpl({
         >
           <Suspense fallback={<PanelFallback />}>
             <VaultHealthDashboard
+              key={workspace.vault?.id}
+              expectedVaultId={workspace.vault?.id}
+              onRepairsApplied={workspace.refreshVault}
+              runSourceNoteMutation={workspace.runNoteMutation}
               diagnostics={workspace.healthDiagnostics}
               inspectorWidgets={plugins.contributions.inspectorWidgets}
               vaultHealthChecks={plugins.contributions.vaultHealthChecks}
@@ -276,12 +280,14 @@ function WorkspaceDialogLayersImpl({
         >
           <Suspense fallback={<PanelFallback />}>
             <KnowledgeWorkbench
+              key={workspace.vault?.id ?? 'no-vault'}
               vaultOpen={Boolean(workspace.vault)}
               vaultId={workspace.vault?.id}
               initialTab={knowledgeWorkbenchTab}
               activePath={workspace.activePath}
               onClose={onCloseKnowledgeWorkbench}
               onOpenNote={onOpenNoteFromWorkbench}
+              runSourceNoteMutation={workspace.runNoteMutation}
               onOpenGraph={onOpenGraphFromWorkbench}
               onCreateNoteFromWikilink={onCreateNoteFromWikilink}
               onInsertTag={onInsertTagFromWorkbench}

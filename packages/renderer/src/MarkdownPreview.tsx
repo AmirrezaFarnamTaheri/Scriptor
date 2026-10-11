@@ -12,6 +12,7 @@ import 'highlight.js/styles/github.min.css'
 
 import { renderMermaidDiagrams } from './mermaid-client.ts'
 import { renderPlantUmlDiagrams } from './plantuml-client.ts'
+import { renderGraphvizDiagrams } from './graphviz-client.ts'
 import { attachPreviewCodeCopy } from './code-copy.ts'
 import { hydrateDqlBlocks, type DqlResultRow } from './dql-client.ts'
 import { hydrateMpeCodeChunks } from './mpe-client.ts'
@@ -335,6 +336,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       const root = contentRef.current
       if (!html || !root) return undefined
       let cancelled = false
+      const graphvizAbort = new AbortController()
       let detachZoom: (() => void) | undefined
       let detachCopy: (() => void) | undefined
 
@@ -371,6 +373,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         } catch (error) {
           warnings.push(previewEnhancementWarning('Mermaid rendering', error))
         }
+        await runEnhancement('Graphviz rendering', () => renderGraphvizDiagrams(root, graphvizAbort.signal), warnings)
         await runEnhancement(
           'PlantUML rendering',
           () =>
@@ -433,6 +436,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
 
       return () => {
         cancelled = true
+        graphvizAbort.abort()
         detachZoom?.()
         detachCopy?.()
       }

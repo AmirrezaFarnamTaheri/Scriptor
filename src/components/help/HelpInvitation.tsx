@@ -1,8 +1,10 @@
 import type { HelpLabels } from '../../lib/help/labels'
 import type { HelpGuide } from '../../lib/help/types'
+import type { HelpLocale } from '../../lib/help/translationTypes'
 
 interface HelpInvitationProps {
   guide: HelpGuide
+  locale: HelpLocale
   labels: HelpLabels
   onGuide: () => void
   onTour: () => void
@@ -13,12 +15,12 @@ interface HelpInvitationProps {
  * One-time, non-modal orientation for complex surfaces. It never starts a tour
  * or mutates the feature by itself; users explicitly choose Guide or Tour.
  */
-export function HelpInvitation({ guide, labels, onGuide, onTour, onDismiss }: HelpInvitationProps) {
+export function HelpInvitation({ guide, locale, labels, onGuide, onTour, onDismiss }: HelpInvitationProps) {
   return (
-    <aside className="help-invitation help-ui" role="region" aria-labelledby="help-invitation-title">
+    <aside className="help-invitation help-ui" role="region" aria-labelledby="help-invitation-title" lang={locale} dir={locale === 'fa' ? 'rtl' : 'ltr'}>
       <div className="help-invitation-copy">
         <p className="help-eyebrow">{labels.firstOpen}</p>
-        <h2 id="help-invitation-title" lang="en" dir="ltr">{guide.title}</h2>
+        <h2 id="help-invitation-title">{guide.title}</h2>
         <p>{labels.firstOpenBody}</p>
       </div>
       <div className="help-invitation-actions">

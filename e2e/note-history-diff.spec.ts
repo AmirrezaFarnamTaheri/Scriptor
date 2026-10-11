@@ -20,7 +20,7 @@ async function openHistory(page: Page) {
   const panel = page.getByRole('dialog', { name: 'Note history' })
   await expect(panel).toBeVisible({ timeout: 20_000 })
   // Revisions are what the diff is computed from, so wait for at least one.
-  await expect(panel.getByText(/words/)).toBeVisible({ timeout: 20_000 })
+  await expect(panel.getByRole('list', { name: 'Saved revisions', exact: true }).getByText(/\d+ words$/).first()).toBeVisible({ timeout: 20_000 })
   return panel
 }
 

@@ -1,7 +1,21 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
 export const E2E_SEARCH_MARKER = 'e2e-workspace-marker'
+
+/** Close an owned workspace through its tab; standalone dialogs own their close. */
+export async function workspacePanelCloseButton(page: Page, panel: Locator) {
+  const group = await panel.evaluate(element => {
+    const owner = element.closest('.workspace-leaf-content')
+    return owner ? (owner.classList.contains('secondary') ? 'secondary' : 'primary') : null
+  })
+  return group
+    ? page.locator(`.workspace-group-heading.${group} .workspace-leaf-actions > button`).last()
+    : panel.getByRole('button', { name: /^Close/i }).first()
+}
+export async function closeWorkspacePanel(page: Page, panel: Locator) {
+  await (await workspacePanelCloseButton(page, panel)).click()
+}
 
 // The production workspace-chrome store is versioned. Seed the same envelope
 // shape in E2E so tests exercise their requested preferences instead of having
@@ -79,6 +93,10 @@ export async function launchApp(page: Page, options: { theme?: string; showFirst
   return page
 }
 
+// Match the native dialog's actual accessible name in the three supported
+// locales. This helper is used by localized keyboard-navigation regressions.
+const PALETTE_DIALOG_NAME = /^(?:Command palette|Befehlspalette|پالت دستورات)$/u
+
 export async function openCommandPalette(page: Page) {
   // Opening the palette before the workspace finishes booting drops the global
   // keyboard handler. This is especially visible on a cold CI worker where the
@@ -87,7 +105,7 @@ export async function openCommandPalette(page: Page) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const navigationTimeOrigin = await page.evaluate(() => performance.timeOrigin)
     await page.keyboard.press('Control+KeyK')
-    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    const palette = page.getByRole('dialog', { name: PALETTE_DIALOG_NAME })
     try {
       await expect(palette).toBeVisible({ timeout: 10_000 })
       return
@@ -125,7 +143,7 @@ function escapeRegExp(value: string): string {
  */
 export async function runCommand(page: Page, commandLabel: string) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    const palette = page.getByRole('dialog', { name: PALETTE_DIALOG_NAME })
     await palette.getByRole('searchbox').fill(commandLabel)
     const option = palette.getByRole('option').first()
     await expect(
@@ -186,26 +204,64 @@ export async function settleLayout(page: Page) {
     await page.waitForLoadState('domcontentloaded')
     try {
       await page.evaluate(async () => {
-        await document.fonts.ready
-        await Promise.all(
-          Array.from(document.images)
-            .filter((image) => image.getBoundingClientRect().width > 0)
+        async function waitForStage<T>(pending: Promise<T>, stage: string, details: () => string = () => ''): Promise<T> {
+          let timer: number | undefined
+          try {
+            return await Promise.race([
+              pending,
+              new Promise<never>((_resolve, reject) => {
+                timer = window.setTimeout(() => reject(new Error(`Layout settling timed out at ${stage}: ${details()}`)), 15_000)
+              }),
+            ])
+          } finally {
+            window.clearTimeout(timer)
+          }
+        }
+        await waitForStage(document.fonts.ready, 'fonts', () => document.fonts.status)
+        const visibleImages = Array.from(document.images).filter(image => image.getBoundingClientRect().width > 0)
+        await waitForStage(Promise.all(
+          visibleImages
             .map(async (image) => {
               if (!image.complete) await image.decode()
               if (image.naturalWidth === 0) {
                 throw new Error(`Visible image failed to load: ${image.currentSrc || image.src}`)
               }
             }),
-        )
+        ), 'visible images', () => visibleImages.filter(image => !image.complete || image.naturalWidth === 0)
+          .slice(0, 5).map(image => image.currentSrc || image.src).join(', '))
         window.dispatchEvent(new Event('resize'))
-        const finiteAnimations = document.getAnimations().filter((animation) => {
+        const runningFiniteAnimations = () => document.getAnimations().filter((animation) => {
           const endTime = animation.effect?.getComputedTiming().endTime
-          return typeof endTime === 'number' && Number.isFinite(endTime)
+          return animation.playState === 'running' && animation.playbackRate !== 0
+            && typeof endTime === 'number' && Number.isFinite(endTime)
         })
-        await Promise.allSettled(finiteAnimations.map((animation) => animation.finished))
-        await new Promise<void>((resolve) => {
+        // A CSS transition can be replaced or cancelled between enumeration
+        // and reading Animation.finished. Its replacement promise then never
+        // settles even though the animation is already idle. Observe current
+        // states over two paint frames instead of retaining stale promises.
+        let animationFrame: number | undefined
+        try {
+          await waitForStage(new Promise<void>((resolve) => {
+            let stableFrames = 0
+            const checkAnimations = () => {
+              stableFrames = runningFiniteAnimations().length === 0 ? stableFrames + 1 : 0
+              if (stableFrames >= 2) resolve()
+              else animationFrame = requestAnimationFrame(checkAnimations)
+            }
+            checkAnimations()
+          }), 'running animations', () =>
+            runningFiniteAnimations().slice(0, 5).map(animation => {
+              const target = (animation.effect as KeyframeEffect | null)?.target
+              return JSON.stringify({ target: target instanceof Element ? `${target.tagName}.${target.className}` : null,
+                playState: animation.playState, currentTime: String(animation.currentTime),
+                endTime: animation.effect?.getComputedTiming().endTime, playbackRate: animation.playbackRate })
+            }).join('; '))
+        } finally {
+          if (animationFrame !== undefined) cancelAnimationFrame(animationFrame)
+        }
+        await waitForStage(new Promise<void>((resolve) => {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-        })
+        }), 'paint frames')
       })
       break
     } catch (error) {
@@ -278,8 +334,8 @@ export async function waitForWorkspace(page: Page, options: { allowHiddenVaultLi
   })
   const editorSurface = page.locator('.monaco-editor .view-lines, .cm-content')
   // Monaco may have an empty virtualized view while its model is already
-  // authoritative (especially when another panel is opening). Poll the
-  // model first, then retain the DOM assertion as a rendering sanity check.
+  // authoritative. CodeMirror has no Monaco test bridge, so inspect its real
+  // document DOM. Both paths retain the content and rendering assertions.
   await expect
     .poll(
       async () =>
@@ -287,7 +343,9 @@ export async function waitForWorkspace(page: Page, options: { allowHiddenVaultLi
           const editor = (window as Window & {
             __scriptorE2eEditor?: { getModel?: () => { getValue?: () => string } | null }
           }).__scriptorE2eEditor
-          return editor?.getModel?.()?.getValue?.() ?? ''
+          return editor?.getModel?.()?.getValue?.()
+            ?? document.querySelector('.cm-content')?.textContent
+            ?? ''
         }),
       { timeout: 45_000 },
     )

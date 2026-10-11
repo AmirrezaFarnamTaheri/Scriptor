@@ -305,14 +305,28 @@ fn frontmatter_probe_publish_true(text: &str) -> Option<bool> {
     }
 
     let mut publish_true = false;
+    let mut publish_seen = false;
     for line in lines {
         let line = line.trim_end_matches('\r');
         let trimmed = line.trim();
         if trimmed == "---" || trimmed == "..." {
             return Some(publish_true);
         }
-        if line == "publish: true" {
-            publish_true = true;
+        // This gate supports canonical plain keys only. Quoted/explicit/flow
+        // keys can alias "publish" through YAML escapes; decline publication
+        // rather than interpret a partial YAML grammar as a privacy decision.
+        if trimmed.starts_with(['\'', '"', '?', '&', '*', '{', '[']) {
+            return Some(false);
+        }
+        if line
+            .split_once(':')
+            .is_some_and(|(key, _)| key.trim() == "publish")
+        {
+            if publish_seen {
+                return Some(false);
+            }
+            publish_seen = true;
+            publish_true = line == "publish: true";
         }
     }
 
@@ -333,19 +347,51 @@ pub(crate) fn frontmatter_has_publish_true(text: &str) -> bool {
     }
 
     let mut publish_true = false;
+    let mut publish_seen = false;
     for line in lines {
         let line = line.trim_end_matches('\r');
         let trimmed = line.trim();
         if trimmed == "---" || trimmed == "..." {
             return publish_true; // end of complete frontmatter
         }
-        if line == "publish: true" {
-            publish_true = true;
+        if trimmed.starts_with(['\'', '"', '?', '&', '*', '{', '[']) {
+            return false;
+        }
+        if line
+            .split_once(':')
+            .is_some_and(|(key, _)| key.trim() == "publish")
+        {
+            if publish_seen {
+                return false;
+            }
+            publish_seen = true;
+            publish_true = line == "publish: true";
         }
     }
 
     // Unterminated frontmatter is malformed and must never opt a note in.
     false
+}
+
+#[cfg(test)]
+mod privacy_regressions {
+    use super::frontmatter_has_publish_true;
+    #[test]
+    fn duplicate_publish_fields_never_grant_publication() {
+        for yaml in [
+            "publish: true\npublish: false",
+            "publish: false\npublish: true",
+            "publish: true\npublish: true",
+            "publish: true\n\"publish\": false",
+            "publish: true\n'publish': false",
+            "publish: true\npublish : false",
+            "publish: true\n\"\\u0070ublish\": false",
+        ] {
+            assert!(!frontmatter_has_publish_true(&format!(
+                "---\n{yaml}\n---\nBody"
+            )));
+        }
+    }
 }
 
 // ── Glob helpers ──────────────────────────────────────────────────────────────

@@ -196,13 +196,18 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
             {tab !== 'placeholders' && activeNotes.length > 0 ? (
               <div className="knowledge-triage-bar">
                 {triageNote ? (
-                  <span className="health-subtitle">
-                    {t('knowledge.filters.triageProgress', {
-                      current: (triageIndex ?? 0) + 1,
-                      count: activeNotes.length,
-                      title: triageNote.title,
-                    })}
-                  </span>
+                  <>
+                    <span className="health-subtitle">
+                      {t('knowledge.filters.triageProgress', {
+                        current: (triageIndex ?? 0) + 1,
+                        count: activeNotes.length,
+                        title: triageNote.title,
+                      })}
+                    </span>
+                    <button type="button" className="toolbar-button" onClick={() => triageNext(triageNote.path)}>
+                      {t('actions.next')}
+                    </button>
+                  </>
                 ) : (
                   <button type="button" className="toolbar-button" onClick={startTriage}>
                     {t('knowledge.filters.startTriage', { count: activeNotes.length })}
@@ -259,9 +264,6 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
               <VirtualKnowledgeNoteList
                 notes={activeNotes}
                 onOpenNote={onOpenNote}
-                triageLabel={t('actions.next')}
-                triageActionPath={triageNote?.path}
-                onTriageNext={triageNote ? triageNext : undefined}
               />
             )}
           </>

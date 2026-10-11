@@ -13,7 +13,7 @@ import {
   type ReactNode
 } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowDown, ArrowUp, Settings2, SlidersHorizontal } from 'lucide-react'
+import { ArrowDown, ArrowUp, Settings2, SlidersHorizontal, X } from 'lucide-react'
 import { ToolbarPopover } from '../ToolbarPopover'
 import { useI18n } from '../../lib/i18n'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
@@ -353,7 +353,7 @@ function CustomizableToolbarImpl({ children, extras = [] }: CustomizableToolbarP
                 <h2 id={`${customizerId}-title`}>{t('customizableToolbar.customize')}</h2>
                 <p>{t('customizableToolbar.helperText')}</p>
               </div>
-              <button type="button" className="toolbar-customizer-close" onClick={closeCustomizer} aria-label={t('customizableToolbar.cancel')}>×</button>
+              <button type="button" className="icon-button toolbar-customizer-close" onClick={closeCustomizer} aria-label={t('customizableToolbar.cancel')}><X aria-hidden="true" /></button>
             </header>
             {storageError && <p className="toolbar-customizer-warning" role="status">{t('customizableToolbar.storageWarning')}</p>}
             <div className="toolbar-customizer-list">
@@ -368,10 +368,10 @@ function CustomizableToolbarImpl({ children, extras = [] }: CustomizableToolbarP
                     <span>{tool.label}</span>
                   </label>
                   <div className="toolbar-customize-order" aria-label={t('customizableToolbar.order', { label: tool.label })}>
-                    <button type="button" aria-label={t('customizableToolbar.moveEarlier', { label: tool.label })} disabled={index === 0} onClick={() => moveDraftTool(index, -1)}>
+                    <button type="button" className="icon-button" aria-label={t('customizableToolbar.moveEarlier', { label: tool.label })} disabled={index === 0} onClick={() => moveDraftTool(index, -1)}>
                       <ArrowUp size={14} aria-hidden="true" />
                     </button>
-                    <button type="button" aria-label={t('customizableToolbar.moveLater', { label: tool.label })} disabled={index === draftOrdered.length - 1} onClick={() => moveDraftTool(index, 1)}>
+                    <button type="button" className="icon-button" aria-label={t('customizableToolbar.moveLater', { label: tool.label })} disabled={index === draftOrdered.length - 1} onClick={() => moveDraftTool(index, 1)}>
                       <ArrowDown size={14} aria-hidden="true" />
                     </button>
                   </div>
@@ -395,7 +395,7 @@ function CustomizableToolbarImpl({ children, extras = [] }: CustomizableToolbarP
                       }}
                     />
                     {tool.hasCustomWidth && (
-                      <button type="button" onClick={() => updateDraftTool(tool.id, { width: DEFAULT_WIDTH, hasCustomWidth: false })}>
+                      <button type="button" className="toolbar-button" onClick={() => updateDraftTool(tool.id, { width: DEFAULT_WIDTH, hasCustomWidth: false })}>
                         {t('customizableToolbar.auto')}
                       </button>
                     )}
@@ -404,10 +404,10 @@ function CustomizableToolbarImpl({ children, extras = [] }: CustomizableToolbarP
               ))}
             </div>
             <footer className="toolbar-customizer-actions">
-              <button type="button" onClick={resetDraft}>{t('customizableToolbar.reset')}</button>
+              <button type="button" className="toolbar-button" onClick={resetDraft}>{t('customizableToolbar.reset')}</button>
               <span className="toolbar-customizer-action-spacer" />
-              <button type="button" onClick={closeCustomizer}>{t('customizableToolbar.cancel')}</button>
-              <button type="button" className="primary" onClick={applyCustomizer}>{t('customizableToolbar.apply')}</button>
+              <button type="button" className="toolbar-button" onClick={closeCustomizer}>{t('customizableToolbar.cancel')}</button>
+              <button type="button" className="primary-button" onClick={applyCustomizer}>{t('customizableToolbar.apply')}</button>
             </footer>
           </section>
         </div>,

@@ -2,68 +2,74 @@
 
 [English](CAPABILITIES.md) · [فارسی](CAPABILITIES.fa.md) · [简体中文](CAPABILITIES.zh-CN.md) · [Русский](CAPABILITIES.ru.md) · [Deutsch](CAPABILITIES.de.md) · **Español**
 
-Las referencias visuales de las superficies sujetas a capacidades se mantienen en la [galería de revisión visual](./VISUAL-REVIEW.md) y en el [inventario canónico de screenshots](assets/screenshots/README.es.md), incluidos [Graph](assets/screenshots/graph.png), [Canvas](assets/screenshots/canvas.png), [MCP](assets/screenshots/mcp-panel.png) y [Plugins](assets/screenshots/plugins.png). Los screenshots solo ilustran el estado de la UI; la autorización nativa y el estado del vault siguen siendo la autoridad.
+Scriptor combina archivos Markdown locales con edición, investigación, publicación y automatización con permisos explícitos. Este mapa describe la superficie actual y sus responsables. El [registro de madurez](CAPABILITY-MATURITY.md) distingue funciones publicadas, experimentales y propuestas de diseño; un control visible no demuestra soporte de producción.
 
-Superficies del producto publicadas y validación de release para **v1.0.0**.
+La [galería visual](VISUAL-REVIEW.es.md) y el [inventario de capturas](assets/screenshots/README.es.md) ilustran estados de la interfaz. La autorización nativa y el estado real del vault siguen siendo la referencia.
 
-El recorrido de funciones para usuarios está en el [`README.es.md`](../README.es.md) principal y la postura de madurez que actúa como fuente de verdad está en [`CAPABILITY-MATURITY.es.md`](./CAPABILITY-MATURITY.es.md). Esta página registra el manifiesto de entrega de v1.0.0 y los comandos de validación de release.
-
-## Incluido en v1.0.0
+## Superficies principales
 
 | Área | Referencia |
 |---|---|
-| Shell de escritorio (Tauri 2) | `apps/desktop/` |
-| Kernel del vault + indexer | `crates/vault`, `crates/indexer` |
-| IPC del daemon headless | [`architecture/IPC_DAEMON.es.md`](./architecture/IPC_DAEMON.es.md) |
-| UI de terminal | [`architecture/TUI_PARITY.es.md`](./architecture/TUI_PARITY.es.md) |
-| Sistema de plugins (safe mode + marketplace) | [`architecture/PLUGIN_SYSTEM.es.md`](./architecture/PLUGIN_SYSTEM.es.md) |
-| Guía de autores de plugins + hello-world | [`plugins/AUTHOR_GUIDE.es.md`](./plugins/AUTHOR_GUIDE.es.md) |
-| MCP: 22 herramientas con drafts revisados | `packages/mcp/`; auditoría durable de mutaciones: `crates/vault/src/mcp_audit.rs`, `crates/daemon/src/automation_stdio.rs` |
-| Exportación (Pandoc) | `crates/export-runner`, `@scriptor/export` |
-| Motor Canvas (offload de resvg a worker) | `crates/canvas-engine`, `@scriptor/canvas` |
+| Aplicación de escritorio (Tauri 2) | `apps/desktop/` |
+| Núcleo del vault e indexador | `crates/vault`, `crates/indexer` |
+| IPC del daemon sin interfaz | [IPC](architecture/IPC_DAEMON.md) |
+| Interfaz de terminal | [TUI](architecture/TUI_PARITY.md) |
+| Plugins, modo seguro y catálogo propio | [Plugin system](architecture/PLUGIN_SYSTEM.md) |
+| Guía de autores de plugins y Hello World | [Author guide](plugins/AUTHOR_GUIDE.md) |
+| 22 herramientas MCP con borradores revisados | `packages/mcp/` |
+| Exportación con Pandoc | `crates/export-runner`, `@scriptor/export` |
+| Motor Canvas con worker resvg | `crates/canvas-engine`, `@scriptor/canvas` |
 | Árbol virtualizado del vault | `src/components/app/VirtualNoteList.tsx` |
-| Tokens de diseño (414 líneas extraídas) | `src/styles/tokens/components.css` |
-| Pruebas de regresión visual | `playwright.visual.config.ts` |
-| Gate CI de axe-core | `check:a11y-axe` en `check:release` |
-| Screenshots de documentación | `docs/assets/screenshots/` |
-| Empaquetado de release + evidencia de confianza de instaladores sin firmar | `scripts/release/`, `.github/workflows/release.yml` |
+| Tokens de diseño | `src/styles/tokens/components.css` |
+| Regresión visual | `playwright.visual.config.ts` |
+| Control axe-core en CI | `check:a11y-axe`, `check:release` |
+| Capturas de documentación | `docs/assets/screenshots/` |
+| Empaquetado y evidencia de confianza sin firma | `scripts/release/`, `.github/workflows/release.yml` |
 
-## Motor headless
+La auditoría persistente de cambios MCP está en `crates/vault/src/mcp_audit.rs` y `crates/daemon/src/automation_stdio.rs`.
 
-Cuando **Settings → Headless engine** está activado, la indexación, búsqueda, backlinks, grafo, estado Git, diagnósticos de salud, guardado/renombrado de notas y jobs de exportación pasan por el daemon local. Abrir el vault, escanearlo y canvas permanecen in-process para responder con rapidez. Consulte [`architecture/IPC_DAEMON.es.md`](./architecture/IPC_DAEMON.es.md).
+## Flujos experimentales
 
-## Validación de release
+| Flujo | Comportamiento y referencia |
+|---|---|
+| Archivos fuente independientes | Edición de LaTeX, código y formatos de texto relacionados con guardado protegido; ejecución y compilación explícitas. Consulte la [madurez](CAPABILITY-MATURITY.md). |
+| Integraciones Google | Cuentas independientes, revisiones Drive/Docs revisadas, planificación Calendar/Tasks y Gmail opcional. Consulte la [guía Google](guides/GOOGLE_INTEGRATIONS.es.md). |
+| Intercambio Overleaf | Intercambio revisado de fuentes mediante Git con servidor fijo. Consulte la [arquitectura](ARCHITECTURE.es.md). |
+| Sesiones de ejecución e inspección semántica | Ejecución autorizada e inspección de embeddings dependiente del proveedor. Las pruebas nativas, del proveedor y del cliente empaquetado son [requisitos independientes](VERIFICATION.es.md). |
+| Composición del espacio | Paneles principales y laterales, pestañas móviles y accesos personalizables; los ocultos se recuperan desde la paleta. Consulte [Primeros pasos](guides/GETTING_STARTED.es.md). |
+
+## Motor sin interfaz
+
+Con **Settings → Headless engine**, indexación, búsqueda, enlaces inversos, grafo, estado Git, diagnóstico, guardado/renombrado y exportación pasan por el daemon local. Abrir el vault, escanear y Canvas permanecen en el proceso por capacidad de respuesta. Véase el [contrato IPC](architecture/IPC_DAEMON.md).
+
+## Verificación
+
+Los procedimientos están en [CONTRIBUTING.es.md](../CONTRIBUTING.es.md); resultados actuales y controles pendientes, en [VERIFICATION.es.md](VERIFICATION.es.md). Durante esta revisión, toda verificación ejecutable se realiza en workers de GitHub. Los datos controlados del navegador demuestran comportamiento y diseño, no acceso real al proveedor, comportamiento del cliente instalado ni preparación para publicar. Los workflows conservan commit y artefactos de diagnóstico.
 
 ```powershell
-pnpm check:release   # Full local release gate (includes axe-core CI gate)
-pnpm check:daemon    # IPC smoke
-pnpm check:tui       # Terminal UI smoke
-pnpm check:a11y      # Static accessibility checks
-pnpm check:a11y-axe  # axe-core WCAG 2a/2aa/2.1aa automated audit
-pnpm check:plugins   # Plugin manifest + marketplace catalog
-pnpm check:mcp       # MCP tool manifest validation
-pnpm check:contracts # TypeScript contract packages
-pnpm check:canvas    # Canvas engine contracts
-pnpm check:editor    # Editor engine contracts
-pnpm check:renderer  # Renderer contracts
-pnpm check:export    # Export pipeline contracts
-pnpm check:knowledge # Knowledge graph contracts
-pnpm check:citations # Citation engine contracts
-pnpm check:headless  # Headless runner contracts
-pnpm check:perf      # Performance baseline check
-pnpm test:rust       # Rust unit and integration tests
-pnpm test:visual     # Visual regression Playwright tests
-pnpm test:e2e        # Playwright end-to-end tests
+pnpm check:release
+pnpm check:daemon
+pnpm check:tui
+pnpm check:a11y
+pnpm check:a11y-axe
+pnpm check:plugins
+pnpm check:mcp
+pnpm check:contracts
+pnpm check:canvas
+pnpm check:editor
+pnpm check:renderer
+pnpm check:export
+pnpm check:knowledge
+pnpm check:citations
+pnpm check:headless
+pnpm check:perf
+pnpm test:rust
+pnpm test:visual
+pnpm test:e2e
 ```
 
-CI replica estas comprobaciones en [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+[CI](../.github/workflows/ci.yml)
 
 ## Documentos relacionados
 
-| Documento | Propósito |
-|---|---|
-| [`guides/GETTING_STARTED.es.md`](./guides/GETTING_STARTED.es.md) | Guía de primer uso |
-| [`release/PANDOC_STRATEGY.es.md`](./release/PANDOC_STRATEGY.es.md) | Requisitos de exportación |
-| [`release/SIGNING.es.md`](./release/SIGNING.es.md) | Política de confianza y firma de instaladores |
-| [`../PRODUCT.es.md`](../PRODUCT.es.md) | Principios del producto |
-| [`../CHANGELOG.md`](../CHANGELOG.md) | Historial de releases |
+[Requisitos Pandoc](release/PANDOC_STRATEGY.md) · [Confianza del instalador](release/SIGNING.md) · [Principios del producto](../PRODUCT.md) · [Cambios](../CHANGELOG.md)

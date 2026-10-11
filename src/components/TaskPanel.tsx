@@ -35,6 +35,7 @@ import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { TaskStatusGlyph } from './taskStatusGlyph'
 import { STATUS_ORDER } from '@scriptor/core/task'
 import { useI18n } from '../lib/i18n'
+import { PlannerWorkspace } from './PlannerWorkspace'
 
 function cycleStatus(current: string): string {
   const idx = STATUS_ORDER.indexOf(current)
@@ -196,7 +197,9 @@ const TaskRowItem = memo(function TaskRowItem({
   )
 })
 
-const ALL_TASKS_LIMIT = 0xFFFF_FFFF
+// Read in bounded pages instead of requesting an unbounded SQLite response.
+const ALL_TASKS_PAGE_SIZE = 500
+const MAX_LOADED_TASKS = 20_000
 const BUILT_IN_STATUSES = STATUS_ORDER
 const SORT_OPTIONS: TaskSortKey[] = ['due', 'status', 'priority', 'created']
 
@@ -280,10 +283,11 @@ export const TaskPanel = memo(function TaskPanel({
   const { t } = useI18n()
   const store = useTaskStore(runSourceNoteMutation)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [allVaultTasks, setAllVaultTasks] = useState<TaskRow[]>([])
-  const [vaultTasksComplete, setVaultTasksComplete] = useState(false)
   const [pushingVaultTasks, setPushingVaultTasks] = useState(false)
   const [vaultSyncSummary, setVaultSyncSummary] = useState<string | null>(null)
+  const [vaultTaskLoadError, setVaultTaskLoadError] = useState<string | null>(null)
+  const [allVaultTasks, setAllVaultTasks] = useState<TaskRow[]>([])
+  const [vaultTasksComplete, setVaultTasksComplete] = useState(false)
   const taskRevision = store.tasks
     .map((task) => `${task.id}:${task.updatedAt}:${task.status}:${task.dueAt ?? ''}`)
     .sort()
@@ -300,19 +304,33 @@ export const TaskPanel = memo(function TaskPanel({
     }
     let cancelled = false
     setVaultTasksComplete(false)
-    void indexerQueryTasks({}, ALL_TASKS_LIMIT)
-      .then((rows) => {
-        if (!cancelled) {
+    setVaultTaskLoadError(null)
+    void (async () => {
+      const rows: TaskRow[] = []
+      while (!cancelled && rows.length < MAX_LOADED_TASKS) {
+        const page = await indexerQueryTasks({}, ALL_TASKS_PAGE_SIZE, rows.length)
+        if (cancelled) return
+        rows.push(...page)
+        if (page.length < ALL_TASKS_PAGE_SIZE) {
           setAllVaultTasks(rows)
           setVaultTasksComplete(true)
+          return
         }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setAllVaultTasks([])
-          setVaultTasksComplete(false)
-        }
-      })
+      }
+      if (cancelled) return
+      // An incomplete snapshot must never be used to complete remote tasks.
+      const more = await indexerQueryTasks({}, 1, rows.length)
+      if (cancelled) return
+      setAllVaultTasks(rows)
+      setVaultTasksComplete(more.length === 0)
+      if (more.length) setVaultTaskLoadError('tasks.google.incompleteVaultTasks')
+    })().catch(() => {
+      if (!cancelled) {
+        setAllVaultTasks([])
+        setVaultTasksComplete(false)
+        setVaultTaskLoadError('tasks.google.vaultTaskLoadError')
+      }
+    })
     return () => {
       cancelled = true
     }
@@ -360,6 +378,7 @@ export const TaskPanel = memo(function TaskPanel({
 
   const body = (
     <>
+      {vaultId ? <PlannerWorkspace key={`${vaultId}:${calendarSync.accountGeneration}:${calendarSync.authedEmail ?? ''}:${calendarConfig?.google_calendar_id ?? ''}:${calendarConfig?.google_task_list_id ?? ''}`} vaultId={vaultId} tasks={calendarConfig?.enabled && vaultTasksComplete ? allVaultTasks : store.tasks} events={calendarSync.events} remoteTasks={calendarSync.tasks} calendarId={calendarConfig?.google_calendar_id || 'primary'} taskListId={calendarConfig?.google_task_list_id || '@default'} connected={calendarSync.status === 'synced'} googleAccount={calendarSync.authedEmail} calendarWritable={calendarSync.calendars.some(calendar => (calendarConfig?.google_calendar_id && calendarConfig.google_calendar_id !== 'primary' ? calendar.id === calendarConfig.google_calendar_id : calendar.primary) && calendar.writable)} runSourceNoteMutation={runSourceNoteMutation} onReload={async()=>{store.load();await calendarSync.refresh()}} onOpenNote={onOpenNote}/> : null}
       {calendarConfig?.enabled ? (
         <section className="settings-section" aria-label={t('tasks.google.ariaLabel')}>
           <div className="section-heading-row">
@@ -378,20 +397,19 @@ export const TaskPanel = memo(function TaskPanel({
               >
                 <RefreshCw size={14} /> {t('tasks.google.sync')}
               </button>
-              {calendarConfig.push_vault_tasks ? (
-                <button
-                  type="button"
-                  className="toolbar-button"
-                  onClick={() => void handlePushVaultTasks()}
-                  disabled={calendarSync.status !== 'synced' || pushingVaultTasks || !vaultTasksComplete}
-                >
-                  {pushingVaultTasks ? t('tasks.google.pushingVaultTasks') : t('tasks.google.pushVaultTasks')}
-                </button>
-              ) : null}
+              {calendarConfig.push_vault_tasks && <button
+                type="button"
+                className="toolbar-button"
+                onClick={() => void handlePushVaultTasks()}
+                disabled={pushingVaultTasks || !vaultTasksComplete || calendarSync.status !== 'synced'}
+              >
+                {t(pushingVaultTasks ? 'tasks.google.pushingVaultTasks' : 'tasks.google.pushVaultTasks')}
+              </button>}
             </div>
           </div>
           {calendarSync.error ? <p className="error-state" role="alert">{calendarSync.error}</p> : null}
-          {vaultSyncSummary ? <p className="health-subtitle" role="status">{vaultSyncSummary}</p> : null}
+          {vaultTaskLoadError && <p className="error-state" role="alert">{t(vaultTaskLoadError)}</p>}
+          {vaultSyncSummary && <p className="health-subtitle" role="status">{vaultSyncSummary}</p>}
 
           {calendarConfig.show_events_in_tasks ? (
             <div>

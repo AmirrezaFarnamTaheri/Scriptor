@@ -362,7 +362,7 @@ fn load_neighbor_links(
            target.id,
            target.path,
            target.title
-         FROM links l
+         FROM knowledge_links l
          JOIN notes source ON source.id = l.from_note_id AND source.vault_id = l.vault_id
          LEFT JOIN notes target ON target.id = l.to_note_id AND target.vault_id = l.vault_id
          WHERE l.vault_id = ?

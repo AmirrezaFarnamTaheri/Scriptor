@@ -56,7 +56,7 @@ export const ReleaseQualityPanel = memo(function ReleaseQualityPanel({
 
       {categories.map((category) => (
         <section key={category} className="bench-category">
-          <h4>{category}</h4>
+          <h4>{category[0].toUpperCase() + category.slice(1)}</h4>
           <ul className="bench-script-list">
             {BENCH_SCRIPTS.filter((script) => script.category === category).map((script) => (
               <li key={script.id}>

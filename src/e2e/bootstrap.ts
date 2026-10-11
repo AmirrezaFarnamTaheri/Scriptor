@@ -20,6 +20,12 @@ import {
   e2eUpdateTask,
 } from './state.ts'
 import { installE2eMcpHarness } from './mcp.harness.ts'
+import { createResearchHarness } from './research.harness'
+import { assetMediaHarness } from './assetMedia.harness'
+import { createCollaborationHarness } from './collaboration.harness'
+import { createPublishingAuditHarness } from './publishingAudit.harness'
+import { createGoogleGmailHarness } from './google.harness'
+import { createGoogleEcosystemHarness } from './googleEcosystem.harness'
 
 const DEFAULT_CONFIG = {
   daily_note: {
@@ -183,9 +189,33 @@ export function installE2eBridge(): void {
   if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) {
     window.__TAURI_INTERNALS__ = {}
   }
+  const researchHarness=createResearchHarness()
+  const collaborationHarness=createCollaborationHarness()
+  const publishingAuditHarness=createPublishingAuditHarness()
+  const googleGmailHarness = createGoogleGmailHarness()
+  const googleEcosystemHarness = createGoogleEcosystemHarness()
   mockIPC((cmd, payload) => {
+    const gmail = googleGmailHarness(cmd, payload)
+    if (gmail.handled) return gmail.value
+    const ecosystem = googleEcosystemHarness(cmd, payload)
+    if (ecosystem.handled) return ecosystem.value
+    const collaboration=collaborationHarness(cmd,payload)
+    if(collaboration.handled)return collaboration.value
+    const publishingAudit=publishingAuditHarness(cmd,payload)
+    if(publishingAudit.handled)return publishingAudit.value
+    const media = assetMediaHarness(cmd, payload)
+    if (media.handled) return media.value
+    const research=researchHarness(cmd,payload)
+    if(research.handled)return research.value
     switch (cmd) {
       case 'vault_open':
+        if (window.sessionStorage.getItem('e2e:hold-vault-open') === '1') {
+          return new Promise((resolve) => {
+            window.addEventListener('e2e:release-vault-open', () => {
+              resolve({ vault: SCREENSHOT_VAULT, scan_job_id: 'e2e-scan' })
+            }, { once: true })
+          })
+        }
         if (window.sessionStorage.getItem('e2e:slow-vault') === '1') {
           return new Promise((resolve) => {
             window.setTimeout(
@@ -200,6 +230,13 @@ export function installE2eBridge(): void {
           throw new Error('GOOGLE_AUTH_REQUIRED: Gmail is not connected')
         }
         return undefined
+      case 'collaboration_get_account':
+      case 'google_calendar_get_authed_email':
+        return null
+      case 'google_calendar_list_calendars':
+        return [{ id: 'primary', summary: 'Personal calendar', primary: true, accessRole: 'owner', writable: true }]
+      case 'google_calendar_list_task_lists':
+        return [{ id: '@default', title: 'My tasks' }]
       case 'plugin_state_get':
         return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [...disabledPluginIds] }
       case 'plugin_state_set_enabled': {
@@ -313,12 +350,12 @@ export function installE2eBridge(): void {
             {
               name: 'literature-note',
               description: 'Structure a literature finding with its source.',
-              content: '## ${1:Finding}\\n\\nSource: ${2:citation}\\n\\n${3:Notes}',
+              content: '## ${1:Finding}\n\nSource: ${2:citation}\n\n${3:Notes}',
             },
             {
               name: 'method-check',
               description: 'Record a methodology check before synthesis.',
-              content: '- Method: ${1:name}\\n- Evidence: ${2:result}',
+              content: '- Method: ${1:name}\n- Evidence: ${2:result}',
             },
           ]
         }
@@ -356,7 +393,23 @@ export function installE2eBridge(): void {
         }
         return screenshotRebuildSummary()
       case 'indexer_health_diagnostics':
+        if (window.sessionStorage.getItem('e2e:hold-health-diagnostics') === '1') {
+          window.sessionStorage.setItem('e2e:health-diagnostics-pending', '1')
+          return new Promise((resolve) => {
+            window.addEventListener('e2e:release-health-diagnostics', () => {
+              window.sessionStorage.removeItem('e2e:hold-health-diagnostics')
+              const diagnostics = screenshotHealthDiagnostics()
+              if (window.sessionStorage.getItem('e2e:health-diagnostics-result') === 'issues') {
+                diagnostics.summary = { ...diagnostics.summary, broken_links: 1 }
+                diagnostics.issues = [{ kind: 'broken_link', path: 'Research Plan.md', detail: 'unresolved link target: Missing reference', line: 7 }]
+              }
+              resolve(JSON.stringify(diagnostics))
+            }, { once: true })
+          })
+        }
         return JSON.stringify(screenshotHealthDiagnostics())
+      case 'health_repair_receipts':
+        return []
       case 'vault_health':
         return JSON.stringify(screenshotHealthDiagnostics().summary)
       case 'indexer_list_note_summaries':
@@ -433,7 +486,8 @@ export function installE2eBridge(): void {
         return [
           {
             key: 'smith2024',
-            type: 'article',
+            entry_type: window.sessionStorage.getItem('e2e:bibliography-empty-metadata') === '1' ? '' : 'article',
+            source_path: window.sessionStorage.getItem('e2e:bibliography-empty-metadata') === '1' ? '' : 'references.bib',
             title: 'Research Methods',
             author: 'Smith, Jane',
             year: '2024',
@@ -441,6 +495,10 @@ export function installE2eBridge(): void {
         ]
       case 'indexer_list_tags':
         return [{ tag: 'research', note_count: 1 }]
+      case 'indexer_notes_for_tag':
+        return (payload as { tag?: string }).tag === 'research'
+          ? [{ path: 'Research Plan.md', title: 'Research Plan' }]
+          : []
       case 'indexer_list_inbox':
         return activeNoteSummaries().filter((note) => !note.organized)
       case 'indexer_list_orphans':

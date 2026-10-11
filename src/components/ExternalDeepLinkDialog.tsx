@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { X } from 'lucide-react'
 
 import type { DeepLinkTarget } from '../hooks/usePlatformShell'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -37,7 +38,7 @@ export function ExternalDeepLinkDialog({ target, onCancel, onConfirm }: External
         <header>
           <h2 id="external-deep-link-title">{t('security.externalLinkTitle')}</h2>
           <button type="button" className="icon-button" onClick={onCancel} aria-label={t('actions.close')}>
-            ×
+            <X aria-hidden="true" />
           </button>
         </header>
         <p id="external-deep-link-description">

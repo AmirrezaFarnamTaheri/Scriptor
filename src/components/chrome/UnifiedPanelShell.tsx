@@ -16,6 +16,7 @@ import { FOCUSABLE_SELECTORS, useFocusTrap } from '../../hooks/useFocusTrap'
 import type { PanelPresentation } from '../../hooks/usePanelPresentation'
 import { IconButton } from './WorkspaceChrome'
 import { useI18n } from '../../lib/i18n'
+import { useWorkspaceEmbeddedPanel, WorkspaceNestedPanels } from '../../context/WorkspacePanelContext'
 
 export interface PanelTab {
   id: string
@@ -112,6 +113,8 @@ function UnifiedPanelShellImpl({
   helpTopic,
 }: UnifiedPanelShellProps) {
   const { t } = useI18n()
+  const embedded = useWorkspaceEmbeddedPanel()
+  const renderClose = showClose && !embedded
   const shellRef = useRef<HTMLElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -143,9 +146,9 @@ function UnifiedPanelShellImpl({
     return shellRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTORS) ?? null
   }, [activeTab, initialFocusRef, tabs, titleId])
 
-  useEscapeToClose(!docked && closeOnEscape, onClose)
+  useEscapeToClose(!embedded && !docked && closeOnEscape, onClose)
   useFocusTrap(shellRef, {
-    active: !docked,
+    active: !embedded && !docked,
     initialFocus: resolveInitialFocus,
     initialFocusKey,
   })
@@ -168,24 +171,24 @@ function UnifiedPanelShellImpl({
 
   return (
     <div
-      className={docked ? 'dock-backdrop' : 'modal-backdrop'}
+      className={embedded ? 'workspace-embedded-panel' : docked ? 'dock-backdrop' : 'modal-backdrop'}
       role="presentation"
-      onMouseDown={docked || !closeOnBackdrop ? undefined : (event) => {
+      onMouseDown={embedded || docked || !closeOnBackdrop ? undefined : (event) => {
         if (event.currentTarget === event.target) onClose()
       }}
     >
       <section
         ref={shellRef}
         className={`unified-panel-shell ${className}${wide ? ' unified-panel-wide' : ''}${docked ? ' unified-panel-docked' : ''}`}
-        role={docked ? 'complementary' : 'dialog'}
-        aria-modal={docked ? undefined : true}
-        aria-label={docked ? ariaLabel : modalAriaLabel}
-        aria-labelledby={!docked && !modalAriaLabel ? titleId : undefined}
-        aria-describedby={!docked && subtitle ? descriptionId : undefined}
+        role={embedded ? 'region' : docked ? 'complementary' : 'dialog'}
+        aria-modal={embedded || docked ? undefined : true}
+        aria-label={embedded || docked ? ariaLabel : modalAriaLabel}
+        aria-labelledby={!embedded && !docked && !modalAriaLabel ? titleId : undefined}
+        aria-describedby={!embedded && !docked && subtitle ? descriptionId : undefined}
         tabIndex={-1}
         data-help-topic={helpTopic}
       >
-        <header className="unified-panel-header">
+        <header className="unified-panel-header" data-workspace-header-only={embedded && !headerActions && !headerMeta ? 'true' : undefined}>
           <div>
             {headerMeta}
             <h2 id={titleId}>
@@ -194,10 +197,10 @@ function UnifiedPanelShellImpl({
             </h2>
             {subtitle ? <p id={descriptionId} className="health-subtitle">{subtitle}</p> : null}
           </div>
-          {headerActions || showClose ? (
+          {headerActions || renderClose ? (
             <div className="unified-panel-header-actions">
               {headerActions}
-              {showClose ? (
+              {renderClose ? (
                 <IconButton label={`${t('actions.close')} ${title}`} onClick={onClose}>
                   <X aria-hidden="true" />
                 </IconButton>
@@ -241,7 +244,7 @@ function UnifiedPanelShellImpl({
           aria-labelledby={activeTab ? `${titleId}-tab-${activeTab}` : undefined}
           data-help-topic={activeTab ? (tabs?.find((tab) => tab.id === activeTab)?.helpTopic ?? helpTopic) : helpTopic}
         >
-          {children}
+          <WorkspaceNestedPanels>{children}</WorkspaceNestedPanels>
         </div>
 
         {footer ? <footer className="unified-panel-footer">{footer}</footer> : null}

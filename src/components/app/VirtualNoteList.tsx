@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, memo } from 'react'
+import { useEffect, useMemo, useRef, useState, memo } from 'react'
 import { BookOpen, FileText } from 'lucide-react'
+import { buildNoteLabels } from '../../lib/noteLabels'
 
 const ROW_HEIGHT = 32
 const OVERSCAN = 5
@@ -24,6 +25,7 @@ function VirtualNoteListImpl({
   const containerRef = useRef<HTMLDivElement>(null)
   const [viewportHeight, setViewportHeight] = useState(320)
   const [scrollTop, setScrollTop] = useState(0)
+  const labels = useMemo(() => buildNoteLabels(paths), [paths])
 
   useEffect(() => {
     const element = containerRef.current
@@ -52,6 +54,7 @@ function VirtualNoteListImpl({
         {visiblePaths.map((path, index) => {
           const absoluteIndex = startIndex + index
           const isReaderDocument = readerDocumentPaths?.has(path) ?? false
+          const label = labels.get(path)!
           return (
             <li
               key={path}
@@ -66,6 +69,8 @@ function VirtualNoteListImpl({
               <button
                 type="button"
                 className={activePath === path ? 'note-row active' : 'note-row'}
+                title={path}
+                aria-label={path}
                 onClick={() => onOpenNote(path)}
                 onContextMenu={(event) => {
                   event.preventDefault()
@@ -78,7 +83,11 @@ function VirtualNoteListImpl({
                 }}
               >
                 {isReaderDocument ? <BookOpen /> : <FileText />}
-                <span className="truncate">{path.split('/').pop()}</span>
+                <span className="note-label">
+                  <bdi className="note-label-prefix truncate">{label.prefix}</bdi>
+                  {label.identity ? <bdi className="note-label-identity">{label.identity}</bdi> : null}
+                  {label.folder ? <bdi className="note-label-folder">{label.folder}</bdi> : null}
+                </span>
               </button>
             </li>
           )

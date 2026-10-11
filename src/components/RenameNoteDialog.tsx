@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { X } from 'lucide-react'
 
 import type { RenameNoteDryRunOutput } from '../types/vault'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -56,7 +57,7 @@ export function RenameNoteDialog({
         <header>
           <h2>Rename note</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
-            ×
+            <X aria-hidden="true" />
           </button>
         </header>
 

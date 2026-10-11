@@ -267,3 +267,9 @@
   word-break: break-word;
 }
 
+.preview-citation[data-resolved='false'] {
+  color: var(--ink);
+  text-decoration: underline dotted;
+  text-decoration-color: var(--amber);
+  text-underline-offset: 3px;
+}

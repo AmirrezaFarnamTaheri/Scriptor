@@ -168,3 +168,35 @@ test('every vault-relative daemon bridge uses the verified-vault gateway', () =>
 
   assert.ok(nativeGitSource.includes('bridge_git_status(&state)'))
 })
+
+test('export command adapters keep originating-vault validation ahead of dispatch', () => {
+  for (const [source, names] of [
+    [nativeExportSource, ['export_run_note', 'export_run_markdown', 'export_start_note', 'export_cancel']],
+    [nativeDaemonSource, ['daemon_export_run_note', 'daemon_export_run_markdown', 'daemon_export_start_note', 'daemon_export_job_status', 'daemon_export_cancel']],
+  ]) {
+    for (const name of names) {
+      const start = source.indexOf(`fn ${name}(`)
+      assert.notEqual(start, -1, `${name} must exist`)
+      const end = source.indexOf('\n}', start) + 2
+      const command = source.slice(start, end)
+      assert.match(command, /expected_vault_id: Option<String>/, `${name} accepts origin identity`)
+      const check = command.indexOf('validate_export_session(')
+      assert.ok(check > command.indexOf('active_session('), `${name} validates its captured session`)
+      const dispatch = /(?:bridge_export_|build_export_job_|cancel_active_export\()/.exec(command)
+      assert.ok(dispatch && check < dispatch.index, `${name} checks origin before export work`)
+    }
+  }
+})
+
+test('headless export start relays the daemon job identity into origin-bound polling', () => {
+  const start = nativeExportSource.indexOf('fn export_start_note(')
+  const body = nativeExportSource.slice(start, nativeExportSource.indexOf('\n}', start) + 2)
+  const headless = body.slice(body.indexOf('if use_headless_engine(&state) {'), body.indexOf('\n    let job_id = Uuid::new_v4()'))
+  assert.match(headless, /let job_id = bridge_export_start_note\(/)
+  assert.doesNotMatch(headless, /Uuid::new_v4/)
+  assert.match(headless, /job_id: job_id\.clone\(\)/)
+  assert.match(headless, /poll_headless_export_job\(&app_for_poll, poll_job_id, originating_vault_id\)/)
+  const pollStart = nativeExportSource.indexOf('fn poll_headless_export_job(')
+  const poll = nativeExportSource.slice(pollStart, nativeExportSource.indexOf('\n}', pollStart) + 2)
+  assert.ok(poll.indexOf('validate_export_session(') < poll.indexOf('bridge_export_job_status('))
+})

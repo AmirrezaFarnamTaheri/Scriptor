@@ -99,7 +99,7 @@ test.describe('workspace flows', () => {
 
     const historyPanel = page.getByRole('dialog', { name: 'Note history' })
     await expect(historyPanel).toBeVisible()
-    await expect(historyPanel.getByText(/words/)).toBeVisible()
+    await expect(historyPanel.getByRole('list', { name: 'Saved revisions', exact: true }).getByRole('button', { name: /\b12 words\b/ })).toBeVisible()
     await expect(historyPanel.locator('.note-history-revision-markdown')).toContainText('Previous revision')
 
     const readEditorContent = () =>

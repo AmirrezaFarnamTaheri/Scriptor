@@ -196,6 +196,14 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
         current = 11;
     }
 
+    if current == 11 && SCHEMA_VERSION >= 12 {
+        let transaction = connection.unchecked_transaction()?;
+        transaction.execute_batch(crate::schema::CREATE_CANVAS_RELATIONS)?;
+        stamp_schema_version(&transaction, 12)?;
+        transaction.commit()?;
+        current = 12;
+    }
+
     if current == SCHEMA_VERSION {
         Ok(())
     } else {

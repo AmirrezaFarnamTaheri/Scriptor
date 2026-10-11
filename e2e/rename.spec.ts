@@ -27,6 +27,25 @@ function editorText(page: Page): Locator {
 }
 
 test.describe('Note rename', () => {
+  test('renaming another note preserves the active draft and refreshes rewritten backlinks', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('scriptor:editor-mode', 'codemirror'))
+    await launchApp(page)
+    await page.getByRole('button', { name: 'Methodology.md', exact: true }).click()
+    const editor = page.locator('.cm-content')
+    await expect(editor).toContainText('[[Research Plan]]')
+    await editor.click()
+    await page.keyboard.press('Control+End')
+    await page.keyboard.insertText('\nUnsaved research observation')
+    await page.locator('.virtual-note-list').getByRole('button', { name: 'Research Plan.md', exact: true }).click({ button: 'right' })
+    const dialog = page.getByRole('dialog', { name: 'Rename note' })
+    await dialog.getByRole('textbox', { name: 'New filename' }).fill('Renamed Research')
+    await dialog.getByRole('button', { name: 'Apply rename' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(editor).toContainText('Unsaved research observation')
+    await expect(editor).toContainText('[[Renamed Research]]')
+    await expect(editor).not.toContainText('[[Research Plan]]')
+  })
+
   test('rename dialog structure is accessible', async ({ page }) => {
     const dialog = await openRenameDialog(page, 'Research Plan.md')
     await expect(dialog.getByRole('heading', { name: 'Rename note' })).toBeVisible()

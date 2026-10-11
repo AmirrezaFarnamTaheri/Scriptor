@@ -187,6 +187,7 @@ pub fn rebuild_index_with_progress(
     }
 
     resolve_link_targets_on(tx, &session.descriptor.id, None)?;
+    crate::canvas_relations::sync_canvas_relations_on(tx, session)?;
     tx.execute(
         "DELETE FROM cache_meta WHERE key = 'fts_rebuild_required'",
         [],

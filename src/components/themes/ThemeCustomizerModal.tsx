@@ -431,15 +431,17 @@ export function ThemeCustomizerModal({
               </div>
 
               <div className="picker-card">
-                <label>{t('themeCustomizer.border')}</label>
+                <label htmlFor="custom-theme-border">{t('themeCustomizer.border')}</label>
                 <div className="picker-row">
                   <input
                     type="color"
+                    aria-label={t('themeCustomizer.border')}
                     value={colors.border.startsWith('#') ? colors.border : '#94a3b8'}
                     onChange={(e) => handleColorChange('border', e.target.value)}
                   />
-                  <input
-                    type="text"
+                  <textarea
+                    id="custom-theme-border"
+                    rows={2}
                     value={colors.border}
                     onChange={(e) => handleColorChange('border', e.target.value)}
                   />
@@ -479,7 +481,7 @@ export function ThemeCustomizerModal({
                     <button
                       type="button"
                       className="preview-btn-primary"
-                      style={{ background: colors.primary, color: colors.bg }}
+                      style={{ background: colors.primary, color: primaryPreviewText }}
                     >
                       {t('themeCustomizer.primaryAction')}
                     </button>

@@ -17,9 +17,27 @@
 //! | v9      | frontmatter aliases on note rows                   | No       |
 //! | v10     | canonical task source note id + explicit path       | No       |
 //! | v11     | task source FK parity for upgraded caches           | No       |
+//! | v12     | explicit Canvas relations with separate provenance  | No       |
 
 /// Current on-disk schema version. Bump this constant exactly once per train step.
-pub const SCHEMA_VERSION: i32 = 11;
+pub const SCHEMA_VERSION: i32 = 12;
+
+/// Canvas provenance remains separate from Markdown links; paths resolve at query time.
+pub const CREATE_CANVAS_RELATIONS: &str = "
+CREATE TABLE IF NOT EXISTS canvas_relations (
+ vault_id TEXT NOT NULL, board_id TEXT NOT NULL, relation_id TEXT NOT NULL,
+ connector_block_id TEXT NOT NULL, source_path TEXT NOT NULL, target_path TEXT NOT NULL,
+ label TEXT NOT NULL, PRIMARY KEY(vault_id, board_id, relation_id)
+);
+CREATE INDEX IF NOT EXISTS idx_canvas_relation_source ON canvas_relations(vault_id, source_path);
+CREATE INDEX IF NOT EXISTS idx_canvas_relation_target ON canvas_relations(vault_id, target_path);
+CREATE VIEW IF NOT EXISTS knowledge_links AS
+ SELECT id, vault_id, from_note_id, to_note_id, to_path, kind FROM links
+ UNION ALL
+ SELECT 'canvas:' || length(board_id) || ':' || board_id || ':' || relation_id, vault_id,
+ vault_id || ':' || source_path, vault_id || ':' || target_path,
+ target_path, 'canvas:' || label FROM canvas_relations;
+";
 
 pub const CREATE_META: &str = "
 CREATE TABLE IF NOT EXISTS cache_meta (
@@ -294,6 +312,7 @@ pub fn apply_schema(connection: &rusqlite::Connection) -> rusqlite::Result<()> {
     connection.execute_batch(CREATE_META)?;
     connection.execute_batch(CREATE_NOTES)?;
     connection.execute_batch(CREATE_LINKS)?;
+    connection.execute_batch(CREATE_CANVAS_RELATIONS)?;
     // Fresh installs get the v5 FTS table directly.
     connection.execute_batch(CREATE_FTS_V5)?;
     connection.execute_batch(CREATE_CITATIONS)?;

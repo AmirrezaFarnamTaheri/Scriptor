@@ -1,0 +1,53 @@
+name: Normalize source on hosted workers
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/review-remediation-workspaces]
+    paths:
+      - 'contracts/operations.json'
+      - 'apps/desktop/src-tauri/src/lib.rs'
+      - 'apps/desktop/src-tauri/src/commands/google_calendar.rs'
+      - 'apps/desktop/src-tauri/src/commands/collaboration.rs'
+      - 'crates/vault/src/config.rs'
+      - '.github/workflows/normalize-source.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: normalize-source-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  normalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+      - name: Configure Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+      - name: Install pinned Rust formatter
+        run: |
+          task_rust_channel=$(python3 -c 'import pathlib,tomllib; print(tomllib.loads(pathlib.Path("rust-toolchain.toml").read_text())["toolchain"]["channel"])')
+          rustup toolchain install "$task_rust_channel" --profile minimal --component rustfmt
+      - name: Generate operation contracts and format Rust
+        run: |
+          node scripts/contracts/generate-operation-contracts.mjs
+          cargo fmt --all
+          mkdir -p artifacts/source-normalization
+          git rev-parse HEAD > artifacts/source-normalization/source-sha.txt
+          git diff --binary > artifacts/source-normalization/source.patch
+          git diff --stat > artifacts/source-normalization/changes.txt
+      - name: Upload reviewable source patch
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: normalized-source-${{ github.sha }}
+          path: artifacts/source-normalization/
+          if-no-files-found: error
+          retention-days: 7

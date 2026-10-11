@@ -682,6 +682,18 @@ pub fn query_tasks(
     filter: &TaskFilter,
     limit: u32,
 ) -> Result<Vec<TaskRow>, IndexerError> {
+    query_tasks_page(cache, vault_id, filter, limit, 0)
+}
+
+/// Page through tasks in stable identity order, bounding individual IPC responses.
+/// A caller that needs an authoritative complete set must consume every page.
+pub fn query_tasks_page(
+    cache: &IndexCache,
+    vault_id: &str,
+    filter: &TaskFilter,
+    limit: u32,
+    offset: u32,
+) -> Result<Vec<TaskRow>, IndexerError> {
     use rusqlite::types::Value;
 
     let conn = cache.connection()?;
@@ -715,8 +727,11 @@ pub fn query_tasks(
 
     sql.push_str(" WHERE ");
     sql.push_str(&predicates.join(" AND "));
-    sql.push_str(" ORDER BY t.due_at ASC NULLS LAST, t.source_note_id, t.line LIMIT ?");
+    sql.push_str(
+        " ORDER BY t.due_at ASC NULLS LAST, t.source_note_id, t.line, t.id LIMIT ? OFFSET ?",
+    );
     values.push(Value::Integer(i64::from(limit)));
+    values.push(Value::Integer(i64::from(offset)));
 
     let mut stmt = conn.prepare_cached(&sql)?;
     let rows = stmt.query_map(params_from_iter(values.iter()), |row| {

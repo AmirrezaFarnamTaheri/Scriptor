@@ -104,6 +104,8 @@ interface SettingsPanelProps {
   workspaceChrome?: WorkspaceChromePrefs
   onPatchWorkspaceChrome?: (patch: Partial<WorkspaceChromePrefs>) => void
   onOpenSupport?: () => void
+  onOpenGoogleWorkspace?: (kind: 'collaboration' | 'planner' | 'gmail') => void
+  gmailEnabled?: boolean
   theme?: AppTheme
   appearance?: AppearanceMode
   onThemeChange?: (theme: AppTheme) => void
@@ -167,6 +169,8 @@ function SettingsPanelImpl({
   workspaceChrome,
   onPatchWorkspaceChrome,
   onOpenSupport,
+  onOpenGoogleWorkspace,
+  gmailEnabled,
   theme = 'light',
   appearance = 'system',
   onThemeChange,
@@ -435,7 +439,7 @@ function SettingsPanelImpl({
         style={activeTab !== 'integrations' ? { display: 'none' } : undefined}
       >
         {vaultOpen && nativeReady && configReady ? (
-          <GoogleIntegrationSettingsSection config={config} setConfig={setConfig} vaultId={vaultId!} />
+          <GoogleIntegrationSettingsSection key={`${vaultId}:${gmailEnabled !== false}`} config={config} setConfig={setConfig} vaultId={vaultId!} onOpenGoogleWorkspace={onOpenGoogleWorkspace} gmailEnabled={gmailEnabled} workspaceLaunchDisabled={configDirty} />
         ) : vaultOpen && nativeReady ? (
           <p className="empty-state" role="status">{t('settingsPanel.integrationsNeedConfig')}</p>
         ) : (

@@ -17,6 +17,7 @@ interface KnowledgeWorkbenchProps {
   activePath: string | null
   onClose: () => void
   onOpenNote: (path: string) => void
+  runSourceNoteMutation?: (path:string,mutation:()=>Promise<void>)=>Promise<boolean>
   onOpenGraph: () => void
   onCreateNoteFromWikilink?: (target: string) => void
   onInsertTag: (tag: string) => void
@@ -44,6 +45,7 @@ export const KnowledgeWorkbench = memo(function KnowledgeWorkbench({
   activePath,
   onClose,
   onOpenNote,
+  runSourceNoteMutation,
   onOpenGraph,
   onCreateNoteFromWikilink,
   onInsertTag,
@@ -105,6 +107,7 @@ export const KnowledgeWorkbench = memo(function KnowledgeWorkbench({
           onClose={onClose}
           promptText={promptText}
           onOpenNote={handleOpenNote}
+          runSourceNoteMutation={runSourceNoteMutation}
         />
       ) : null}
 

@@ -53,3 +53,5 @@
 6. 有用户与 operator 文档；
 7. 已包含在 release 中并验证 artifact；
 8. 有 changelog entry。
+
+可选工作区快捷栏：已实现，等待GitHub执行器验证。持久保存可见性、固定状态、顺序、名称和受限尺寸，不改变权限或草稿备份。源文件：`workspaceShortcuts.ts`、`WorkspaceShortcutBar.tsx`；证据：`validation/WORKSPACE-SHORTCUTS-2026-10-08.md`。

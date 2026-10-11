@@ -274,6 +274,9 @@ export interface VaultConfig {
     google_calendar_id: string | null
     /** Which task list to sync; null = @default */
     google_task_list_id: string | null
+    /** Selected collaboration folder; credentials remain in the OS keychain. */
+    google_drive_folder_id?: string | null
+    google_drive_transport?: 'drive_json' | 'google_docs' | null
     /** Max days ahead to fetch events */
     lookahead_days: number
     /** Show events as tasks in the task panel */
@@ -354,6 +357,10 @@ export interface BibliographyEntry {
   entry_type: string
   author?: string
   year?: string
+  abstract_text?: string | null
+  doi?: string | null
+  url?: string | null
+  file?: string | null
 }
 
 export interface BacklinkHit {

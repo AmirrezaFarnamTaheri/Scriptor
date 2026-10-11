@@ -4,6 +4,7 @@ import type {
   PluginManifest,
   PluginPermission,
 } from '@scriptor/core/contracts/plugin'
+import { parsePluginWorkspace } from './workspace.ts'
 
 export const PLUGIN_API_VERSION = '1.0.0'
 
@@ -17,6 +18,7 @@ const VALID_CAPABILITIES = new Set<PluginCapability>([
   'canvas-tool',
   'canvas-block',
   'template-pack',
+  'workspace',
 ])
 
 const BLOCKED_PERMISSIONS = new Set<PluginPermission['permission']>([
@@ -106,6 +108,27 @@ export function validatePluginManifest(manifest: PluginManifest): ManifestValida
   }
   if (hasEntries(manifest.contributes?.canvasBlocks) && !capabilities.includes('canvas-block')) {
     errors.push('canvas block contributions require canvas-block capability')
+  }
+
+  if (manifest.contributes?.workspaces !== undefined) {
+    if (!Array.isArray(manifest.contributes.workspaces) || manifest.contributes.workspaces.length > 16) {
+      errors.push('workspace contributions must be a bounded array')
+    } else {
+      if (!capabilities.includes('workspace')) errors.push('workspace contributions require workspace capability')
+      if (manifest.contributes.workspaces.length && !permissions.some(entry => entry.permission === 'read')) errors.push('workspace contributions require declared read permission')
+      const ids = new Set<string>()
+      for (const input of manifest.contributes.workspaces) {
+        try {
+          const view = parsePluginWorkspace(input)
+          if (view.pluginId !== manifest.id) throw new Error('workspace identity must match its manifest')
+          if (ids.has(view.id)) throw new Error('workspace ids must be unique')
+          ids.add(view.id)
+          for (const command of view.commands) {
+            if (!manifest.contributes.commands?.some(declared => declared.commandId === command.commandId && declared.permission === command.permission)) throw new Error('workspace commands must match manifest declarations')
+          }
+        } catch (error) { errors.push(error instanceof Error ? error.message : 'invalid workspace contribution') }
+      }
+    }
   }
 
   if (manifest.rustFeatureGate !== undefined && typeof manifest.rustFeatureGate !== 'string') {

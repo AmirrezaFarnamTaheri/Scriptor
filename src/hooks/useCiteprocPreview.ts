@@ -17,8 +17,7 @@ function buildFallbackMap(entries: BibliographyEntry[]): Map<string, CiteprocFor
 }
 
 export function useCiteprocPreview(entries: BibliographyEntry[], keys?: string[]) {
-  const [citeprocMap, setCiteprocMap] = useState<Map<string, CiteprocFormattedEntry> | null>(null)
-  const [usingCiteproc, setUsingCiteproc] = useState(false)
+  const [result, setResult] = useState<{ entries: BibliographyEntry[]; keys: string[] | undefined; map: Map<string, CiteprocFormattedEntry>; usingCiteproc: boolean } | null>(null)
 
   const targetEntries = useMemo(() => {
     if (!keys?.length) {
@@ -45,15 +44,13 @@ export function useCiteprocPreview(entries: BibliographyEntry[], keys?: string[]
         if (cancelled) {
           return
         }
-        setCiteprocMap(result)
-        setUsingCiteproc(true)
+        setResult({ entries, keys, map: result, usingCiteproc: true })
       })
       .catch(() => {
         if (cancelled) {
           return
         }
-        setCiteprocMap(buildFallbackMap(targetEntries))
-        setUsingCiteproc(false)
+        setResult({ entries, keys, map: buildFallbackMap(targetEntries), usingCiteproc: false })
       })
 
     return () => {
@@ -65,11 +62,11 @@ export function useCiteprocPreview(entries: BibliographyEntry[], keys?: string[]
     if (targetEntries.length === 0) {
       return new Map<string, CiteprocFormattedEntry>()
     }
-    if (citeprocMap) {
-      return citeprocMap
+    if (result?.entries === entries && result.keys === keys) {
+      return result.map
     }
     return buildFallbackMap(targetEntries)
-  }, [citeprocMap, targetEntries])
+  }, [result, entries, keys, targetEntries])
 
   const formatInline = (entry: BibliographyEntry): string =>
     formatted.get(entry.key)?.inline ?? formatInlineCitation(entry)
@@ -77,7 +74,7 @@ export function useCiteprocPreview(entries: BibliographyEntry[], keys?: string[]
   const formatBibliography = (entry: BibliographyEntry): string =>
     formatted.get(entry.key)?.bibliography ?? formatBibliographyEntry(entry)
 
-  const activeUsingCiteproc = targetEntries.length > 0 && usingCiteproc
+  const activeUsingCiteproc = targetEntries.length > 0 && result?.entries === entries && result.keys === keys && result.usingCiteproc
 
   return { formatted, formatInline, formatBibliography, usingCiteproc: activeUsingCiteproc }
 }

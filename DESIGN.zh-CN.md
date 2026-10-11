@@ -109,3 +109,5 @@ Scriptor 内置 **18 套精调配色方案**，分为三类（`dark`、`light`�
 ## 视觉验证
 
 Playwright 项目覆盖浅色/深色主题、desktop/mobile breakpoints、模态区域、editor/preview、knowledge workbench、settings、graph 以及主要 workflow 状态。冻结的 release candidate 还要求在这些检查尚未可靠自动化之前，执行 200% 缩放、screen reader 和 native shell 的人工检查。Snapshot 阈值不得掩盖整页位移。参见 [`docs/validation/FRONTEND_QUALITY.zh-CN.md`](docs/validation/FRONTEND_QUALITY.zh-CN.md)。
+
+工作区快捷栏可选。默认仅显示紧凑的写作操作，其他工具由用户添加。用户可隐藏整行，将快捷项固定在栏中或放入更多菜单，调整顺序、名称、按钮宽度和文字大小；尺寸设有边界。隐藏后可通过命令面板恢复。触控目标保持至少44px。

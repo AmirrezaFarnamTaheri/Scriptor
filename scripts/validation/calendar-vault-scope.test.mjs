@@ -81,7 +81,7 @@ function harness(remoteTasks, vaultNotes = []) {
   return { render, options, commands, batches, calls }
 }
 
-const task = (id, title, marker) => ({ id, title, notes: marker, due: null, status: 'needsAction', completed: null })
+const task = (id, title, marker) => ({ id, etag: `etag-${id}`, title, notes: marker, due: null, status: 'needsAction', completed: null })
 const local = (id = 'task-a', text = 'Buy milk') => [{ path: 'todo.md', tasks: [{ id, text, checked: false, line: 0, dueDate: null }] }]
 const scoped = (vault, id) => `Scriptor source: vault:${encodeURIComponent(vault)}:${id}`
 
@@ -132,16 +132,22 @@ test('only removed tasks explicitly owned by this vault are completed', async ()
   assert.equal(h.batches[0][0].taskId, 'own')
 })
 
-test('a moved task can rebind by unique title only within its own vault', async () => {
+test('a moved task cannot silently rebind to a different provider identity by title', async () => {
   const h = harness([
     task('own', 'Buy milk', scoped('vault-a', 'old-task-id')),
     task('foreign', 'Buy milk', scoped('vault-b', 'foreign-task-id')),
   ], local())
   await h.render().refresh()
   await h.render().syncVaultTasks()
-  assert.equal(h.batches[0].length, 1)
-  assert.equal(h.batches[0][0].kind, 'update')
-  assert.equal(h.batches[0][0].taskId, 'own')
+  // The moved local task is a new identity. Its old provider record is
+  // completed only because it explicitly belongs to this vault; the foreign
+  // vault's matching title must never be adopted or modified.
+  assert.equal(h.batches[0].length, 2)
+  assert.equal(h.batches[0][0].kind, 'create')
+  assert.equal(h.batches[0][0].notes, scoped('vault-a', 'task-a'))
+  assert.equal(h.batches[0][1].kind, 'complete')
+  assert.equal(h.batches[0][1].taskId, 'own')
+  assert.equal(h.batches[0][1].etag, 'etag-own')
 })
 
 test('mirroring requires the active vault identity even for an empty task set', async () => {

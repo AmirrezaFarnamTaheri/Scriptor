@@ -80,6 +80,9 @@ pub enum RpcMethod {
     EmbeddingsSync {
         api_key: Option<String>,
     },
+    EmbeddingsInspect {
+        limit: u32,
+    },
     ReadNote {
         path: String,
     },
@@ -445,8 +448,7 @@ fn read_frame_inner<R: std::io::Read>(reader: &mut R, resync: bool) -> Result<Ve
         let len = u32::from_le_bytes(header[4..8].try_into().expect("slice")) as usize;
         read_body_len(reader, len)
     } else if resync {
-        let mut scan_buf = header.to_vec();
-        let partial_len = sync_to_length_field(reader, &mut scan_buf)?;
+        let partial_len = sync_to_length_field(reader, &header)?;
         read_body_after_partial_length(reader, &partial_len)
     } else {
         Err(IpcError::InvalidMagic)
@@ -455,36 +457,29 @@ fn read_frame_inner<R: std::io::Read>(reader: &mut R, resync: bool) -> Result<Ve
 
 fn sync_to_length_field<R: std::io::Read>(
     reader: &mut R,
-    scan_buf: &mut Vec<u8>,
+    scan_buf: &[u8],
 ) -> Result<Vec<u8>, IpcError> {
     if let Some(len_start) = find_length_field_start(scan_buf) {
         return Ok(scan_buf[len_start..].to_vec());
     }
 
-    // Scan in chunks and only revisit the final three bytes from the previous
-    // chunk. A four-byte magic value can only begin in that overlap, so this
-    // keeps recovery O(n) instead of rescanning the entire accumulated buffer
-    // after every byte.
-    let mut chunk = [0u8; 4096];
-    loop {
-        if scan_buf.len() >= RESYNC_SCAN_BUDGET {
-            return Err(IpcError::Codec("resync scan budget exceeded".into()));
-        }
-        let remaining = RESYNC_SCAN_BUDGET - scan_buf.len();
-        let read_len = remaining.min(chunk.len());
-        let search_from = scan_buf.len().saturating_sub(3);
-        let read = reader.read(&mut chunk[..read_len])?;
-        if read == 0 {
-            return Err(IpcError::Io(std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                "stream ended while resynchronizing frame header",
-            )));
-        }
-        scan_buf.extend_from_slice(&chunk[..read]);
-        if let Some(len_start) = find_length_field_start_from(scan_buf, search_from) {
-            return Ok(scan_buf[len_start..].to_vec());
+    // A generic Read cannot put prefetched bytes back. Stop exactly at magic
+    // so the recovered length/body and subsequent frames remain in the stream.
+    // The rolling four-byte window keeps this bounded recovery O(n), with
+    // constant storage instead of rescanning an accumulating junk buffer.
+    let magic = FRAME_MAGIC.to_le_bytes();
+    let mut window = [0u8; 4];
+    window.copy_from_slice(&scan_buf[scan_buf.len() - 4..]);
+    for _ in scan_buf.len()..RESYNC_SCAN_BUDGET {
+        let mut byte = [0u8; 1];
+        reader.read_exact(&mut byte)?;
+        window.copy_within(1.., 0);
+        window[3] = byte[0];
+        if window == magic {
+            return Ok(Vec::new());
         }
     }
+    Err(IpcError::Codec("resync scan budget exceeded".into()))
 }
 
 fn find_length_field_start(buf: &[u8]) -> Option<usize> {
@@ -593,6 +588,22 @@ mod tests {
         let decoded: RpcRequest = postcard::from_bytes(&body).expect("decode");
         assert_eq!(decoded.id, 2);
         assert_eq!(decoded.method, RpcMethod::Ping);
+    }
+
+    #[test]
+    fn resync_preserves_the_recovered_body_and_following_frame() {
+        let first = RpcRequest::new(17, RpcMethod::Ping);
+        let second = RpcRequest::new(18, RpcMethod::ListNotes);
+        for garbage_len in [5, 8, 17, 4093, 4096] {
+            let mut stream = vec![b'x'; garbage_len];
+            stream.extend_from_slice(&encode_frame(&first).expect("first frame"));
+            stream.extend_from_slice(&encode_frame(&second).expect("second frame"));
+            let mut cursor = std::io::Cursor::new(stream);
+            let body = read_frame_resyncing(&mut cursor).expect("recover first frame");
+            assert_eq!(postcard::from_bytes::<RpcRequest>(&body).unwrap(), first);
+            let body = read_frame(&mut cursor).expect("following frame stays intact");
+            assert_eq!(postcard::from_bytes::<RpcRequest>(&body).unwrap(), second);
+        }
     }
 
     #[test]

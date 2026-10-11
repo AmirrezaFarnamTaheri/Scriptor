@@ -96,9 +96,9 @@ export async function plantumlRender(source: string): Promise<{ svg: string; eng
   return invoke('plantuml_render', { source, authorizationToken })
 }
 
-export async function vaultSaveAsset(relativePath: string, bytes: number[]): Promise<string> {
+export async function vaultSaveAsset(relativePath: string, bytes: number[], requireMissing = false, expectedVaultId?: string): Promise<string> {
   requireNative()
-  return invoke<string>('vault_save_asset', { relativePath, bytes })
+  return invoke<string>('vault_save_asset', { relativePath, bytes, requireMissing, expectedVaultId: expectedVaultId ?? null })
 }
 
 export async function copyTextToClipboard(text: string): Promise<void> {

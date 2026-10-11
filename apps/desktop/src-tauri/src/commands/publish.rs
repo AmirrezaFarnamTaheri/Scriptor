@@ -33,8 +33,10 @@ fn resolved_output(vault_root: &Path, requested: &str) -> Result<PathBuf, String
 pub fn vault_publish_plan_starlight(
     state: tauri::State<AppState>,
     output_path: String,
+    expected_vault_id: Option<String>,
 ) -> Result<StarlightPublishPlanOutput, String> {
     let session = active_session(&state)?;
+    super::vault::validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     let output = resolved_output(session.root.root(), &output_path)?;
     let plan =
         plan_starlight_site(session.root.root(), &output).map_err(|error| error.to_string())?;
@@ -55,8 +57,10 @@ pub fn vault_publish_apply_starlight(
     to_write: Vec<PublishCandidate>,
     to_delete: Vec<String>,
     authorization_token: String,
+    expected_vault_id: Option<String>,
 ) -> Result<StarlightPublishApplyOutput, String> {
     let session = active_session(&state)?;
+    super::vault::validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     let output = resolved_output(session.root.root(), &output_path)?;
     let authorization_scope = format!(
         "{} • {} write(s) • {} deletion(s)",

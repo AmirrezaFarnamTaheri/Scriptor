@@ -10,6 +10,9 @@ import {
 import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { diffLines } from '../lib/lineDiff'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
+import { revisionHeatmap, vocabularyMetrics } from '../lib/researchStudio'
+import { VocabularyEvolution } from './history/VocabularyEvolution'
+import '../styles/components/research-studio.css'
 
 export interface NoteHistoryRevision {
   id: string
@@ -21,6 +24,7 @@ export interface NoteHistoryRevision {
 
 interface NoteHistoryPanelProps {
   path: string | null
+  vaultId?: string | null
   onClose: () => void
   onRestored?: () => void
 }
@@ -61,7 +65,7 @@ function formatRevisionDate(value: string) {
 }
 
 /** Browses local note revisions and requires an explicit current-vs-revision comparison before restore. */
-export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanelProps) {
+export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=null, onClose, onRestored }: NoteHistoryPanelProps) {
   const [revisionState, setRevisionState] = useState<RevisionState | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [previewState, setPreviewState] = useState<PreviewState | null>(null)
@@ -139,12 +143,17 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
     }
   }, [loadedHistoryPath, path, selectedId])
 
-  const revisions = loadedHistoryPath === path ? revisionState?.rows ?? [] : []
+  const revisions = useMemo(() => loadedHistoryPath === path ? revisionState?.rows ?? [] : [], [loadedHistoryPath, path, revisionState])
+  const activity = useMemo(() => revisionHeatmap(revisions), [revisions])
   const selectedRevision = revisions.find((revision) => revision.id === selectedId) ?? null
   const previewReady = previewState?.path === path && previewState.revisionId === selectedId
   const currentReady = currentState?.path === path
   const preview = previewReady ? previewState.markdown : ''
   const currentMarkdown = currentReady ? currentState.markdown : ''
+  const vocabulary = useMemo(() => {
+    if (!previewReady || !currentReady || preview.length > 3 * 1024 * 1024 || currentMarkdown.length > 3 * 1024 * 1024) return null
+    return { current: vocabularyMetrics(currentMarkdown), revision: vocabularyMetrics(preview) }
+  }, [previewReady, currentReady, preview, currentMarkdown])
   const previewErrorMessage =
     previewError?.path === path && previewError.revisionId === selectedId ? previewError.message : null
   const currentErrorMessage = currentError?.path === path ? currentError.message : null
@@ -165,6 +174,12 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
     setBusy(true)
     setStatus('Restoring revision…')
     try {
+      const latest = await vaultReadNote(path)
+      if (latest.markdown !== currentMarkdown) {
+        setCurrentState({ path, markdown: latest.markdown })
+        setConfirmRestore(false)
+        throw new Error('The current note changed. Compare the updated content before restoring.')
+      }
       await vaultRestoreNoteHistoryRevision(path, selectedId)
       setCurrentState({ path, markdown: preview })
       setStatus('Revision restored.')
@@ -194,6 +209,14 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
         <p className="empty-state">No saved revisions yet. Edits are captured before each save.</p>
       ) : (
         <div className="note-history-layout">
+          <section aria-label="Revision activity" className="note-history-activity">
+            <label>Scrub saved revisions
+              <input type="range" min={0} max={Math.max(0, revisions.length - 1)} value={Math.max(0, revisions.findIndex((row) => row.id === selectedId))} disabled={busy || revisions.length < 2} onChange={(event) => { setSelectedId(revisions[Number(event.target.value)]?.id ?? null); setConfirmRestore(false) }} aria-valuetext={selectedRevision ? formatRevisionDate(selectedRevision.saved_at) : 'No revision selected'} />
+            </label>
+            <p>Retained saves per UTC day, through {activity.at(-1)?.date}. Empty cells mean no retained revision; they do not prove no editing occurred.</p>
+            <div className="revision-heatmap-scroll"><ul className="revision-heatmap" aria-label="Saved revisions per UTC day">{activity.map((day) => <li key={day.date} data-level={day.count === 0 ? 'none' : day.count >= 5 ? 'high' : 'low'} title={`${day.date}: ${day.count} retained saves`}><span className="sr-only">{day.date}: {day.count} retained saves</span></li>)}</ul></div>
+            <p className="revision-heatmap-legend">Monday to Sunday in each column. Color intensity increases with the number of retained saves.</p>
+          </section>
           <ul className="note-history-timeline" aria-label="Saved revisions">
             {revisions.map((revision) => (
               <li key={revision.id}>
@@ -316,6 +339,10 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
               </section>
             </div>
           </div>
+          <section className="note-history-vocabulary" aria-label="Vocabulary analysis">
+            <VocabularyEvolution key={`${vaultId}:${path}`} path={path} vaultId={vaultId} revisions={revisions}/>
+            {vocabulary && <details><summary>Vocabulary comparison</summary><p>Measured from the Markdown source, including code and metadata. Distinct word ratio measures repetition; it is not a readability or quality score.</p><table><thead><tr><th>Measure</th><th>Current note</th><th>Selected revision</th></tr></thead><tbody><tr><th>Words</th><td>{vocabulary.current.words}</td><td>{vocabulary.revision.words}</td></tr><tr><th>Distinct words</th><td>{vocabulary.current.uniqueWords}</td><td>{vocabulary.revision.uniqueWords}</td></tr><tr><th>Distinct word ratio</th><td>{vocabulary.current.diversity === null ? 'No words' : `${(vocabulary.current.diversity * 100).toFixed(1)}%`}</td><td>{vocabulary.revision.diversity === null ? 'No words' : `${(vocabulary.revision.diversity * 100).toFixed(1)}%`}</td></tr></tbody></table></details>}
+          </section>
         </div>
       )}
       {status ? <p className="health-subtitle" role="status">{status}</p> : null}

@@ -40,7 +40,10 @@ test('publish apply itself consumes a PublishSite authorization grant', () => {
   assert.match(apply, /authorization_token/)
   assert.match(apply, /require_sensitive_operation/)
   assert.match(apply, /SensitiveOperation::PublishSite/)
+  assert.match(apply, /validate_expected_vault\(&session\.descriptor\.id, expected_vault_id\.as_deref\(\)\)/)
+  assert.ok(apply.indexOf('validate_expected_vault(') < apply.indexOf('require_sensitive_operation('))
 
   const plan = functionBody(source, 'vault_publish_plan_starlight')
   assert.doesNotMatch(plan, /require_sensitive_operation|SensitiveOperation::PublishSite/)
+  assert.match(plan, /validate_expected_vault/)
 })

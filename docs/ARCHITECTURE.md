@@ -20,6 +20,18 @@ CLI/TUI and MCP
 
 The renderer is not an authority boundary. Native operations validate scope, authorization, runtime payloads, paths, process policy, and cancellation independently of UI state.
 
+Research workspaces compose the existing vault/indexer/native boundaries. Database edits flush the source editor through its mutation coordinator, then retain the revision originally displayed by the table; a changed source requires reload and review. Capture and Zotero imports preview content before a missing-destination, expected-vault write. Credentials used for reviewed imports stay in memory and pagination is reset when the key changes.
+
+Asset previews read through the originating-vault reader boundary. PDF/EPUB documents remain bounded at 128 MiB; raster/audio previews use a separate 32 MiB bound and exclude active SVG/HTML documents. Local image/audio object URLs have explicit MIME checks and are revoked on source changes or unmount. The bundled reader custom protocol serves viewer code, rather than exposing arbitrary filesystem paths.
+
+Publishing build receipts bind output to source/output fingerprints. Deployment copies the bounded output into a private temporary snapshot, verifies that snapshot against the receipt, and passes only the snapshot to the brokered deployment process. Temporary snapshots are removed when the operation ends. These adapters remain experimental pending packaged and live-provider evidence.
+
+Rename composition flushes pending editor saves before applying native mutations. Link rewrites refresh the active note through the editor's revision/navigation guard; failed saves abort the rename and retain the draft. Native stale-source checks remain authoritative. Recovery backup filenames include a unique version identifier so later renames cannot overwrite the content referenced by older patch records.
+
+Activity history reads inspect at most the final 256 KiB and return at most 200 valid records, skipping malformed and oversized records. Appends reject records over 16 KiB and compact histories exceeding 1 MiB while holding the vault update lock. This policy applies to diagnostic activity; rename recovery records are retained separately and are not automatically pruned.
+
+Rendered output resolves bracket citations against the current bibliography in a text-node postprocessor before final sanitization. Grouped citations retain prefixes, locators, and author suppression; missing keys preserve the original source with an accessible unresolved marker. Code, links, and existing citation markup are excluded. This author/year preview does not replace CSL export formatting or alter authored Markdown. The sanitizer admits only the citation status and accessibility attributes needed by that presentation.
+
 ## Planes and ownership
 
 | Plane | Owner | Responsibilities |
@@ -107,5 +119,75 @@ SQLite uses WAL, foreign keys, busy timeouts, current-schema validation, FTS, an
 | Release | immutable action pins, version contract, explicit unsigned trust records, checksums/SBOM/receipt, provenance attestations |
 
 ## Known architecture work
+
+### Reviewed source, sync and rendering workflows
+
+Workspace shortcut preferences are separate from vault leaves and drafts.
+`useWorkspaceShortcutPreferences` validates versioned, bounded local UI data;
+`WorkspaceShortcutBar` resolves only the current command catalog. Labels and
+dimensions cannot store executable commands. Storage denial retains the draft
+and reports an error; hidden rows remain recoverable through the palette.
+
+The shell's `useWorkspaceComposition` binds runtime-validated per-vault leaf
+references to two dock groups. It restores references without activating owners,
+commits navigation only after owner approval and preserves mounted source/feature
+owners while their tabs are hidden or moved. Nested dialogs block hiding their
+owner. A per-leaf lifecycle registry scopes close decisions, while deferred vault
+guards reveal dirty editors sequentially. The writing editor stays singular;
+side Markdown leaves are read-only snapshots with explicit guarded navigation.
+The module manager registers the canonical runtime manifest, rechecks current
+plugin policy on launch, and applies authority changes before storing preferences.
+
+Standalone source files use `commands/source_files.rs` and the source editor,
+with an explicit text-format allowlist, bounded UTF-8 reads, content-hash saves,
+strict creation and immutable recovery. They do not enter Markdown prose
+metadata or history pipelines. Unsaved navigation decisions settle before a
+vault switch; superseded decisions cannot leave a switch waiting indefinitely.
+
+Google collaboration uses a persisted public folder/transport binding in
+`calendar_sync`. That section also retains the shared public OAuth desktop
+client ID; old vaults need
+no configuration migration. Drive/Docs, Calendar/Tasks and Gmail credentials
+remain three independent OS-keychain records with service-specific grants.
+Resource discovery validates bounded provider pages, rejects partial results
+and pagination cycles, and preserves calendar write roles. Account-change
+notifications invalidate other mounted consumers and their prepared reviews;
+native OAuth generations prevent a late login from restoring a disconnected
+credential. Removing one local credential does not revoke Google's entire app
+grant. Grant-wide revocation remains an explicit Google-account action.
+
+Renderer continuations carry their originating vault and account context.
+Account changes invalidate pending discovery, message reads, prepared reviews
+and imports. Planner blocks stay local to the vault, while provider mappings
+and reconciliation baselines are owned by the confirmed account and selected
+calendar or task list. An unmounted planner cannot persist a late provider
+response over the active planner's blocks. Gmail imports recheck context before
+each save, indexing and navigation boundary; a submitted write may complete,
+but stale follow-up effects are suppressed.
+
+Google collaboration binds remote operations to the originating vault as well
+as the one-time native grant. Drive JSON and opaque Google Docs records share
+the revision/conflict model. The Docs transport verifies a canonical encoded
+envelope and checksum, preserving Markdown bytes; optional rich text conversion
+is a separate reviewed workflow. Media files are not carried by these records.
+
+Overleaf uses the supported fixed-host Git transport through the process
+broker. A fresh isolated repository preserves the full remote index while only
+the selected source blob is materialized. Blob/object checks avoid Git text
+filter transformations. Reviewed head and content checks precede ordinary
+non-force pushes; a local application uses source-file content CAS.
+
+Persistent Python kernels are vault-owned broker processes with finite
+lifetimes, per-cell source-bound permission, bounded output and owned plot
+artifacts. A shared native transition guard prevents late registration during
+vault changes. Opening a vault and restoring a backup stop old kernels before
+replacing the session. Fresh execution of other languages remains separate.
+
+Graphviz is a bundled WebAssembly renderer in a cancellable, deadline-bounded
+worker. Markdown DOT fences and Diagram studio use the same client. SVG output
+is displayed in passive image context. Offline PDF typesetting remains native,
+with confined asset snapshots, bundled notices and unique artifact publication.
+Platform packaging and live provider evidence are tracked in the capability
+ledger rather than inferred from renderer fixtures.
 
 The adapter layer retains a composition root, but quick capture, rename transactions, deletion, telemetry, shortcuts, sidebar actions, auxiliary workspace data, settings vault configuration, MCP tool contracts, daemon command catalog/support, daemon transport tests, CLI command-line schema, and CLI benchmarks have focused owners. Further decomposition proceeds through characterized vertical workflows over typed application services, not a big-bang rewrite. See the capability ledger.

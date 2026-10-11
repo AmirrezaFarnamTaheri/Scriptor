@@ -121,6 +121,7 @@ fn should_skip_backup_path(relative: &Path) -> bool {
                         | "tmp"
                         | "restore-journal"
                         | "recovery"
+                        | "source-recovery"
                 )
         }
         _ => false,
@@ -866,18 +867,24 @@ pub fn vault_restore_backup(
     authorization_token: String,
 ) -> Result<VaultRestoreResult, String> {
     let _switch = crate::state::lock_recover(&state.vault_switch_lock, "vault switch");
-    let mut session_guard = write_recover(&state.session, "session");
-    let session = session_guard
-        .as_mut()
+    let _kernels = super::code_chunk::runtime::vault_transition_guard()?;
+    let vault_id = crate::state::read_recover(&state.session, "session")
+        .as_ref()
+        .map(|session| session.descriptor.id.clone())
         .ok_or_else(|| "No vault is open. Call vault_open first.".to_string())?;
-
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::RestoreBackup,
         Some(&backup_name),
-        Some(&session.descriptor.id),
+        Some(&vault_id),
     )?;
+    super::code_chunk::runtime::stop_vault_sessions(&vault_id)?;
+    let mut session_guard = write_recover(&state.session, "session");
+    let session = session_guard
+        .as_mut()
+        .ok_or_else(|| "No vault is open. Call vault_open first.".to_string())?;
+
     let vault_root = session.root.root().to_path_buf();
     let (root, _) = backup_root(&vault_root, backup_path.as_deref())?;
     let source = confined_backup_dir(&root, &backup_name)?;

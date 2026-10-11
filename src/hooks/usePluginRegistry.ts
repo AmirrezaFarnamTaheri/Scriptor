@@ -6,6 +6,7 @@ import {
   createVaultQueryAdapter,
   listBundledMarketplaceCatalog,
   loadAllBundledManifests,
+  runtimeConsoleManifest,
   loadMarketplaceCatalog,
   resolveMarketplaceManifest,
   type MarketplaceListing,
@@ -91,7 +92,7 @@ export function usePluginRegistry(
     void loadAllBundledManifests()
       .then((manifests) => {
         if (cancelled) return
-        for (const manifest of manifests) {
+        for (const manifest of [...manifests, runtimeConsoleManifest]) {
           if (!registry.has(manifest.id)) {
             registry.register(manifest)
           }
@@ -182,7 +183,11 @@ export function usePluginRegistry(
     [activeVaultId, registry, revision], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const plugins = useMemo(() => registry.listAll(), [registry, revision]) // eslint-disable-line react-hooks/exhaustive-deps
-  const contributions = useMemo(() => collectContributions(enabledPlugins), [enabledPlugins])
+  const contributions = useMemo(() => collectContributions(enabledPlugins, {
+    vaultId: activeVaultId,
+    safeMode: snapshot.safeMode,
+    policies: Object.fromEntries(enabledPlugins.map(plugin => [plugin.manifest.id, registry.defaultPolicy(plugin.manifest.id)])),
+  }), [activeVaultId, enabledPlugins, registry, snapshot.safeMode])
 
   const canExecutePluginCommand = useCallback(
     (pluginId: string, permission: import('@scriptor/core/contracts/plugin').PluginPermission['permission']) => {

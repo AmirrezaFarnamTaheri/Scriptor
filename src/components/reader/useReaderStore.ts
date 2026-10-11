@@ -42,6 +42,8 @@ export interface ReaderState {
   fileType: ReaderFileType
   /** Current page (PDF) or CFI spine position (epub). */
   position: string | null
+  /** One-based EPUB spine section for readable location chrome. */
+  section: number | null
   /** Pending selection from the webview. */
   selection: ReaderSelection | null
   annotations: ReaderAnnotation[]
@@ -54,7 +56,7 @@ export interface ReaderState {
 export interface ReaderActions {
   openFile: (vaultRelPath: string, fileType: ReaderFileType) => void
   closeFile: () => void
-  setPosition: (position: string) => void
+  setPosition: (position: string, section?: number) => void
   setSelection: (selection: ReaderSelection | null) => void
   addAnnotation: (annotation: ReaderAnnotation) => void
   setAnnotations: (annotations: ReaderAnnotation[]) => void
@@ -70,6 +72,7 @@ const INITIAL_STATE: ReaderState = {
   filePath: null,
   fileType: 'unknown',
   position: null,
+  section: null,
   selection: null,
   annotations: [],
   annotationPopoverOpen: false,
@@ -87,6 +90,7 @@ export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
       filePath: vaultRelPath,
       fileType,
       position: null,
+      section: null,
       selection: null,
       annotations: [],
       error: null,
@@ -95,7 +99,7 @@ export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
 
   closeFile: () => set({ ...INITIAL_STATE }),
 
-  setPosition: (position) => set({ position }),
+  setPosition: (position, section) => set({ position, section: section ?? null }),
 
   setSelection: (selection) =>
     set((state) => ({

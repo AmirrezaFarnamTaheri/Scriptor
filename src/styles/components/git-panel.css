@@ -59,6 +59,13 @@
   flex-wrap: wrap;
 }
 
+.git-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .git-pull-strategy,
 .git-diff-picker {
   display: flex;
@@ -96,12 +103,49 @@
   gap: 6px;
 }
 
+.git-panel .unified-panel-body {
+  scroll-padding-block: 8px;
+}
+
+/* Virtual rows end at an exact slot boundary. Leave a small scrollable inset
+   so fractional zoom rounding cannot clip the first or last row. */
+.git-changes > div {
+  padding-block: 2px;
+  scroll-padding-block: 4px;
+}
+
+.git-changes li {
+  scroll-margin-block: 4px;
+}
+
 .git-changes li {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding: 8px;
+}
+
+.git-file-row-content {
+  display: flex;
+  flex-shrink: 0;
+  align-self: stretch;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px;
+  min-width: 0;
+}
+
+.git-file-selection label > span {
+  min-width: 0;
+}
+
+.git-file-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .git-file-selection {
@@ -200,18 +244,24 @@
   gap: 8px;
 }
 
-@media (max-width: 640px) {
-  .git-changes li {
-    align-items: stretch;
-    flex-direction: column;
-  }
+.git-file-row-content-compact {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 8px;
+}
 
-  .git-file-row-actions {
-    justify-content: flex-start;
-  }
+.git-panel .git-file-row-content.git-file-row-content-compact .git-file-row-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
 
-  .git-file-row-actions button {
-    min-height: 44px;
-    min-width: 44px;
-  }
+.git-panel .git-file-row-content.git-file-row-content-compact .git-file-row-actions button {
+  min-height: 44px;
+  min-width: 44px;
+  max-width: 100%;
+  padding: 6px 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }

@@ -1,28 +1,26 @@
 <div dir="ltr" align="center">
+
 [English](README.md) · **فارسی** · [简体中文](README.zh-CN.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md)
+
 </div>
 
 <div dir="rtl" lang="fa" align="right">
 
-<div align="center">
 
 # <bdi dir="ltr">Scriptor</bdi>
 
 **فضای کاری محلی‌محور برای نوشتن حرفه‌ای و پژوهش با <bdi dir="ltr">Markdown.</bdi>**
 
-[<bdi dir="ltr">English</bdi>](README.md) · **فارسی**
-
-[![<bdi dir="ltr">Version</bdi>](https://img.shields.io/badge/version-1.2.8-0f766e.svg)](<bdi dir="ltr">VERSION</bdi>)
-[![<bdi dir="ltr">License: AGPL-3.0-or-later</bdi>](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](<bdi dir="ltr">LICENSE</bdi>)
-[![<bdi dir="ltr">Platforms</bdi>](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-0f766e.svg)](#<bdi dir="ltr">download</bdi>)
-[![<bdi dir="ltr">Stack</bdi>](https://img.shields.io/badge/stack-Tauri%202%20%C2%B7%20React%2019%20%C2%B7%20Rust%201.96-0f766e.svg)](#<bdi dir="ltr">tech-stack</bdi>)
-[![<bdi dir="ltr">CI</bdi>](https://img.shields.io/github/actions/workflow/status/AmirrezaFarnamTaheri/Scriptor/ci.yml?branch=main&label=CI)](<bdi dir="ltr">https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/workflows/ci.yml</bdi>)
+[![<bdi dir="ltr">Version</bdi>](https://img.shields.io/badge/version-1.2.8-0f766e.svg)](VERSION)
+[![<bdi dir="ltr">License: AGPL-3.0-or-later</bdi>](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](LICENSE)
+[![<bdi dir="ltr">Platforms</bdi>](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-0f766e.svg)](#download)
+[![<bdi dir="ltr">Stack</bdi>](https://img.shields.io/badge/stack-Tauri%202%20%C2%B7%20React%2019%20%C2%B7%20Rust%201.96-0f766e.svg)](#tech-stack)
+[![<bdi dir="ltr">CI</bdi>](https://img.shields.io/github/actions/workflow/status/AmirrezaFarnamTaheri/Scriptor/ci.yml?branch=main&label=CI)](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/workflows/ci.yml)
 
 یادداشت‌های شما همان فایل‌های معمولی <bdi dir="ltr">Markdown</bdi> باقی می‌مانند. <bdi dir="ltr">Scriptor</bdi> روی این فایل‌ها ویرایش، پیوندهای بازگشتی، ارجاع‌دهی، تاریخچه نسخه‌ها، انتشار و خودکارسازی با مجوزهای صریح را اضافه می‌کند.
 
 [دریافت](#download) · [شروع کار](docs/guides/GETTING_STARTED.md) · [قابلیت‌ها](docs/CAPABILITIES.md) · [توسعه افزونه](docs/plugins/AUTHOR_GUIDE.md) · [مشارکت](CONTRIBUTING.md)
 
-</div>
 
 ![فضای کاری <bdi dir="ltr">Scriptor</bdi> با ویرایشگر، پیش‌نمایش رندرشده، پنل بازرس و نوار وضعیت جمع‌وجور](docs/assets/screenshots/workspace-light.png)
 
@@ -34,7 +32,7 @@
 
 | کار با محتوای شما | <bdi dir="ltr">Scriptor</bdi> چه چیزی فراهم می‌کند |
 |---|---|
-| **نوشتن و بازبینی** | نمای متن منبع، نمای دو‌بخشی و نمای رندرشده؛ پیمایش بر اساس ساختار سند؛ قطعه‌متن‌ها؛ ویرایشگر قابل تنظیم؛ تاریخچه یادداشت |
+| **نوشتن و بازبینی** | متن منبع و نمای دیداری قابل ویرایش در Preview و Split؛ خروجی فقط‌خواندنی در Inspector؛ پیمایش ساختار؛ قطعه‌متن؛ ویرایشگر قابل تنظیم؛ تاریخچه یادداشت |
 | **ساخت و بررسی شواهد** | <bdi dir="ltr">Wikilink</bdi>، پیوند بازگشتی، ارجاع علمی، مرور گراف، بررسی سلامت و ترمیم پیوندهای حل‌نشده |
 | **انتشار بازتولیدپذیر** | پروفایل‌های نام‌گذاری‌شده <bdi dir="ltr">Pandoc</bdi> برای <bdi dir="ltr">HTML</bdi>، <bdi dir="ltr">PDF</bdi>، <bdi dir="ltr">DOCX</bdi>، <bdi dir="ltr">LaTeX</bdi>، <bdi dir="ltr">ePub</bdi> و <bdi dir="ltr">Reveal.js</bdi> |
 | **خودکارسازی با مرزبندی روشن** | گردش‌کارهای آگاه از <bdi dir="ltr">Git</bdi>، ابزارهای <bdi dir="ltr">MCP</bdi> با ثبت ممیزی، افزونه‌های مجوزمحور و یک <bdi dir="ltr">daemon</bdi> محلی |
@@ -51,9 +49,19 @@
 
 | گسترش فضای کاری | انتشار با پروفایل‌های نام‌گذاری‌شده |
 |---|---|
-| ![بازار افزونه‌ها](docs/assets/screenshots/plugins.png) | ![مرکز انتشار](docs/assets/screenshots/publish-center.png) |
+| ![مدیریت افزونه‌های نصب‌شده پروژه](docs/assets/screenshots/plugins.png) | ![مرکز انتشار](docs/assets/screenshots/publish-center.png) |
 
 [فهرست اسکرین‌شات‌ها](docs/assets/screenshots/README.md) حالت تاریک، <bdi dir="ltr">Git</bdi>، حل تعارض، <bdi dir="ltr">Command Palette</bdi>، <bdi dir="ltr">MCP</bdi>، تنظیمات، سلامت مخزن، تاریخچه یادداشت، میانبرهای صفحه‌کلید، فرایند آشنایی اولیه و چیدمان‌های فشرده را نیز پوشش می‌دهد. اسکریپت ثبت تصویر صبر می‌کند تا داده‌ها و پنل‌ها کاملاً بارگذاری شوند و اگر صفحه در وضعیت بارگذاری یا حالت تنزل‌یافته باقی بماند، اجرا را ناموفق اعلام می‌کند.
+
+این نمونه‌ها از مخزن داده آزمایشی E2E استفاده می‌کنند. فروشگاه افزونه یک فهرست آزمایشی افزونه‌های خود پروژه است، نه بازار عمومی. نتایج MCP از پل آزمایشی محلی می‌آیند و اتصال کارخواه خارجی را ثابت نمی‌کنند.
+
+| مجوز MCP و دستورهای راهنما | ساختار فقط‌خواندنی یادداشت در Tools |
+|---|---|
+| ![مجوز MCP و دستورهای راهنما](docs/assets/screenshots/mcp-panel.png) | ![ساختار فقط‌خواندنی یادداشت در Tools](docs/assets/screenshots/mcp-tools.png) |
+
+| مجوز خواندن لازم Vault Lint پیش از فعال‌سازی | Appearance: رنگ، روز/شب، قلم و تراکم |
+|---|---|
+| ![مجوز خواندن لازم Vault Lint پیش از فعال‌سازی](docs/assets/screenshots/plugin-permissions.png) | ![Appearance: رنگ، روز/شب، قلم و تراکم](docs/assets/screenshots/settings-appearance.png) |
 
 ## قابلیت‌ها
 
@@ -68,6 +76,8 @@
 - **بررسی املا** — <bdi dir="ltr">Hunspell</bdi> چندزبانه با پشتیبانی اختیاری از <bdi dir="ltr">LanguageTool</bdi>
 
 برای مشاهده وضعیت فعلی قابلیت‌های منتشرشده، آزمایشی و صرفاً طراحی‌شده، به [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) مراجعه کنید.
+
+یکپارچه‌سازی‌های آزمایشی دسکتاپ، همکاری بازبینی‌شده روی Markdown از طریق Drive یا Docs، برنامه‌ریزی با Calendar و Tasks و افزونه Gmail را پشتیبانی می‌کنند. شناسه عمومی کارخواه OAuth دسکتاپ را در **Settings → Integrations** تنظیم کنید و هر گروه خدمات موردنیاز را جداگانه متصل کنید. یادداشت‌های محلی مرجع اصلی می‌مانند و نوشتن در سرویس به تأیید نیاز دارد. [راهنمای گوگل](docs/guides/GOOGLE_INTEGRATIONS.fa.md) انتخاب منابع، گردش‌کارها و بازیابی را توضیح می‌دهد.
 
 <a id="download"></a>
 ## دریافت <bdi dir="ltr">Scriptor</bdi>
@@ -107,7 +117,11 @@
 
 ### راه‌اندازی اولیه
 
-<div dir="ltr">
+
+</div>
+
+<div dir="ltr" align="left">
+
 ```powershell
 corepack enable
 corepack prepare pnpm@10.33.0 --activate
@@ -115,22 +129,38 @@ pnpm install --frozen-lockfile
 rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
 rustup default 1.96.0
 ```
+
 </div>
+
+<div dir="rtl" lang="fa" align="right">
+
 
 ### اجرا
 
-<div dir="ltr">
+
+</div>
+
+<div dir="ltr" align="left">
+
 ```powershell
 pnpm web:dev          # فقط پوسته وب؛ برای توسعه و آزمون‌های بصری
 pnpm desktop:dev      # پوسته دسکتاپ Tauri
 ```
+
 </div>
+
+<div dir="rtl" lang="fa" align="right">
+
 
 ### راستی‌آزمایی
 
 بررسی‌های سریع و بومی خود مخزن:
 
-<div dir="ltr">
+
+</div>
+
+<div dir="ltr" align="left">
+
 ```powershell
 pnpm version:check
 pnpm lint:actions
@@ -140,11 +170,19 @@ pnpm check:docs
 pnpm check:source
 pnpm check:frontend-quality
 ```
+
 </div>
+
+<div dir="rtl" lang="fa" align="right">
+
 
 دروازه کامل انتشار:
 
-<div dir="ltr">
+
+</div>
+
+<div dir="ltr" align="left">
+
 ```powershell
 pnpm install --frozen-lockfile
 pnpm lint
@@ -154,7 +192,11 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
+
 </div>
+
+<div dir="rtl" lang="fa" align="right">
+
 
 `pnpm check:release` اجراکننده‌های قرارداد، آزمون‌های <bdi dir="ltr">Rust</bdi>، مجموعه آزمون‌های <bdi dir="ltr">E2E</bdi> و بصری <bdi dir="ltr">Playwright</bdi>، ممیزی‌های دسترس‌پذیری، <bdi dir="ltr">smoke test</bdi>های <bdi dir="ltr">daemon</bdi> و <bdi dir="ltr">TUI</bdi> و دروازه‌های عملکرد را اجرا می‌کند. جزئیات بسته‌بندی و راستی‌آزمایی شواهد انتشار در [`scripts/release/README.md`](scripts/release/README.md) مستند شده است.
 
@@ -222,6 +264,5 @@ cargo test --workspace
 ## نگه‌دارنده پروژه
 
 <bdi dir="ltr">Amirreza</bdi> "<bdi dir="ltr">Farnam</bdi>" <bdi dir="ltr">Taheri</bdi> · [<bdi dir="ltr">taherifarnam</bdi>@<bdi dir="ltr">gmail.com</bdi>](mailto:taherifarnam@gmail.com) · [<bdi dir="ltr">GitHub</bdi>](https://github.com/AmirrezaFarnamTaheri/Scriptor)
-
 
 </div>

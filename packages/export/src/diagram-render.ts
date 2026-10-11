@@ -1,5 +1,6 @@
+import { renderMermaidSvg } from '@scriptor/renderer/mermaid'
 import type { DiagramKind } from './diagram-export.ts'
-import { findDiagramBlocks } from './diagram-export.ts'
+import { findDiagramBlocks, formatDiagramImageDestination } from './diagram-export.ts'
 
 export interface DiagramRenderResult {
   relativePath: string
@@ -7,11 +8,11 @@ export interface DiagramRenderResult {
 }
 
 /** Rasterize mermaid blocks to PNG data URLs (browser) for export preprocessing. */
-export async function renderMermaidDiagramPng(source: string): Promise<string> {
-  const { default: mermaid } = await import('mermaid')
-  mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' })
-  const id = `scriptor-mermaid-${crypto.randomUUID()}`
-  const { svg } = await mermaid.render(id, source)
+export async function renderMermaidDiagramPng(
+  source: string,
+  renderSvg: (source: string) => Promise<string> = renderMermaidSvg,
+): Promise<string> {
+  const svg = await renderSvg(source)
   const blob = new Blob([svg], { type: 'image/svg+xml' })
   const url = URL.createObjectURL(blob)
   try {
@@ -55,16 +56,17 @@ export async function preprocessMarkdownDiagramsForExport(
         const dataUrl = await renderMermaidDiagramPng(block.source)
         const bytes = dataUrlToBytes(dataUrl)
         const relativePath = await writeDiagram('mermaid', index, bytes, 'png')
-        output += `![Mermaid diagram](${relativePath})\n`
-      } else if (renderPlantUml) {
+        output += `![Mermaid diagram](${formatDiagramImageDestination(relativePath)})`
+      } else {
+        if (!renderPlantUml) throw new Error('A PlantUML renderer is required; use the desktop app with a configured renderer.')
         const bytes = await renderPlantUml(block.source)
         const relativePath = await writeDiagram('plantuml', index, bytes, 'svg')
-        output += `![PlantUML diagram](${relativePath})\n`
-      } else {
-        output += markdown.slice(block.start, block.end)
+        output += `![PlantUML diagram](${formatDiagramImageDestination(relativePath)})`
       }
-    } catch {
-      output += markdown.slice(block.start, block.end)
+    } catch (error) {
+      const label = block.kind === 'mermaid' ? 'Mermaid' : 'PlantUML'
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`Could not prepare ${label} diagram ${index + 1}: ${message}`, { cause: error })
     }
     cursor = block.end
   }

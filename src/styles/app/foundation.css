@@ -132,7 +132,9 @@
 
 
 .rename-dialog {
-  width: min(480px, calc(100vw - 32px));
+  width: min(480px, calc(var(--app-viewport-width, 100vw) - 32px));
+  max-height: calc(var(--app-viewport-height, 100dvh) - 32px);
+  overflow: auto;
   display: grid;
   gap: 14px;
   padding: 18px;
@@ -228,6 +230,11 @@ button {
   cursor: pointer;
 }
 
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--primary);
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
@@ -235,7 +242,8 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
-svg {
+/* Interface icon defaults must not resize diagrams or nested math glyphs. */
+svg.lucide {
   width: 17px;
   height: 17px;
   stroke-width: 1.9;
@@ -264,6 +272,7 @@ svg {
 
 .brand {
   min-width: 196px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -306,6 +315,7 @@ svg {
 }
 
 .history-controls {
+  flex-shrink: 0;
   padding: 2px;
 }
 
@@ -407,6 +417,14 @@ svg {
 }
 
 .flip {
+  transform: rotate(180deg);
+}
+
+html[dir='rtl'] .history-controls svg.flip {
+  transform: none;
+}
+
+html[dir='rtl'] .history-controls button:nth-child(2) svg {
   transform: rotate(180deg);
 }
 
@@ -818,11 +836,13 @@ html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
 .topbar-customize {
   position: fixed;
   z-index: 90;
-  min-width: 250px;
-  max-height: 70vh;
+  min-width: min(250px, calc(var(--app-viewport-width, 100vw) - 16px));
+  max-width: calc(var(--app-viewport-width, 100vw) - 16px);
+  max-height: calc(var(--app-viewport-height, 100dvh) * 0.7);
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  scroll-padding-block: 8px;
   touch-action: pan-y;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -853,6 +873,10 @@ html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
   color: var(--muted);
 }
 
+.topbar-customize > * {
+  flex-shrink: 0;
+}
+
 .topbar-customize label {
   display: flex;
   align-items: center;
@@ -862,6 +886,8 @@ html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
 
 .topbar-customize .customize-reset {
   margin-top: 4px;
+  /* Keep the final control above the rounded scrollport, including at zoom. */
+  margin-bottom: 8px;
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;

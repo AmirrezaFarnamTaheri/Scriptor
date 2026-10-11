@@ -49,7 +49,12 @@ export function bibliographyEntryToCslItem(entry: BibliographyEntry): Record<str
 
   const author = entry.author?.trim()
   if (author) {
-    item.author = [{ literal: author }]
+    item.author = author.split(/\s+and\s+/).map(name => {
+      const trimmed = name.trim()
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) return { literal: trimmed.slice(1, -1) }
+      const comma = trimmed.indexOf(',')
+      return comma > 0 ? { family: trimmed.slice(0, comma).trim(), given: trimmed.slice(comma + 1).trim() } : { literal: trimmed }
+    })
   }
 
   const year = Number.parseInt(entry.year?.trim() ?? '', 10)

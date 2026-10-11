@@ -6,11 +6,14 @@ pub mod cancel;
 pub mod diagram;
 pub mod diagram_preprocess;
 pub mod error;
+#[cfg(feature = "inprocess-pdf")]
+pub mod inprocess_pdf;
 pub mod job;
 pub mod log;
 pub mod pandoc;
 pub mod sealed;
 pub mod theme;
+mod typst;
 pub mod validate;
 
 pub use cancel::{ExportCancelSlot, cancel_active_export, new_cancel_slot};

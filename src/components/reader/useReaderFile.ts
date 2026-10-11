@@ -38,6 +38,7 @@ export function useReaderFile(
   vaultRelPath: string | null,
   vaultRoot: string | null,
   reloadGeneration = 0,
+  expectedVaultId?: string,
 ): ReaderFileState {
   const [state, dispatch] = useReducer(readerFileReducer, { status: 'idle' } as ReaderFileState)
 
@@ -50,7 +51,7 @@ export function useReaderFile(
     dispatch({ type: 'loading' })
     let cancelled = false
 
-    void readReaderDocument(vaultRelPath)
+    void readReaderDocument(vaultRelPath, expectedVaultId)
       .then((bytes) => {
         if (!cancelled) dispatch({ type: 'ready', bytes })
       })
@@ -66,7 +67,7 @@ export function useReaderFile(
     return () => {
       cancelled = true
     }
-  }, [vaultRelPath, vaultRoot, reloadGeneration])
+  }, [vaultRelPath, vaultRoot, reloadGeneration, expectedVaultId])
 
   return state
 }

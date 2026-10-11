@@ -17,7 +17,7 @@ pub use error::CanvasError;
 pub use hit_test::{HitTestResult, hit_test, query_blocks_in_bounds};
 pub use scene::{
     CanvasBlock, CanvasBlockKind, CanvasDocument, CanvasLayer, CanvasMode, CanvasPoint, CanvasRect,
-    CanvasTemplate, document_to_json, parse_document_json,
+    CanvasRelation, CanvasTemplate, document_to_json, parse_document_json, validate_relations,
 };
 pub use snapshot::{
     MAX_SNAPSHOT_DIMENSION, SnapshotFormat, SnapshotOutput, render_svg, write_snapshot,

@@ -27,6 +27,16 @@ pub fn lock_vault_update(target: &Path) -> Result<VaultUpdateLock, VaultError> {
         .file_name()
         .ok_or_else(|| VaultError::InvalidRelativePath(target.display().to_string()))?;
     let lock_path = parent.join(format!(".scriptor-{}.lock", name.to_string_lossy()));
+    match fs::symlink_metadata(&lock_path) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+            return Err(VaultError::InvalidRelativePath(
+                lock_path.display().to_string(),
+            ));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(source) => return Err(VaultError::io(&lock_path, source)),
+    }
     let file = fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -52,7 +62,51 @@ pub fn lock_vault_update(target: &Path) -> Result<VaultUpdateLock, VaultError> {
 /// from the first observation through the final mutation so two writers cannot
 /// both validate the same stale hash and then overwrite one another.
 pub fn lock_vault_mutation(root: &Path) -> Result<VaultUpdateLock, VaultError> {
-    lock_vault_update(&root.join(".scriptor").join("vault-mutation"))
+    let internal = root.join(".scriptor");
+    match fs::symlink_metadata(&internal) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err(VaultError::InvalidRelativePath(
+                internal.display().to_string(),
+            ));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(source) => return Err(VaultError::io(&internal, source)),
+    }
+    lock_vault_update(&internal.join("vault-mutation"))
+}
+
+/// Exclusively creates a sensitive directory with owner-only Unix permissions.
+/// Existing directories are rejected rather than changing user permissions.
+/// The containing directory supplies the inherited ACL on other platforms.
+pub fn create_private_directory(path: &Path) -> Result<(), VaultError> {
+    #[cfg(unix)]
+    let mut builder = fs::DirBuilder::new();
+    #[cfg(not(unix))]
+    let builder = fs::DirBuilder::new();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder
+        .create(path)
+        .map_err(|source| VaultError::io(path, source))
+}
+
+/// Exclusively creates a sensitive file with owner-only Unix permissions.
+/// The containing directory supplies the inherited ACL on other platforms.
+pub fn create_private_file(path: &Path) -> Result<fs::File, VaultError> {
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options
+        .open(path)
+        .map_err(|source| VaultError::io(path, source))
 }
 
 /// Write `bytes` to `path` atomically: temp file in the target directory, fsync, rename.
@@ -298,6 +352,32 @@ mod tests {
             .filter(|entry| entry.file_name().to_string_lossy().starts_with(TEMP_PREFIX))
             .count();
         assert_eq!(leftovers, 0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mutation_lock_rejects_linked_internal_storage_without_external_side_effects() {
+        let vault = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(outside.path(), vault.path().join(".scriptor")).unwrap();
+
+        assert!(lock_vault_mutation(vault.path()).is_err());
+        assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn update_lock_rejects_linked_sidecar_without_using_an_external_lock() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let target = dir.path().join("state.json");
+        let external = outside.path().join("external");
+        fs::write(&external, "untouched").unwrap();
+        std::os::unix::fs::symlink(&external, dir.path().join(".scriptor-state.json.lock"))
+            .unwrap();
+
+        assert!(lock_vault_update(&target).is_err());
+        assert_eq!(fs::read_to_string(&external).unwrap(), "untouched");
     }
 
     const UPDATE_LOCK_TARGET_ENV: &str = "SCRIPTOR_VAULT_UPDATE_LOCK_TARGET";

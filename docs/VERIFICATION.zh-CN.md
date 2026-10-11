@@ -1,152 +1,100 @@
+# 验证
+
 [English](VERIFICATION.md) · [فارسی](VERIFICATION.fa.md) · **简体中文** · [Русский](VERIFICATION.ru.md) · [Deutsch](VERIFICATION.de.md) · [Español](VERIFICATION.es.md)
 
-# 验证证据
+每项结果必须注明准确源提交、环境、目标架构和产物。旧提交的结果不能证明新实现已通过验证。
 
-**日期：**2026-08-23（仓库本地证据；并不声称本次会话重新执行了下列每一条命令）
+## 证据与当前状态
 
-本文描述仓库中用于 hygiene、契约、安全、build、测试、packaging 与 release provenance 的证据链。已经记录的命令、文件名、标识符、hash 和工具输出属于技术证据，因此保持原样，不作为产品文案翻译。
+本轮审查的所有可执行验证都在 GitHub 托管工作机进行。本轮不授权本地应用运行、安装、测试、构建、lint、类型检查或格式化。源代码审查和编写的回归测试与实际通过的执行结果分开记录。
 
-## 1. 本地 Hygiene、发现与范围审查
+| 证据 | 含义 |
+|---|---|
+| 已验证 | 指定命令在指定源代码上执行并通过。 |
+| 已静态验证 | 不运行产品，解析并检查代码或元数据。 |
+| 已审阅 | 检查代码、契约或图片，没有执行证明。 |
+| 待完成 | 所需执行或人工证据尚未取得。 |
+| 失败 | 指定命令执行但未通过。 |
 
-解释测试结果之前，首先确认哪个 commit 与哪些来源才是权威状态。需要排除 working-tree drift、意外生成文件、过期本地产物，以及与实现冲突的文档。
+[Google 记录](validation/GOOGLE-INTEGRATIONS-2026-10-09.md)包含五项服务范围、工作机结果及提供商限制。[依赖限制](validation/SUPPLY-CHAIN-2026-10-04.md)不会因无关检查通过而解除。
 
-常用仓库原生检查：
+当前证据保存在注明日期的记录中：[产品审查](validation/CROSS-PRODUCT-REVIEW-2026-10-04.md)、[缩放审查](validation/LEGACY-DIALOG-ZOOM-2026-10-08.md)、[截图来源](validation/SCREENSHOT-REFRESH-2026-10-08.md)、[工作区自定义](validation/WORKSPACE-SHORTCUTS-2026-10-08.md)及[历史验证](validation/HISTORICAL_VERIFICATION.md)。此前中文版[保留历史正文归档，链接目标已调整](validation/localized-verification-history/VERIFICATION.zh-CN.md)。历史数字是来源记录，不代表当前完成状态。维护中的文档必须本地化；来源敏感的审计和归档文档除外。
 
-```powershell
-git status --short
-git rev-parse HEAD
-git ls-files
-pnpm version:check
+## 仓库检查
+
+托管工作机从仓库根目录运行：
+
+```bash
 pnpm check:source
-pnpm check:docs
-pnpm check:i18n
+pnpm check:governance
+pnpm check:mcp
+pnpm check:plugins
+pnpm check:canvas
+pnpm check:editor
+pnpm check:portal
+pnpm check:renderer
+pnpm check:export
+pnpm check:headless
+pnpm check:citations
+pnpm check:knowledge
+pnpm check:merge
 ```
 
-本阶段还会检查 `package.json`、`pnpm-lock.yaml`、`Cargo.toml`、`Cargo.lock`、`rust-toolchain.toml`、Tauri 配置、`.github/workflows/` 下的 workflow、release scripts，以及架构/能力成熟度文档。精确 commit 上的实现才是 source of truth；历史审计或计划文档不能替代当前状态检查。
+`check:source`覆盖 IPC 契约、Rust 模块/进程/unsafe 策略、原生授权、前端策略、职责边界、性能工具、发布信任和 RustSec 例外。`check:governance`覆盖版本一致性、不可变 Actions、包边界、语言及文档/许可契约。
 
-**接受规则：**只有证据与同一 source commit 绑定，或其 provenance contract 明确证明经过验证的派生关系时，才能将该证据归属于某个 release candidate。
+## 完整工程门禁
 
-## 2. 安全与依赖 Gate
+候选版本需要干净的 GitHub 环境、仓库清单固定的工具链与冻结锁文件：
 
-Dependency/security 审查覆盖 Node/pnpm、Rust/Cargo、GitHub Actions 与外部工具。仓库原生 gate 会检查 workflow pinning、依赖策略、进程启动 inventory 与已知 advisories。
-
-```powershell
-pnpm lint:actions
-pnpm check:release-security
-cargo deny check
-cargo tree --workspace
-```
-
-RustSec exception 不被视为通用 suppression。唯一允许的 exception surface 是版本控制的 [`security/RUSTSEC-EXCEPTIONS.zh-CN.md`](security/RUSTSEC-EXCEPTIONS.zh-CN.md)，其中记录 owner、reachability、复审日期和退出条件。新出现或可升级修复的 vulnerability-class advisory 仍然是 release blocker。
-
-Process boundary 也是安全 gate 的组成部分：production 外部程序启动必须经过批准的 system bridge，并与 process inventory 对照。Secrets、network、filesystem、MCP mutation 与 plugin permission 都必须在其原生 trust boundary 上 fail-closed 验证。
-
-## 3. 类型、契约与边界 Surface
-
-Scriptor 使用生成的 Rust/TypeScript contract 和额外 source contract，防止 renderer、Tauri、daemon、CLI/TUI 与 MCP 的 payload 悄然分叉。
-
-```powershell
-pnpm check:contracts
-pnpm check:generated-contracts
-pnpm lint:boundaries
-pnpm check:source
-pnpm check:frontend-quality
-pnpm check:i18n
-```
-
-Command surface 记录在 [`contracts/COMMAND_CATALOG.zh-CN.md`](contracts/COMMAND_CATALOG.zh-CN.md)。Boundary outcome 遵循 [`contracts/BOUNDARY_OUTCOMES.zh-CN.md`](contracts/BOUNDARY_OUTCOMES.zh-CN.md)：`value`、`absent-optional`、`invalid`、`degraded`、`failed`、`recovered` 不得折叠为单一 default value。
-
-**接受规则：**新增 command、RPC、MCP tool 或 CLI entry point 必须具有 owner、permission class、typed input/output、failure semantics、audit behavior，以及 rollback/no-mutation contract。
-
-## 4. Build 与 UI Smoke
-
-Frontend 与 desktop build 用于验证 TypeScript/React surface、Tauri host 和 bundled assets 彼此兼容。
-
-```powershell
+```bash
+corepack enable
 pnpm install --frozen-lockfile
 pnpm lint
+pnpm check:contracts
 pnpm build
-cargo check --workspace
+pnpm check:release
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo deny check
+pnpm audit --prod
 ```
 
-Desktop-specific release evidence 必须在受支持操作系统上执行 Tauri build path。Web build 通过并不能单独证明 desktop integration、native capability 或 installer 生成正确。
+`pnpm build`包括生产包图和初始 gzip 预算检查；`pnpm lint`不允许 ESLint 警告。`check:release`在 Linux/macOS 也需要 PowerShell 7（`pwsh`）。axe 需要兼容 Chrome 的 ChromeDriver；自动发现不可用时，将 `CHROMEWEBDRIVER`设为驱动所在目录。
 
-UI smoke 至少覆盖打开 vault、读写笔记、index/search readiness、error/recovery state 与主导航。E2E/screenshot mode 不得泄漏到 production bundle。
+## 界面与无障碍
 
-## 5. 测试套件
-
-验证组合快速 source contract、JavaScript/TypeScript tests、Rust tests、Playwright E2E、accessibility 与 visual regression。任何一种测试都不能替代其他测试类型。
-
-```powershell
-pnpm test:source
-pnpm test:rust
+```bash
 pnpm test:e2e
 pnpm test:visual
-pnpm test:a11y
-pnpm check:release
+pnpm check:a11y
+pnpm check:a11y-axe
 ```
 
-`pnpm check:release` 是聚合 release gate，会运行 candidate 所需的 contract runner、Rust checks、Playwright suites、accessibility audit、daemon/TUI smoke 与 performance gate。
+人工矩阵包括 320/375/768/1024/1440 CSS 像素、浅色/深色/高对比主题、Windows/macOS/Linux、仅键盘操作、屏幕阅读器、200% 文本缩放、减少动态效果以及空、加载、错误、成功、破坏性确认和长内容状态。
 
-### E2E 与 Visual
+Typography/Insert 菜单必须通过 portal 避开工具栏裁剪，在调整尺寸和滚动后仍位于可视区域，并以有界 DOM 更新定位，避免 React 渲染循环。键盘打开时聚焦首项；支持方向键、Home、End、Escape、Tab 和外部点击。Escape 关闭后恢复触发器焦点。
 
-Playwright 为功能 E2E 与稳定 visual suite 使用独立 config/output directory。权威文档 screenshot 是当前 source 的新鲜 capture；稳定 Windows snapshot 是独立 visual-regression acceptance surface。参见 [`assets/screenshots/README.zh-CN.md`](assets/screenshots/README.zh-CN.md) 与 [`VISUAL-REVIEW.zh-CN.md`](VISUAL-REVIEW.zh-CN.md)。
+截图等待预期预览标题出现且不存在 `.preview-error`。稳定核心界面才使用 baseline；状态截图附在托管浏览器或视觉任务中。[截图目录](assets/screenshots/README.zh-CN.md)区分新鲜文档截图与储存的比较基线。
 
-刻意的 pixel change 必须审查并明确更新。绝不能通过提高全局 visual tolerance 来掩盖 regression。
+## 发布与恢复
 
-### Accessibility
+所有安装包从准确审计标签构建。打包前验证工作机架构：Windows x86_64、macOS aarch64、Linux x86_64/aarch64。发布输入严格分为 `release-artifacts`中的七个安装包与 `release-evidence`中的四个 `signing-evidence-<platform>-<architecture>.json`记录。
 
-Accessibility evidence 结合自动 axe 检查与 modal、menu、Canvas/Graph、virtualized list、security-state control 的 keyboard/focus contract。产品 surface 的最低目标为 WCAG 2.2 AA；coarse-pointer target 不小于 44×44 px。
+官方记录声明 `signed: false`、`notarized: false`、`signatureType: "none"`。收据生成前运行 `node scripts/release/verify-signing-evidence.mjs release-evidence production`。`SHA256SUMS`只覆盖七个安装包；收据 schema 4 内嵌四份规范化信任记录。`node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence`拒绝源漂移、脏 checkout、缺失/额外产物、不安全路径、符号链接、checksum/SBOM 不一致及不完整目标身份。
 
-### Performance
+逐包验证 GitHub 来源、SBOM 证明与不可变标签沿革。发布说明解释未知发布者并提供单包校验及证明命令。记录干净安装和系统警告。损坏备份必须拒绝，在所有系统验证恢复；中断恢复/MCP 修改后必须确定性恢复。还需扫描、内存、索引、搜索、图、编辑器和导出性能门禁。
 
-Benchmark 具有 versioned baseline 与明确 threshold。Performance gate 用于发现启动、indexing、search、graph、大型 vault 和高内存 surface 的回归，并不用于在任意硬件之间做绝对性能比较。
+## 发布不变量与规范历史
 
-## 6. Packaging 与 Installer 验证
+手动调度默认为预览；发布需要现有 `v*`标签及 `publish: true`。**Release Kickoff**先验证准确提交的成功 CI，要求准确 `VERSION`，仅创建未使用的不可变标签并明确调度 Release。版本变化本身不创建标签；指向不同提交的已有标签必须失败，永不移动。
 
-只有全部平台成功 packaging 后，release 才算 desktop release。支持矩阵对应 README/release 文档声明的 Windows、macOS 与 Linux。
+自动生产发布须等待标签构建与质量检查成功。Pages 仍受 `github-pages`环境保护。更新清单属于不可变版本；没有滚动标签或强制推送。**Release**是唯一 GitHub Release 所有者。含架构文件名防止碰撞。上传排除解包内部文件和 CI 证据；安装包校验与信任元数据分开验证。
 
-Packaging evidence 尤其检查：
+在完整规范克隆中运行：
 
-- 预期文件类型和架构；
-- `VERSION`、npm、Cargo 与 Tauri 的版本一致性；
-- release bundle 不含 E2E/fault-injection marker；
-- installer/bundle 名称和 checksums；
-- 不存在意外 symbolic link、absolute/traversal path；
-- 能可重复地关联到 release commit。
-
-相关入口记录在 `scripts/release/`；release workflow 生成各平台 artifact，随后在统一 evidence stage 中收集。
-
-## 7. Release Evidence、SBOM 与 Provenance
-
-Release pipeline 在下载全部平台 artifact **之后**生成最终证据。权威文件包括：
-
-```text
-release-receipt.json
-scriptor.cyclonedx.json
-SHA256SUMS
+```bash
+bash scripts/governance/history-audit.sh . .history-audit
 ```
 
-Verifier 将 receipt 视为精确 allowlist。缺失 artifact、额外未入 receipt 的 artifact、重复 checksum、symbolic link、absolute/traversal path、source-tree drift 或 SBOM metadata drift 都会阻止 promotion。参见 [`evidence/README.zh-CN.md`](evidence/README.zh-CN.md) 与 [`RELEASE-SECURITY.zh-CN.md`](RELEASE-SECURITY.zh-CN.md)。
-
-GitHub provenance attestation 与记录的 source identity 只会在本地 evidence 成功验证后生成。没有权威 Git checkout 的本地 archive 可用于诊断，但不能作为 production provenance 接受。
-
-## 视觉验证与文档产物
-
-仓库中的 screenshot 是文档 artifact，本身不能证明 release。可靠 visual evidence 必须记录精确 commit、OS/runner、browser/channel、viewport 或 device scale，以及对应 Playwright suite 的结果。
-
-Screenshot gallery、capture 规则与 reviewer discipline 记录在 [`assets/screenshots/README.zh-CN.md`](assets/screenshots/README.zh-CN.md) 与 [`VISUAL-REVIEW.zh-CN.md`](VISUAL-REVIEW.zh-CN.md)。
-
-## 仓库证据的已知边界
-
-- 本文记录 repository-local evidence；上方日期并不意味着之后每次会话都重新运行了所有命令。
-- 单个 green job 不能替代 commit-exact release gate chain。
-- 本地或历史 CI log 不能归属于另一个 commit。
-- 与平台相关的 packaging/signing/installer evidence 必须在对应支持平台或指定 workflow 中产生。
-- 即使存在测试，design-only 或 experimental capability 也不会自动变成受支持 production feature；能力成熟度 ledger 仍是权威。
-
-## Release 解释规则
-
-Production 发布要求当前 gate 在精确 release commit 上全部通过，并且生成 artifact 可证明引用同一 commit。权威验证由 exact-head CI matrix **与同一 exact head 的 Visual review gate** 共同组成；Draft PR 会刻意把重量级 gate 延后到 `ready_for_review`。当历史 evidence 与当前实现冲突时，以当前可重复实现和 commit-bound verification 为准。
+还需经授权的全历史秘密扫描及托管平台的分支保护、审阅、环境保护、标签和发布沿革证据。源码契约通过不能证明公开发布。完成证明必须包含准确当前提交的 CI 矩阵和 **Visual review**，再接生产标签流程与公开产物。草稿 PR 也在 GitHub 上运行 CI、桌面编译和视觉审查。`ready_for_review`再次触发准确提交的验证；新的 PR 提交会取消过时运行。发布二进制审查仍是独立的手动流程。

@@ -117,3 +117,5 @@
 پروژه‌های <bdi dir="ltr">Playwright theme</bdi>های روشن/تیره، <bdi dir="ltr">breakpoint</bdi>های <bdi dir="ltr">desktop/mobile</bdi>، سطوح مودال، <bdi dir="ltr">editor/preview</bdi>، <bdi dir="ltr">knowledge workbench</bdi>، <bdi dir="ltr">settings</bdi>، <bdi dir="ltr">graph</bdi> و وضعیت‌های اصلی <bdi dir="ltr">workflow</bdi> را پوشش می‌دهند. <bdi dir="ltr">Release candidate</bdi> منجمدشده همچنین تا زمانی که این بررسی‌ها به‌شکل قابل‌اعتماد خودکار نشده‌اند، بررسی دستی در بزرگ‌نمایی ۲۰۰٪، <bdi dir="ltr">screen reader</bdi> و <bdi dir="ltr">native shell</bdi> را الزامی می‌داند. آستانه‌های <bdi dir="ltr">snapshot</bdi> نباید جابه‌جایی تمام صفحه را پنهان کنند. برای جزئیات به [`docs/validation/FRONTEND_QUALITY.fa.md`](docs/validation/FRONTEND_QUALITY.fa.md) مراجعه کنید.
 
 </div>
+
+میانبرهای فضای کاری اختیاری هستند. پیش‌فرض فقط چند ابزار کوچک برای نوشتن است؛ ابزارهای دیگر با انتخاب کاربر افزوده می‌شوند. می‌توان ردیف را پنهان کرد، میانبرها را سنجاق کرد یا به منوی بیشتر برد، ترتیب و نامشان را تغییر داد و اندازه دکمه و متن را در محدوده مشخص تنظیم کرد. بازیابی ردیف پنهان از پالت فرمان ممکن است؛ هدف‌های لمسی حداقل ۴۴ پیکسل باقی می‌مانند.

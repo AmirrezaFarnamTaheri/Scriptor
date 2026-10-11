@@ -20,11 +20,15 @@ import {
   googleCalendarDisconnect,
   googleCalendarGetAuthedEmail,
   googleCalendarListEvents,
+  googleCalendarListCalendars,
+  googleCalendarListTaskLists,
   googleCalendarListTasks,
   googleCalendarStartAuth,
   type CalendarEvent,
   type GoogleTask,
   type GoogleTaskSyncMutation,
+  type GoogleCalendarResource,
+  type GoogleTaskListResource,
 } from '../bridge/commands/google_calendar.ts'
 import { safeExternalUrl } from '../lib/safeExternalUrl.ts'
 import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors.ts'
@@ -90,6 +94,13 @@ export interface GoogleCalendarSyncResult {
   tasks: GoogleTask[]
   error: string | null
   authedEmail: string | null
+  /** Changes even when reconnecting the same email; invalidates prepared reviews. */
+  accountGeneration: number
+  calendars: GoogleCalendarResource[]
+  taskLists: GoogleTaskListResource[]
+  discoveringResources: boolean
+  discoveryError: string | null
+  discoverResources: () => Promise<void>
   startAuth: () => Promise<boolean>
   disconnect: () => Promise<void>
   refresh: () => Promise<void>
@@ -104,6 +115,10 @@ export interface GoogleCalendarSyncResult {
 const DEFAULT_LOOKAHEAD_DAYS = 7
 const MAX_TASK_SYNC_MUTATIONS_PER_APPROVAL = 1000
 const SOURCE_MARKER_PREFIX = 'Scriptor source:'
+
+function announceCalendarAccount(origin: object, kind: 'connected' | 'disconnected'): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', { detail: { service: 'calendar', origin, kind } }))
+}
 
 /** Selects events whose start date matches the user's local date. */
 function eventsToday(events: CalendarEvent[]): CalendarEvent[] {
@@ -150,10 +165,10 @@ function taskDueKey(value: string | null | undefined): string | null {
   return match?.[1] ?? null
 }
 
-function reconciledTaskNotes(remoteNotes: string | null, marker: string): string {
-  const preserved = (remoteNotes ?? '')
-    .split('\n')
-    .filter((line) => !line.startsWith(SOURCE_MARKER_PREFIX) && line.trim().length > 0)
+function reconciledTaskNotes(remoteNotes: string | null, marker: string, legacyMarker: string): string {
+  // Never remove unrelated user text or another vault's ownership marker.
+  if (!remoteNotes) return marker
+  const preserved = remoteNotes.split('\n').filter(line => line !== marker && line !== legacyMarker)
   return [...preserved, marker].join('\n')
 }
 
@@ -176,17 +191,36 @@ export function useGoogleCalendarSync({
   const [tasks, setTasks] = useState<GoogleTask[]>([])
   const [error, setError] = useState<string | null>(null)
   const [authedEmail, setAuthedEmail] = useState<string | null>(null)
+  const [accountGeneration, setAccountGeneration] = useState(0)
+  const accountOrigin = useRef<object>({})
+  const [resources, setResources] = useState<{ calendars: GoogleCalendarResource[]; taskLists: GoogleTaskListResource[]; loading: boolean; error: string | null }>({ calendars: [], taskLists: [], loading: false, error: null })
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lifecycleGenerationRef = useRef(0)
   const refreshGenerationRef = useRef(0)
   const taskMutationRevisionRef = useRef(0)
   const vaultSyncRunningRef = useRef(false)
+  const discoveryGenerationRef = useRef(0)
 
   const enabled = config?.enabled ?? false
   const clientId = config?.google_client_id ?? null
   const calendarId = config?.google_calendar_id ?? 'primary'
   const taskListId = config?.google_task_list_id ?? '@default'
   const lookaheadDays = config?.lookahead_days ?? DEFAULT_LOOKAHEAD_DAYS
+
+  const discoverResources = useCallback(async () => {
+    if (!enabled) return
+    const lifecycle = lifecycleGenerationRef.current
+    const sequence = ++discoveryGenerationRef.current
+    setResources((current) => ({ ...current, loading: true, error: null }))
+    try {
+      const [calendars, taskLists] = await Promise.all([googleCalendarListCalendars(), googleCalendarListTaskLists()])
+      if (lifecycle !== lifecycleGenerationRef.current || sequence !== discoveryGenerationRef.current) return
+      setResources({ calendars, taskLists, loading: false, error: null })
+    } catch (caught) {
+      if (lifecycle !== lifecycleGenerationRef.current || sequence !== discoveryGenerationRef.current) return
+      setResources({ calendars: [], taskLists: [], loading: false, error: googleAuthErrorMessage(caught) })
+    }
+  }, [enabled])
 
   const startAuth = useCallback(async (): Promise<boolean> => {
     if (!clientId) {
@@ -195,6 +229,8 @@ export function useGoogleCalendarSync({
     }
     const currentLifecycle = lifecycleGenerationRef.current
     const currentRefreshGen = ++refreshGenerationRef.current
+    discoveryGenerationRef.current += 1
+    setResources({ calendars: [], taskLists: [], loading: false, error: null })
     setStatus('authorizing')
     setError(null)
     try {
@@ -203,10 +239,13 @@ export function useGoogleCalendarSync({
         calendarId,
         taskListId,
       })
-      if (
-        currentLifecycle !== lifecycleGenerationRef.current ||
-        currentRefreshGen !== refreshGenerationRef.current
-      ) return false
+      // Credentials are global to the app: notify other consumers even if this
+      // settings instance closed while the native OAuth flow was finishing.
+      const stillCurrent = currentLifecycle === lifecycleGenerationRef.current && currentRefreshGen === refreshGenerationRef.current
+      announceCalendarAccount(stillCurrent ? accountOrigin.current : {}, 'connected')
+      if (!stillCurrent) return false
+      setAccountGeneration(generation => generation + 1)
+      setEvents([]); setTasks([]); setAuthedEmail(null)
       // OAuth success is not sync success. Load the remote state immediately
       // so automatic vault-task mirroring cannot run against a stale empty list.
       const [evtsRaw, tasksRaw, confirmedEmail] = await Promise.all([
@@ -222,6 +261,7 @@ export function useGoogleCalendarSync({
       setTasks(tasksRaw)
       setAuthedEmail(confirmedEmail || email)
       setStatus('synced')
+      void discoverResources()
       return true
     } catch (err) {
       if (
@@ -232,20 +272,29 @@ export function useGoogleCalendarSync({
       setStatus('error')
       return false
     }
-  }, [clientId, calendarId, taskListId, lookaheadDays])
+  }, [clientId, calendarId, taskListId, lookaheadDays, discoverResources])
 
   const disconnect = useCallback(async () => {
     lifecycleGenerationRef.current += 1
     refreshGenerationRef.current += 1
     taskMutationRevisionRef.current += 1
+    discoveryGenerationRef.current += 1
+    setResources((current) => ({ ...current, loading: false }))
+    const generation = lifecycleGenerationRef.current
+    setStatus('authorizing')
     try {
       await googleCalendarDisconnect()
+      announceCalendarAccount(generation === lifecycleGenerationRef.current ? accountOrigin.current : {}, 'disconnected')
+      if (generation !== lifecycleGenerationRef.current) return
+      setAccountGeneration(current => current + 1)
       setStatus('disconnected')
       setAuthedEmail(null)
       setEvents([])
       setTasks([])
       setError(null)
+      setResources({ calendars: [], taskLists: [], loading: false, error: null })
     } catch (caught) {
+      if (generation !== lifecycleGenerationRef.current) return
       setStatus('error')
       setError(googleAuthErrorMessage(caught))
     }
@@ -274,12 +323,18 @@ export function useGoogleCalendarSync({
       }
       setAuthedEmail(email)
       setStatus('synced')
+      void discoverResources()
     } catch (err) {
       if (
         currentLifecycle !== lifecycleGenerationRef.current ||
         currentRefreshGen !== refreshGenerationRef.current
       ) return
       if (isGoogleAuthRequiredError(err)) {
+        discoveryGenerationRef.current += 1
+        setEvents([])
+        setTasks([])
+        setAuthedEmail(null)
+        setResources({ calendars: [], taskLists: [], loading: false, error: null })
         setStatus('disconnected')
         setError(googleAuthErrorMessage(err))
       } else {
@@ -287,11 +342,34 @@ export function useGoogleCalendarSync({
         setStatus('error')
       }
     }
-  }, [enabled, calendarId, taskListId, lookaheadDays])
+  }, [enabled, calendarId, taskListId, lookaheadDays, discoverResources])
 
   useEffect(() => {
-    if (!enabled) return
+    if (typeof window === 'undefined') return
+    const changed = (event: Event) => {
+      const detail = (event as CustomEvent<{ service?: string; origin?: unknown; kind?: string }>).detail
+      if (detail?.service !== 'calendar' || detail.origin === accountOrigin.current) return
+      lifecycleGenerationRef.current++
+      refreshGenerationRef.current++
+      discoveryGenerationRef.current++
+      taskMutationRevisionRef.current++
+      setAccountGeneration(current => current + 1)
+      setEvents([]); setTasks([]); setAuthedEmail(null); setError(null)
+      setResources({ calendars: [], taskLists: [], loading: false, error: null })
+      setStatus('disconnected')
+      if (enabled && detail.kind !== 'disconnected') void refresh()
+    }
+    window.addEventListener('scriptor:google-account-changed', changed)
+    return () => window.removeEventListener('scriptor:google-account-changed', changed)
+  }, [enabled, refresh])
+
+  useEffect(() => {
     lifecycleGenerationRef.current += 1
+    discoveryGenerationRef.current += 1
+    if (!enabled) return () => {
+      lifecycleGenerationRef.current += 1
+      discoveryGenerationRef.current += 1
+    }
     const initialTimer = setTimeout(() => {
       void refresh()
     }, 0)
@@ -301,12 +379,13 @@ export function useGoogleCalendarSync({
     return () => {
       clearTimeout(initialTimer)
       lifecycleGenerationRef.current += 1
+      discoveryGenerationRef.current += 1
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
       }
     }
-  }, [enabled, refresh, refreshIntervalSeconds, vaultId])
+  }, [clientId, enabled, refresh, refreshIntervalSeconds, vaultId])
 
   const pushTask = useCallback(
     async (task: { title: string; notes?: string; due?: string }): Promise<GoogleTask | null> => {
@@ -337,7 +416,9 @@ export function useGoogleCalendarSync({
     async (taskId: string) => {
       const currentLifecycle = lifecycleGenerationRef.current
       try {
-        await googleCalendarCompleteTask(taskListId, taskId)
+        const etag = tasks.find(task => task.id === taskId)?.etag
+        if (!etag) throw new Error('Refresh the Google Tasks list before changing a task without a revision.')
+        await googleCalendarCompleteTask(taskListId, taskId, etag)
         if (currentLifecycle === lifecycleGenerationRef.current) {
           taskMutationRevisionRef.current += 1
           setTasks((prev) =>
@@ -354,14 +435,16 @@ export function useGoogleCalendarSync({
         }
       }
     },
-    [taskListId],
+    [taskListId, tasks],
   )
 
   const deleteTask = useCallback(
     async (taskId: string) => {
       const currentLifecycle = lifecycleGenerationRef.current
       try {
-        await googleCalendarDeleteTask(taskListId, taskId)
+        const etag = tasks.find(task => task.id === taskId)?.etag
+        if (!etag) throw new Error('Refresh the Google Tasks list before deleting a task without a revision.')
+        await googleCalendarDeleteTask(taskListId, taskId, etag)
         if (currentLifecycle === lifecycleGenerationRef.current) {
           taskMutationRevisionRef.current += 1
           setTasks((prev) => prev.filter((task) => task.id !== taskId))
@@ -372,7 +455,7 @@ export function useGoogleCalendarSync({
         }
       }
     },
-    [taskListId],
+    [taskListId, tasks],
   )
 
   const syncVaultTasks = useCallback(async (): Promise<VaultTaskSyncResult> => {
@@ -394,30 +477,21 @@ export function useGoogleCalendarSync({
           // and title-only matches cannot establish ownership across vaults.
           const legacyMarker = `${SOURCE_MARKER_PREFIX} ${task.id}`
 
-          let matchingRemote = tasks.find((remoteTask) => {
+          const matchingRemote = tasks.find((remoteTask) => {
             if (matchedRemoteIds.has(remoteTask.id)) return false
             const markerLines = (remoteTask.notes ?? '').split('\n')
             return markerLines.includes(marker) || markerLines.includes(legacyMarker)
           })
 
-          // A note move can legitimately change native task identity. Rebind a
-          // single unambiguous Scriptor-authored task by title; duplicate titles
-          // remain conservative rather than guessing.
-          if (!matchingRemote) {
-            const titleMatches = tasks.filter((remoteTask) =>
-              !matchedRemoteIds.has(remoteTask.id)
-              && remoteTask.title === task.text
-              && hasVaultSourceMarker(remoteTask, vaultId),
-            )
-            if (titleMatches.length === 1) matchingRemote = titleMatches[0]
-          }
-
+          // A title is not a stable provider identity. A moved or renamed
+          // task needs an explicit rebind review instead of guessing by title.
           if (task.checked) {
             if (!matchingRemote || matchingRemote.status === 'completed') {
               skipped += 1
             } else {
               matchedRemoteIds.add(matchingRemote.id)
-              mutations.push({ kind: 'complete', taskId: matchingRemote.id })
+              if (!matchingRemote.etag) throw new Error('Google Task revisions are missing. Refresh before mirroring.')
+              mutations.push({ kind: 'complete', taskId: matchingRemote.id, etag: matchingRemote.etag })
             }
             continue
           }
@@ -425,7 +499,7 @@ export function useGoogleCalendarSync({
           if (matchingRemote) {
             matchedRemoteIds.add(matchingRemote.id)
             const desiredDue = normalizeTaskDue(task.dueDate)
-            const desiredNotes = reconciledTaskNotes(matchingRemote.notes, marker)
+            const desiredNotes = reconciledTaskNotes(matchingRemote.notes, marker, legacyMarker)
             const needsUpdate =
               matchingRemote.status === 'completed'
               || matchingRemote.title !== task.text
@@ -437,9 +511,11 @@ export function useGoogleCalendarSync({
               continue
             }
 
+            if (!matchingRemote.etag) throw new Error('Google Task revisions are missing. Refresh before mirroring.')
             mutations.push({
               kind: 'update',
               taskId: matchingRemote.id,
+              etag: matchingRemote.etag,
               title: task.text,
               notes: desiredNotes,
               due: desiredDue,
@@ -469,7 +545,8 @@ export function useGoogleCalendarSync({
           continue
         }
         matchedRemoteIds.add(remoteTask.id)
-        mutations.push({ kind: 'complete', taskId: remoteTask.id })
+        if (!remoteTask.etag) throw new Error('Google Task revisions are missing. Refresh before mirroring.')
+        mutations.push({ kind: 'complete', taskId: remoteTask.id, etag: remoteTask.etag })
       }
 
       if (mutations.length === 0) {
@@ -564,6 +641,12 @@ export function useGoogleCalendarSync({
     tasks: enabled ? tasks : EMPTY_TASKS,
     error: enabled ? error : null,
     authedEmail: enabled ? authedEmail : null,
+    accountGeneration,
+    calendars: enabled ? resources.calendars : [],
+    taskLists: enabled ? resources.taskLists : [],
+    discoveringResources: enabled && resources.loading,
+    discoveryError: enabled ? resources.error : null,
+    discoverResources,
     startAuth,
     disconnect,
     refresh,

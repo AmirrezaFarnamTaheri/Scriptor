@@ -43,8 +43,11 @@ plugin manifests are colocated under `.scriptor/`.
 | **Inspector rail** | Outline, links, backlinks, citations, note health, and export profiles |
 | **Status dock** | Output log, search results, diagnostics, and background jobs |
 
-Use the top bar workspace modes — **Writing**, **Knowledge**, **Publish**, **Review**,
-**Automation** — to focus the toolbar and command palette on the task at hand.
+Use the workspace mode selector — **Writing**, **Knowledge**, **Publish**,
+**Review**, **Automation** — to focus the toolbar and command palette on the task
+at hand. The compact shortcut row is configurable: choose its commands, order,
+labels and sizes, pin items, or hide the row. Shortcut customization remains
+available from the command palette when the row is hidden.
 
 ## Core workflows
 
@@ -85,6 +88,15 @@ overrides, and troubleshooting.
 Enable **Settings → Headless engine** to route indexing, search, backlinks, graph, Git
 status, and export jobs through the local daemon. Vault open and canvas stay in-process
 for responsiveness. See [`docs/architecture/IPC_DAEMON.md`](../architecture/IPC_DAEMON.md).
+
+## Optional: Google integrations
+
+The experimental desktop integrations support reviewed Markdown collaboration
+through Drive or Docs, Calendar and Tasks planning, and a Gmail plugin. Configure
+the public desktop OAuth client in **Settings → Integrations**, then connect each
+service group you need. Local notes remain authoritative and provider writes
+require approval. Follow the [Google integration guide](GOOGLE_INTEGRATIONS.md)
+for resource selection, workflows and recovery.
 
 ## Further reading
 

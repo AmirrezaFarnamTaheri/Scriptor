@@ -1,11 +1,13 @@
 declare module 'citeproc/citeproc_commonjs.js' {
   export interface CslEngine {
     updateItems(ids: string[]): void
+    setOutputFormat(format: 'text' | 'html'): void
     previewCitationCluster(
-      citation: { citationItems: Array<{ id: string }> },
+      citation: { citationItems: Array<{ id: string; prefix?: string; suffix?: string; locator?: string; label?: string; 'suppress-author'?: boolean; 'author-only'?: boolean }>; properties?: { noteIndex: number } },
       citationsPre: unknown[],
-      pos: number,
-    ): [number, string, string]
+      citationsPost: unknown[],
+      outputFormat: 'text' | 'html',
+    ): string
     makeBibliography(): [Record<string, unknown>, string[]]
   }
 

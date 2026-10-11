@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, Suspense } from 'react'
+import { WorkspaceLeafDock } from './components/shell/WorkspaceLeafDock'
+import { useWorkspaceComposition } from './hooks/useWorkspaceComposition'
+import { createPluginWorkspaceHandlers } from './lib/pluginWorkspaceHandlers'
 import type { PluginRuntimePolicy } from '@scriptor/plugin-api'
-import { applyRendererExtensions } from '@scriptor/renderer'
-import { indexerSearch } from './bridge/commands'
+import { usePaletteNoteNavigation } from './hooks/usePaletteNoteNavigation'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
 import { useVisualBlockRenderer } from './hooks/useVisualBlockRenderer'
@@ -48,6 +50,7 @@ import { usePerfMetrics } from './hooks/usePerfMetrics'
 import { useWorkspaceSession } from './hooks/useWorkspaceSession'
 import { usePluginRegistry } from './hooks/usePluginRegistry'
 import { useVaultWorkspace } from './hooks/useVaultWorkspace'
+import { useGoogleWorkspaceLauncher } from './hooks/useGoogleWorkspaceLauncher'
 import { useWorkspaceStore } from './hooks/useWorkspaceStore'
 import { usePortalShortcuts } from './hooks/usePortalShortcuts'
 import { useEditorPreferences } from './hooks/useEditorPreferences'
@@ -59,6 +62,7 @@ import { useScreenshotAutoOpen } from './screenshot/useScreenshotAutoOpen'
 import { useResizablePanel } from './hooks/useResizablePanel'
 import { useSplitPaneResize } from './hooks/useSplitPaneResize'
 import { useCiteprocPreview } from './hooks/useCiteprocPreview'
+import { useCitationPostProcess } from './hooks/useRenderedCitationPreview'
 import { useWorkspaceMode, type WorkspaceMode } from './hooks/useWorkspaceMode'
 import { DEFAULT_WORKSPACE_CHROME, useWorkspaceChrome } from './hooks/useWorkspaceChrome'
 import {
@@ -320,6 +324,9 @@ function App() {
     hibernateWatcher,
     hibernateGit,
   })
+  const composition = useWorkspaceComposition(workspace, plugins, nativeReady)
+  const openGoogleWorkspace = useGoogleWorkspaceLauncher(workspace, composition, { setSettingsOpen, setTasksOpen, setGmailManagerOpen, showToast })
+  const { openNote } = composition
   const deleteNoteController = useDeleteNoteController({
     enabled: nativeReady,
     closeTab: workspace.closeTab,
@@ -351,6 +358,7 @@ function App() {
     publishPlan,
     publishStarlight,
   } = useStarlightPublishing({
+    vaultId: workspace.vault?.id ?? null,
     promptText,
     showToast,
     openPublishCenter: () => setPublishCenterOpen(true),
@@ -372,7 +380,6 @@ function App() {
     commitFiles,
     pullRemote,
     pushRemote,
-    openNote,
     rebuildIndex,
     generateLinkReferences,
     createNoteFromWikilink,
@@ -385,7 +392,6 @@ function App() {
     openVaultAt,
     refreshVaultConfig,
     openNoteAt,
-    closeTab,
     updateDraft,
     reloadActiveNoteFromDisk,
     jumpToOutlineHeading,
@@ -395,6 +401,7 @@ function App() {
     logActivity: workspaceLogActivity,
   } = workspace
   const pluginCommandRuntime = usePluginCommandRuntime({
+    vaultId: workspace.vault?.id,
     refreshHealth, fixVaultLint, exportWithProfile, setStatusDockTab, setHealthDashboardOpen,
     setCanvasOpen, setBibliographyOpen, setGmailManagerOpen, showToast,
   })
@@ -437,10 +444,6 @@ function App() {
   const { saveApiKey: aiSaveApiKey, clearApiKey: aiClearApiKey } = ai
   const diagnostics = useDiagnosticsSettings(Boolean(workspace.vault))
   const rendererExtensions = plugins.contributions.rendererExtensions
-  const previewPostProcess = useCallback(
-    (html: string) => applyRendererExtensions(html, rendererExtensions),
-    [rendererExtensions],
-  )
   const {
     headlessEngine,
     setHeadlessEngine,
@@ -473,6 +476,7 @@ function App() {
     () => (workspace.vault && nativeReady ? bibliographyRaw : []),
     [bibliographyRaw, nativeReady, workspace.vault],
   )
+  const previewPostProcess = useCitationPostProcess(workspace.draftMarkdown, bibliography, rendererExtensions, t('inspector.citationUnresolved'))
   const showSplitPreview = splitPreviewActive && Boolean(workspace.activePath)
   const {
     editorWidth: splitEditorWidth,
@@ -778,14 +782,8 @@ function App() {
     void applyStarlightPlan(selectedPaths, deleteOrphans)
   }, [applyStarlightPlan])
 
-  const handleCloseCommandPalette = useCallback(() => setCommandPaletteOpen(false), [setCommandPaletteOpen])
-  const handleSearchNotes = useMemo(() => {
-    if (!workspace.vault) return undefined
-    return (query: string) => indexerSearch(query, 12)
-  }, [workspace.vault])
-  const handleOpenNoteFromPalette = useCallback((path: string) => {
-    void openNote(path)
-  }, [openNote])
+  const { handleCloseCommandPalette, handleSearchNotes, handleOpenNoteFromPalette } =
+    usePaletteNoteNavigation(Boolean(workspace.vault), openNote, setCommandPaletteOpen)
 
   const handleCloseQuickCapture = useCallback(() => setQuickCaptureOpen(false), [setQuickCaptureOpen])
   const handleClosePortal = useCallback(() => setPortalOpen(false), [setPortalOpen])
@@ -808,6 +806,10 @@ function App() {
     if (!workspace.activePath || !nativeReady) return
     await deleteNoteController.deleteNote(workspace.activePath)
   }, [deleteNoteController, nativeReady, workspace.activePath])
+  const pluginWorkspaceHandlers = createPluginWorkspaceHandlers({ commands: pluginCommandEntries, canExecute: canExecutePluginCommand, runtime: pluginCommandRuntime, activePath: workspace.activePath,
+    close: () => {}, openNote: composition.openNote, openGraph: () => setGraphOpen(true), openCanvas: () => setCanvasOpen(true),
+    openKnowledge: () => openKnowledgeWorkbench('discover'), openTasks: () => setTasksOpen(true), openExport: () => setPublishCenterOpen(true),
+    openRuntime: () => composition.commands.find(command => command.id === 'open-runtime-console')?.run() })
 
   const bibliographyKeys = useMemo(() => new Set(bibliography.map((entry) => entry.key)), [bibliography])
 
@@ -832,7 +834,7 @@ function App() {
 
   const paletteCommands = useMemo(
     () =>
-      buildPaletteCommands({
+      [...buildPaletteCommands({
         workspace: {
           ...workspace,
           reopenClosedTab: workspace.reopenClosedTab,
@@ -897,8 +899,10 @@ function App() {
         setHibernateGit,
         hibernateSpellcheck,
         setHibernateSpellcheck,
-      }),
+      }), ...composition.commands, ...composition.sourceCommands],
     [
+      composition.commands,
+      composition.sourceCommands,
       ai,
       canExecutePluginCommand,
       chrome.inspectorCollapsed,
@@ -1010,13 +1014,13 @@ function App() {
       ? '—'
       : cacheStatusLabel(t, workspace.health.cache_status)
     return [
-      [t('inspector.health.brokenLinks'), String(workspace.health?.broken_links ?? 0)],
-      [t('inspector.health.orphanAssets'), String(workspace.health?.orphan_assets ?? 0)],
-      [t('inspector.health.duplicateTitles'), String(workspace.health?.duplicate_titles ?? 0)],
-      [t('inspector.health.invalidFrontmatter'), String(workspace.health?.invalid_frontmatter ?? 0)],
-      [t('inspector.health.missingCitations'), String(workspace.health?.unresolved_citations ?? 0)],
-      [t('inspector.health.indexedNotes'), String(workspace.health?.indexed_notes ?? 0)],
-      [t('inspector.health.vaultWords'), (workspace.health?.total_words ?? 0).toLocaleString()],
+      [t('inspector.health.brokenLinks'), String(workspace.health?.broken_links ?? '—')],
+      [t('inspector.health.orphanAssets'), String(workspace.health?.orphan_assets ?? '—')],
+      [t('inspector.health.duplicateTitles'), String(workspace.health?.duplicate_titles ?? '—')],
+      [t('inspector.health.invalidFrontmatter'), String(workspace.health?.invalid_frontmatter ?? '—')],
+      [t('inspector.health.missingCitations'), String(workspace.health?.unresolved_citations ?? '—')],
+      [t('inspector.health.indexedNotes'), String(workspace.health?.indexed_notes ?? '—')],
+      [t('inspector.health.vaultWords'), workspace.health?.total_words.toLocaleString() ?? '—'],
       [t('inspector.health.cache'), cacheStatus],
     ] as Array<[string, string]>
   }, [t, workspace.health])
@@ -1045,8 +1049,9 @@ function App() {
     createDailyNote: workspace.createDailyNote,
     createDailyNoteForOffset: workspace.createDailyNoteForOffset,
     organizeNote: workspace.organizeNote,
-    openNote: workspace.openNote,
+    openNote: composition.openNote,
     openReaderDocument: handleOpenReaderDocument,
+    openSourceFile: composition.openSource,
     refreshVault: workspace.refreshVault,
     importDroppedFiles: workspace.importDroppedFiles,
     deleteNote: deleteNoteController.deleteNote,
@@ -1131,7 +1136,7 @@ function App() {
   }, [setSettingsOpen, setSupportOpen])
 
   const handleOpenNoteTab = useCallback((path: string) => void openNote(path), [openNote])
-  const handleCloseNoteTab = useCallback((path: string) => closeTab(path), [closeTab])
+  const handleCloseNoteTab = useCallback((path: string) => composition.closeNote(path), [composition])
   const handleUpdateDraft = useCallback(
     (markdown: string) => {
       journey.markFirstEdit()
@@ -1449,6 +1454,7 @@ function App() {
           onDoubleClick={vaultResizer.onHandleDoubleClick}
         />
 
+        <WorkspaceLeafDock composition={composition} workspace={workspace} plugins={plugins} onOpenAsset={handleOpenReaderDocument} {...pluginWorkspaceHandlers}>
         <EditorWorkspace
           activePath={workspace.activePath}
           onOpenVault={handleChooseVault}
@@ -1545,6 +1551,7 @@ function App() {
           editorSurfaceMode={chrome.editorSurfaceMode}
           onEditorSurfaceModeChange={setEditorSurfaceMode}
         />
+        </WorkspaceLeafDock>
 
         <WorkspacePanelResizer
           collapsed={chrome.inspectorCollapsed}
@@ -1595,7 +1602,7 @@ function App() {
           isNoteDirty={isNoteDirty}
           inspectorPreset={inspectorPreset}
           onInspectorPresetChange={setInspectorPreset}
-          showInspectorHealth={chrome.showInspectorHealth}
+          showInspectorHealth={chrome.showInspectorHealth && Boolean(workspace.vault)}
           onOpenKnowledgeWorkbench={handleOpenKnowledgeWorkbenchRepair}
           onOpenPublishCenter={handleOpenPublishCenter}
           onOpenGraph={handleOpenGraph}
@@ -1723,6 +1730,8 @@ function App() {
         >
         <Suspense fallback={<PanelFallback />}>
           <SettingsPanel
+          gmailEnabled={plugins.activePlugins.some(plugin => plugin.manifest.id === 'scriptor.gmail-manager')}
+          onOpenGoogleWorkspace={openGoogleWorkspace}
           vaultOpen={Boolean(workspace.vault)}
           vaultId={workspace.vault?.id ?? null}
           systemInfo={systemInfo}
@@ -1791,6 +1800,7 @@ function App() {
         obsidianImportOpen={obsidianImportOpen}
         pluginManagerOpen={pluginManagerOpen}
         pluginManagerScope={pluginManagerScope}
+        {...composition.managerProps}
         templates={workspace.templatePaths}
         onCloseTemplatePicker={() => setTemplatePickerOpen(false)}
         onCloseObsidianImport={() => setObsidianImportOpen(false)}

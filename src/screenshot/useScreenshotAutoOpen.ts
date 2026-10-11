@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 
 import { SCREENSHOT_VAULT_ROOT } from './fixture.ts'
+import type { useVaultWorkspace } from '../hooks/useVaultWorkspace'
 
 export function useScreenshotAutoOpen(
-  openVaultAt: (rootPath: string) => Promise<void>,
+  openVaultAt: ReturnType<typeof useVaultWorkspace>['openVaultAt'],
   status: 'idle' | 'opening' | 'indexing' | 'ready' | 'error',
 ) {
   const startedRef = useRef(false)

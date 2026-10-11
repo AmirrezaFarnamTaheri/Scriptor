@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2, GitBranch, RefreshCw } from 'lucide-react'
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
@@ -31,6 +31,8 @@ export interface GitPanelProps {
 }
 
 const GIT_ROW_HEIGHT = 56
+const GIT_COMPACT_ROW_HEIGHT = 216
+const GIT_COMPACT_WIDTH = 480
 const GIT_ROW_OVERSCAN = 8
 
 export const GitPanel = memo(function GitPanel({
@@ -87,18 +89,55 @@ export const GitPanel = memo(function GitPanel({
   const [commitTemplates, setCommitTemplates] = useState<string[]>(RAW_COMMIT_TEMPLATES)
   const [pullStrategy, setPullStrategy] = useState<GitPullStrategy>('fast-forward')
   const [listScrollTop, setListScrollTop] = useState(0)
-  const [listViewportHeight, setListViewportHeight] = useState(420)
+  const [listViewport, setListViewport] = useState({ width: 0, height: 420 })
+  const [rowMeasurement, setRowMeasurement] = useState({ width: -1, height: 0 })
   const listViewportRef = useRef<HTMLDivElement | null>(null)
+  const listObserverRef = useRef<ResizeObserver | null>(null)
+  const compactRows = listViewport.width < GIT_COMPACT_WIDTH
+  // Reserve three wrapped action lines until the mounted rows report their
+  // natural height. The same stride drives every virtual-list calculation.
+  const rowHeight = rowMeasurement.width === listViewport.width
+    ? Math.max(GIT_ROW_HEIGHT, rowMeasurement.height)
+    : compactRows ? GIT_COMPACT_ROW_HEIGHT : GIT_ROW_HEIGHT
+  const previousRowHeightRef = useRef(rowHeight)
 
-  useEffect(() => {
-    const viewport = listViewportRef.current
-    if (!viewport || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) setListViewportHeight(entry.contentRect.height)
-    })
+  const measureListViewport = useCallback((viewport: HTMLDivElement | null) => {
+    listObserverRef.current?.disconnect()
+    listObserverRef.current = null
+    listViewportRef.current = viewport
+    if (!viewport) return
+    const updateSize = () => {
+      const width = viewport.clientWidth
+      const height = viewport.clientHeight
+      setListViewport((current) => current.width === width && current.height === height
+        ? current
+        : { width, height })
+    }
+    updateSize()
+    setListScrollTop(viewport.scrollTop)
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(updateSize)
+    listObserverRef.current = observer
     observer.observe(viewport)
-    return () => observer.disconnect()
   }, [])
+
+  const measureRowHeight = useCallback((height: number) => {
+    setRowMeasurement((current) => {
+      const nextHeight = Math.max(GIT_ROW_HEIGHT, Math.ceil(height))
+      if (current.width === listViewport.width && current.height >= nextHeight) return current
+      return { width: listViewport.width, height: nextHeight }
+    })
+  }, [listViewport.width])
+
+  useLayoutEffect(() => {
+    const previousHeight = previousRowHeightRef.current
+    previousRowHeightRef.current = rowHeight
+    const viewport = listViewportRef.current
+    if (!viewport || previousHeight === rowHeight) return
+    // Keep the same logical file at the top when the rail or app zoom changes.
+    viewport.scrollTop = listScrollTop / previousHeight * rowHeight
+    setListScrollTop(viewport.scrollTop)
+  }, [listScrollTop, rowHeight])
 
   useEffect(() => {
     const today = formatLocalDate()
@@ -281,15 +320,18 @@ export const GitPanel = memo(function GitPanel({
               </div>
             ) : (
               <div
-                ref={listViewportRef}
+                ref={measureListViewport}
                 onScroll={(event) => setListScrollTop(event.currentTarget.scrollTop)}
                 style={{ maxHeight: '420px', overflowY: 'auto' }}
               >
-                <ul style={{ height: status.changed_files.length * GIT_ROW_HEIGHT, position: 'relative' }}>
+                <ul style={{ height: status.changed_files.length * rowHeight, position: 'relative' }}>
                   {(() => {
-                    const viewport = listViewportHeight
-                    const first = Math.max(0, Math.floor(listScrollTop / GIT_ROW_HEIGHT) - GIT_ROW_OVERSCAN)
-                    const visible = Math.ceil(viewport / GIT_ROW_HEIGHT) + GIT_ROW_OVERSCAN * 2
+                    const viewport = listViewport.height
+                    const visible = Math.ceil(viewport / rowHeight) + GIT_ROW_OVERSCAN * 2
+                    const first = Math.min(
+                      Math.max(0, status.changed_files.length - visible),
+                      Math.max(0, Math.floor(listScrollTop / rowHeight) - GIT_ROW_OVERSCAN),
+                    )
                     const last = Math.min(status.changed_files.length, first + visible)
                     return status.changed_files.slice(first, last).map((file, offset) => {
                       const logicalIndex = first + offset
@@ -303,14 +345,16 @@ export const GitPanel = memo(function GitPanel({
                           onOpenNote={onOpenNote}
                           onPreviewDiff={handlePreviewDiff}
                           onResolveConflict={onResolveConflict}
+                          compact={compactRows}
+                          onMeasureHeight={measureRowHeight}
                           positionInSet={logicalIndex + 1}
                           setSize={status.changed_files.length}
                           style={{
                             position: 'absolute',
-                            top: logicalIndex * GIT_ROW_HEIGHT,
+                            top: logicalIndex * rowHeight,
                             left: 0,
                             right: 0,
-                            height: GIT_ROW_HEIGHT,
+                            height: rowHeight,
                           }}
                         />
                       )

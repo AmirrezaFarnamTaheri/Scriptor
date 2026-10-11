@@ -31,6 +31,12 @@ At narrow widths, secondary regions collapse into the mobile workspace navigatio
 
 ## Tokens & Customization
 
+Workspace shortcuts are optional chrome. Default to compact writing actions;
+integrations are added by the user. Support hiding the entire row, pinning or
+overflow placement, reordering, plain-text labels and bounded button/text sizes.
+Hidden chrome must have a keyboard-accessible recovery route in the command
+palette. Mouse controls may be compact; coarse pointers retain 44px targets.
+
 Authoritative tokens live in `src/index.css` and `src/styles/`. New components must use semantic variables for surfaces, text, borders, focus, danger, warning, success, spacing, radii, and motion. Arbitrary colors and shadows require a documented exception.
 
 | Token role | Runtime variable | Purpose / Scope |
@@ -42,8 +48,8 @@ Authoritative tokens live in `src/index.css` and `src/styles/`. New components m
 | Surface raised | `--surface-raised` | Hover states, elevated cards, dropdown items |
 | Primary text | `--ink` / `--ink-strong` | High-contrast body text and headers |
 | Border highlight | `--border` | Subtle panel borders and glass edges |
-| Focus ring | `--focus-ring` | Keyboard focus ring outline |
-| Display font | `--font-sans` | Custom UI font family selection (`system`, `inter`, `sf-pro`, `avenir-next`, `outfit`, `jetbrains-mono`, `georgia`) |
+| Focus treatment | `--focus-outline` / `--focus-ring` | Outline shorthand / box-shadow value; use each with its corresponding CSS property |
+| UI font | `--font-sans` → `--font-body` / `--font-display` | Custom UI font selection propagated to text and controls (`system`, `inter`, `sf-pro`, `avenir-next`, `outfit`, `jetbrains-mono`, `georgia`) |
 | Glass blur | `--glass-blur` | Backdrop filter intensity (`none`, `subtle`, `glass`, `heavy`) |
 
 ### Color Palette Catalog, Appearance & Custom Theme Builder

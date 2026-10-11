@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
+import { X } from 'lucide-react'
 
 import type { TextPromptRequest } from '../hooks/useTextPrompt'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -46,7 +47,7 @@ export function TextPromptDialog({ request, onSubmit, onCancel }: TextPromptDial
         <header>
           <h2 id={`${inputId}-title`}>{request.title}</h2>
           <button type="button" className="icon-button" onClick={onCancel} aria-label="Close">
-            ×
+            <X aria-hidden="true" />
           </button>
         </header>
 

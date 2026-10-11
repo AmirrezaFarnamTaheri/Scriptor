@@ -59,6 +59,28 @@
   width: 44px;
 }
 
+/* End-anchored header tooltips must fit even while hidden; centered tooltip
+   boxes otherwise enlarge the panel's scrollable area at its close edge. */
+.unified-panel-header-actions .custom-tooltip {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  width: max-content;
+  max-width: min(240px, calc(100vw - 48px));
+  white-space: normal;
+  overflow-wrap: anywhere;
+  transform: translateY(4px);
+}
+
+html[dir] .unified-panel-header-actions .has-custom-tooltip:is(:hover, :focus-visible) .custom-tooltip {
+  transform: translateY(0);
+}
+
+.unified-panel-header-actions .custom-tooltip::before {
+  inset-inline-start: auto;
+  inset-inline-end: 16px;
+  transform: rotate(45deg);
+}
+
 .unified-panel-tabs {
   display: flex;
   flex-wrap: wrap;

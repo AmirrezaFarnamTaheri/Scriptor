@@ -90,10 +90,8 @@ jobs:
 
   supply-chain:
     name: Supply-chain and lockfile audit
-    # Draft PRs are intentionally cheap. The ready_for_review event triggers one
-    # complete validation pass, and later synchronize events replace stale runs
-    # through the workflow concurrency group.
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    # Draft changes also need remote verification. Keep expensive work on hosted
+    # workers; a new PR head cancels obsolete validation through concurrency.
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -215,6 +213,8 @@ jobs:
   validate-fast:
     name: Contracts, automation, and lint
     needs: supply-chain
+    # Audit failures remain fatal to CI but must not hide regression evidence.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -248,7 +248,8 @@ jobs:
           node scripts/validation/docs-contracts.mjs
           node scripts/validation/source-contracts.mjs
           node scripts/validation/rustsec-exceptions.mjs
-          node --test scripts/release/signing-policy.test.mjs scripts/validation/rustsec-exceptions.test.mjs scripts/validation/release-hardening-contracts.test.mjs
+          node --test scripts/release/signing-policy.test.mjs scripts/release/fetch-github-release-asset.test.mjs scripts/validation/rustsec-exceptions.test.mjs scripts/validation/release-hardening-contracts.test.mjs
+          node --experimental-strip-types --test packages/mcp/src/audit.test.ts
 
       - name: Describe fast validation scope
         shell: pwsh
@@ -257,6 +258,10 @@ jobs:
       - name: Install frozen pnpm dependency graph
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
+
+      - name: Validate diagram preparation and reader position regressions
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Diagram and reader regressions" -FilePath "node" -ArgumentList @("--experimental-strip-types", "--test", "packages/export/src/diagram-render.test.ts", "packages/renderer/src/mermaid-coordinator.test.ts", "src/components/reader/readerProtocol.test.ts") -TimeoutSeconds 300
 
       - name: Enforce frontend source quality and module-size ratchet
         shell: pwsh
@@ -354,6 +359,7 @@ jobs:
   validate-rust:
     name: Contracts, automation, lint, and Rust tests
     needs: supply-chain
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -434,6 +440,7 @@ jobs:
   validate-frontend:
     name: Frontend, accessibility, TUI, and daemon smoke
     needs: supply-chain
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -540,6 +547,7 @@ jobs:
   validate-browser:
     name: Browser E2E
     needs: supply-chain
+    if: ${{ !cancelled() }}
     runs-on: windows-2025
     timeout-minutes: 45
     env:
@@ -578,6 +586,11 @@ jobs:
       - name: Run functional Playwright suite
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Run functional Playwright suite" -FilePath "pnpm" -ArgumentList @("test:e2e") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+
+      - name: Run mobile browser regressions
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run mobile browser regressions" -FilePath "pnpm" -ArgumentList @("--dir", "apps/mobile", "exec", "playwright", "test", "--config", "playwright.config.ts", "--reporter=line") -TimeoutSeconds 600 -HeartbeatSeconds 20
 
       - name: Capture browser validation failure context
         if: failure()

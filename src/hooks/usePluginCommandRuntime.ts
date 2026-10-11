@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import type { StatusDockTab } from '../components/StatusDockPanel'
 import {
@@ -13,6 +13,7 @@ import { buildGmailMarkdown, buildRfc5322Message, gmailImportedNoteTitle } from 
 import { defaultNotePath } from './vault/helpers'
 
 interface PluginCommandRuntimeOptions {
+  vaultId?: string | null
   refreshHealth: () => Promise<void>
   fixVaultLint: () => Promise<unknown>
   exportWithProfile: (profileId: string, dryRun?: boolean) => Promise<void>
@@ -21,7 +22,7 @@ interface PluginCommandRuntimeOptions {
   setCanvasOpen: (open: boolean) => void
   setBibliographyOpen: (open: boolean) => void
   setGmailManagerOpen?: (open: boolean) => void
-  createNote?: (title?: string, initialMarkdown?: string, options?: { requireMissing?: boolean }) => Promise<string | null>
+  createNote?: (title?: string, initialMarkdown?: string, options?: { requireMissing?: boolean; isCurrent?: () => boolean }) => Promise<string | null>
   showToast?: (message: string) => void
 }
 
@@ -72,7 +73,24 @@ export function usePluginCommandRuntime(options: PluginCommandRuntimeOptions) {
     setGmailManagerOpen,
     createNote,
     showToast,
+    vaultId,
   } = options
+  const currentVaultId = useRef(vaultId)
+  const gmailGeneration = useRef(0)
+  const mounted = useRef(true)
+  useEffect(() => { currentVaultId.current = vaultId }, [vaultId])
+  useEffect(() => {
+    mounted.current = true
+    const accountChanged = (event: Event) => {
+      if ((event as CustomEvent<{ service?: string }>).detail?.service === 'gmail') gmailGeneration.current += 1
+    }
+    window.addEventListener('scriptor:google-account-changed', accountChanged)
+    return () => {
+      mounted.current = false
+      gmailGeneration.current += 1
+      window.removeEventListener('scriptor:google-account-changed', accountChanged)
+    }
+  }, [])
   return useMemo(() => {
     const openGmailManager = setGmailManagerOpen ? () => setGmailManagerOpen(true) : undefined
 
@@ -90,26 +108,35 @@ export function usePluginCommandRuntime(options: PluginCommandRuntimeOptions) {
         const clientId = optionalString(record, 'clientId')
         if (!clientId) return inputRequired(openGmailManager, ['clientId'])
         const result = await googleGmailStartAuth(clientId)
+        window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', { detail: { service: 'gmail', origin: 'plugin' } }))
         return { status: 'connected', result }
       },
       gmailImport: async (input: unknown) => {
         const record = asRecord(input)
         const messageId = optionalString(record, 'messageId')
         if (!messageId) return inputRequired(openGmailManager, ['messageId'])
+        const originatingVaultId = currentVaultId.current
+        if (!originatingVaultId) throw new Error('Open a vault before importing Gmail messages.')
+        const accountGeneration = gmailGeneration.current
+        const isCurrent = () => mounted.current && currentVaultId.current === originatingVaultId && gmailGeneration.current === accountGeneration
         const message = await googleGmailGetMessage(messageId)
+        if (currentVaultId.current !== originatingVaultId) throw new Error('Vault changed; review this Gmail import again.')
+        if (!isCurrent()) throw new Error('Gmail account changed; review this import again.')
         const title = gmailImportedNoteTitle(message.subject, message.id)
         const markdown = buildGmailMarkdown(message)
         let path: string | null
 
         if (createNote) {
-          path = await createNote(title, markdown, { requireMissing: true })
+          path = await createNote(title, markdown, { requireMissing: true, isCurrent })
         } else {
           path = `Email/${defaultNotePath(title)}`
-          await vaultSaveNote(path, markdown, '<missing>')
+          await vaultSaveNote(path, markdown, '<missing>', false, originatingVaultId)
+          if (!isCurrent()) return { status: 'saved-in-originating-vault', messageId, path }
           await indexerUpdateNote(path)
         }
 
         if (!path) throw new Error(`Could not import Gmail message ${messageId}; target note already exists or could not be saved`)
+        if (!isCurrent()) return { status: 'saved-in-originating-vault', messageId, path }
         showToast?.(`Imported Gmail message to ${path}`)
         return { status: 'imported', messageId, path }
       },

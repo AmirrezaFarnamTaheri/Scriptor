@@ -6,6 +6,11 @@
 
 Scriptor is a local-first Markdown workspace for serious writing and research. It combines writing, evidence management, citations, graph navigation, Git-aware revision, reproducible publishing, and permissioned automation while keeping Markdown files authoritative on disk.
 
+Experimental workspace leaves organize source editors, reviewed tools and
+permissioned plugin workspaces into main and side groups with saved tab references.
+Markdown has one mutable writing editor, with separate side previews. Restoring
+layouts does not execute work or restore unsaved drafts.
+
 ## Operating context
 
 - The Tauri desktop application is the primary product surface.
@@ -53,7 +58,7 @@ Scriptor serves writers, researchers, students, technical authors, and knowledge
 | Headless daemon and CLI/TUI | Supported operational surfaces |
 | MCP stdio integration | Supported with scoped tools and durable audit records |
 | Plugin catalog | Manifest-first, restricted, experimental platform |
-| Google Calendar and Tasks | Experimental, opt-in desktop integrations |
+| Google Drive, Docs, Calendar, Tasks and Gmail | Experimental, opt-in desktop integrations; shared public setup and independent credentials |
 | Mobile, encrypted vaults, embeddings, Tantivy, WASM host | Experimental or design-only |
 
 The authoritative matrix is [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md).
@@ -82,6 +87,18 @@ The authoritative matrix is [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATU
 Scriptor is local-first. The renderer is untrusted relative to native authority. Tauri commands, daemon RPC, MCP, external processes, Git, keychain access, and backup/restore are explicit boundaries. Local logs and audit records are bounded and redacted; high-integrity mutation records are hash-chained.
 
 ## Roadmap policy
+
+Experimental source workflows support standalone LaTeX and code text alongside
+Markdown with code chunks and media. Source editing preserves file formats and
+keeps execution explicit. Experimental collaboration can host immutable
+Markdown revisions through Drive or Google Docs, and exchange reviewed source
+files with Overleaf. Calendar and Tasks support reviewed planning, and the
+opt-in Gmail plugin supports message search, plain-text import and approved
+mail actions. Each Google connection has independent credentials; vault files
+remain authoritative. Setup and recovery are documented in the
+[Google integration guide](docs/guides/GOOGLE_INTEGRATIONS.md).
+Capability and verification limits remain recorded in
+`docs/CAPABILITY-MATURITY.md`.
 
 Roadmap documents describe options, not current behavior. A capability graduates only after it has:
 
