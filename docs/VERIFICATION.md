@@ -55,6 +55,11 @@ This is the authoritative execution/evidence record for the Canvas, provider Mar
 
 Additional isolated renderer runner results included safe-external-URL, merge, citation, headless and Canvas cases. Full local installation was blocked by package registry access; Cargo, native desktop execution and a supported browser were not available in that earlier local environment. No paired startup, editor-latency, CPU, memory or throughput measurements were obtained.
 
+### Scheduled benchmark failure and remediation
+
+- [Performance Trends run 38129422106](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/38129422106) on `e753f83` **failed** on October 11, 2026. The workflow redundantly generated an already tracked `synthetic-5k` fixture; the CLI refused to replace that path, but PowerShell did not propagate the exit code. The subsequent search producer called a daemon-routed `rebuild-index` without building the daemon binary, so no search evidence was produced.
+- The pending PR fix conditionally generates missing fixtures, verifies their note counts, propagates generator failures, and removes the redundant daemon-routed rebuild. The actual `bench-search` CLI performs an in-process SQLite index rebuild before measuring warm queries. The scheduled Windows workflow still requires its own rerun on the updated head; a code review cannot certify performance reports.
+
 ### Outstanding engineering and verification
 
 | Priority | Concern | Acceptance evidence still needed |

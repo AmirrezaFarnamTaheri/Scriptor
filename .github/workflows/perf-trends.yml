@@ -44,18 +44,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Configure pinned pnpm 10.33.0
-        shell: pwsh
-        run: |
-          corepack enable
-          corepack prepare pnpm@10.33.0 --activate
-          pnpm --version
-
-      - name: Configure Node.js 22
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22.16.0
-
       - name: Configure pinned Rust 1.96.0
         shell: pwsh
         run: |
@@ -68,13 +56,22 @@ jobs:
         with:
           cache-all-crates: true
 
-      - name: Generate synthetic vault fixture
+      - name: Prepare and validate synthetic vault fixture
         shell: pwsh
         run: |
           $size = if ($env:GITHUB_EVENT_NAME -eq 'schedule' -and $env:PERF_SCHEDULE -eq '0 4 * * 6') { '25k' } elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { $env:REQUESTED_SIZE } else { '5k' }
-          if ($size -notin @('1k', '5k', '25k')) { throw "Unsupported performance fixture size: $size" }
-          Write-Host "Generating synthetic-$size fixture"
-          pnpm "fixtures:synthetic-$size"
+          $expected = @{ '1k' = 1000; '5k' = 5000; '25k' = 25000 }[$size]
+          if (-not $expected) { throw "Unsupported performance fixture size: $size" }
+          $vault = "packages/test-fixtures/vaults/synthetic-$size"
+          if (-not (Test-Path -LiteralPath $vault -PathType Container)) {
+            pwsh -NoProfile -File scripts/fixture-import/generate-synthetic-vault.ps1 -Output $vault -Count $expected
+            if ($LASTEXITCODE -ne 0) { throw "Synthetic fixture generation failed ($LASTEXITCODE): $vault" }
+          }
+          $notes = Join-Path $vault 'notes'
+          if (-not (Test-Path -LiteralPath $notes -PathType Container)) { throw "Fixture notes directory is missing: $notes" }
+          $actual = @(Get-ChildItem -LiteralPath $notes -File -Filter 'note-*.md').Count
+          if ($actual -ne $expected) { throw "Fixture note count mismatch ($actual, expected $expected): $vault" }
+          Write-Host "Validated synthetic-$size fixture ($actual notes)"
 
       - name: Run benchmark producers and persist evidence
         shell: pwsh
