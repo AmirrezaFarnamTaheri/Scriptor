@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.2.9 — 2026-10-13
+
 - Give the sticky mobile editor mode control and reader annotation dialog opaque themed bases so underlying icons and prose cannot show through them.
 - Apply opaque themed bases to Canvas table headings and the output dock header, with rendered alpha checks for the shared sticky-surface pattern.
 - Bound shared modal surfaces to the effective viewport under app zoom, keeping headers and history restoration actions reachable at 200%.
@@ -14,6 +16,8 @@
 - Add workspace accessibility audits across light/dark appearance and desktop/narrow RTL layouts, with downloadable violation details. Run full verification on hosted GitHub workers, including draft PRs.
 
 ### Fixed
+
+- Give module error and progress feedback consistent panel insets, readable padding and narrow RTL wrapping; wait for an open vault before exercising consented module transitions.
 
 - Canonicalize provider URLs before adding them to Markdown, wrap link destinations explicitly, and escape external calendar titles and locations to prevent injected Markdown structure.
 - Preserve readable CodeMirror wikilinks when light palette accents are used with dark editor appearance. Add browser contrast coverage for the mixed appearance.
