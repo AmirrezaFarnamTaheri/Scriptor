@@ -79,6 +79,7 @@ for (const [theme, width, direction] of [['light', 1440, 'ltr'], ['dark', 1440, 
     await page.addInitScript(() => localStorage.setItem('scriptor:plugins:consent', JSON.stringify({ schemaVersion: 1, savedAt: new Date().toISOString(), data: {} })))
     await launchApp(page, { theme })
     await waitForWorkspace(page, { allowHiddenVaultList: width === 320 })
+    await expect(page.locator('.job-progress')).toHaveClass(/is-done/, { timeout: 45_000 })
     await page.locator('html').evaluate((element, dir) => { element.dir = dir }, direction)
     await openCommandPalette(page)
     await runCommand(page, 'Open built-in modules')
