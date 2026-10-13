@@ -54,9 +54,15 @@ test('failed note restoration keeps its activation prompt and preserves the curr
     localStorage.setItem('scriptor:workspace-leaves:v1:screenshot-vault', JSON.stringify({ version: 1, leaves: [{ id, reference: { kind: 'note', path: 'Methodology.md' }, group: 'primary' }], activeId: id, activeByGroup: { primary: id, secondary: null } }))
   })
   await page.reload()
+  // The persisted Methodology leaf is active but intentionally inert: the shared
+  // workspace helper expects Research Plan to be selected and cannot apply here.
+  // Wait for the vault index before measuring the still-mounted writing editor.
+  await expect(page.locator('.job-progress')).toHaveClass(/is-done/, { timeout: 45_000 })
   const leaf = page.locator('[data-leaf-id="note:Methodology.md"]')
   await expect(leaf.getByText('Saved tab. Select it to open its workspace.')).toBeVisible()
-  const before = await page.locator('.workspace-writing-leaf .editor-status').textContent()
+  const editorStatus = page.locator('.workspace-writing-leaf .editor-status')
+  await expect.poll(async () => Number((await editorStatus.textContent())?.match(/^([0-9]+) words/)?.[1] ?? 0)).toBeGreaterThan(0)
+  const before = await editorStatus.textContent()
   await page.evaluate(() => {
     const native = (window as Window & { __TAURI_INTERNALS__?: { invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown> } }).__TAURI_INTERNALS__
     if (!native) throw new Error('Native fixture unavailable')

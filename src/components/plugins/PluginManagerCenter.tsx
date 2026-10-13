@@ -243,9 +243,9 @@ export function PluginManagerCenter({
               {t('pluginManager.marketplace')}
             </button>
           ) : null}
-          {scope === 'plugins' && persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
-          {workspaceError ? <p className="error-state" role="alert">{workspaceError}</p> : null}
-          {workspaceOpening ? <p role="status">{workspaceStrings.opening}</p> : null}
+          {scope === 'plugins' && persistenceError ? <p className="error-state plugin-manager-feedback" role="alert">{persistenceError}</p> : null}
+          {workspaceError ? <p className="error-state plugin-manager-feedback" role="alert">{workspaceError}</p> : null}
+          {workspaceOpening ? <p className="plugin-manager-feedback" role="status">{workspaceStrings.opening}</p> : null}
 
           {scope === 'plugins' && (
             <div className="plugin-manager-profiles">

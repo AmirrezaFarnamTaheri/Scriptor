@@ -107,9 +107,9 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "ammonia"
-version = "4.2.1"
+version = "4.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "850babe4998b8b9e2dad65a56be4ee1bb977bc3cb3934fa2b28feb2297c30a55"
+checksum = "061e83b03c2681c18a6787d956e355c74e0b98ba7ba3d69b0822ade1e6f1d716"
 dependencies = [
  "cssparser 0.38.0",
  "html5ever 0.40.1",
@@ -6467,7 +6467,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-annotations"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -6476,7 +6476,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-canvas-engine"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "chrono",
  "resvg 0.48.1",
@@ -6493,7 +6493,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-capture"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "ammonia",
  "htmd",
@@ -6509,7 +6509,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-citation-engine"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "biblatex",
  "hayagriva",
@@ -6521,7 +6521,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-cli"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "chrono",
  "clap",
@@ -6549,7 +6549,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-daemon"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "ammonia",
  "chrono",
@@ -6580,7 +6580,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-desktop"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "arboard",
  "base64 0.23.1",
@@ -6613,7 +6613,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-embeddings"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "reqwest",
  "rusqlite",
@@ -6626,7 +6626,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-export-runner"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "chrono",
  "hex",
@@ -6649,7 +6649,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-extractor"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "pulldown-cmark",
  "serde",
@@ -6659,7 +6659,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-indexer"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "chrono",
  "r2d2",
@@ -6679,7 +6679,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-ipc"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "postcard",
  "serde",
@@ -6689,7 +6689,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-mobile"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "scriptor-export-runner",
  "scriptor-mobile-runtime",
@@ -6703,7 +6703,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-mobile-runtime"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "chrono",
  "scriptor-export-runner",
@@ -6716,7 +6716,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-native-git"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "diffy",
  "scriptor-system-bridge",
@@ -6729,7 +6729,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-publish-runner"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "globset",
  "memchr",
@@ -6742,7 +6742,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-system-bridge"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "hex",
  "keyring",
@@ -6756,7 +6756,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-tantivy-indexer"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "tantivy",
  "tempfile",
@@ -6765,7 +6765,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-vault"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -6793,7 +6793,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-wasm-runtime"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "serde",
  "thiserror 2.0.21",
@@ -6803,7 +6803,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-xtask"
-version = "1.2.8"
+version = "1.3.0"
 dependencies = [
  "anyhow",
  "clap",

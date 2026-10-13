@@ -1,7 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
-import { launchApp, openCommandPalette, runCommand } from './helpers'
+import { launchApp, openCommandPalette, runCommand, waitForWorkspace } from './helpers'
 
 async function openManager(page: Page) {
+  await waitForWorkspace(page)
+  await expect(page.locator('.job-progress')).toHaveClass(/is-done/)
   await openCommandPalette(page)
   await runCommand(page, 'Open built-in modules')
   const manager = page.getByRole('dialog', { name: 'Built-in modules', exact: true })
@@ -70,3 +72,34 @@ test('safe mode explains why module workspaces cannot open', async ({ page }) =>
   await expect(manager.getByRole('button', { name: 'Open Runtime workspace overview', exact: true })).toBeDisabled()
   await expect(manager.getByText('Plugin workspaces are unavailable in safe mode.', { exact: true })).toBeVisible()
 })
+
+for (const [theme, width, direction] of [['light', 1440, 'ltr'], ['dark', 1440, 'ltr'], ['light', 320, 'rtl'], ['dark', 320, 'rtl']] as const) {
+  test(`declined module feedback has panel and text clearance in ${theme} ${width}px ${direction}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.addInitScript(() => localStorage.setItem('scriptor:plugins:consent', JSON.stringify({ schemaVersion: 1, savedAt: new Date().toISOString(), data: {} })))
+    await launchApp(page, { theme })
+    await waitForWorkspace(page, { allowHiddenVaultList: width === 320 })
+    await expect(page.locator('.job-progress')).toHaveClass(/is-done/, { timeout: 45_000 })
+    await page.locator('html').evaluate((element, dir) => { element.dir = dir }, direction)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open built-in modules')
+    const manager = page.getByRole('dialog', { name: 'Built-in modules', exact: true })
+    await manager.getByRole('searchbox').fill('Runtime workspace overview')
+    await manager.getByRole('button', { name: 'Toggle Runtime workspace overview', exact: true }).click()
+    const alert = manager.getByRole('alert')
+    await expect(alert).toContainText('The module change was declined.')
+    const clearance = await alert.evaluate(element => {
+      const panel = element.closest('.plugin-manager-modal')!.getBoundingClientRect()
+      const box = element.getBoundingClientRect()
+      const style = getComputedStyle(element)
+      return { left: box.left - panel.left, right: panel.right - box.right, paddingLeft: parseFloat(style.paddingLeft), paddingRight: parseFloat(style.paddingRight), overflow: element.scrollWidth - element.clientWidth }
+    })
+    expect(clearance.left).toBeGreaterThanOrEqual(12)
+    expect(clearance.right).toBeGreaterThanOrEqual(12)
+    expect(clearance.paddingLeft).toBeGreaterThanOrEqual(10)
+    expect(clearance.paddingRight).toBeGreaterThanOrEqual(10)
+    expect(clearance.overflow).toBeLessThanOrEqual(1)
+    await expect(manager.getByRole('button', { name: 'Open Runtime workspace overview', exact: true })).toBeDisabled()
+    await manager.screenshot({ path: testInfo.outputPath(`module-declined-${theme}-${width}-${direction}.png`) })
+  })
+}

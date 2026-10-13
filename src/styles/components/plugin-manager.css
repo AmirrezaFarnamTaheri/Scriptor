@@ -319,7 +319,7 @@
 }
 
 
-.plugin-manager .error-state,
+.plugin-manager-modal .error-state,
 .unified-panel-shell .error-state {
   display: flex;
   align-items: center;
@@ -331,6 +331,16 @@
   background: color-mix(in srgb, var(--danger) 10%, transparent);
   color: var(--ink);
   font-size: 13px;
+}
+
+.plugin-manager-modal > .plugin-manager-feedback {
+  flex: none;
+  margin: 12px 24px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .plugin-manager-modal > .plugin-manager-feedback { margin-inline: 14px; }
 }
 
 @media (max-width: 520px) {
