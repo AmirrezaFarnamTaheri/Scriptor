@@ -21,7 +21,7 @@ scriptor-system-bridge = { path = "../system-bridge" }
 scriptor-native-git = { path = "../native-git" }
 scriptor-vault = { path = "../vault" }
 scriptor-canvas-engine = { path = "../canvas-engine" }
-ammonia = "4"
+ammonia = "4.2.3"
 chrono = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 getrandom = "0.4"

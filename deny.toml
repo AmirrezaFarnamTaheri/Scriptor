@@ -12,6 +12,9 @@ ignore = [
     # Transitive dependencies with no maintained compatible release.
     "RUSTSEC-2023-0089",
     "RUSTSEC-2024-0436",
+    # Maintenance-only: unsafe-libyaml remains required by hayagriva/Typst via serde_yaml.
+    # Owner, review deadline and migration are tracked in the RustSec ledger.
+    "RUSTSEC-2024-0449",
     # Tauri urlpattern's rust-unic dependency family.
     "RUSTSEC-2025-0075",
     "RUSTSEC-2025-0080",

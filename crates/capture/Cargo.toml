@@ -12,7 +12,7 @@ scriptor-vault = { path = "../vault" }
 
 # HTML parsing and sanitisation (pure Rust, no subprocess)
 scraper     = "0.27"          # CSS-selector HTML parser (wraps html5ever)
-ammonia     = "4"             # Allow-list HTML sanitiser (strips scripts/handlers/srcdoc)
+ammonia     = "4.2.3"             # Allow-list HTML sanitiser (strips scripts/handlers/srcdoc)
 htmd        = "0.5"           # HTML → Markdown converter
 
 # HTTP client — feature-gated async; capture always runs in a blocking context
