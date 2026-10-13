@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 1.2.9 — 2026-10-13
+## 1.3.0 — 2026-10-13
 
 - Give the sticky mobile editor mode control and reader annotation dialog opaque themed bases so underlying icons and prose cannot show through them.
 - Apply opaque themed bases to Canvas table headings and the output dock header, with rendered alpha checks for the shared sticky-surface pattern.
