@@ -3,6 +3,7 @@ import { launchApp, openCommandPalette, runCommand, waitForWorkspace } from './h
 
 async function openManager(page: Page) {
   await waitForWorkspace(page)
+  await expect(page.locator('.job-progress')).toHaveClass(/is-done/)
   await openCommandPalette(page)
   await runCommand(page, 'Open built-in modules')
   const manager = page.getByRole('dialog', { name: 'Built-in modules', exact: true })
