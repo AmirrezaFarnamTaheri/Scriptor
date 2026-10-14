@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Contain the Scriptor shell within the effective viewport, scrolling the vault navigation independently with its utility footer kept in view. Avoid duplicating note tab strips when workspace leaves contain only notes, while retaining tool-leaf navigation.
+- In editable Preview and Split surfaces, collapse YAML frontmatter into a revealable Properties control and render standard GFM task markers as editable checkbox controls. Keep extended Scriptor task markers intact and retain source-edit synchronization.
+- Add browser regression coverage for dock scroll ownership, duplicate note tabs and editable preview properties/tasks.
+
 ## 1.3.0 — 2026-10-13
 
 - Give the sticky mobile editor mode control and reader annotation dialog opaque themed bases so underlying icons and prose cannot show through them.
