@@ -5,6 +5,7 @@
 ### Fixed
 
 - Bind asynchronous note organization and creation to their originating vault generation so a switch cannot redirect post-write indexing, note navigation, or UI feedback; enforce the native expected-vault check for organization writes.
+- Keep scheduled backups alive outside the Settings dialog by moving ownership into the persistent vault workspace. Restrict automatic external-backup retention to the current vault fingerprint, even when multiple vaults share a disaster-recovery destination.
 - Bound scheduled backup intervals and retention to finite supported limits; serialize backup, restore and delete actions and discard stale backup results on vault changes. Restore stored preferences safely when browser storage is unavailable or blocked.
 - Preserve generated asset-note links for source files containing URL-reserved filename characters by encoding each vault-relative path segment.
 
