@@ -73,6 +73,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
         Disaster-recovery backup path (absolute, outside vault)
         <input
           value={settings.backupPath}
+          disabled={isBusy}
           placeholder="Leave empty for local recovery snapshots"
           onChange={(event) => setSettings({ backupPath: event.target.value })}
         />
