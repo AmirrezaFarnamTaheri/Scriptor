@@ -16,6 +16,8 @@ import { nextInboxEntryAfter } from '../lib/knowledge/inbox'
 import { offsetIsoDate } from '../lib/knowledge/dailyNote'
 import { defaultNotePath } from './vault/helpers'
 
+const EXPECTED_MISSING_CONTENT_HASH = '<missing>'
+
 interface NoteTypeEntry {
   name: string
   path: string
@@ -38,7 +40,7 @@ interface UseWorkspaceNoteFactoryOptions {
 }
 
 export interface CreateNoteOptions {
-  /** Require the target path not to exist. Prevents silent overwrites. */
+  /** New-note writes require an absent destination by default; only explicit false allows replacement. */
   requireMissing?: boolean
   /** Suppress obsolete post-save navigation after the originating workspace changes. */
   isCurrent?: () => boolean
@@ -121,7 +123,7 @@ export function useWorkspaceNoteFactory({
       const markdown = await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), typeName, templateBody ?? null)
       setError(null)
       try {
-        await vaultSaveNote(path, markdown, undefined, undefined, vault.id)
+        await vaultSaveNote(path, markdown, EXPECTED_MISSING_CONTENT_HASH, undefined, vault.id)
         await indexerUpdateNote(path)
         await refreshVaultCore()
         await openNote(path)
@@ -146,7 +148,7 @@ export function useWorkspaceNoteFactory({
         const template = await vaultLoadTemplate(templatePath)
         const path = defaultNotePath(noteTitle)
         const markdown = await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, template)
-        await vaultSaveNote(path, markdown, undefined, undefined, vault.id)
+        await vaultSaveNote(path, markdown, EXPECTED_MISSING_CONTENT_HASH, undefined, vault.id)
         await indexerUpdateNote(path)
         await refreshVaultCore()
         await openNote(path)
@@ -173,7 +175,7 @@ export function useWorkspaceNoteFactory({
         } catch {
           // create below
         }
-        await vaultSaveNote(plan.path, plan.markdown, undefined, undefined, vault.id)
+        await vaultSaveNote(plan.path, plan.markdown, EXPECTED_MISSING_CONTENT_HASH, undefined, vault.id)
         await indexerUpdateNote(plan.path)
         await refreshVaultCore()
         await openNote(plan.path)
@@ -203,7 +205,7 @@ export function useWorkspaceNoteFactory({
           initialMarkdown ?? (await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, null))
         if (options.isCurrent?.() === false) return null
         setError(null)
-        await vaultSaveNote(path, markdown, options.requireMissing ? '<missing>' : undefined, undefined, vault.id)
+        await vaultSaveNote(path, markdown, options.requireMissing !== false ? EXPECTED_MISSING_CONTENT_HASH : undefined, undefined, vault.id)
         if (options.isCurrent?.() === false) return path
         await indexerUpdateNote(path)
         if (options.isCurrent?.() === false) return path
@@ -246,7 +248,7 @@ export function useWorkspaceNoteFactory({
 
       setError(null)
       try {
-        await vaultSaveNote(path, markdown, undefined, undefined, vault.id)
+        await vaultSaveNote(path, markdown, EXPECTED_MISSING_CONTENT_HASH, undefined, vault.id)
         await indexerUpdateNote(path)
         await refreshVaultCore()
         await openNote(path)
