@@ -19,7 +19,7 @@ interface Props {
   onSelect: (id: string) => unknown
   onClose: (id: string) => unknown
   onMove: (id: string, group: WorkspaceLeafGroup) => unknown
-  onReorder: (id: string, direction: -1 | 1) => unknown
+  onReorder: (id: string, direction: -1 | 1, steps?: number) => unknown
   panelId?: string
   labels?: WorkspaceLeafTabLabels
   pending?: boolean
@@ -33,6 +33,18 @@ export function WorkspaceLeafTabs({state, group, label, onSelect, onClose, onMov
   const groupSelected = getWorkspaceActiveLeaf(state, group)
   const selected = leaves.find(leaf => leaf.id === groupSelected?.id) ?? null
   const firstFocusable = selected?.id ?? leaves[0]?.id
+  const reorderVisible = (id: string, direction: -1 | 1) => {
+    const currentVisible = leaves.findIndex(leaf => leaf.id === id)
+    const neighbor = leaves[currentVisible + direction]
+    if (currentVisible < 0 || !neighbor) return
+    // The visible row omits note leaves already represented in the editor. A
+    // single button press should still move past the next *visible* sibling.
+    const siblings = state.leaves.filter(leaf => leaf.group === group)
+    const currentIndex = siblings.findIndex(leaf => leaf.id === id)
+    const neighborIndex = siblings.findIndex(leaf => leaf.id === neighbor.id)
+    const distance = Math.abs(currentIndex - neighborIndex)
+    if (distance > 0) void onReorder(id, direction, distance)
+  }
   const closeActions = (button: HTMLButtonElement) => {
     const details = button.closest('details')
     details?.removeAttribute('open')
@@ -57,14 +69,14 @@ export function WorkspaceLeafTabs({state, group, label, onSelect, onClose, onMov
       {leaves.map((leaf, index) => <button key={leaf.id} id={`${prefix}-${index}`} disabled={pending} type="button" role="tab" aria-selected={selected?.id === leaf.id} aria-controls={panelId} tabIndex={firstFocusable === leaf.id ? 0 : -1} className="workspace-leaf-tab" title={label(leaf.reference)} onKeyDown={event => navigate(event,index)} onClick={() => { void onSelect(leaf.id) }}>{label(leaf.reference)}</button>)}
     </div>
     {selected && <div className="workspace-leaf-actions" role="group" aria-label={labels.actions(label(selected.reference))}>
-      <button type="button" aria-label={labels.earlier} title={labels.earlier} disabled={pending || leaves[0].id === selected.id} onClick={() => { void onReorder(selected.id,-1) }}><ArrowLeft size={16} aria-hidden="true" /></button>
-      <button type="button" aria-label={labels.later} title={labels.later} disabled={pending || leaves.at(-1)?.id === selected.id} onClick={() => { void onReorder(selected.id,1) }}><ArrowRight size={16} aria-hidden="true" /></button>
+      <button type="button" aria-label={labels.earlier} title={labels.earlier} disabled={pending || leaves[0].id === selected.id} onClick={() => { reorderVisible(selected.id,-1) }}><ArrowLeft size={16} aria-hidden="true" /></button>
+      <button type="button" aria-label={labels.later} title={labels.later} disabled={pending || leaves.at(-1)?.id === selected.id} onClick={() => { reorderVisible(selected.id,1) }}><ArrowRight size={16} aria-hidden="true" /></button>
       <button type="button" disabled={pending || (selected.reference.kind === 'feature' && selected.reference.id === 'editor')} aria-label={group === 'primary' ? labels.toSide : labels.toMain} title={group === 'primary' ? labels.toSide : labels.toMain} onClick={() => { void onMove(selected.id,group === 'primary' ? 'secondary' : 'primary') }}><Columns2 size={16} aria-hidden="true" /></button>
       <details className="workspace-leaf-compact-actions" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.removeAttribute('open'); event.currentTarget.querySelector('summary')?.focus() } }}>
         <summary aria-label={labels.actions(label(selected.reference))} title={labels.actions(label(selected.reference))} aria-disabled={pending} onClick={event => { if (pending) event.preventDefault() }}><MoreHorizontal size={16} aria-hidden="true" /></summary>
         <div className="workspace-leaf-compact-menu">
-          <button type="button" disabled={pending || leaves[0].id === selected.id} onClick={event => { closeActions(event.currentTarget); void onReorder(selected.id,-1) }}>{labels.earlier}</button>
-          <button type="button" disabled={pending || leaves.at(-1)?.id === selected.id} onClick={event => { closeActions(event.currentTarget); void onReorder(selected.id,1) }}>{labels.later}</button>
+          <button type="button" disabled={pending || leaves[0].id === selected.id} onClick={event => { closeActions(event.currentTarget); reorderVisible(selected.id,-1) }}>{labels.earlier}</button>
+          <button type="button" disabled={pending || leaves.at(-1)?.id === selected.id} onClick={event => { closeActions(event.currentTarget); reorderVisible(selected.id,1) }}>{labels.later}</button>
           <button type="button" disabled={pending || (selected.reference.kind === 'feature' && selected.reference.id === 'editor')} onClick={event => { closeActions(event.currentTarget); void onMove(selected.id,group === 'primary' ? 'secondary' : 'primary') }}>{group === 'primary' ? labels.toSide : labels.toMain}</button>
         </div>
       </details>
