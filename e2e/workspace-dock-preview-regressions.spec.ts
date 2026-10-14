@@ -100,3 +100,23 @@ test('filtering a scrolled large vault resets stale virtualization offsets', asy
   await expect.poll(() => scroller.evaluate(element => element.scrollTop)).toBe(0)
   await expect(list.getByRole('button', { name: 'Research Plan.md' })).toBeVisible()
 })
+
+
+test('restored active note reuses the editor session instead of an unreachable inert leaf', async ({ page }) => {
+  await page.addInitScript(() => {
+    const id = 'note:Research Plan.md'
+    localStorage.setItem('scriptor:workspace-leaves:v1:screenshot-vault', JSON.stringify({
+      version: 1,
+      leaves: [{ id, reference: { kind: 'note', path: 'Research Plan.md' }, group: 'primary' }],
+      activeId: id,
+      activeByGroup: { primary: id, secondary: null },
+    }))
+  })
+  await launchApp(page)
+  await waitForWorkspace(page)
+
+  const editor = page.locator('.workspace-writing-leaf .editor-panel[data-help-topic="editor"]')
+  await expect(editor).toBeVisible()
+  await expect(page.locator('[data-leaf-id="note:Research Plan.md"]')).toHaveCount(0)
+  await expect(page.locator('.workspace-group-heading.primary .workspace-leaf-bar')).toHaveCount(0)
+})
