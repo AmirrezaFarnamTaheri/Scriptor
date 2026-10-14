@@ -66,6 +66,11 @@ test.describe('Workspace dock, tab and live-preview regressions', () => {
       }).__scriptorE2eEditor
       return editor?.getModel?.()?.getValue?.() ?? ''
     })).toContain('- [x] Collect sources')
+    // The same control must remain keyboard-focusable after its decoration updates.
+    await task.focus()
+    await task.press('Space')
+    await expect(task).toBeFocused()
+    await expect(task).toHaveAttribute('aria-checked', 'false')
     await expect(live.locator('.cm-line', { hasText: 'Draft methodology' })).toContainText('- [/] Draft methodology')
 
     await properties.click()
