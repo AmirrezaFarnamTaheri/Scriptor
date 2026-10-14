@@ -205,6 +205,14 @@ test('virtual vault note rows respect mobile touch target height without overlap
   })
   await expect.poll(async () => (await geometry())?.targetHeight ?? 0).toBeGreaterThanOrEqual(44)
   await expect.poll(async () => (await geometry())?.overlap ?? 100).toBeLessThanOrEqual(1)
+  // Overscan rows may be outside the viewport. Their intrinsic placeholder
+  // must not reset mobile row spacing when the user scrolls a large vault.
+  await page.evaluate(() => {
+    const lists = [...document.querySelectorAll<HTMLUListElement>('.vault-panel .virtual-note-list')]
+    const scrolling = lists.map(list => list.parentElement).find(element => element && element.scrollHeight > element.clientHeight + 200)
+    if (scrolling) scrolling.scrollTop = scrolling.scrollHeight / 2
+  })
+  await expect.poll(async () => (await geometry())?.overlap ?? 100).toBeLessThanOrEqual(1)
 
   await page.setViewportSize({ width: 1024, height: 800 })
   await expect.poll(async () => {
@@ -222,6 +230,7 @@ test('side note preview follows unsaved writing changes instead of displaying st
   await page.locator('.workspace-activity-bar').getByRole('button', { name: 'Preview', exact: true }).click()
   const side = page.locator('.workspace-leaf-content.secondary .workspace-note-preview')
   await expect(side).toBeVisible()
+  await expect(side.locator('article.markdown-preview')).toBeVisible()
   await page.locator('.workspace-writing-leaf .cm-content').fill('# Live draft check\n\nNew unsaved preview content.')
   await expect(side.getByRole('heading', { name: 'Live draft check' })).toBeVisible()
   await expect(side).toContainText('New unsaved preview content.')

@@ -182,8 +182,8 @@ function VaultSidebarImpl({
           <ul>
             {visibleRecentNotes.map((note) => (
               <li key={note.path}>
-                <button type="button" onClick={() => onOpenNote(note.path)}>
-                  {note.title}
+                <button type="button" title={note.path} aria-label={`${note.title} — ${note.path}`} onClick={() => onOpenNote(note.path)}>
+                  <bdi>{note.title}</bdi>
                 </button>
               </li>
             ))}

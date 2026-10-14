@@ -57,7 +57,7 @@ export function WorkspaceNotePreview({ path, vaultId, onOpen, liveMarkdown }: { 
         ? <p role="alert">{copy.failed}</p>
         : active?.markdown == null
           ? <p role="status">…</p>
-          : <MarkdownPreview markdown={active.markdown} />}
+          : <MarkdownPreview className="markdown-preview" basePath={path} markdown={active.markdown} />}
     </section>
   )
 }

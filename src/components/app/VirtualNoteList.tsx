@@ -36,7 +36,10 @@ function VirtualNoteListImpl({
     const syncGeometry = () => {
       setViewportHeight(element.clientHeight)
       const button = element.querySelector<HTMLButtonElement>('.note-row')
-      const next = Math.max(MIN_ROW_HEIGHT, button?.offsetHeight ?? MIN_ROW_HEIGHT)
+      // content-visibility:auto can return its 32px placeholder for overscan rows.
+      // The computed min-height still reflects the 44px mobile touch contract.
+      const minimum = button ? Number.parseFloat(getComputedStyle(button).minHeight) : 0
+      const next = Math.max(MIN_ROW_HEIGHT, Number.isFinite(minimum) ? Math.ceil(minimum) : 0, button?.offsetHeight ?? 0)
       setRowHeight(current => current === next ? current : next)
     }
     const observer = new ResizeObserver(syncGeometry)

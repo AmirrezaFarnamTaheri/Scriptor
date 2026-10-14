@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Render side-note previews with the shared Markdown typography and current in-memory draft for the active note, while preserving vault-scoped disk reads for inactive notes.
+- Match virtualized vault row geometry to mobile touch targets even when overscan rows are outside the viewport; expose recent-note file paths for disambiguation.
+
 - Contain the Scriptor shell within the effective viewport, scrolling the vault navigation independently with its utility footer kept in view. Avoid duplicating note tab strips when workspace leaves contain only notes, while retaining tool-leaf navigation.
 - In editable Preview and Split surfaces, collapse YAML frontmatter into a revealable Properties control and render standard GFM task markers as editable checkbox controls. Keep extended Scriptor task markers intact and retain source-edit synchronization.
 - Add browser regression coverage for dock scroll ownership, duplicate note tabs and editable preview properties/tasks.

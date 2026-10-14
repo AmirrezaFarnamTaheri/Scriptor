@@ -21,6 +21,8 @@
 .workspace-restore-prompt button,.workspace-note-preview button { min-height:44px; }
 .workspace-note-preview header { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .workspace-note-preview h2 { overflow-wrap:anywhere; min-width:0; font-size:16px; }
+/* Use the standard Markdown typographic contract without nesting another inset. */
+.workspace-note-preview > .markdown-preview { padding-inline:0; min-width:0; overflow-wrap:anywhere; }
 .workspace-leaf-content > section,.workspace-leaf-content .database-studio,.workspace-leaf-content .capture-reviewer { width:100%; max-width:none; height:100%; max-height:none; border-radius:0; margin:0; }
 .workspace-leaf-content .database-studio,.workspace-leaf-content .capture-reviewer { background:var(--bg-elevated); }
 @media(max-width:1100px) {
