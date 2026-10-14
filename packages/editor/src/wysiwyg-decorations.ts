@@ -1,6 +1,6 @@
 import { syntaxTree } from '@codemirror/language'
 import type { Range } from '@codemirror/state'
-import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
+import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import type { Extension } from '@codemirror/state'
 
 import { TASK_CHECKBOX_CLASS_SOURCE } from '@scriptor/core/task'
@@ -26,9 +26,64 @@ const taskListMark = Decoration.mark({ class: 'cm-wysiwyg-task' })
 // WYSIWYG surface.
 const taskLinePattern = new RegExp(`^(\\s*[-*+] +\\[[${TASK_CHECKBOX_CLASS_SOURCE}]\\] )`)
 
+class TaskCheckboxWidget extends WidgetType {
+  constructor(readonly checked: boolean, readonly markerFrom: number) { super() }
+  eq(other: TaskCheckboxWidget) { return other.checked === this.checked && other.markerFrom === this.markerFrom }
+  toDOM(view: EditorView) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'cm-wysiwyg-task-toggle'
+    button.setAttribute('role', 'checkbox')
+    button.setAttribute('aria-checked', String(this.checked))
+    button.setAttribute('aria-label', this.checked ? 'Mark task incomplete' : 'Mark task complete')
+    button.textContent = this.checked ? '✓' : ''
+    button.addEventListener('mousedown', event => event.preventDefault())
+    button.addEventListener('click', event => {
+      event.preventDefault()
+      event.stopPropagation()
+      const marker = view.state.doc.sliceString(this.markerFrom, this.markerFrom + 3)
+      if (marker !== '[ ]' && marker.toLowerCase() !== '[x]') return
+      view.dispatch({ changes: { from: this.markerFrom + 1, to: this.markerFrom + 2, insert: marker === '[ ]' ? 'x' : ' ' } })
+    })
+    return button
+  }
+}
+
+class FrontmatterWidget extends WidgetType {
+  constructor(readonly from: number) { super() }
+  eq(other: FrontmatterWidget) { return other.from === this.from }
+  toDOM(view: EditorView) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'cm-wysiwyg-frontmatter-toggle'
+    button.textContent = 'Properties'
+    button.setAttribute('aria-label', 'Show note properties')
+    button.addEventListener('mousedown', event => event.preventDefault())
+    button.addEventListener('click', event => {
+      event.preventDefault()
+      view.dispatch({selection:{anchor:this.from},scrollIntoView:true})
+      view.focus()
+    })
+    return button
+  }
+}
+
 function buildDecorations(view: EditorView): DecorationSet {
   const ranges: Range<Decoration>[] = []
   const activeLine = view.state.doc.lineAt(view.state.selection.main.head).number
+  // Metadata is not prose. Collapse a complete YAML frontmatter block except
+  // while the author is editing it. The source document remains unchanged.
+  if (view.state.doc.lines >= 3 && view.state.doc.line(1).text.replace(/^\uFEFF/, '').trim() === '---') {
+    let close = 0
+    for (let number = 2; number <= Math.min(view.state.doc.lines, 256); number++) {
+      if (/^(---|\.\.\.)\s*$/.test(view.state.doc.line(number).text)) { close = number; break }
+    }
+    if (close > 0 && activeLine > close) {
+      const first = view.state.doc.line(1)
+      const last = view.state.doc.line(close)
+      ranges.push(Decoration.replace({block:true,widget:new FrontmatterWidget(first.from)}).range(first.from,last.to))
+    }
+  }
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(view.state).iterate({
       from,
@@ -67,6 +122,13 @@ function buildDecorations(view: EditorView): DecorationSet {
           ranges.push(blockquoteMark.range(node.from, node.to))
         } else if (node.name === 'ListItem') {
           const line = view.state.doc.lineAt(node.from)
+          const standardTask = /^(\s*[-*+] +)(\[[ xX]\])(?=\s|$)/.exec(line.text)
+          if (!revealSyntax && standardTask) {
+            const markerFrom = line.from + standardTask[1].length
+            ranges.push(Decoration.replace({
+              widget: new TaskCheckboxWidget(standardTask[2].toLowerCase() === '[x]', markerFrom),
+            }).range(markerFrom, markerFrom + 3))
+          }
           if (taskLinePattern.test(line.text)) {
             ranges.push(taskListMark.range(node.from, node.to))
           }
@@ -123,6 +185,18 @@ export function wysiwygDecorationExtension(): Extension {
         color: 'var(--muted, #666)',
       },
       '.cm-wysiwyg-task': { listStyle: 'none' },
+      '.cm-wysiwyg-task-toggle': {
+        display: 'inline-grid', placeItems: 'center', width: '18px', height: '18px',
+        padding: '0', marginRight: '6px', verticalAlign: 'middle',
+        border: '1px solid var(--border-strong)', borderRadius: '4px',
+        color: 'var(--ink-strong)', backgroundColor: 'var(--surface-raised)', cursor: 'pointer',
+      },
+      '.cm-wysiwyg-task-toggle[aria-checked="true"]': { backgroundColor: 'var(--primary-soft)', borderColor: 'var(--primary)' },
+      '.cm-wysiwyg-frontmatter-toggle': {
+        display: 'inline-block', border: '1px solid var(--border)', borderRadius: '6px',
+        padding: '3px 9px', backgroundColor: 'var(--surface-muted)', color: 'var(--muted)',
+        fontFamily: 'var(--font-body)', fontSize: '12px', cursor: 'pointer',
+      },
     }),
   ]
 }
