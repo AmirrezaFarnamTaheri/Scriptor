@@ -55,6 +55,31 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const [lastError, setLastError] = useState<string | null>(null)
   const [lastMessage, setLastMessage] = useState<string | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const operationBusyRef = useRef(false)
+  const currentVaultRef = useRef<string | null>(ownedVaultId)
+
+  // Settings can stay mounted across vault switches. Keep their backup names
+  // and status messages owned by the vault that produced them.
+  useLayoutEffect(() => {
+    currentVaultRef.current = ownedVaultId
+    setBackups([])
+    setLastError(null)
+    setLastMessage(null)
+  }, [ownedVaultId])
+
+  const ownsVault = useCallback((id: string) => currentVaultRef.current === id, [])
+  // A scheduled backup, manual backup, restore and deletion must not overlap.
+  // State alone is not a mutex: two invocations may race before React renders.
+  const beginOperation = useCallback(() => {
+    if (operationBusyRef.current) return false
+    operationBusyRef.current = true
+    setIsBusy(true)
+    return true
+  }, [])
+  const finishOperation = useCallback(() => {
+    operationBusyRef.current = false
+    setIsBusy(false)
+  }, [])
 
   const setSettings = useCallback((patch: Partial<VaultBackupSettings>) => {
     setSettingsState((prev) => {
@@ -65,17 +90,18 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   }, [])
 
   const listBackups = useCallback(async () => {
-    if (!vaultOpen) {
+    if (!ownedVaultId) {
       setBackups([])
       return
     }
+    const requestedVault = ownedVaultId
     try {
       const list = await vaultListBackups(settings.backupPath || undefined)
-      setBackups(list || [])
+      if (ownsVault(requestedVault)) setBackups(list || [])
     } catch {
-      setBackups([])
+      if (ownsVault(requestedVault)) setBackups([])
     }
-  }, [vaultOpen, settings.backupPath])
+  }, [ownedVaultId, settings.backupPath, ownsVault])
 
   const triggerBackup = useCallback(async () => {
     if (!vaultOpen) return
@@ -223,19 +249,20 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   )
 
   useEffect(() => {
-    if (!vaultOpen) return
+    if (!ownedVaultId) return
+    const requestedVault = ownedVaultId
     let cancelled = false
     void vaultListBackups(settings.backupPath || undefined)
       .then((entries) => {
-        if (!cancelled) setBackups(entries || [])
+        if (!cancelled && ownsVault(requestedVault)) setBackups(entries || [])
       })
       .catch(() => {
-        if (!cancelled) setBackups([])
+        if (!cancelled && ownsVault(requestedVault)) setBackups([])
       })
     return () => {
       cancelled = true
     }
-  }, [settings.backupPath, vaultOpen])
+  }, [settings.backupPath, ownedVaultId, ownsVault])
 
   useEffect(() => {
     if (intervalRef.current) {
@@ -243,7 +270,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       intervalRef.current = null
     }
 
-    if (settings.enabled && vaultOpen && settings.intervalMinutes > 0) {
+    if (settings.enabled && ownedVaultId && settings.intervalMinutes > 0) {
       intervalRef.current = setInterval(
         () => {
           void triggerBackupRef.current()
@@ -258,7 +285,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         intervalRef.current = null
       }
     }
-  }, [settings.enabled, settings.intervalMinutes, vaultOpen])
+  }, [settings.enabled, settings.intervalMinutes, ownedVaultId])
 
   return useMemo(
     () => ({
