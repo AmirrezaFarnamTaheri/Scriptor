@@ -23,13 +23,16 @@ interface Props {
   panelId?: string
   labels?: WorkspaceLeafTabLabels
   pending?: boolean
+  isVisible?: (reference: WorkspaceLeafReference) => boolean
 }
-export function WorkspaceLeafTabs({state, group, label, onSelect, onClose, onMove, onReorder, panelId, labels: suppliedLabels, pending = false}: Props) {
+export function WorkspaceLeafTabs({state, group, label, onSelect, onClose, onMove, onReorder, panelId, labels: suppliedLabels, pending = false, isVisible}: Props) {
   const {locale} = useI18n()
   const labels = suppliedLabels ?? (locale === 'de' ? germanLabels : locale === 'fa' ? persianLabels : defaultLabels)
   const prefix = useId()
-  const leaves = state.leaves.filter(leaf => leaf.group === group)
-  const selected = getWorkspaceActiveLeaf(state, group)
+  const leaves = state.leaves.filter(leaf => leaf.group === group && (isVisible?.(leaf.reference) ?? true))
+  const groupSelected = getWorkspaceActiveLeaf(state, group)
+  const selected = leaves.find(leaf => leaf.id === groupSelected?.id) ?? null
+  const firstFocusable = selected?.id ?? leaves[0]?.id
   const closeActions = (button: HTMLButtonElement) => {
     const details = button.closest('details')
     details?.removeAttribute('open')
@@ -51,7 +54,7 @@ export function WorkspaceLeafTabs({state, group, label, onSelect, onClose, onMov
   if (leaves.length === 0) return null
   return <div className="workspace-leaf-bar" aria-busy={pending}>
     <div className="workspace-leaf-tabs" role="tablist" aria-label={group === 'primary' ? labels.mainTabs : labels.sideTabs}>
-      {leaves.map((leaf, index) => <button key={leaf.id} id={`${prefix}-${index}`} disabled={pending} type="button" role="tab" aria-selected={selected?.id === leaf.id} aria-controls={panelId} tabIndex={selected?.id === leaf.id ? 0 : -1} className="workspace-leaf-tab" title={label(leaf.reference)} onKeyDown={event => navigate(event,index)} onClick={() => { void onSelect(leaf.id) }}>{label(leaf.reference)}</button>)}
+      {leaves.map((leaf, index) => <button key={leaf.id} id={`${prefix}-${index}`} disabled={pending} type="button" role="tab" aria-selected={selected?.id === leaf.id} aria-controls={panelId} tabIndex={firstFocusable === leaf.id ? 0 : -1} className="workspace-leaf-tab" title={label(leaf.reference)} onKeyDown={event => navigate(event,index)} onClick={() => { void onSelect(leaf.id) }}>{label(leaf.reference)}</button>)}
     </div>
     {selected && <div className="workspace-leaf-actions" role="group" aria-label={labels.actions(label(selected.reference))}>
       <button type="button" aria-label={labels.earlier} title={labels.earlier} disabled={pending || leaves[0].id === selected.id} onClick={() => { void onReorder(selected.id,-1) }}><ArrowLeft size={16} aria-hidden="true" /></button>
