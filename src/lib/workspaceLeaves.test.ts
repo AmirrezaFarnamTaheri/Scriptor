@@ -102,3 +102,22 @@ test('capacity and removed navigation targets report refusal before owner approv
   assert.equal(workspaceLeafTransitionRefusal(prepareWorkspaceLeafTransition('open',state,reduced,() => false),reduced),'unavailable')
   assert.equal(workspaceLeafTransitionRefusal(prepareWorkspaceLeafTransition('open',state,reduced,() => true),reduced),null)
 })
+
+test('reorders a visible workspace tool past hidden note leaves in one atomic transition', () => {
+  let state = openWorkspaceLeaf(emptyWorkspaceLayout(), { kind: 'note', path: 'first.md' })
+  state = openWorkspaceLeaf(state, { kind: 'feature', id: 'graph' })
+  state = openWorkspaceLeaf(state, { kind: 'note', path: 'second.md' })
+  state = openWorkspaceLeaf(state, { kind: 'feature', id: 'canvas' })
+  state = openWorkspaceLeaf(state, { kind: 'feature', id: 'runtime' }, 'secondary')
+  const before = state.leaves.map(leaf => leaf.id)
+  assert.deepEqual(before, ['note:first.md', 'feature:graph', 'note:second.md', 'feature:canvas', 'feature:runtime'])
+
+  const moved = reorderWorkspaceLeaf(state, 'feature:canvas', -1, 2)
+  assert.deepEqual(moved.leaves.map(leaf => leaf.id), [
+    'note:first.md', 'feature:canvas', 'feature:graph', 'note:second.md', 'feature:runtime',
+  ])
+  assert.deepEqual(moved.leaves.filter(leaf => leaf.reference.kind === 'note').map(leaf => leaf.id), ['note:first.md', 'note:second.md'])
+  assert.deepEqual(state.leaves.map(leaf => leaf.id), before, 'reorder must not mutate the previous snapshot')
+  assert.equal(reorderWorkspaceLeaf(state, 'feature:canvas', -1, 0), state)
+  assert.equal(reorderWorkspaceLeaf(state, 'feature:canvas', -1, 999), state)
+})
