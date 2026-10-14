@@ -30,7 +30,7 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
     if (ref.kind === 'note') return workspace.entries.some(entry => entry.kind === 'note' && entry.path === ref.path)
     return 'id' in ref && (ref.id === 'editor' || ref.id === 'source-editor' || review.commands.some(command => command.id === ref.id))
   }, [nativeReady, plugins.contributions.workspaces, review.commands, vaultId, workspace.entries])
-  const leaves = useWorkspaceLeaves({ vaultId, available, approve: async request => {
+  const leaves = useWorkspaceLeaves({ vaultId, available, restoreReady: nativeReady && workspace.status === 'ready', approve: async request => {
     const ownedVault = refs.current.vaultId
     if (!ownedVault) return false
     if (document.querySelector('.workspace-leaf-dock [role="dialog"][aria-modal="true"]')) return false
