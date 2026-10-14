@@ -1,5 +1,5 @@
 import { syntaxTree } from '@codemirror/language'
-import type { Range } from '@codemirror/state'
+import { StateEffect, StateField, type Range } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import type { Extension } from '@codemirror/state'
 
@@ -61,37 +61,52 @@ class FrontmatterWidget extends WidgetType {
     button.addEventListener('mousedown', event => event.preventDefault())
     button.addEventListener('click', event => {
       event.preventDefault()
-      view.dispatch({selection:{anchor:this.from},scrollIntoView:true})
+      view.dispatch({effects: showFrontmatter.of(true),selection:{anchor:this.from},scrollIntoView:true})
       view.focus()
     })
     return button
   }
 }
 
+const showFrontmatter = StateEffect.define<boolean>()
+
+// Block replacements must be supplied by a state field: view plugins cannot
+// change the document's vertical layout.
+function frontmatterDecorations(doc: { lines: number; line: (number: number) => { from: number; to: number; text: string } }): DecorationSet {
+  if (doc.lines < 3 || doc.line(1).text.replace(/^\uFEFF/, '').trim() !== '---') return Decoration.none
+  for (let number = 2; number <= Math.min(doc.lines, 256); number++) {
+    if (/^(---|\.\.\.)\s*$/.test(doc.line(number).text)) {
+      const first = doc.line(1)
+      const last = doc.line(number)
+      return Decoration.set([
+        Decoration.replace({ block: true, widget: new FrontmatterWidget(first.from) }).range(first.from, last.to),
+      ])
+    }
+  }
+  return Decoration.none
+}
+
+const frontmatterField = StateField.define<{ revealed: boolean; decorations: DecorationSet }>({
+  create(state) { return { revealed: false, decorations: frontmatterDecorations(state.doc) } },
+  update(value, transaction) {
+    const reveal = transaction.effects.some(effect => effect.is(showFrontmatter) && effect.value)
+    if (reveal) return { revealed: true, decorations: Decoration.none }
+    if (transaction.docChanged && !value.revealed) {
+      return { revealed: false, decorations: frontmatterDecorations(transaction.state.doc) }
+    }
+    return value
+  },
+  provide: field => EditorView.decorations.from(field, value => value.decorations),
+})
+
 function buildDecorations(view: EditorView): DecorationSet {
   const ranges: Range<Decoration>[] = []
   const activeLine = view.state.doc.lineAt(view.state.selection.main.head).number
-  // Metadata is not prose. Collapse a complete YAML frontmatter block except
-  // while the author is editing it. The source document remains unchanged.
-  let collapsedFrontmatterEnd = -1
-  if (view.state.doc.lines >= 3 && view.state.doc.line(1).text.replace(/^\uFEFF/, '').trim() === '---') {
-    let close = 0
-    for (let number = 2; number <= Math.min(view.state.doc.lines, 256); number++) {
-      if (/^(---|\.\.\.)\s*$/.test(view.state.doc.line(number).text)) { close = number; break }
-    }
-    if (close > 0 && !(view.hasFocus && activeLine <= close)) {
-      const first = view.state.doc.line(1)
-      const last = view.state.doc.line(close)
-      collapsedFrontmatterEnd = last.to
-      ranges.push(Decoration.replace({block:true,widget:new FrontmatterWidget(first.from)}).range(first.from,last.to))
-    }
-  }
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(view.state).iterate({
       from,
       to,
       enter(node) {
-        if (node.from < collapsedFrontmatterEnd) return false
         const lineNumber = view.state.doc.lineAt(node.from).number
         const revealSyntax = lineNumber === activeLine
         const headingMatch = /^ATXHeading([1-6])$/.exec(node.name)
@@ -161,6 +176,7 @@ const wysiwygPlugin = ViewPlugin.fromClass(
 
 export function wysiwygDecorationExtension(): Extension {
   return [
+    frontmatterField,
     wysiwygPlugin,
     EditorView.baseTheme({
       '.cm-wysiwyg-heading': {
