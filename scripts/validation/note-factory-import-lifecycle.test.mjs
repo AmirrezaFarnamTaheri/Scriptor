@@ -75,6 +75,8 @@ test('daily note read failure cannot replace an existing destination', async () 
   const actions = []
   const module = { exports: {} }
   vm.runInNewContext(source, {
+    // Share the application realm's Error class so instanceof Error remains meaningful.
+    Error,
     module, exports: module.exports,
     require: id => id === 'react' ? { useCallback: fn => fn }
       : id === '@scriptor/core/date' ? { formatLocalDate: () => '2026-10-14' }
