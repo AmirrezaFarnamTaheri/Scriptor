@@ -39,7 +39,8 @@
 
 ## Test/verification coverage added
 
-- Playwright backup directory switch: delayed old listing cannot replace new-directory entries; failed reads cannot be presented as an empty inventory.\n- Backup retention policy: interleave snapshots from multiple vault fingerprints within the same external directory and ensure only the current vault's excess copies are candidates for deletion, including invalid-name fail-closed behavior.
+- Playwright backup directory switch: delayed old listing cannot replace new-directory entries; failed reads cannot be presented as an empty inventory.
+- Backup retention policy: interleave snapshots from multiple vault fingerprints within the same external directory and ensure only the current vault's excess copies are candidates for deletion, including invalid-name fail-closed behavior.
 
 - Node source-contract tests: delayed native organization and typed-note save complete after a vault-generation change without touching the new vault's index, navigation, or UI state.
 - Workspace model: tool tab reordering across hidden note leaves remains atomic, preserves note order, and rejects invalid jump distances.
