@@ -18,6 +18,24 @@ import { defaultNotePath } from './vault/helpers'
 
 const EXPECTED_MISSING_CONTENT_HASH = '<missing>'
 
+const MAX_NEW_NOTE_FILENAME_ATTEMPTS = 32
+
+/** Atomically choose an unused name for ordinary New commands. Caller-bound imports stay strict. */
+async function saveNewNoteWithUniqueName(basePath: string, markdown: string, vaultId: string): Promise<string> {
+  for (let attempt = 0; attempt < MAX_NEW_NOTE_FILENAME_ATTEMPTS; attempt += 1) {
+    const path = attempt === 0 ? basePath : basePath.replace(/\.md$/i, ' (' + (attempt + 1) + ').md')
+    try {
+      await vaultSaveNote(path, markdown, EXPECTED_MISSING_CONTENT_HASH, undefined, vaultId)
+      return path
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      if (!/content hash mismatch/i.test(detail) || !detail.includes('expected <missing>')) throw error
+    }
+  }
+  throw new Error('Could not create a uniquely named note. Choose a different title.')
+}
+
+
 interface NoteTypeEntry {
   name: string
   path: string
@@ -123,14 +141,14 @@ export function useWorkspaceNoteFactory({
       const markdown = await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), typeName, templateBody ?? null)
       setError(null)
       try {
-        await vaultSaveNote(path, markdown, EXPECTED_MISSING_CONTENT_HASH, undefined, vault.id)
-        await indexerUpdateNote(path)
+        const createdPath = await saveNewNoteWithUniqueName(path, markdown, vault.id)
+        await indexerUpdateNote(createdPath)
         await refreshVaultCore()
-        await openNote(path)
+        await openNote(createdPath)
         if (vaultConfig.inbox?.enabled !== false) {
           setSidebarView('inbox')
         }
-        logActivity('success', `Created ${typeName} note`, path)
+        logActivity('success', `Created ${typeName} note`, createdPath)
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
@@ -148,10 +166,10 @@ export function useWorkspaceNoteFactory({
         const template = await vaultLoadTemplate(templatePath)
         const path = defaultNotePath(noteTitle)
         const markdown = await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, template)
-        await vaultSaveNote(path, markdown, EXPECTED_MISSING_CONTENT_HASH, undefined, vault.id)
-        await indexerUpdateNote(path)
+        const createdPath = await saveNewNoteWithUniqueName(path, markdown, vault.id)
+        await indexerUpdateNote(createdPath)
         await refreshVaultCore()
-        await openNote(path)
+        await openNote(createdPath)
         logActivity('success', 'Note created from template', templatePath)
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : String(caught)
@@ -205,19 +223,21 @@ export function useWorkspaceNoteFactory({
           initialMarkdown ?? (await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, null))
         if (options.isCurrent?.() === false) return null
         setError(null)
-        await vaultSaveNote(path, markdown, options.requireMissing !== false ? EXPECTED_MISSING_CONTENT_HASH : undefined, undefined, vault.id)
-        if (options.isCurrent?.() === false) return path
-        await indexerUpdateNote(path)
-        if (options.isCurrent?.() === false) return path
+        const createdPath = options.requireMissing === undefined
+          ? await saveNewNoteWithUniqueName(path, markdown, vault.id)
+          : (await vaultSaveNote(path, markdown, options.requireMissing ? EXPECTED_MISSING_CONTENT_HASH : undefined, undefined, vault.id), path)
+        if (options.isCurrent?.() === false) return createdPath
+        await indexerUpdateNote(createdPath)
+        if (options.isCurrent?.() === false) return createdPath
         await refreshVaultCore()
-        if (options.isCurrent?.() === false) return path
-        await openNote(path, options.isCurrent)
-        if (options.isCurrent?.() === false) return path
+        if (options.isCurrent?.() === false) return createdPath
+        await openNote(createdPath, options.isCurrent)
+        if (options.isCurrent?.() === false) return createdPath
         if (vaultConfig.inbox?.enabled !== false) {
           setSidebarView('inbox')
         }
-        logActivity('success', 'Note created', path)
-        return path
+        logActivity('success', 'Note created', createdPath)
+        return createdPath
       } catch (caught) {
         if (options.isCurrent?.() === false) return null
         const message = caught instanceof Error ? caught.message : String(caught)
