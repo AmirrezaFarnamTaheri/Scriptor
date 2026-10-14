@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Route note-opening actions from Canvas, tasks, graphs, bibliography, and the portal through workspace composition, including when the requested document is already active behind a primary tool pane; preserve explicit editor reload after MCP writes.
 - Scope backup inventories to both vault ID and selected backup destination; discard delayed responses from an old directory and distinguish unreadable backup locations from genuinely empty inventories.
 - Stabilize the empty backup snapshot to keep React Hook dependencies and strict lint deterministic.
 
