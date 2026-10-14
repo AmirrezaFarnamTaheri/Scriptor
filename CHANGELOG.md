@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Scope backup inventories to both vault ID and selected backup destination; discard delayed responses from an old directory and distinguish unreadable backup locations from genuinely empty inventories.
+- Stabilize the empty backup snapshot to keep React Hook dependencies and strict lint deterministic.
+
 - Bind asynchronous note organization and creation to their originating vault generation so a switch cannot redirect post-write indexing, note navigation, or UI feedback; enforce the native expected-vault check for organization writes.
 - Keep scheduled backups alive outside the Settings dialog by moving ownership into the persistent vault workspace. Restrict automatic external-backup retention to the current vault fingerprint, even when multiple vaults share a disaster-recovery destination.
 - Bound scheduled backup intervals and retention to finite supported limits; serialize backup, restore and delete actions and discard stale backup results on vault changes. Restore stored preferences safely when browser storage is unavailable or blocked.
