@@ -15,10 +15,11 @@ interface PreviewSnapshot {
  * while its replacement read is in flight. Key the loaded snapshot to the
  * requested identity rather than resetting state after the first paint.
  */
-export function WorkspaceNotePreview({ path, vaultId, onOpen }: { path: string; vaultId: string; onOpen: () => void }) {
+export function WorkspaceNotePreview({ path, vaultId, onOpen, liveMarkdown }: { path: string; vaultId: string; onOpen: () => void; liveMarkdown?: string }) {
   const { locale } = useI18n()
   const copy = workspaceCopy(locale)
   const identity = JSON.stringify([vaultId, path])
+  const isLive = liveMarkdown !== undefined
   const [snapshot, setSnapshot] = useState<PreviewSnapshot>({
     identity,
     markdown: null,
@@ -26,6 +27,12 @@ export function WorkspaceNotePreview({ path, vaultId, onOpen }: { path: string; 
   })
 
   useEffect(() => {
+    if (isLive) {
+      // A live editor draft takes precedence over an older disk snapshot.
+      // Invalidate the snapshot so switching away triggers a fresh read.
+      setSnapshot({ identity: '', markdown: null, failed: false })
+      return
+    }
     let current = true
     void vaultReadNote(path).then(note => {
       if (!current) return
@@ -38,9 +45,11 @@ export function WorkspaceNotePreview({ path, vaultId, onOpen }: { path: string; 
       if (current) setSnapshot({ identity, markdown: null, failed: true })
     })
     return () => { current = false }
-  }, [path, vaultId, identity])
+  }, [path, vaultId, identity, isLive])
 
-  const active = snapshot.identity === identity ? snapshot : null
+  const active = isLive
+    ? { identity, markdown: liveMarkdown, failed: false }
+    : snapshot.identity === identity ? snapshot : null
   return (
     <section aria-label={`${copy.preview}: ${path}`} className="workspace-note-preview">
       <header><h2>{path}</h2><button type="button" onClick={onOpen}>{copy.edit}</button></header>

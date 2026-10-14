@@ -180,3 +180,49 @@ test('closing a writing tab does not remove its independently docked note previe
   await expect(preview).toBeVisible()
   await expect(preview).toContainText('Field Notes.md')
 })
+
+
+test('virtual vault note rows respect mobile touch target height without overlapping', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 })
+  await page.addInitScript(() => window.sessionStorage.setItem('e2e:large-vault', '1'))
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.getByRole('navigation', { name: 'Mobile workspace navigation', exact: true })
+    .getByRole('button', { name: 'Vault', exact: true }).click()
+
+  const geometry = () => page.evaluate(() => {
+    const lists = [...document.querySelectorAll<HTMLUListElement>('.vault-panel .virtual-note-list')]
+    const list = lists.find(candidate => candidate.querySelectorAll(':scope > li').length >= 2)
+    if (!list) return null
+    const first = list.querySelector<HTMLLIElement>(':scope > li:first-child')
+    const second = list.querySelector<HTMLLIElement>(':scope > li:nth-child(2)')
+    const button = first?.querySelector<HTMLButtonElement>('.note-row')
+    if (!first || !second || !button) return null
+    const a = first.getBoundingClientRect()
+    const b = second.getBoundingClientRect()
+    const target = button.getBoundingClientRect()
+    return { targetHeight: target.height, rowStride: b.top - a.top, overlap: target.bottom - b.top }
+  })
+  await expect.poll(async () => (await geometry())?.targetHeight ?? 0).toBeGreaterThanOrEqual(44)
+  await expect.poll(async () => (await geometry())?.overlap ?? 100).toBeLessThanOrEqual(1)
+
+  await page.setViewportSize({ width: 1024, height: 800 })
+  await expect.poll(async () => {
+    const result = await geometry()
+    return result ? result.rowStride >= result.targetHeight - 1 : false
+  }).toBe(true)
+})
+
+test('side note preview follows unsaved writing changes instead of displaying stale disk markdown', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.locator('.vault-panel .virtual-note-list').getByRole('button', { name: 'Field Notes.md' }).click()
+  await page.locator('.editor-toolbar').getByRole('button', { name: 'Tools', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Switch to CodeMirror editor' }).click()
+  await page.locator('.workspace-activity-bar').getByRole('button', { name: 'Preview', exact: true }).click()
+  const side = page.locator('.workspace-leaf-content.secondary .workspace-note-preview')
+  await expect(side).toBeVisible()
+  await page.locator('.workspace-writing-leaf .cm-content').fill('# Live draft check\n\nNew unsaved preview content.')
+  await expect(side.getByRole('heading', { name: 'Live draft check' })).toBeVisible()
+  await expect(side).toContainText('New unsaved preview content.')
+})
