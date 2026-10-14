@@ -12,6 +12,7 @@
 | High | Saved workspace restoration | Leaf layout was filtered before the vault note inventory was ready | Defer hydration until native vault status is ready; preserve per-vault reference ownership |
 | High | Restored active note | A saved leaf could remain inert even when editor session had already opened the exact same note, leaving writing hidden | Use the existing editor for a matching restored active note; regression test |
 | High | Cross-surface note navigation | Recent notes, wikilinks, diagnostics, deep links and note-creation flows could update editor state without selecting the visible workspace | Route explicit navigation through workspace composition and reconcile later direct editor-originated changes without activating saved sessions |
+| High | Same-path note navigation from launchable panels | Canvas, tasks, graph, bibliography and portal opened notes through the low-level editor. When the path was already active behind a primary tool leaf, no active-path change occurred and the tool remained visible | Route user note selection through composition; retain low-level explicit reload after MCP mutations; add a same-path graph-navigation regression |
 | High | Side-note preview | A reused component could expose stale content/errors while switching note or vault | Key fetched result to vault ID + path; discard obsolete asynchronous results |
 | High | Scheduled backup safety | Persisted interval/retention accepted non-finite, fractional or near-zero values; timer ticks and manual operations had no synchronous mutual exclusion | Normalize to finite integer UI limits; guard snapshot, restore and delete operations with a shared in-flight lock |
 | High | Scheduled backup lifetime | The scheduler was created inside a conditionally mounted Settings dialog; closing Settings cleared its timer and silently disabled scheduled backups | Move the hook to the always-mounted vault workspace and make Settings a passive control surface; add a source lifecycle test |
@@ -39,6 +40,7 @@
 
 ## Test/verification coverage added
 
+- Playwright: graph activation of an already-active note switches the primary pane back from a tool, rather than relying on a path-change effect.
 - Playwright backup directory switch: delayed old listing cannot replace new-directory entries; failed reads cannot be presented as an empty inventory.
 - Backup retention policy: interleave snapshots from multiple vault fingerprints within the same external directory and ensure only the current vault's excess copies are candidates for deletion, including invalid-name fail-closed behavior.
 
