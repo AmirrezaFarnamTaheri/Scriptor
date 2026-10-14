@@ -103,3 +103,36 @@ test('daily note read failure cannot replace an existing destination', async () 
     'Hash mismatch: existing daily note preserved',
   ])
 })
+
+
+test('repeated New commands use numbered filenames without clobbering prior notes', async () => {
+  const existing = new Map()
+  const module = { exports: {} }
+  vm.runInNewContext(source, {
+    module, exports: module.exports,
+    require: id => id === 'react' ? { useCallback: fn => fn }
+      : id === '@scriptor/core/date' ? { formatLocalDate: () => '2026-10-14' }
+      : id.includes('/bridge/') ? {
+        vaultBuildNoteMarkdown: async title => '# ' + title,
+        vaultSaveNote: async (path, markdown, expected) => {
+          assert.equal(expected, '<missing>')
+          if (existing.has(path)) throw new Error('content hash mismatch for ' + path + '; expected <missing>, found oldhash')
+          existing.set(path, markdown)
+        },
+        indexerUpdateNote: async () => {},
+      }
+      : { defaultNotePath: title => title + '.md' },
+  })
+  const factory = module.exports.useWorkspaceNoteFactory({
+    vault: { id: 'test-vault' }, vaultConfig: {}, noteTypes: [], inboxNotes: [],
+    setError: () => {}, setSidebarView: () => {}, logActivity: () => {},
+    refreshVaultCore: async () => {}, refreshNoteSummaries: async () => {},
+    openNote: async () => true, syncActiveNoteContent: async () => {},
+  })
+  assert.equal(await factory.createNote(), 'Untitled 2026-10-14.md')
+  assert.equal(await factory.createNote(), 'Untitled 2026-10-14 (2).md')
+  assert.equal(existing.size, 2)
+  assert.equal(existing.get('Untitled 2026-10-14.md'), '# Untitled 2026-10-14')
+  assert.equal(await factory.createNote('Untitled 2026-10-14', '# collision', { requireMissing: true }), null)
+  assert.equal(existing.size, 2)
+})
