@@ -108,7 +108,8 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
   }, [leaves])
   const closeNote = useCallback((path: string) => {
     const leaf = leaves.state.leaves.find(leaf => leaf.reference.kind === 'note' && leaf.reference.path === path)
-    return leaf ? leaves.close(leaf.id) : workspace.closeTab(path)
+    // Closing the editor tab is independent of an open side preview.
+    return leaf?.group === 'primary' ? leaves.close(leaf.id) : workspace.closeTab(path)
   }, [leaves, workspace])
   const sourceCommands = useMemo<PaletteCommand[]>(() => vaultId && nativeReady ? [
     { id: 'open-source-file-editor', label: 'Source file editor', category: 'Workspace', keywords: ['latex', 'python', 'code', 'Overleaf'], run: () => openSource(null) },
