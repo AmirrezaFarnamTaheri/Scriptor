@@ -135,7 +135,7 @@ jobs:
 
       - name: Upload release quality evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: scriptor-release-quality
           path: artifacts/release-quality/*
@@ -144,7 +144,7 @@ jobs:
 
       - name: Upload release quality diagnostics
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-release-quality-${{ github.run_attempt }}
           path: artifacts/
@@ -358,7 +358,7 @@ jobs:
           $lines | ForEach-Object { Write-Host $_ }
 
       - name: Upload staged release assets
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ matrix.artifact }}
           path: release-output/*
@@ -394,7 +394,7 @@ jobs:
 
       - name: Upload release packaging evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-release-${{ matrix.platform }}-${{ matrix.architecture }}-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -563,7 +563,7 @@ jobs:
 
       - name: Upload release publication evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-release-publish-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -651,7 +651,7 @@ jobs:
 
       - name: Upload update-manifest evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-update-manifests-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
