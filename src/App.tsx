@@ -1733,7 +1733,7 @@ function App() {
           gmailEnabled={plugins.activePlugins.some(plugin => plugin.manifest.id === 'scriptor.gmail-manager')}
           onOpenGoogleWorkspace={openGoogleWorkspace}
           vaultOpen={Boolean(workspace.vault)}
-          vaultId={workspace.vault?.id ?? null}
+          vaultId={workspace.vault?.id ?? null} backup={workspace.backup}
           systemInfo={systemInfo}
           diagnosticsOptIn={diagnostics.optIn}
           onDiagnosticsOptInChange={diagnostics.setOptIn}
