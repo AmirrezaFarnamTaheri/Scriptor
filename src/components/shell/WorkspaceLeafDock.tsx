@@ -57,7 +57,7 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
       catalog={[
         { id: 'writing', label: copy.writing, run: () => { void dock.open({ kind: 'feature', id: 'editor' }, 'primary') } },
         { id: 'source', label: copy.source, run: () => dock.openSource(null) },
-        { id: 'preview', label: copy.preview, disabled: !workspace.activePath, run: () => { if (workspace.activePath) void dock.open({ kind: 'note', path: workspace.activePath }, 'secondary') } },
+        { id: 'preview', label: copy.preview, disabled: !workspace.activePath, run: () => { if (workspace.activePath) void dock.openPreview(workspace.activePath) } },
         ...dock.commands.map(command => ({ id: command.id, label: command.label, run: () => { void command.run() } })),
       ]} />}
     {dock.status !== 'idle' && <p className="workspace-transition-status" role="status">{workspaceTransitionCopy(locale, dock.status === 'pending', dock.reason === 'limit')}</p>}
