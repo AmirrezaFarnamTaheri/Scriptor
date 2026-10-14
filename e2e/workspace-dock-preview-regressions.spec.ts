@@ -164,3 +164,19 @@ test('preview shortcut opens a side leaf for an already-open note and closes wit
   await expect(preview).toHaveCount(0)
   await expect(field).toBeVisible()
 })
+
+
+test('closing a writing tab does not remove its independently docked note preview', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.locator('.vault-panel .virtual-note-list').getByRole('button', { name: 'Field Notes.md' }).click()
+  await page.locator('.workspace-activity-bar').getByRole('button', { name: 'Preview', exact: true }).click()
+  const preview = page.locator('.workspace-leaf-content.secondary .workspace-note-preview')
+  await expect(preview).toBeVisible()
+
+  const writingTabs = page.getByRole('group', { name: 'Editor tabs', exact: true })
+  await writingTabs.getByRole('button', { name: 'Close Field Notes', exact: true }).click()
+  await expect(writingTabs.getByRole('tab', { name: 'Field Notes', exact: true })).toHaveCount(0)
+  await expect(preview).toBeVisible()
+  await expect(preview).toContainText('Field Notes.md')
+})
