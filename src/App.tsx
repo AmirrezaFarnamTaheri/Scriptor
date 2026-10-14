@@ -598,7 +598,7 @@ function App() {
     items: workspaceStore.portal.items,
     enabled: workspaceStore.hydrated,
     onInsert: (body) => workspace.insertSnippet(body),
-    onOpenNote: (path) => void workspace.openNote(path),
+    onOpenNote: (path) => { void openNote(path) },
   })
   const runCodeChunk = useCallback(
     (language: string, code: string) => codeChunkRun(language, code),
@@ -879,7 +879,7 @@ function App() {
           })
         },
         deleteActiveNote: nativeReady ? () => void deleteActiveNote() : undefined,
-        openRecentNote: (path) => void workspace.openNote(path),
+        openRecentNote: (path) => { void openNote(path) },
         recentNotes,
         setEditorSurfaceMode,
         toggleVaultSidebar: () => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed }),
@@ -912,6 +912,7 @@ function App() {
       graphFullVault,
       mcp,
       nativeReady,
+      openNote,
       openKnowledgeWorkbench,
       patchChrome,
       pluginCommandEntries,
@@ -1163,7 +1164,7 @@ function App() {
     setRenameOpen(true)
   }, [workspaceActivePath, setRenameTargetPath, setRenameOpen])
 
-  const handleOpenWikilinkTarget = useCallback((target: string) => void openWikilinkTarget(target), [openWikilinkTarget])
+  const handleOpenWikilinkTarget = useCallback((target: string) => { void openWikilinkTarget(target, openNote) }, [openWikilinkTarget, openNote])
   const handleOpenNote = useCallback((path: string) => void openNote(path), [openNote])
   const handleRenameSection = useCallback(
     (label: string) => {
@@ -1250,10 +1251,10 @@ function App() {
   )
   const handleOpenIssue = useCallback(
     (path: string, line?: number | null) => {
-      void openNoteAt(path, line)
+      void openNoteAt(path, line, openNote)
       setStatusDockTab('output')
     },
-    [openNoteAt, setStatusDockTab],
+    [openNoteAt, openNote, setStatusDockTab],
   )
   const handleOpenEditorLint = useCallback(
     (line: number) => {
@@ -1832,7 +1833,7 @@ function App() {
             if (target.kind === 'vault') {
               void workspace.openVaultAt(target.path)
             } else {
-              void workspace.openNote(target.path)
+              void openNote(target.path)
             }
           }}
         />
