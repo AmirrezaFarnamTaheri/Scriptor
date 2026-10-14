@@ -59,6 +59,7 @@ test.describe('Workspace dock, tab and live-preview regressions', () => {
     const task = live.locator('.cm-wysiwyg-task-toggle').first()
     await expect(task).toBeVisible()
     await expect(task).toHaveAttribute('aria-checked', 'false')
+    await expect(live.locator('.cm-line', { hasText: 'Collect sources' })).not.toContainText('- [')
     await task.click()
     await expect.poll(async () => page.evaluate(() => {
       const editor = (window as Window & {
