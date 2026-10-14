@@ -279,8 +279,8 @@ export function useWorkspaceEditor({
   )
 
   const openNoteAt = useCallback(
-    async (path: string, line?: number | null) => {
-      const didLoad = await openNote(path)
+    async (path: string, line?: number | null, navigate: (path: string) => Promise<boolean> = openNote) => {
+      const didLoad = await navigate(path)
       if (didLoad && activePathRef.current === path && line && line > 0) {
         setScrollToEditorLine(line)
       }
