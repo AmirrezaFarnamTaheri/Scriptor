@@ -143,3 +143,24 @@ test('creating a note while a tool occupies the main workspace returns to writin
   await expect(editor).toBeVisible()
   await expect(editor.getByRole('tab', { selected: true }).first()).toContainText('Untitled')
 })
+
+
+test('preview shortcut opens a side leaf for an already-open note and closes without removing its editor tab', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.locator('.vault-panel .virtual-note-list').getByRole('button', { name: 'Field Notes.md' }).click()
+  const writingTabs = page.getByRole('group', { name: 'Editor tabs', exact: true })
+  const field = writingTabs.getByRole('tab', { name: 'Field Notes', exact: true })
+  await expect(field).toBeVisible()
+
+  const shortcuts = page.locator('.workspace-activity-bar')
+  await shortcuts.getByRole('button', { name: 'Preview', exact: true }).click()
+  const preview = page.locator('.workspace-leaf-content.secondary .workspace-note-preview')
+  await expect(preview).toBeVisible()
+  await expect(preview).toContainText('Field Notes.md')
+  await expect(field).toBeVisible()
+
+  await page.locator('.workspace-group-heading.secondary').getByRole('button', { name: 'Close Field Notes.md' }).click()
+  await expect(preview).toHaveCount(0)
+  await expect(field).toBeVisible()
+})
