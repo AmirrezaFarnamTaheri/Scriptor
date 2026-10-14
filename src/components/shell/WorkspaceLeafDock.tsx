@@ -36,6 +36,8 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
   const writing = !primary || (primary.reference.kind === 'note' && dock.visited.has(primary.id)) || (primary.reference.kind === 'feature' && primary.reference.id === 'editor')
   const vaultId = workspace.vault?.id
   const focusedGroup = revealed?.group ?? dock.activeLeaf?.group ?? 'primary'
+  // The editor owns note tabs. Keep leaf navigation only for workspace tools.
+  const primaryHasTools = dock.state.leaves.some(leaf => leaf.group === 'primary' && leaf.reference.kind !== 'note' && !(leaf.reference.kind === 'feature' && leaf.reference.id === 'editor'))
   return <section className={`editor-panel workspace-leaf-dock${secondary ? ' has-side' : ''} focus-${focusedGroup}`} aria-label={copy.navigation}>
     {vaultId && <WorkspaceShortcutBar locale={locale} preferences={dock.shortcuts.preferences} open={dock.shortcuts.open}
       onOpen={dock.shortcuts.show} onClose={dock.shortcuts.close} onSave={dock.shortcuts.save}
@@ -47,7 +49,7 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
       ]} />}
     {dock.status !== 'idle' && <p className="workspace-transition-status" role="status">{workspaceTransitionCopy(locale, dock.status === 'pending', dock.reason === 'limit')}</p>}
     <div className="workspace-leaf-grid">
-      {(['primary', 'secondary'] as const).map(group => <div key={group} className={`workspace-group-heading ${group}`}>
+      {(['primary', 'secondary'] as const).map(group => <div key={group} className={`workspace-group-heading ${group}${group === 'primary' && !primaryHasTools ? ' note-only' : ''}`}>
         <WorkspaceLeafTabs state={dock.state} group={group} label={dock.label} onSelect={dock.select} onClose={dock.close} onMove={dock.move} onReorder={dock.reorder} panelId={`${id}-${group}`} pending={dock.status === 'pending'} />
       </div>)}
       <div className="workspace-writing-leaf" hidden={!writing || Boolean(revealed?.group === 'primary' && revealed.reference.kind !== 'note')} id={writing ? `${id}-primary` : undefined}>{children}</div>
