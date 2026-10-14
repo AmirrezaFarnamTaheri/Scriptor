@@ -15,6 +15,11 @@
 | High | Side-note preview | A reused component could expose stale content/errors while switching note or vault | Key fetched result to vault ID + path; discard obsolete asynchronous results |
 | High | Note integrity | New/template/typed/daily note paths risked overwriting a same-named note if saved without create-only expectations | Enforce the native `<missing>` compare-and-swap contract; allocate numbered filenames for ordinary new notes |
 | Medium | Virtual note list | Shrinking a filtered list could leave the scroll offset outside its new range and render no usable rows | Clamp physical and virtual scroll positions after content-size changes |
+| High | Mobile virtual note rows | CSS enforces 44px touch targets while the virtual list originally advanced only 32px per note, causing overlapping hitboxes | Measure live row height, including CSS minimum when an overscan row is offscreen; reflow on viewport/theme changes |
+| Medium | Side preview live fidelity | A mounted side preview read a note only once from disk, ignoring unsaved changes in the active writer | Render the current editor draft for the same vault-owned path; reload inactive notes from disk |
+| Medium | Side preview Markdown styles | Side renderer omitted the shared `markdown-preview` class, bypassing common spacing/typography, list and table presentation | Apply the canonical Markdown class, supply source path and avoid a duplicated inner gutter |
+| Low | Recent-note disambiguation | Long and duplicate titles had no full-path hint after clipping in the vault rail | Add complete path title and screen-reader label, with bidirectional text isolation |
+| Blocking | Rust Clippy gate | Session validation test used field reassignment immediately after `Default`, which is denied under `-D warnings` | Initialize the test fixture through a complete struct literal without disabling the lint |
 | Medium | RTL editor tabs | Arrow-key movement did not mirror visual direction for right-to-left layouts | Use the computed direction for arrow semantics and add browser coverage |
 | Medium | Editable preview fidelity | Split/Preview exposed frontmatter source as prose and ordinary task brackets as plain text | Show revealable Properties; render GFM checkbox widgets while preserving extended task markers |
 | Medium | Task keyboard usability | Replacing a task widget on toggle risks dropping keyboard focus or using stale offsets after edits | Reuse and update the existing widget DOM with current marker coordinates |
@@ -25,6 +30,7 @@
 ## Test/verification coverage added
 
 - Playwright: short viewport dock scroll isolation and footer visibility; single note-tab owner; editor task/frontmatter controls; keyboard focus retained when toggling tasks; RTL tab arrows; a long filtered list re-clamped after shortening; restored active note remains visible; new-note navigation from a primary tool workspace.
+- Playwright (added later in this PR): mobile vault hitbox non-overlap and responsive row reflow; previewing an active note updates on unsaved draft changes and uses standard Markdown presentation.
 - Node source-contract tests: create-only writing and collision-safe numbered names; daily-note read failure does not overwrite an existing file.
 - Existing coverage to re-run: workspace leaf lifecycle/guard tests, editor markup truth, preview resilience, focus/ARIA/contrast checks, mobile and 200% zoom geometry, generated screenshots.
 
@@ -43,6 +49,8 @@
 4. **Keep alternate note-entry workflows under regression.** Note factory operations call the editor hook directly; workspace composition now reconciles later active-path changes and has a browser case for creation while a tool occupies the primary pane. Verify there is no unwanted workspace activation during startup or leaf transitions.
 5. **Large-app architecture remains a maintainability concern.** `src/App.tsx` is at the ratchet ceiling; future navigation integration should be extracted into dedicated controllers, rather than extending the monolithic root component.
 6. **Review bots did not complete a substantive review.** CodeRabbit's repository auto-review was disabled and Qodo reported paused billing; use manual review and first-party test evidence rather than interpreting their status as approval.
+7. **Repository scale and checkout efficiency need a separate measured optimization.** The source tree tracks 31,100 synthetic note fixtures across the 100/1k/5k/25k vaults. Their value for real scale testing is clear, but generator-based alternatives should be evaluated with checkout, CI and reproducibility benchmarks before removing or replacing them.
+8. **Do not infer a green result from superseded runs.** Commits that change the preview and virtual-list behavior trigger fresh CI, visual and screenshot runs. Treat their latest-head state as pending until finished.
 
 ## Merge gate
 
