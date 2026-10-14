@@ -193,7 +193,7 @@ function SettingsPanelImpl({
   const [configReloadToken, setConfigReloadToken] = useState(0)
   const [status, setStatus] = useState('')
   const [pendingCloseVaultId, setPendingCloseVaultId] = useState<string | null>(null)
-  const backup = useVaultBackup(vaultOpen && nativeReady)
+  const backup = useVaultBackup(vaultOpen && nativeReady, vaultId)
   const configReady = Boolean(vaultOpen && vaultId && configLoadedForVaultId === vaultId)
   const configDirty = configReady && !valuesEqual(config, configBaseline)
   const discardPromptOpen = Boolean(configDirty && vaultId && pendingCloseVaultId === vaultId)
