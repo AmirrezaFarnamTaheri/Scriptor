@@ -4,21 +4,51 @@ import { vaultReadNote } from '../../bridge/commands/vault'
 import { useI18n } from '../../lib/i18n'
 import { workspaceCopy } from '../../lib/workspaceCopy'
 
+interface PreviewSnapshot {
+  identity: string
+  markdown: string | null
+  failed: boolean
+}
+
+/**
+ * A side preview must not display the previous vault's or path's Markdown
+ * while its replacement read is in flight. Key the loaded snapshot to the
+ * requested identity rather than resetting state after the first paint.
+ */
 export function WorkspaceNotePreview({ path, vaultId, onOpen }: { path: string; vaultId: string; onOpen: () => void }) {
   const { locale } = useI18n()
   const copy = workspaceCopy(locale)
-  const [content, setContent] = useState<string | null>(null)
-  const [error, setError] = useState(false)
+  const identity = JSON.stringify([vaultId, path])
+  const [snapshot, setSnapshot] = useState<PreviewSnapshot>({
+    identity,
+    markdown: null,
+    failed: false,
+  })
+
   useEffect(() => {
     let current = true
     void vaultReadNote(path).then(note => {
       if (!current) return
-      if (note.metadata.vault_id !== vaultId || note.metadata.path !== path) { setError(true); return }
-      setContent(note.markdown)
-    }, () => { if (current) setError(true) })
+      if (note.metadata.vault_id !== vaultId || note.metadata.path !== path) {
+        setSnapshot({ identity, markdown: null, failed: true })
+        return
+      }
+      setSnapshot({ identity, markdown: note.markdown, failed: false })
+    }, () => {
+      if (current) setSnapshot({ identity, markdown: null, failed: true })
+    })
     return () => { current = false }
-  }, [path, vaultId])
-  return <section aria-label={`${copy.preview}: ${path}`} className="workspace-note-preview"><header><h2>{path}</h2><button type="button" onClick={onOpen}>{copy.edit}</button></header>
-    {error ? <p role="alert">{copy.failed}</p> : content === null ? <p role="status">…</p> : <MarkdownPreview markdown={content} />}
-  </section>
+  }, [path, vaultId, identity])
+
+  const active = snapshot.identity === identity ? snapshot : null
+  return (
+    <section aria-label={`${copy.preview}: ${path}`} className="workspace-note-preview">
+      <header><h2>{path}</h2><button type="button" onClick={onOpen}>{copy.edit}</button></header>
+      {active?.failed
+        ? <p role="alert">{copy.failed}</p>
+        : active?.markdown == null
+          ? <p role="status">…</p>
+          : <MarkdownPreview markdown={active.markdown} />}
+    </section>
+  )
 }
