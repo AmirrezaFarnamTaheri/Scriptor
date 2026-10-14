@@ -601,13 +601,51 @@ impl Drop for TerminalGuard {
     }
 }
 
+/// Terminal-bound text can originate in note names, search results, and
+/// Markdown. Strip control characters and ANSI CSI/OSC sequences rather than
+/// allowing a saved note to inject terminal control codes into the TUI.
+fn sanitize_terminal_text(value: &str) -> String {
+    let mut chars = value.chars().peekable();
+    let mut safe = String::with_capacity(value.len().min(4096));
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\u{001b}' => match chars.next() {
+                Some('[') => {
+                    for code in chars.by_ref() {
+                        if ('@'..='~').contains(&code) { break; }
+                    }
+                }
+                Some(']') => {
+                    while let Some(code) = chars.next() {
+                        if code == '\u{0007}' { break; }
+                        if code == '\u{001b}' && chars.peek() == Some(&'\\') {
+                            chars.next();
+                            break;
+                        }
+                    }
+                }
+                _ => {}
+            },
+            '\u{009b}' => {
+                for code in chars.by_ref() {
+                    if ('@'..='~').contains(&code) { break; }
+                }
+            }
+            code if code.is_control() => {}
+            code => safe.push(code),
+        }
+    }
+    safe
+}
+
 pub fn safe_fit(value: &str, width: usize) -> String {
     if width == 0 {
         return String::new();
     }
     let mut rendered = String::new();
     let mut used = 0usize;
-    for grapheme in value.graphemes(true) {
+    let safe = sanitize_terminal_text(value);
+    for grapheme in safe.graphemes(true) {
         let next = UnicodeWidthStr::width(grapheme);
         if used + next > width {
             break;
@@ -658,7 +696,7 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
         .split(root[1]);
 
     frame.render_widget(
-        Paragraph::new(header_text(app)).block(
+        Paragraph::new(safe_fit(&header_text(app), frame.area().width.saturating_sub(2) as usize)).block(
             Block::default()
                 .borders(Borders::ALL)
                 .title("Command Surface"),
@@ -676,10 +714,10 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
         .map(|note| {
             ListItem::new(vec![
                 Line::from(Span::styled(
-                    note.title.clone(),
+                    safe_fit(&note.title, body[0].width.saturating_sub(3) as usize),
                     Style::default().add_modifier(Modifier::BOLD),
                 )),
-                Line::from(Span::raw(note.path.clone())),
+                Line::from(Span::raw(safe_fit(&note.path, body[0].width.saturating_sub(3) as usize))),
             ])
         })
         .collect::<Vec<_>>();
@@ -709,7 +747,7 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
 
     let pane_block = Block::default()
         .borders(Borders::ALL)
-        .title(pane_title)
+        .title(safe_fit(&pane_title, body[1].width.saturating_sub(2) as usize))
         .border_style(Style::default().fg(Color::DarkGray));
     frame.render_widget(
         Paragraph::new(lines)
@@ -719,7 +757,7 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
     );
 
     frame.render_widget(
-        Paragraph::new(footer_text(app)).block(
+        Paragraph::new(safe_fit(&footer_text(app), frame.area().width.saturating_sub(2) as usize)).block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::DarkGray)),
@@ -848,6 +886,16 @@ mod tests {
         assert_eq!(safe_fit(value, 1), "A");
         assert_eq!(safe_fit(value, 3), "A🙂");
         assert_eq!(safe_fit(value, 4), "A🙂B");
+    }
+
+    #[test]
+    fn safe_fit_rejects_terminal_escape_sequences_and_respects_unicode_width() {
+        assert_eq!(safe_fit("A\u{001b}[31mB\u{001b}[0m🙂", 4), "AB🙂");
+        assert_eq!(safe_fit("A\u{001b}]0;unsafe\u{0007}B", 2), "AB");
+        assert_eq!(safe_fit("A\u{001b}]8;;https://x.test\u{001b}\\B", 2), "AB");
+        assert_eq!(safe_fit("A\u{0000}\u{0007}B", 2), "AB");
+        assert_eq!(safe_fit("日本語", 3), "日");
+        assert_eq!(safe_fit("Z\u{009b}31mQ", 2), "ZQ");
     }
 
     #[test]
