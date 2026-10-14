@@ -37,6 +37,7 @@ import { useWorkspaceDiagnostics } from './useWorkspaceDiagnostics'
 import { useWorkspaceEditor } from './useWorkspaceEditor'
 import { useWorkspaceRename } from './useWorkspaceRename'
 import { useWorkspaceNoteFactory } from './useWorkspaceNoteFactory'
+import { useVaultBackup } from './useVaultBackup'
 import { useWorkspaceFilesystemSync } from './useWorkspaceFilesystemSync'
 import { useDaemonConfigEvents } from './useDaemonConfigEvents'
 import { buildVaultSections, buildVaultSectionsFromSummaries } from './vault/helpers'
@@ -138,6 +139,8 @@ export function useVaultWorkspace(options?: {
   const [status, setStatus] = useState<WorkspaceStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [vault, setVault] = useState<VaultDescriptor | null>(null)
+  // Always mounted: scheduled backup timers must outlive the Settings dialog.
+  const backup = useVaultBackup(Boolean(vault) && status === 'ready' && isNativeBridgeAvailable(), vault?.id ?? null)
   const [sections, setSections] = useState<VaultSection[]>([])
   const [entries, setEntries] = useState<ScannedEntry[]>([])
   const [isFixingVaultLint, setIsFixingVaultLint] = useState(false)
@@ -668,6 +671,7 @@ export function useVaultWorkspace(options?: {
   } = editor
 
   return {
+    backup,
     status,
     error,
     vault,
