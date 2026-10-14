@@ -83,8 +83,9 @@ export const EditorTabBar = memo(function EditorTabBar({
               onClick={() => onOpenTab(tab.path)}
               onKeyDown={(event) => {
                 let targetIndex = tabIndex
-                if (event.key === 'ArrowLeft') targetIndex = (tabIndex - 1 + openTabs.length) % openTabs.length
-                else if (event.key === 'ArrowRight') targetIndex = (tabIndex + 1) % openTabs.length
+                const rtl = getComputedStyle(event.currentTarget).direction === 'rtl'
+                if (event.key === 'ArrowLeft') targetIndex = (tabIndex + (rtl ? 1 : -1) + openTabs.length) % openTabs.length
+                else if (event.key === 'ArrowRight') targetIndex = (tabIndex + (rtl ? -1 : 1) + openTabs.length) % openTabs.length
                 else if (event.key === 'Home') targetIndex = 0
                 else if (event.key === 'End') targetIndex = openTabs.length - 1
                 else return
