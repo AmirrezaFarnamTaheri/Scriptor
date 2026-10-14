@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { launchApp, waitForWorkspace } from './helpers'
+import { launchApp, openCommandPalette, runCommand, waitForWorkspace } from './helpers'
 
 test.describe('Workspace dock, tab and live-preview regressions', () => {
   test('keeps the application fixed while the entire vault dock scrolls independently', async ({ page }) => {
@@ -124,4 +124,21 @@ test('restored active note reuses the editor session instead of an unreachable i
   await expect(editor).toBeVisible()
   await expect(page.locator('[data-leaf-id="note:Research Plan.md"]')).toHaveCount(0)
   await expect(page.locator('.workspace-group-heading.primary .workspace-leaf-bar')).toHaveCount(0)
+})
+
+
+test('creating a note while a tool occupies the main workspace returns to writing', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await openCommandPalette(page)
+  await runCommand(page, 'Diagram studio')
+  const diagram = page.getByRole('region', { name: 'Diagram studio', exact: true })
+  await expect(diagram).toBeVisible()
+  await page.getByRole('button', { name: 'Move tab to main workspace', exact: true }).click()
+  await expect(page.locator('[data-leaf-id="feature:open-diagram-studio"]')).toHaveClass(/primary/)
+
+  await page.locator('.vault-sidebar-footer').getByRole('button', { name: 'New note' }).click()
+  const editor = page.locator('.workspace-writing-leaf .editor-panel[data-help-topic="editor"]')
+  await expect(editor).toBeVisible()
+  await expect(editor.getByRole('tab', { selected: true }).first()).toContainText('Untitled')
 })
