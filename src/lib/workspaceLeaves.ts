@@ -78,15 +78,21 @@ export function moveWorkspaceLeaf(state: WorkspaceLayout, id: string, group: Wor
   const leaves = state.leaves.map(candidate => candidate.id === id ? {...candidate, group} : candidate)
   return {...state, leaves, activeId:id, activeByGroup:{...state.activeByGroup,[group]:id,[leaf.group]:state.activeByGroup[leaf.group] === id ? leaves.find(candidate => candidate.group === leaf.group)?.id ?? null : state.activeByGroup[leaf.group]}}
 }
-export function reorderWorkspaceLeaf(state: WorkspaceLayout, id: string, direction: -1 | 1): WorkspaceLayout {
-  if (direction !== -1 && direction !== 1) return state
+export function reorderWorkspaceLeaf(state: WorkspaceLayout, id: string, direction: -1 | 1, steps = 1): WorkspaceLayout {
+  if ((direction !== -1 && direction !== 1) || !Number.isSafeInteger(steps) || steps < 1) return state
   const index = state.leaves.findIndex(leaf => leaf.id === id)
   if (index < 0) return state
   const leaf = state.leaves[index]
   const siblings = state.leaves.map((candidate, position) => candidate.group === leaf.group ? position : -1).filter(position => position >= 0)
-  const target = siblings[siblings.indexOf(index) + direction]
-  if (target === undefined) return state
+  const origin = siblings.indexOf(index)
+  if (origin + direction * steps < 0 || origin + direction * steps >= siblings.length) return state
   const leaves = [...state.leaves]
-  ;[leaves[index], leaves[target]] = [leaves[target], leaves[index]]
-  return {...state, leaves}
+  // Move the selected leaf atomically through adjacent siblings. A visible tab
+  // may need to cross one or more editor-owned note leaves hidden from the strip.
+  for (let offset = origin; offset !== origin + direction * steps; offset += direction) {
+    const from = siblings[offset]
+    const to = siblings[offset + direction]
+    ;[leaves[from], leaves[to]] = [leaves[to], leaves[from]]
+  }
+  return { ...state, leaves }
 }
