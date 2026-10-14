@@ -49,6 +49,8 @@ test('backup inventory and errors follow the selected directory, never a stale l
 
   await pathInput.fill('C:/OldBackups')
   await expect.poll(() => page.evaluate(() => (window as Window & { __oldBackupListStarted?: boolean }).__oldBackupListStarted ?? false)).toBe(true)
+  await expect(backupPanel.getByText('Loading backups…')).toBeVisible()
+  await expect(backupPanel).not.toContainText('No backups yet')
 
   await pathInput.fill('C:/NewBackups')
   await expect(backupPanel).toContainText('new-vault-backup')
