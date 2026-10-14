@@ -33,6 +33,7 @@ import { referenceUsagePreview } from '../../bridge/commands/research_capture'
 
 export type WorkspacePanelLaunchersProps = {
   workspace: ReturnType<typeof useVaultWorkspace>
+  onOpenNote: (path: string) => void
   plugins: ReturnType<typeof usePluginRegistry>
   nativeReady: boolean
   canvasOpen: boolean
@@ -88,6 +89,7 @@ export type WorkspacePanelLaunchersProps = {
 /** Composes launchable workspace panels and their close handlers. */
 function WorkspacePanelLaunchersImpl({
   workspace,
+  onOpenNote,
   plugins,
   nativeReady,
   canvasOpen,
@@ -186,7 +188,7 @@ function WorkspacePanelLaunchersImpl({
               templatePacks={plugins.contributions.templatePacks}
               canvasTools={plugins.contributions.canvasTools}
               onClose={onCloseCanvas}
-              onOpenNote={(path) => void workspace.openNote(path)}
+              onOpenNote={(path) => void onOpenNote(path)}
             />
           </Suspense>
         </ErrorBoundary>
@@ -221,7 +223,7 @@ function WorkspacePanelLaunchersImpl({
               vaultId={workspace.vault.id}
               vaultOpen={Boolean(workspace.vault)}
               onClose={onCloseTasks}
-              onOpenNote={(path) => void workspace.openNote(path)}
+              onOpenNote={(path) => void onOpenNote(path)}
               runSourceNoteMutation={workspace.runNoteMutation}
               calendarConfig={workspace.vaultConfig.calendar_sync}
             />
@@ -273,7 +275,7 @@ function WorkspacePanelLaunchersImpl({
                 showToast?.(`Bibliography saved to ${path}`);refreshBibliography?.()
               }:undefined}
               onInspectUsage={nativeReady && workspace.vault ? () => referenceUsagePreview(workspace.vault!.id) : undefined}
-              onOpenNote={(path)=>{void workspace.openNote(path);setBibliographyOpen(false)}}
+              onOpenNote={(path)=>{void onOpenNote(path);setBibliographyOpen(false)}}
               onCreateLiteratureNote={nativeReady && workspace.vault ? async(entry)=>{
                 const path=await workspace.createNote(`Literature - ${entry.key}`,literatureNote(entry),{requireMissing:true})
                 if(!path)throw new Error('The literature note already exists or could not be saved.')
@@ -334,7 +336,7 @@ function WorkspacePanelLaunchersImpl({
                 })
               }}
               onSelectNode={(path) => {
-                void workspace.openNote(path)
+                void onOpenNote(path)
                 void workspace.loadGraph(path, { depth: graphDepth, fullVault: graphFullVault })
               }}
               onClose={onCloseGraph ?? (() => {})}
