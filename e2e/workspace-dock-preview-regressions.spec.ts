@@ -72,3 +72,31 @@ test.describe('Workspace dock, tab and live-preview regressions', () => {
     await expect(live.locator('.cm-content')).toContainText('project: Scriptor research')
   })
 })
+
+
+test('editor note tabs navigate in visual direction for RTL keyboards', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.locator('.vault-panel .virtual-note-list').getByRole('button', { name: 'Field Notes.md' }).click()
+  await page.locator('html').evaluate(element => { element.dir = 'rtl' })
+  const tabs = page.getByRole('group', { name: 'Editor tabs', exact: true })
+  const field = tabs.getByRole('tab', { name: 'Field Notes', selected: true })
+  await field.focus()
+  await field.press('ArrowRight')
+  await expect(tabs.getByRole('tab', { name: 'Research Plan', selected: true })).toBeFocused()
+})
+
+test('filtering a scrolled large vault resets stale virtualization offsets', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.addInitScript(() => window.sessionStorage.setItem('e2e:large-vault', '1'))
+  await launchApp(page)
+  await waitForWorkspace(page)
+  const list = page.locator('.vault-panel .virtual-note-list').first()
+  const scroller = list.locator('xpath=..')
+  await scroller.evaluate(element => { element.scrollTop = element.scrollHeight })
+  await expect.poll(() => scroller.evaluate(element => element.scrollTop)).toBeGreaterThan(200)
+  await page.locator('.vault-panel').getByRole('searchbox', { name: 'Search notes' }).fill('Research Plan')
+  await expect.poll(() => list.evaluate(element => element.children.length)).toBeGreaterThan(0)
+  await expect.poll(() => scroller.evaluate(element => element.scrollTop)).toBe(0)
+  await expect(list.getByRole('button', { name: 'Research Plan.md' })).toBeVisible()
+})
