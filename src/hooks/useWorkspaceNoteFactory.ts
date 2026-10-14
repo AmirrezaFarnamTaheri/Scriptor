@@ -55,6 +55,8 @@ interface UseWorkspaceNoteFactoryOptions {
   refreshNoteSummaries: () => Promise<void>
   openNote: (path: string, isCurrent?: () => boolean) => Promise<unknown>
   syncActiveNoteContent: (path: string) => Promise<void>
+  /** Monotone vault-open generation used to invalidate in-flight work. */
+  getVaultGeneration?: () => number
 }
 
 export interface CreateNoteOptions {
@@ -78,7 +80,13 @@ export function useWorkspaceNoteFactory({
   refreshNoteSummaries,
   openNote,
   syncActiveNoteContent,
+  getVaultGeneration,
 }: UseWorkspaceNoteFactoryOptions) {
+  const operationOwner = useCallback(() => {
+    const generation = getVaultGeneration?.()
+    return () => generation === undefined || getVaultGeneration?.() === generation
+  }, [getVaultGeneration])
+
   const organizeNote = useCallback(
     async (path: string) => {
       if (!vault) return
