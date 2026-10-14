@@ -138,3 +138,73 @@ test('repeated New commands use numbered filenames without clobbering prior note
   assert.equal(await factory.createNote('Untitled 2026-10-14', '# collision', { requireMissing: true }), null)
   assert.equal(existing.size, 2)
 })
+
+test('a stale organize request neither indexes another vault nor rewrites its note', async () => {
+  let generation = 0, entered, release
+  const started = new Promise(resolve => { entered = resolve })
+  const pendingWrite = new Promise(resolve => { release = resolve })
+  const calls = []
+  const module = { exports: {} }
+  vm.runInNewContext(source, {
+    module, exports: module.exports,
+    require: id => id === 'react' ? { useCallback: fn => fn }
+      : id.includes('/bridge/') ? {
+        vaultFrontmatterSet: async (...args) => {
+          calls.push(['write', ...args])
+          entered()
+          await pendingWrite
+        },
+        indexerUpdateNote: async () => calls.push(['index']),
+      } : { nextInboxEntryAfter: () => null },
+  })
+  const factory = module.exports.useWorkspaceNoteFactory({
+    vault: { id: 'vault-a' }, vaultConfig: {}, inboxNotes: [], noteTypes: [],
+    getVaultGeneration: () => generation,
+    setError: () => calls.push(['error']), logActivity: () => calls.push(['activity']),
+    refreshVaultCore: async () => calls.push(['refresh']),
+    refreshNoteSummaries: async () => calls.push(['summaries']),
+    openNote: async () => calls.push(['open']), syncActiveNoteContent: async () => calls.push(['sync']),
+  })
+  const run = factory.organizeNote('a.md')
+  await started
+  generation += 1
+  release()
+  await run
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0][0], 'write')
+  assert.equal(calls[0][5], 'vault-a', 'native write must remain bound to originating vault')
+})
+
+test('a vault change during note creation skips stale index, navigation and UI changes', async () => {
+  let generation = 0, entered, release
+  const started = new Promise(resolve => { entered = resolve })
+  const pendingSave = new Promise(resolve => { release = resolve })
+  const calls = []
+  const module = { exports: {} }
+  vm.runInNewContext(source, {
+    module, exports: module.exports,
+    require: id => id === 'react' ? { useCallback: fn => fn }
+      : id === '@scriptor/core/date' ? { formatLocalDate: () => '2026-10-14' }
+      : id.includes('/bridge/') ? {
+        vaultBuildNoteMarkdown: async () => '# Draft',
+        vaultSaveNote: async (...args) => { calls.push(['save', ...args]); entered(); await pendingSave },
+        indexerUpdateNote: async () => calls.push(['index']),
+      } : { defaultNotePath: title => title + '.md' },
+  })
+  const factory = module.exports.useWorkspaceNoteFactory({
+    vault: { id: 'vault-a' }, vaultConfig: {}, noteTypes: [], inboxNotes: [],
+    getVaultGeneration: () => generation,
+    setError: () => {}, setSidebarView: () => calls.push(['sidebar']),
+    logActivity: () => calls.push(['activity']),
+    refreshVaultCore: async () => calls.push(['refresh']),
+    refreshNoteSummaries: async () => calls.push(['summaries']),
+    openNote: async () => calls.push(['open']), syncActiveNoteContent: async () => {},
+  })
+  const run = factory.createNoteOfType('Idea')
+  await started
+  generation += 1
+  release()
+  await run
+  assert.deepEqual(calls.map(entry => entry[0]), ['save'])
+  assert.equal(calls[0].at(-1), 'vault-a')
+})
