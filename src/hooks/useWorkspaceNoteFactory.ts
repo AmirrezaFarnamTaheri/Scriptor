@@ -87,7 +87,7 @@ export function useWorkspaceNoteFactory({
           ? nextInboxEntryAfter(inboxNotes, path)
           : null
       try {
-        await vaultFrontmatterSet(path, '_organized', 'true')
+        await vaultFrontmatterSet(path, '_organized', 'true', undefined, vault.id)
         await indexerUpdateNote(path)
         await refreshNoteSummaries()
         if (activePath === path) {
