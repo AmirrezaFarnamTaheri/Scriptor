@@ -163,4 +163,67 @@ mod tests {
 
         let _ = fs::remove_dir_all(&dir);
     }
+    #[test]
+    fn rejects_unsafe_or_duplicated_tabs_without_overwriting_last_valid_session() {
+        let dir = std::env::temp_dir().join(format!("scriptor-session-validation-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).expect("temp dir");
+        let root = VaultRoot::open(&dir).expect("vault root");
+        let valid = WorkspaceSession {
+            open_tabs: vec![WorkspaceSessionTab { path: "notes/ok.md".into(), pinned: false }],
+            active_path: Some("notes/ok.md".into()),
+            ..WorkspaceSession::default()
+        };
+        write_workspace_session(&root, &valid).expect("valid save");
+        let original = fs::read(root.root().join(DEFAULT_WORKSPACE_SESSION_PATH)).expect("read initial bytes");
+
+        for path in ["../secret.md", "/tmp/secret.md", "notes/../../secret.md", "notes\\evil.md"] {
+            let mut malformed = valid.clone();
+            malformed.open_tabs[0].path = path.to_string();
+            assert!(write_workspace_session(&root, &malformed).is_err(), "{path}");
+        }
+        let mut duplicate = valid.clone();
+        duplicate.open_tabs.push(duplicate.open_tabs[0].clone());
+        assert!(matches!(write_workspace_session(&root, &duplicate), Err(VaultError::InvalidWorkspaceSession(_))));
+
+        let mut wrong_version = valid.clone();
+        wrong_version.version = 2;
+        assert!(matches!(write_workspace_session(&root, &wrong_version), Err(VaultError::InvalidWorkspaceSession(_))));
+        let mut too_many = valid.clone();
+        too_many.open_tabs = (0..=MAX_SESSION_TABS)
+            .map(|index| WorkspaceSessionTab { path: format!("notes/{index}.md"), pinned: false })
+            .collect();
+        assert!(write_workspace_session(&root, &too_many).is_err());
+
+        assert_eq!(fs::read(root.root().join(DEFAULT_WORKSPACE_SESSION_PATH)).unwrap(), original);
+        assert_eq!(read_workspace_session(&root).unwrap(), valid);
+        fs::remove_dir_all(&dir).expect("cleanup");
+    }
+
+    #[test]
+    fn rejects_unbounded_or_invalid_saved_session_without_mutation() {
+        let dir = std::env::temp_dir().join(format!("scriptor-session-bounds-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(dir.join(".scriptor")).expect("temp dir");
+        let root = VaultRoot::open(&dir).expect("vault root");
+        let path = root.root().join(DEFAULT_WORKSPACE_SESSION_PATH);
+
+        fs::write(&path, vec![b' '; MAX_SESSION_BYTES + 1]).expect("write oversized fixture");
+        assert!(matches!(read_workspace_session(&root), Err(VaultError::InvalidWorkspaceSession(_))));
+
+        let mut invalid = WorkspaceSession::default();
+        invalid.version = 99;
+        let raw = serde_json::to_vec(&invalid).unwrap();
+        fs::write(&path, &raw).expect("write bad version fixture");
+        assert!(matches!(read_workspace_session(&root), Err(VaultError::InvalidWorkspaceSession(_))));
+        assert_eq!(fs::read(&path).unwrap(), raw);
+
+        let valid = WorkspaceSession {
+            active_path: Some("notes/valid.md".into()),
+            open_tabs: vec![WorkspaceSessionTab { path: "notes/valid.md".into(), pinned: true }],
+            ..WorkspaceSession::default()
+        };
+        fs::write(&path, serde_json::to_vec(&valid).unwrap()).expect("write valid fixture");
+        assert_eq!(read_workspace_session(&root).unwrap(), valid);
+        fs::remove_dir_all(&dir).expect("cleanup");
+    }
+
 }
