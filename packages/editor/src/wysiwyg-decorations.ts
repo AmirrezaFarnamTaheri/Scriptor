@@ -27,7 +27,13 @@ const taskListMark = Decoration.mark({ class: 'cm-wysiwyg-task' })
 const taskLinePattern = new RegExp(`^(\\s*[-*+] +\\[[${TASK_CHECKBOX_CLASS_SOURCE}]\\] )`)
 
 class TaskCheckboxWidget extends WidgetType {
-  constructor(readonly checked: boolean, readonly markerFrom: number) { super() }
+  readonly checked: boolean
+  readonly markerFrom: number
+  constructor(checked: boolean, markerFrom: number) {
+    super()
+    this.checked = checked
+    this.markerFrom = markerFrom
+  }
   eq(other: TaskCheckboxWidget) { return other.checked === this.checked && other.markerFrom === this.markerFrom }
   toDOM(view: EditorView) {
     const button = document.createElement('button')
@@ -50,7 +56,11 @@ class TaskCheckboxWidget extends WidgetType {
 }
 
 class FrontmatterWidget extends WidgetType {
-  constructor(readonly from: number) { super() }
+  readonly from: number
+  constructor(from: number) {
+    super()
+    this.from = from
+  }
   eq(other: FrontmatterWidget) { return other.from === this.from }
   toDOM(view: EditorView) {
     const button = document.createElement('button')
