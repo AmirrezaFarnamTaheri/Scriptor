@@ -157,6 +157,7 @@ export function useVaultWorkspace(options?: {
   const loadGraphRef = useRef<(focusPath?: string | null) => Promise<void>>(async () => {})
   const exportProfilesRef = useRef<ExportProfile[]>([])
   const vaultOpenRequestIdRef = useRef(0)
+  const getVaultGeneration = useCallback(() => vaultOpenRequestIdRef.current, [])
   const configRefreshSequence = useRef(0)
   const logActivity = useCallback((kind: ActivityEntry['kind'], message: string, detail?: string) => {
     const entry = createActivityEntry(kind, message, detail)
@@ -571,6 +572,7 @@ export function useVaultWorkspace(options?: {
   const { inboxNotes, noteTypes, templatePaths } = useWorkspaceKnowledge(noteSummaries, entries, vaultConfig)
 
   const notes = useWorkspaceNoteFactory({
+    getVaultGeneration,
     vault,
     vaultConfig,
     activePath,
