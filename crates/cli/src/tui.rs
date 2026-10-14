@@ -701,7 +701,10 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
         .constraints([Constraint::Percentage(34), Constraint::Percentage(66)])
         .split(root[1]);
 
-    let header = safe_fit(&header_text(app), frame.area().width.saturating_sub(2) as usize);
+    let header = safe_fit(
+        &header_text(app),
+        frame.area().width.saturating_sub(2) as usize,
+    );
     frame.render_widget(
         Paragraph::new(header).block(
             Block::default()
@@ -765,7 +768,10 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
         body[1],
     );
 
-    let footer = safe_fit(&footer_text(app), frame.area().width.saturating_sub(2) as usize);
+    let footer = safe_fit(
+        &footer_text(app),
+        frame.area().width.saturating_sub(2) as usize,
+    );
     frame.render_widget(
         Paragraph::new(footer).block(
             Block::default()

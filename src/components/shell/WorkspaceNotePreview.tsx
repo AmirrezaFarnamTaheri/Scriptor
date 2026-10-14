@@ -27,12 +27,9 @@ export function WorkspaceNotePreview({ path, vaultId, onOpen, liveMarkdown }: { 
   })
 
   useEffect(() => {
-    if (isLive) {
-      // A live editor draft takes precedence over an older disk snapshot.
-      // Invalidate the snapshot so switching away triggers a fresh read.
-      setSnapshot({ identity: '', markdown: null, failed: false })
-      return
-    }
+    // The parent keys this component by live-vs-saved mode, so a return to
+    // disk mode mounts a clean snapshot rather than showing stale HTML.
+    if (isLive) return
     let current = true
     void vaultReadNote(path).then(note => {
       if (!current) return

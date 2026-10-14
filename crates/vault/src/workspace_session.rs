@@ -51,7 +51,8 @@ impl WorkspaceSession {
     fn validate(&self) -> Result<(), VaultError> {
         if self.version != 1 {
             return Err(VaultError::InvalidWorkspaceSession(format!(
-                "unsupported version {}", self.version
+                "unsupported version {}",
+                self.version
             )));
         }
         if self.open_tabs.len() > MAX_SESSION_TABS {
@@ -100,7 +101,9 @@ impl WorkspaceSession {
 
 fn check_session_path(path: &str) -> Result<(), VaultError> {
     if path.len() > MAX_SESSION_PATH_BYTES {
-        return Err(VaultError::InvalidWorkspaceSession("note path too long".into()));
+        return Err(VaultError::InvalidWorkspaceSession(
+            "note path too long".into(),
+        ));
     }
     let normalized = RelativeVaultPath::parse(path)?;
     if normalized.as_str() != path {
@@ -129,7 +132,9 @@ pub fn read_workspace_session(root: &VaultRoot) -> Result<WorkspaceSession, Vaul
         .read_to_end(&mut raw)
         .map_err(|source| VaultError::io(&absolute, source))?;
     if raw.len() > MAX_SESSION_BYTES {
-        return Err(VaultError::InvalidWorkspaceSession("session file too large".into()));
+        return Err(VaultError::InvalidWorkspaceSession(
+            "session file too large".into(),
+        ));
     }
     let session: WorkspaceSession = serde_json::from_slice(&raw)?;
     session.validate()?;
@@ -150,7 +155,9 @@ pub fn write_workspace_session(
     }
     let payload = serde_json::to_vec_pretty(session)?;
     if payload.len() > MAX_SESSION_BYTES {
-        return Err(VaultError::InvalidWorkspaceSession("session file too large".into()));
+        return Err(VaultError::InvalidWorkspaceSession(
+            "session file too large".into(),
+        ));
     }
     atomic_write(&absolute, &payload)
 }
@@ -218,7 +225,10 @@ mod tests {
         ] {
             let mut malformed = valid.clone();
             malformed.open_tabs[0].path = path.to_string();
-            assert!(write_workspace_session(&root, &malformed).is_err(), "{path}");
+            assert!(
+                write_workspace_session(&root, &malformed).is_err(),
+                "{path}"
+            );
         }
         let mut duplicate = valid.clone();
         let duplicated = duplicate.open_tabs[0].clone();
@@ -253,10 +263,8 @@ mod tests {
     fn session_storage_refuses_symlinked_internal_directory() {
         use std::os::unix::fs::symlink;
 
-        let base = std::env::temp_dir().join(format!(
-            "scriptor-session-symlink-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let base =
+            std::env::temp_dir().join(format!("scriptor-session-symlink-{}", uuid::Uuid::new_v4()));
         let vault = base.join("vault");
         let outside = base.join("outside");
         fs::create_dir_all(&vault).expect("vault directory");
@@ -275,10 +283,8 @@ mod tests {
 
     #[test]
     fn rejects_unbounded_or_invalid_saved_session_without_mutation() {
-        let dir = std::env::temp_dir().join(format!(
-            "scriptor-session-bounds-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("scriptor-session-bounds-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(dir.join(".scriptor")).expect("temp dir");
         let root = VaultRoot::open(&dir).expect("vault root");
         let path = root.root().join(DEFAULT_WORKSPACE_SESSION_PATH);
