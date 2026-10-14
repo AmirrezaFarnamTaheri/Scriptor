@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Bound scheduled backup intervals and retention to finite supported limits; serialize backup, restore and delete actions and discard stale backup results on vault changes. Restore stored preferences safely when browser storage is unavailable or blocked.
 - Preserve generated asset-note links for source files containing URL-reserved filename characters by encoding each vault-relative path segment.
 
 - Render side-note previews with the shared Markdown typography and current in-memory draft for the active note, while preserving vault-scoped disk reads for inactive notes.
