@@ -52,29 +52,37 @@ function saveSettings(settings: VaultBackupSettings): void {
 export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const ownedVaultId = vaultOpen ? vaultId : null
   const [settings, setSettingsState] = useState<VaultBackupSettings>(loadSettings)
-  const [backupView, setBackupView] = useState<{vaultId: string | null; value: VaultBackupEntry[]}>({vaultId: ownedVaultId, value: []})
+  const [backupView, setBackupView] = useState<{vaultId: string | null; path: string; value: VaultBackupEntry[]; error: string | null}>({vaultId: ownedVaultId, path: settings.backupPath, value: [], error: null})
   const [errorView, setErrorView] = useState<{vaultId: string | null; value: string | null}>({vaultId: ownedVaultId, value: null})
   const [messageView, setMessageView] = useState<{vaultId: string | null; value: string | null}>({vaultId: ownedVaultId, value: null})
   const [isBusy, setIsBusy] = useState(false)
   // Hide a previous vault's data on the very first render after switching.
   // React forbids synchronous setState in effects; owner-keyed state needs no reset effect.
-  const backups = backupView.vaultId === ownedVaultId ? backupView.value : EMPTY_BACKUPS
+  // Backups are identified by both vault and destination directory. Never
+  // expose stale entries from the previous path to Restore/Delete controls.
+  const visibleBackups = backupView.vaultId === ownedVaultId && backupView.path === settings.backupPath ? backupView : null
+  const backups = visibleBackups?.value ?? EMPTY_BACKUPS
+  const backupListError = visibleBackups?.error ?? null
   const lastError = errorView.vaultId === ownedVaultId ? errorView.value : null
   const lastMessage = messageView.vaultId === ownedVaultId ? messageView.value : null
-  const setBackups = useCallback((value: VaultBackupEntry[]) => setBackupView({vaultId: ownedVaultId, value}), [ownedVaultId])
+  const setBackups = useCallback((value: VaultBackupEntry[]) => setBackupView({vaultId: ownedVaultId, path: settings.backupPath, value, error: null}), [ownedVaultId, settings.backupPath])
+  const setBackupListError = useCallback(() => setBackupView({vaultId: ownedVaultId, path: settings.backupPath, value: [], error: 'Could not load backups from this location. Check its path and access permissions.'}), [ownedVaultId, settings.backupPath])
   const setLastError = useCallback((value: string | null) => setErrorView({vaultId: ownedVaultId, value}), [ownedVaultId])
   const setLastMessage = useCallback((value: string | null) => setMessageView({vaultId: ownedVaultId, value}), [ownedVaultId])
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const operationBusyRef = useRef(false)
   const currentVaultRef = useRef<string | null>(ownedVaultId)
+  const currentBackupPathRef = useRef(settings.backupPath)
 
   // Settings can stay mounted across vault switches. Keep their backup names
   // and status messages owned by the vault that produced them.
   useLayoutEffect(() => {
     currentVaultRef.current = ownedVaultId
-  }, [ownedVaultId])
+    currentBackupPathRef.current = settings.backupPath
+  }, [ownedVaultId, settings.backupPath])
 
   const ownsVault = useCallback((id: string) => currentVaultRef.current === id, [])
+  const ownsBackupScope = useCallback((id: string, path: string) => currentVaultRef.current === id && currentBackupPathRef.current === path, [])
   // A scheduled backup, manual backup, restore and deletion must not overlap.
   // State alone is not a mutex: two invocations may race before React renders.
   const beginOperation = useCallback(() => {
@@ -102,26 +110,28 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       return
     }
     const requestedVault = ownedVaultId
+    const requestedPath = settings.backupPath
     try {
-      const list = await vaultListBackups(settings.backupPath || undefined)
-      if (ownsVault(requestedVault)) setBackups(list || [])
+      const list = await vaultListBackups(requestedPath || undefined)
+      if (ownsBackupScope(requestedVault, requestedPath)) setBackups(list || [])
     } catch {
-      if (ownsVault(requestedVault)) setBackups([])
+      if (ownsBackupScope(requestedVault, requestedPath)) setBackupListError()
     }
-  }, [ownedVaultId, settings.backupPath, ownsVault, setBackups])
+  }, [ownedVaultId, settings.backupPath, ownsBackupScope, setBackups, setBackupListError])
 
   const triggerBackup = useCallback(async () => {
     if (!ownedVaultId || !beginOperation()) return
     const requestedVault = ownedVaultId
+    const requestedPath = settings.backupPath
     setLastError(null)
     setLastMessage(null)
     try {
-      const entry = await vaultCreateBackup(settings.backupPath || undefined)
-      if (!ownsVault(requestedVault)) return
+      const entry = await vaultCreateBackup(requestedPath || undefined)
+      if (!ownsBackupScope(requestedVault, requestedPath)) return
       setLastMessage(`Backup created: ${entry.name}`)
 
-      const allBackups = (await vaultListBackups(settings.backupPath || undefined)) || []
-      if (!ownsVault(requestedVault)) return
+      const allBackups = (await vaultListBackups(requestedPath || undefined)) || []
+      if (!ownsBackupScope(requestedVault, requestedPath)) return
       const sorted = [...allBackups].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       )
@@ -130,10 +140,10 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       // Shared external directories may contain backups from other vaults.
       // Never prune a backup merely because its timestamp is older.
       for (const old of backupRetentionCandidates(allBackups, entry.name, settings.maxSnapshots)) {
-        if (!ownsVault(requestedVault)) return
+        if (!ownsBackupScope(requestedVault, requestedPath)) return
         try {
-          await vaultDeleteBackup(old.name, settings.backupPath || undefined)
-          if (!ownsVault(requestedVault)) return
+          await vaultDeleteBackup(old.name, requestedPath || undefined)
+          if (!ownsBackupScope(requestedVault, requestedPath)) return
           deleted.add(old.name)
         } catch {
           failedDeletes.push(old.name)
@@ -144,11 +154,11 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         setLastError(`Could not delete ${failedDeletes.length} old backup(s): ${failedDeletes.join(', ')}`)
       }
     } catch (caught) {
-      if (ownsVault(requestedVault)) setLastError(caught instanceof Error ? caught.message : 'Backup failed')
+      if (ownsBackupScope(requestedVault, requestedPath)) setLastError(caught instanceof Error ? caught.message : 'Backup failed')
     } finally {
       finishOperation()
     }
-  }, [ownedVaultId, settings.backupPath, settings.maxSnapshots, beginOperation, finishOperation, ownsVault, setBackups, setLastError, setLastMessage])
+  }, [ownedVaultId, settings.backupPath, settings.maxSnapshots, beginOperation, finishOperation, ownsBackupScope, setBackups, setLastError, setLastMessage])
 
   const triggerBackupRef = useRef(triggerBackup)
   useEffect(() => {
@@ -270,18 +280,19 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   useEffect(() => {
     if (!ownedVaultId) return
     const requestedVault = ownedVaultId
+    const requestedPath = settings.backupPath
     let cancelled = false
-    void vaultListBackups(settings.backupPath || undefined)
+    void vaultListBackups(requestedPath || undefined)
       .then((entries) => {
-        if (!cancelled && ownsVault(requestedVault)) setBackups(entries || [])
+        if (!cancelled && ownsBackupScope(requestedVault, requestedPath)) setBackups(entries || [])
       })
       .catch(() => {
-        if (!cancelled && ownsVault(requestedVault)) setBackups([])
+        if (!cancelled && ownsBackupScope(requestedVault, requestedPath)) setBackupListError()
       })
     return () => {
       cancelled = true
     }
-  }, [settings.backupPath, ownedVaultId, ownsVault, setBackups])
+  }, [settings.backupPath, ownedVaultId, ownsBackupScope, setBackups, setBackupListError])
 
   useEffect(() => {
     if (intervalRef.current) {
@@ -311,6 +322,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       settings,
       setSettings,
       backups,
+      backupListError,
       isBusy,
       lastError,
       lastMessage,
@@ -319,6 +331,6 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       deleteBackup,
       listBackups,
     }),
-    [settings, setSettings, backups, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup, listBackups],
+    [settings, setSettings, backups, backupListError, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup, listBackups],
   )
 }
