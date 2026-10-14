@@ -187,23 +187,31 @@ export function useWorkspaceNoteFactory({
   const createNoteFromTemplate = useCallback(
     async (templatePath: string, title?: string) => {
       if (!vault) return
+      const isCurrent = operationOwner()
       const noteTitle = title?.trim() || `Untitled ${formatLocalDate()}`
       try {
         const template = await vaultLoadTemplate(templatePath)
+        if (!isCurrent()) return
         const path = defaultNotePath(noteTitle)
         const markdown = await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, template)
+        if (!isCurrent()) return
         const createdPath = await saveNewNoteWithUniqueName(path, markdown, vault.id)
+        if (!isCurrent()) return
         await indexerUpdateNote(createdPath)
+        if (!isCurrent()) return
         await refreshVaultCore()
-        await openNote(createdPath)
+        if (!isCurrent()) return
+        await openNote(createdPath, isCurrent)
+        if (!isCurrent()) return
         logActivity('success', 'Note created from template', templatePath)
       } catch (caught) {
+        if (!isCurrent()) return
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Template note creation failed', message)
       }
     },
-    [logActivity, openNote, refreshVaultCore, setError, vault],
+    [logActivity, openNote, operationOwner, refreshVaultCore, setError, vault],
   )
 
   const createDailyNoteForOffset = useCallback(
