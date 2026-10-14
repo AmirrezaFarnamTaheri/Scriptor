@@ -11,6 +11,7 @@ import { WorkspaceEmbeddedPanel } from '../../context/WorkspacePanelContext'
 import { WorkspaceLeafLifecycleProvider } from '../../context/WorkspaceLeafLifecycle'
 import { WorkspaceNotePreview } from './WorkspaceNotePreview'
 import type { ReviewFeature } from '../../hooks/useReviewFeatureWorkspaces'
+import type { WorkspaceLeafReference } from '../../lib/workspaceLeaves'
 import { useI18n } from '../../lib/i18n'
 import { workspaceCopy, workspaceTransitionCopy } from '../../lib/workspaceCopy'
 import './workspace-leaf-dock.css'
@@ -41,7 +42,7 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
   const primaryHasTools = dock.state.leaves.some(leaf =>
     leaf.group === 'primary' && leaf.reference.kind !== 'note' &&
     !(leaf.reference.kind === 'feature' && leaf.reference.id === 'editor'))
-  const visiblePrimaryLeaf = (ref: typeof dock.state.leaves[number]['reference']) =>
+  const visiblePrimaryLeaf = (ref: WorkspaceLeafReference) =>
     ref.kind === 'note'
       ? !workspace.openTabs.some(tab => tab.path === ref.path)
       : !(ref.kind === 'feature' && ref.id === 'editor') || primaryHasTools
