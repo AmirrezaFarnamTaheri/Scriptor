@@ -414,7 +414,6 @@ function App() {
   )
 
   const splitPreviewActive = chrome.editorSurfaceMode === 'split'
-
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
     workspace.vault?.id,
