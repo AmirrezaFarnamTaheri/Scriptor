@@ -260,6 +260,8 @@ export function useWorkspaceNoteFactory({
         return null
       }
 
+      const ownedVaultCurrent = operationOwner()
+      const isCurrent = () => ownedVaultCurrent() && options.isCurrent?.() !== false
       const noteTitle = title?.trim() || `Untitled ${formatLocalDate()}`
       const pathBase = vaultConfig.inbox?.new_note_directory?.trim()
       const fileName = defaultNotePath(noteTitle)
@@ -268,32 +270,32 @@ export function useWorkspaceNoteFactory({
       try {
         const markdown =
           initialMarkdown ?? (await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, null))
-        if (options.isCurrent?.() === false) return null
+        if (!isCurrent()) return null
         setError(null)
         const createdPath = options.requireMissing === undefined
           ? await saveNewNoteWithUniqueName(path, markdown, vault.id)
           : (await vaultSaveNote(path, markdown, options.requireMissing ? EXPECTED_MISSING_CONTENT_HASH : undefined, undefined, vault.id), path)
-        if (options.isCurrent?.() === false) return createdPath
+        if (!isCurrent()) return createdPath
         await indexerUpdateNote(createdPath)
-        if (options.isCurrent?.() === false) return createdPath
+        if (!isCurrent()) return createdPath
         await refreshVaultCore()
-        if (options.isCurrent?.() === false) return createdPath
-        await openNote(createdPath, options.isCurrent)
-        if (options.isCurrent?.() === false) return createdPath
+        if (!isCurrent()) return createdPath
+        await openNote(createdPath, isCurrent)
+        if (!isCurrent()) return createdPath
         if (vaultConfig.inbox?.enabled !== false) {
           setSidebarView('inbox')
         }
         logActivity('success', 'Note created', createdPath)
         return createdPath
       } catch (caught) {
-        if (options.isCurrent?.() === false) return null
+        if (!isCurrent()) return null
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Failed to create note', message)
         return null
       }
     },
-    [logActivity, openNote, refreshVaultCore, setError, setSidebarView, vault, vaultConfig.inbox],
+    [logActivity, openNote, operationOwner, refreshVaultCore, setError, setSidebarView, vault, vaultConfig.inbox],
   )
 
   const createNoteFromWikilink = useCallback(
