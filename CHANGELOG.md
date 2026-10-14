@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Bind asynchronous note organization and creation to their originating vault generation so a switch cannot redirect post-write indexing, note navigation, or UI feedback; enforce the native expected-vault check for organization writes.
 - Bound scheduled backup intervals and retention to finite supported limits; serialize backup, restore and delete actions and discard stale backup results on vault changes. Restore stored preferences safely when browser storage is unavailable or blocked.
 - Preserve generated asset-note links for source files containing URL-reserved filename characters by encoding each vault-relative path segment.
 
