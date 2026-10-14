@@ -11,7 +11,7 @@
 | High | Duplicate navigation | Note tabs were shown by both the editor and primary workspace leaves | Hide already-represented note leaves; retain tools and unopened inert restored tabs |
 | High | Saved workspace restoration | Leaf layout was filtered before the vault note inventory was ready | Defer hydration until native vault status is ready; preserve per-vault reference ownership |
 | High | Restored active note | A saved leaf could remain inert even when editor session had already opened the exact same note, leaving writing hidden | Use the existing editor for a matching restored active note; regression test |
-| High | Cross-surface note navigation | Recent notes, wikilinks, diagnostics and deep links could update editor state without selecting the visible workspace | Route those user-initiated paths through workspace composition |
+| High | Cross-surface note navigation | Recent notes, wikilinks, diagnostics, deep links and note-creation flows could update editor state without selecting the visible workspace | Route explicit navigation through workspace composition and reconcile later direct editor-originated changes without activating saved sessions |
 | High | Side-note preview | A reused component could expose stale content/errors while switching note or vault | Key fetched result to vault ID + path; discard obsolete asynchronous results |
 | High | Note integrity | New/template/typed/daily note paths risked overwriting a same-named note if saved without create-only expectations | Enforce the native `<missing>` compare-and-swap contract; allocate numbered filenames for ordinary new notes |
 | Medium | Virtual note list | Shrinking a filtered list could leave the scroll offset outside its new range and render no usable rows | Clamp physical and virtual scroll positions after content-size changes |
@@ -24,7 +24,7 @@
 
 ## Test/verification coverage added
 
-- Playwright: short viewport dock scroll isolation and footer visibility; single note-tab owner; editor task/frontmatter controls; keyboard focus retained when toggling tasks; RTL tab arrows; a long filtered list re-clamped after shortening; restored active note remains visible.
+- Playwright: short viewport dock scroll isolation and footer visibility; single note-tab owner; editor task/frontmatter controls; keyboard focus retained when toggling tasks; RTL tab arrows; a long filtered list re-clamped after shortening; restored active note remains visible; new-note navigation from a primary tool workspace.
 - Node source-contract tests: create-only writing and collision-safe numbered names; daily-note read failure does not overwrite an existing file.
 - Existing coverage to re-run: workspace leaf lifecycle/guard tests, editor markup truth, preview resilience, focus/ARIA/contrast checks, mobile and 200% zoom geometry, generated screenshots.
 
@@ -40,7 +40,7 @@
 1. **Run the full latest-head CI** with `cargo --locked` and `cargo deny check`. A checksum-verified lockfile edit is not a substitute for resolving the graph on CI.
 2. **Inspect rendered screenshots**, not only the existence of the workflow: vault and inspector scroll behavior at narrow/short sizes, mobile reflow, RTL, dark/light/high-contrast palettes, split panes and 200% zoom.
 3. **Verify focus order and task activation with a real browser and assistive technology**. Source-level ARIA checks and Playwright improve confidence but are not an assistive-technology evaluation.
-4. **Keep alternate note-entry workflows in view.** Note factory operations may still call the editor hook directly before the composition layer notices the resulting active path. They require a separate workspace-visibility regression when creating notes from an unrelated primary tool.
+4. **Keep alternate note-entry workflows under regression.** Note factory operations call the editor hook directly; workspace composition now reconciles later active-path changes and has a browser case for creation while a tool occupies the primary pane. Verify there is no unwanted workspace activation during startup or leaf transitions.
 5. **Large-app architecture remains a maintainability concern.** `src/App.tsx` is at the ratchet ceiling; future navigation integration should be extracted into dedicated controllers, rather than extending the monolithic root component.
 6. **Review bots did not complete a substantive review.** CodeRabbit's repository auto-review was disabled and Qodo reported paused billing; use manual review and first-party test evidence rather than interpreting their status as approval.
 
