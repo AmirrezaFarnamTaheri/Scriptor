@@ -612,12 +612,16 @@ fn sanitize_terminal_text(value: &str) -> String {
             '\u{001b}' => match chars.next() {
                 Some('[') => {
                     for code in chars.by_ref() {
-                        if ('@'..='~').contains(&code) { break; }
+                        if ('@'..='~').contains(&code) {
+                            break;
+                        }
                     }
                 }
                 Some(']') => {
                     while let Some(code) = chars.next() {
-                        if code == '\u{0007}' { break; }
+                        if code == '\u{0007}' {
+                            break;
+                        }
                         if code == '\u{001b}' && chars.peek() == Some(&'\\') {
                             chars.next();
                             break;
@@ -628,7 +632,9 @@ fn sanitize_terminal_text(value: &str) -> String {
             },
             '\u{009b}' => {
                 for code in chars.by_ref() {
-                    if ('@'..='~').contains(&code) { break; }
+                    if ('@'..='~').contains(&code) {
+                        break;
+                    }
                 }
             }
             code if code.is_control() => {}
@@ -695,8 +701,9 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
         .constraints([Constraint::Percentage(34), Constraint::Percentage(66)])
         .split(root[1]);
 
+    let header = safe_fit(&header_text(app), frame.area().width.saturating_sub(2) as usize);
     frame.render_widget(
-        Paragraph::new(safe_fit(&header_text(app), frame.area().width.saturating_sub(2) as usize)).block(
+        Paragraph::new(header).block(
             Block::default()
                 .borders(Borders::ALL)
                 .title("Command Surface"),
@@ -708,16 +715,17 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
     if !app.notes.is_empty() {
         state.select(Some(app.selected));
     }
+    let note_width = body[0].width.saturating_sub(3) as usize;
     let items = app
         .notes
         .iter()
         .map(|note| {
             ListItem::new(vec![
                 Line::from(Span::styled(
-                    safe_fit(&note.title, body[0].width.saturating_sub(3) as usize),
+                    safe_fit(&note.title, note_width),
                     Style::default().add_modifier(Modifier::BOLD),
                 )),
-                Line::from(Span::raw(safe_fit(&note.path, body[0].width.saturating_sub(3) as usize))),
+                Line::from(Span::raw(safe_fit(&note.path, note_width))),
             ])
         })
         .collect::<Vec<_>>();
@@ -734,6 +742,7 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
         .map(|note| format!("{} — {}", app.right_pane.title(), note.path))
         .unwrap_or_else(|| app.right_pane.title().to_string());
 
+    let pane_title = safe_fit(&pane_title, pane_width);
     let lines = if app.right_pane == RightPane::Preview {
         preview_lines(&app.preview.body, pane_width, pane_height, app.pane_scroll)
     } else {
@@ -747,7 +756,7 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
 
     let pane_block = Block::default()
         .borders(Borders::ALL)
-        .title(safe_fit(&pane_title, body[1].width.saturating_sub(2) as usize))
+        .title(pane_title)
         .border_style(Style::default().fg(Color::DarkGray));
     frame.render_widget(
         Paragraph::new(lines)
@@ -756,8 +765,9 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
         body[1],
     );
 
+    let footer = safe_fit(&footer_text(app), frame.area().width.saturating_sub(2) as usize);
     frame.render_widget(
-        Paragraph::new(safe_fit(&footer_text(app), frame.area().width.saturating_sub(2) as usize)).block(
+        Paragraph::new(footer).block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::DarkGray)),
