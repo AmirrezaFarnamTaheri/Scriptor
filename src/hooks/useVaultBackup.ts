@@ -12,6 +12,8 @@ import { backupRetentionCandidates, DEFAULT_VAULT_BACKUP_SETTINGS, validateVault
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
 const STORAGE_KEY = 'scriptor:vault-backup-settings'
+// Reuse one empty snapshot across renders when the current vault has no loaded backups.
+const EMPTY_BACKUPS: VaultBackupEntry[] = []
 
 interface VaultLifecycleEventDetail {
   backupName: string
@@ -56,7 +58,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const [isBusy, setIsBusy] = useState(false)
   // Hide a previous vault's data on the very first render after switching.
   // React forbids synchronous setState in effects; owner-keyed state needs no reset effect.
-  const backups = backupView.vaultId === ownedVaultId ? backupView.value : []
+  const backups = backupView.vaultId === ownedVaultId ? backupView.value : EMPTY_BACKUPS
   const lastError = errorView.vaultId === ownedVaultId ? errorView.value : null
   const lastMessage = messageView.vaultId === ownedVaultId ? messageView.value : null
   const setBackups = useCallback((value: VaultBackupEntry[]) => setBackupView({vaultId: ownedVaultId, value}), [ownedVaultId])
