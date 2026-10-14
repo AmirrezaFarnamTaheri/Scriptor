@@ -35,6 +35,16 @@ function VirtualNoteListImpl({
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) return
+    const maxScrollTop = Math.max(0, paths.length * ROW_HEIGHT - element.clientHeight)
+    if (element.scrollTop > maxScrollTop) element.scrollTop = maxScrollTop
+    // A filtered list can shrink while the previous virtual offset is high.
+    // Update React's window even if the browser doesn't dispatch scroll.
+    setScrollTop(element.scrollTop)
+  }, [paths.length])
+
   const totalHeight = paths.length * ROW_HEIGHT
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
   const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + (OVERSCAN * 2)
