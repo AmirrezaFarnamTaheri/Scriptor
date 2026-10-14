@@ -45,7 +45,7 @@ function VirtualNoteListImpl({
     <div
       ref={containerRef}
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-      style={{ maxHeight: 'min(60vh, 640px)', overflow: 'auto' }}
+      style={{ maxHeight: 'min(60vh, 640px)', overflow: 'auto', overscrollBehavior: 'contain' }}
     >
       <ul
         className="virtual-note-list"
