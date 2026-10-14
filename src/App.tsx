@@ -1039,10 +1039,18 @@ function App() {
   const handleOpenTemplatePicker = useCallback(() => setTemplatePickerOpen(true), [setTemplatePickerOpen])
   const handleOpenObsidianImport = useCallback(() => setObsidianImportOpen(true), [setObsidianImportOpen])
 
+  // Creating a note changes the vault editor's active document, but the dock
+  // may still have a tool selected as its primary leaf. Navigate through the
+  // workspace composition after creation so the new note is actually visible.
+  const createNoteInWorkspace = useCallback(async () => {
+    const path = await workspace.createNote()
+    if (path) await composition.openNote(path)
+  }, [workspace.createNote, composition.openNote])
+
   const sidebarActions = useVaultSidebarActions({
     nativeReady,
     chooseVaultFolder: workspace.chooseVaultFolder,
-    createNote: workspace.createNote,
+    createNote: createNoteInWorkspace,
     createNoteOfType: workspace.createNoteOfType,
     createNoteFromTemplate: workspace.createNoteFromTemplate,
     rebuildIndex: workspace.rebuildIndex,
