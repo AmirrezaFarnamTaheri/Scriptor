@@ -1,4 +1,4 @@
-import { expectRecord, parseJsonUnknown } from './runtimeSchema'
+import { expectRecord, parseJsonUnknown } from './runtimeSchema.ts'
 
 interface StorageEnvelope<T> {
   schemaVersion: number
@@ -19,7 +19,14 @@ export function readVersionedStorage<T>({
   fallback,
   validate,
 }: ReadOptions<T>): T {
-  const raw = localStorage.getItem(key)
+  // Storage getters themselves can throw (privacy mode, disabled DOM storage,
+  // sandboxed webviews). Fall back just as we do for malformed payloads.
+  let raw: string | null
+  try {
+    raw = localStorage.getItem(key)
+  } catch {
+    return fallback
+  }
   if (!raw) return fallback
   try {
     const parsed = parseJsonUnknown(raw, `localStorage ${key}`)
