@@ -591,12 +591,12 @@ export function useVaultWorkspace(options?: {
     if (folder) await openVaultAt(folder)
   }, [openVaultAt])
 
-  const openWikilinkTarget = useCallback(async (target: string) => {
+  const openWikilinkTarget = useCallback(async (target: string, navigate: (path: string) => Promise<boolean> = openNote) => {
     const normalized = target.trim()
     try {
       const resolution = await indexerResolveWikilink(normalized)
       if (resolution.kind === 'resolved' && resolution.path) {
-        await openNote(resolution.path)
+        await navigate(resolution.path)
         return
       }
       if (resolution.kind === 'ambiguous') {
@@ -620,7 +620,7 @@ export function useVaultWorkspace(options?: {
       logActivity('error', 'Unresolved wikilink', normalized)
       return
     }
-    await openNote(match.path)
+    await navigate(match.path)
   }, [entries, logActivity, openNote])
 
   const commitActiveNote = useCallback(async () => {
