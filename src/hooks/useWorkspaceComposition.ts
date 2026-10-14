@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { PluginWorkspaceDefinition } from '@scriptor/plugin-api'
 import type { PaletteCommand } from '../components/CommandPalette'
 import type { useVaultWorkspace } from './useVaultWorkspace'
@@ -72,6 +72,24 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
     if (existing?.group === 'secondary') return await leaves.move(existing.id, 'primary') && await leaves.select(existing.id)
     return leaves.open({ kind: 'note', path }, 'primary')
   }, [leaves])
+  // Most note navigation is workspace-aware, but note creation and some native
+  // editor workflows intentionally load through the vault editor directly.
+  // Reconcile *later* path changes so a new note is not hidden behind a tool
+  // workspace. Initial vault/session restoration remains inert.
+  const lastEditorPath = useRef({vaultId, path: workspace.activePath, ready: workspace.status === 'ready'})
+  useEffect(() => {
+    const previous = lastEditorPath.current
+    const ready = nativeReady && workspace.status === 'ready'
+    const path = workspace.activePath
+    lastEditorPath.current = {vaultId, path, ready}
+    if (!ready || !previous.ready || previous.vaultId !== vaultId || !path || previous.path === path) return
+    // Explicit leaf transitions own their editor loads; don't recursively
+    // initiate another transition while that approval is still pending.
+    if (leaves.status === 'pending') return
+    const primary = getWorkspaceActiveLeaf(leaves.state, 'primary')
+    if (primary?.reference.kind === 'note' && primary.reference.path === path) return
+    void leaves.open({kind:'note', path}, 'primary')
+  }, [leaves, nativeReady, vaultId, workspace.activePath, workspace.status])
   const closeNote = useCallback((path: string) => {
     const leaf = leaves.state.leaves.find(leaf => leaf.reference.kind === 'note' && leaf.reference.path === path)
     return leaf ? leaves.close(leaf.id) : workspace.closeTab(path)
