@@ -148,8 +148,8 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
 
   const restoreBackup = useCallback(
     async (backupName: string, onRestored?: () => void) => {
-      if (!vaultOpen) return
-      setIsBusy(true)
+      if (!ownedVaultId || !beginOperation()) return
+      const requestedVault = ownedVaultId
       setLastError(null)
       setLastMessage(null)
       let restoreApplied = false
@@ -157,11 +157,14 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         // Flush acknowledged edits, then freeze editor persistence before the
         // native transaction starts replacing authoritative vault files.
         await dispatchVaultLifecycleEvent('scriptor:vault-restore-starting', { backupName })
+        // Lifecycle approval is async; do not start restoring the next vault.
+        if (!ownsVault(requestedVault)) return
         const result = await vaultRestoreBackup(backupName, settings.backupPath || undefined)
         // Only an explicitly rolled-back restore is safe to resume editor
         // persistence over. Every other status means vault files were already
         // replaced, so resuming the superseded draft would overwrite them.
         restoreApplied = result.status !== 'rolled-back'
+        if (!ownsVault(requestedVault)) return
 
         if (result.status === 'rolled-back') {
           // Native replacement never mutated vault files, or promoted nothing
@@ -192,6 +195,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         // Reload authoritative editor/config/snippet state before allowing any
         // persistence to resume. Derived index consumers intentionally wait.
         await dispatchVaultLifecycleEvent('scriptor:vault-files-restored', { backupName })
+        if (!ownsVault(requestedVault)) return
 
         let indexReady = true
         try {
@@ -206,9 +210,11 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         // Refresh summaries/health/graph-dependent state only after the rebuild
         // attempt has reached a terminal result. Consumers can deliberately
         // remain stale/empty when `indexReady` is false.
+        if (!ownsVault(requestedVault)) return
         await dispatchVaultLifecycleEvent('scriptor:vault-restored', { backupName, indexReady })
-        onRestored?.()
+        if (ownsVault(requestedVault)) onRestored?.()
       } catch (caught) {
+        if (!ownsVault(requestedVault)) return
         const message = caught instanceof Error ? caught.message : 'Restore failed'
         if (!restoreApplied) {
           // The invoke rejected before a committed outcome was returned: a
@@ -229,27 +235,27 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
           setLastError(`Vault files were restored, but workspace resynchronization failed: ${message}`)
         }
       } finally {
-        setIsBusy(false)
+        finishOperation()
       }
     },
-    [vaultOpen, settings.backupPath],
+    [ownedVaultId, settings.backupPath, beginOperation, finishOperation, ownsVault],
   )
 
   const deleteBackup = useCallback(
     async (backupName: string) => {
-      if (!vaultOpen) return
-      setIsBusy(true)
+      if (!ownedVaultId || !beginOperation()) return
+      const requestedVault = ownedVaultId
       setLastError(null)
       try {
         await vaultDeleteBackup(backupName, settings.backupPath || undefined)
-        await listBackups()
+        if (ownsVault(requestedVault)) await listBackups()
       } catch (caught) {
-        setLastError(caught instanceof Error ? caught.message : 'Delete failed')
+        if (ownsVault(requestedVault)) setLastError(caught instanceof Error ? caught.message : 'Delete failed')
       } finally {
-        setIsBusy(false)
+        finishOperation()
       }
     },
-    [vaultOpen, settings.backupPath, listBackups],
+    [ownedVaultId, settings.backupPath, listBackups, beginOperation, finishOperation, ownsVault],
   )
 
   useEffect(() => {
