@@ -47,9 +47,11 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
       if (!approved || refs.current.vaultId !== ownedVault) return false
       // A side leaf is a read-only preview, not the owner of an editor tab.
       // Closing it must never close (or flush) a separate writing tab.
-      if (request.from.reference.kind === 'note' && request.from.group === 'primary' &&
-        refs.current.workspace.openTabs.some(tab => tab.path === request.from!.reference.path) &&
-        !await refs.current.workspace.closeTab(request.from.reference.path)) return false
+      if (request.from.reference.kind === 'note' && request.from.group === 'primary') {
+        const path = request.from.reference.path
+        if (refs.current.workspace.openTabs.some(tab => tab.path === path) &&
+          !await refs.current.workspace.closeTab(path)) return false
+      }
     }
     const primary = getWorkspaceActiveLeaf(request.next, 'primary')
     if (primary?.reference.kind === 'note' && primary.reference.path !== refs.current.workspace.activePath) {
