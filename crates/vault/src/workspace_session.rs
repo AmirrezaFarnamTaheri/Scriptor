@@ -289,8 +289,10 @@ mod tests {
             Err(VaultError::InvalidWorkspaceSession(_))
         ));
 
-        let mut invalid = WorkspaceSession::default();
-        invalid.version = 99;
+        let invalid = WorkspaceSession {
+            version: 99,
+            ..WorkspaceSession::default()
+        };
         let raw = serde_json::to_vec(&invalid).unwrap();
         fs::write(&path, &raw).expect("write bad version fixture");
         assert!(matches!(
