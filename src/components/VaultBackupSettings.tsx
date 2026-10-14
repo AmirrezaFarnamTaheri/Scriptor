@@ -26,7 +26,7 @@ function formatDate(iso: string): string {
 }
 
 export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }: VaultBackupSettingsProps) {
-  const { settings, setSettings, backups, backupListError, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup } =
+  const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup } =
     backup
 
   return (
@@ -121,7 +121,9 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
           </ul>
         </>
       ) : !backupListError ? (
-        <p className="health-subtitle">No backups yet. Use &quot;Back up now&quot; to create one.</p>
+        backupListLoading
+          ? <p role="status" className="health-subtitle">Loading backups…</p>
+          : <p className="health-subtitle">No backups yet. Use &quot;Back up now&quot; to create one.</p>
       ) : null}
     </div>
   )
