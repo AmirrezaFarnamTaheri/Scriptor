@@ -35,21 +35,39 @@ class TaskCheckboxWidget extends WidgetType {
     this.markerFrom = markerFrom
   }
   eq(other: TaskCheckboxWidget) { return other.checked === this.checked && other.markerFrom === this.markerFrom }
+
+  private syncDom(button: HTMLButtonElement) {
+    button.dataset.markerFrom = String(this.markerFrom)
+    button.setAttribute('aria-checked', String(this.checked))
+    button.setAttribute('aria-label', this.checked ? 'Mark task incomplete' : 'Mark task complete')
+    button.textContent = this.checked ? '✓' : ''
+  }
+
+  // Keep the same native button focused after changing the Markdown marker.
+  // Its data offset must be updated when preceding edits move a task.
+  updateDOM(dom: HTMLElement) {
+    if (!(dom instanceof HTMLButtonElement)) return false
+    this.syncDom(dom)
+    return true
+  }
+
+  ignoreEvent() { return true }
+
   toDOM(view: EditorView) {
     const button = document.createElement('button')
     button.type = 'button'
     button.className = 'cm-wysiwyg-task-toggle'
     button.setAttribute('role', 'checkbox')
-    button.setAttribute('aria-checked', String(this.checked))
-    button.setAttribute('aria-label', this.checked ? 'Mark task incomplete' : 'Mark task complete')
-    button.textContent = this.checked ? '✓' : ''
+    this.syncDom(button)
     button.addEventListener('mousedown', event => event.preventDefault())
     button.addEventListener('click', event => {
       event.preventDefault()
       event.stopPropagation()
-      const marker = view.state.doc.sliceString(this.markerFrom, this.markerFrom + 3)
+      const markerFrom = Number(button.dataset.markerFrom)
+      if (!Number.isInteger(markerFrom) || markerFrom < 0) return
+      const marker = view.state.doc.sliceString(markerFrom, markerFrom + 3)
       if (marker !== '[ ]' && marker.toLowerCase() !== '[x]') return
-      view.dispatch({ changes: { from: this.markerFrom + 1, to: this.markerFrom + 2, insert: marker === '[ ]' ? 'x' : ' ' } })
+      view.dispatch({ changes: { from: markerFrom + 1, to: markerFrom + 2, insert: marker === '[ ]' ? 'x' : ' ' } })
     })
     return button
   }
@@ -62,6 +80,7 @@ class FrontmatterWidget extends WidgetType {
     this.from = from
   }
   eq(other: FrontmatterWidget) { return other.from === this.from }
+  ignoreEvent() { return true }
   toDOM(view: EditorView) {
     const button = document.createElement('button')
     button.type = 'button'
