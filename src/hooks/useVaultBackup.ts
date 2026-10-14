@@ -104,23 +104,27 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   }, [ownedVaultId, settings.backupPath, ownsVault])
 
   const triggerBackup = useCallback(async () => {
-    if (!vaultOpen) return
-    setIsBusy(true)
+    if (!ownedVaultId || !beginOperation()) return
+    const requestedVault = ownedVaultId
     setLastError(null)
     setLastMessage(null)
     try {
       const entry = await vaultCreateBackup(settings.backupPath || undefined)
+      if (!ownsVault(requestedVault)) return
       setLastMessage(`Backup created: ${entry.name}`)
 
       const allBackups = (await vaultListBackups(settings.backupPath || undefined)) || []
+      if (!ownsVault(requestedVault)) return
       const sorted = [...allBackups].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       )
       const deleted = new Set<string>()
       const failedDeletes: string[] = []
       for (const old of sorted.slice(settings.maxSnapshots)) {
+        if (!ownsVault(requestedVault)) return
         try {
           await vaultDeleteBackup(old.name, settings.backupPath || undefined)
+          if (!ownsVault(requestedVault)) return
           deleted.add(old.name)
         } catch {
           failedDeletes.push(old.name)
@@ -131,11 +135,11 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         setLastError(`Could not delete ${failedDeletes.length} old backup(s): ${failedDeletes.join(', ')}`)
       }
     } catch (caught) {
-      setLastError(caught instanceof Error ? caught.message : 'Backup failed')
+      if (ownsVault(requestedVault)) setLastError(caught instanceof Error ? caught.message : 'Backup failed')
     } finally {
-      setIsBusy(false)
+      finishOperation()
     }
-  }, [vaultOpen, settings.backupPath, settings.maxSnapshots])
+  }, [ownedVaultId, settings.backupPath, settings.maxSnapshots, beginOperation, finishOperation, ownsVault])
 
   const triggerBackupRef = useRef(triggerBackup)
   useEffect(() => {
