@@ -5,7 +5,7 @@ use std::io::Read;
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
-use crate::fs::atomic_write;
+use crate::fs::{atomic_write, lock_vault_mutation};
 use crate::path::{RelativeVaultPath, VaultRoot};
 
 pub const DEFAULT_WORKSPACE_SESSION_PATH: &str = ".scriptor/workspace-session.json";
@@ -92,8 +92,12 @@ fn check_session_path(path: &str) -> Result<(), VaultError> {
     Ok(())
 }
 
+fn workspace_session_path(root: &VaultRoot) -> Result<std::path::PathBuf, VaultError> {
+    RelativeVaultPath::parse(DEFAULT_WORKSPACE_SESSION_PATH)?.resolve(root)
+}
+
 pub fn read_workspace_session(root: &VaultRoot) -> Result<WorkspaceSession, VaultError> {
-    let absolute = root.root().join(DEFAULT_WORKSPACE_SESSION_PATH);
+    let absolute = workspace_session_path(root)?;
     if !absolute.exists() {
         return Ok(WorkspaceSession::default());
     }
@@ -118,7 +122,10 @@ pub fn write_workspace_session(
     session: &WorkspaceSession,
 ) -> Result<(), VaultError> {
     session.validate()?;
-    let absolute = root.root().join(DEFAULT_WORKSPACE_SESSION_PATH);
+    // Reject a symlinked .scriptor directory before attempting persistence and
+    // serialize this write against other vault writers.
+    let _guard = lock_vault_mutation(root.root())?;
+    let absolute = workspace_session_path(root)?;
     if let Some(parent) = absolute.parent() {
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
     }
@@ -197,6 +204,32 @@ mod tests {
         assert_eq!(fs::read(root.root().join(DEFAULT_WORKSPACE_SESSION_PATH)).unwrap(), original);
         assert_eq!(read_workspace_session(&root).unwrap(), valid);
         fs::remove_dir_all(&dir).expect("cleanup");
+    }
+
+
+    #[cfg(unix)]
+    #[test]
+    fn session_storage_refuses_symlinked_internal_directory() {
+        use std::os::unix::fs::symlink;
+
+        let base = std::env::temp_dir().join(format!(
+            "scriptor-session-symlink-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let vault = base.join("vault");
+        let outside = base.join("outside");
+        fs::create_dir_all(&vault).expect("vault directory");
+        fs::create_dir_all(&outside).expect("outside directory");
+        symlink(&outside, vault.join(".scriptor")).expect("symlink internal directory");
+        let root = VaultRoot::open(&vault).expect("vault root");
+
+        assert!(matches!(
+            read_workspace_session(&root),
+            Err(VaultError::SymlinkEscape(_))
+        ));
+        assert!(write_workspace_session(&root, &WorkspaceSession::default()).is_err());
+        assert!(!outside.join("workspace-session.json").exists());
+        fs::remove_dir_all(base).expect("cleanup");
     }
 
     #[test]
