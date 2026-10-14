@@ -81,11 +81,16 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
     const previous = lastEditorPath.current
     const ready = nativeReady && workspace.status === 'ready'
     const path = workspace.activePath
-    lastEditorPath.current = {vaultId, path, ready}
-    if (!ready || !previous.ready || previous.vaultId !== vaultId || !path || previous.path === path) return
-    // Explicit leaf transitions own their editor loads; don't recursively
-    // initiate another transition while that approval is still pending.
+    if (!ready || !previous.ready || previous.vaultId !== vaultId || !path) {
+      lastEditorPath.current = {vaultId, path, ready}
+      return
+    }
+    if (previous.path === path) return
+    // Do not consume the path change while a leaf approval is pending.
+    // The effect re-runs when that transition settles and must still
+    // reconcile the editor's latest note into the visible primary pane.
     if (leaves.status === 'pending') return
+    lastEditorPath.current = {vaultId, path, ready}
     const primary = getWorkspaceActiveLeaf(leaves.state, 'primary')
     if (primary?.reference.kind === 'note' && primary.reference.path === path) return
     void leaves.open({kind:'note', path}, 'primary')
