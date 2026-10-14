@@ -50,10 +50,18 @@ function saveSettings(settings: VaultBackupSettings): void {
 export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const ownedVaultId = vaultOpen ? vaultId : null
   const [settings, setSettingsState] = useState<VaultBackupSettings>(loadSettings)
-  const [backups, setBackups] = useState<VaultBackupEntry[]>([])
+  const [backupView, setBackupView] = useState<{vaultId: string | null; value: VaultBackupEntry[]}>({vaultId: ownedVaultId, value: []})
+  const [errorView, setErrorView] = useState<{vaultId: string | null; value: string | null}>({vaultId: ownedVaultId, value: null})
+  const [messageView, setMessageView] = useState<{vaultId: string | null; value: string | null}>({vaultId: ownedVaultId, value: null})
   const [isBusy, setIsBusy] = useState(false)
-  const [lastError, setLastError] = useState<string | null>(null)
-  const [lastMessage, setLastMessage] = useState<string | null>(null)
+  // Hide a previous vault's data on the very first render after switching.
+  // React forbids synchronous setState in effects; owner-keyed state needs no reset effect.
+  const backups = backupView.vaultId === ownedVaultId ? backupView.value : []
+  const lastError = errorView.vaultId === ownedVaultId ? errorView.value : null
+  const lastMessage = messageView.vaultId === ownedVaultId ? messageView.value : null
+  const setBackups = useCallback((value: VaultBackupEntry[]) => setBackupView({vaultId: ownedVaultId, value}), [ownedVaultId])
+  const setLastError = useCallback((value: string | null) => setErrorView({vaultId: ownedVaultId, value}), [ownedVaultId])
+  const setLastMessage = useCallback((value: string | null) => setMessageView({vaultId: ownedVaultId, value}), [ownedVaultId])
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const operationBusyRef = useRef(false)
   const currentVaultRef = useRef<string | null>(ownedVaultId)
@@ -62,9 +70,6 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   // and status messages owned by the vault that produced them.
   useLayoutEffect(() => {
     currentVaultRef.current = ownedVaultId
-    setBackups([])
-    setLastError(null)
-    setLastMessage(null)
   }, [ownedVaultId])
 
   const ownsVault = useCallback((id: string) => currentVaultRef.current === id, [])
@@ -101,7 +106,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
     } catch {
       if (ownsVault(requestedVault)) setBackups([])
     }
-  }, [ownedVaultId, settings.backupPath, ownsVault])
+  }, [ownedVaultId, settings.backupPath, ownsVault, setBackups])
 
   const triggerBackup = useCallback(async () => {
     if (!ownedVaultId || !beginOperation()) return
@@ -139,7 +144,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
     } finally {
       finishOperation()
     }
-  }, [ownedVaultId, settings.backupPath, settings.maxSnapshots, beginOperation, finishOperation, ownsVault])
+  }, [ownedVaultId, settings.backupPath, settings.maxSnapshots, beginOperation, finishOperation, ownsVault, setBackups, setLastError, setLastMessage])
 
   const triggerBackupRef = useRef(triggerBackup)
   useEffect(() => {
@@ -238,7 +243,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         finishOperation()
       }
     },
-    [ownedVaultId, settings.backupPath, beginOperation, finishOperation, ownsVault],
+    [ownedVaultId, settings.backupPath, beginOperation, finishOperation, ownsVault, setLastError, setLastMessage],
   )
 
   const deleteBackup = useCallback(
@@ -255,7 +260,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         finishOperation()
       }
     },
-    [ownedVaultId, settings.backupPath, listBackups, beginOperation, finishOperation, ownsVault],
+    [ownedVaultId, settings.backupPath, listBackups, beginOperation, finishOperation, ownsVault, setLastError],
   )
 
   useEffect(() => {
@@ -272,7 +277,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
     return () => {
       cancelled = true
     }
-  }, [settings.backupPath, ownedVaultId, ownsVault])
+  }, [settings.backupPath, ownedVaultId, ownsVault, setBackups])
 
   useEffect(() => {
     if (intervalRef.current) {
