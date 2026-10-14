@@ -20,7 +20,9 @@ export function assetLink(path: string): string {
   if (!path || /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(path) || path.startsWith('/') || path.startsWith('\\') || path.split(/[\\/]/).some((segment) => !segment || segment === '.' || segment === '..') || /[\r\n\0<>]/.test(path)) {
     throw new Error('Asset path must be vault relative')
   }
-  return `<${path.replace(/\\/g, '/').replace(/ /g, '%20')}>`
+  // Encode each vault-relative filename segment as a URL path component.
+  // Encoding only spaces allowed #, ?, and % to reinterpret the link target.
+  return `<${path.replace(/\\/g, '/').split('/').map(encodeURIComponent).join('/')}>`
 }
 
 export function annotationDocument(path: string, annotation: { quote: string; body: string; anchor: string; id: string }): string {

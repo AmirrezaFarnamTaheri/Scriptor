@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Preserve generated asset-note links for source files containing URL-reserved filename characters by encoding each vault-relative path segment.
+
 - Render side-note previews with the shared Markdown typography and current in-memory draft for the active note, while preserving vault-scoped disk reads for inactive notes.
 - Match virtualized vault row geometry to mobile touch targets even when overscan rows are outside the viewport; expose recent-note file paths for disambiguation.
 
