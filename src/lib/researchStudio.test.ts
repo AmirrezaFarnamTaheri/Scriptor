@@ -25,7 +25,7 @@ test('asset note links encode reserved filename characters rather than URL fragm
   assert.equal(assetLink('sources/100% done.pdf'), '<sources/100%25%20done.pdf>')
   assert.equal(assetLink('sources/évidence.pdf'), '<sources/%C3%A9vidence.pdf>')
   const annotation = annotationDocument('sources/part#2?.pdf', { quote: 'Source', body: '', anchor: 'anchor', id: 'a' })
-  assert.match(annotation, /\\[Source\\]\\(<sources\\/part%232%3F.pdf>\\)/)
+  assert.ok(annotation.includes('[Source](<sources/part%232%3F.pdf>)'))
 })
 test('reference note retains citation identity and bounded metadata', () => {
   const result = referenceDocument({ key: 'smith2024', title: 'A paper', author: 'Smith', year: '2024', source_path: 'refs.bib' })
