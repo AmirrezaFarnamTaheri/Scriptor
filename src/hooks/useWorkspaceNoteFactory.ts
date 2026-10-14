@@ -305,6 +305,7 @@ export function useWorkspaceNoteFactory({
         return
       }
 
+      const isCurrent = operationOwner()
       const normalized = target.trim()
       if (!normalized) {
         setError('Wikilink target is empty.')
@@ -317,18 +318,24 @@ export function useWorkspaceNoteFactory({
 
       setError(null)
       try {
+        if (!isCurrent()) return
         await vaultSaveNote(path, markdown, EXPECTED_MISSING_CONTENT_HASH, undefined, vault.id)
+        if (!isCurrent()) return
         await indexerUpdateNote(path)
+        if (!isCurrent()) return
         await refreshVaultCore()
-        await openNote(path)
+        if (!isCurrent()) return
+        await openNote(path, isCurrent)
+        if (!isCurrent()) return
         logActivity('success', 'Note created from wikilink', path)
       } catch (caught) {
+        if (!isCurrent()) return
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Failed to create note from wikilink', message)
       }
     },
-    [logActivity, openNote, refreshVaultCore, setError, vault],
+    [logActivity, openNote, operationOwner, refreshVaultCore, setError, vault],
   )
 
   const createDailyNote = useCallback(async () => {
