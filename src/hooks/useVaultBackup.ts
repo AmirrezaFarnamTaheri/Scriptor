@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import {
   indexerRebuild,
@@ -8,24 +8,10 @@ import {
   vaultRestoreBackup,
 } from '../bridge/commands'
 import type { VaultBackupEntry } from '../bridge/commands'
-import { expectRecord } from '../lib/runtimeSchema'
+import { DEFAULT_VAULT_BACKUP_SETTINGS, validateVaultBackupSettings, type VaultBackupSettings } from '../lib/vaultBackupPolicy'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
 const STORAGE_KEY = 'scriptor:vault-backup-settings'
-
-export interface VaultBackupSettings {
-  enabled: boolean
-  intervalMinutes: number
-  maxSnapshots: number
-  backupPath: string
-}
-
-const DEFAULT_SETTINGS: VaultBackupSettings = {
-  enabled: false,
-  intervalMinutes: 60,
-  maxSnapshots: 10,
-  backupPath: '',
-}
 
 interface VaultLifecycleEventDetail {
   backupName: string
@@ -47,28 +33,12 @@ async function dispatchVaultLifecycleEvent(
   if (waits.length > 0) await Promise.all(waits)
 }
 
-function validateSettings(value: unknown): VaultBackupSettings {
-  const record = expectRecord(value, 'backup settings')
-  return {
-    enabled: typeof record.enabled === 'boolean' ? record.enabled : DEFAULT_SETTINGS.enabled,
-    intervalMinutes:
-      typeof record.intervalMinutes === 'number' && record.intervalMinutes > 0
-        ? record.intervalMinutes
-        : DEFAULT_SETTINGS.intervalMinutes,
-    maxSnapshots:
-      typeof record.maxSnapshots === 'number' && record.maxSnapshots > 0
-        ? record.maxSnapshots
-        : DEFAULT_SETTINGS.maxSnapshots,
-    backupPath: typeof record.backupPath === 'string' ? record.backupPath : DEFAULT_SETTINGS.backupPath,
-  }
-}
-
 function loadSettings(): VaultBackupSettings {
   return readVersionedStorage({
     key: STORAGE_KEY,
     schemaVersion: 1,
-    fallback: DEFAULT_SETTINGS,
-    validate: validateSettings,
+    fallback: DEFAULT_VAULT_BACKUP_SETTINGS,
+    validate: validateVaultBackupSettings,
   })
 }
 
@@ -77,7 +47,8 @@ function saveSettings(settings: VaultBackupSettings): void {
 }
 
 /** Manages scheduled backups, retention, restore lifecycle events, and status. */
-export function useVaultBackup(vaultOpen: boolean) {
+export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
+  const ownedVaultId = vaultOpen ? vaultId : null
   const [settings, setSettingsState] = useState<VaultBackupSettings>(loadSettings)
   const [backups, setBackups] = useState<VaultBackupEntry[]>([])
   const [isBusy, setIsBusy] = useState(false)
@@ -87,7 +58,7 @@ export function useVaultBackup(vaultOpen: boolean) {
 
   const setSettings = useCallback((patch: Partial<VaultBackupSettings>) => {
     setSettingsState((prev) => {
-      const next = { ...prev, ...patch }
+      const next = validateVaultBackupSettings({ ...prev, ...patch })
       saveSettings(next)
       return next
     })
