@@ -75,6 +75,6 @@ export function useWorkspaceLeaves({vaultId, available, approve, onCommitted, re
     select: (id: string) => transition('select', previous => selectWorkspaceLeaf(previous, id)),
     close: (id: string) => transition('close', previous => closeWorkspaceLeaf(previous, id), id),
     move: (id: string, group: WorkspaceLeafGroup) => transition('move', previous => moveWorkspaceLeaf(previous, id, group), id),
-    reorder: (id: string, direction: -1 | 1) => transition('reorder', previous => reorderWorkspaceLeaf(previous, id, direction), id),
+    reorder: (id: string, direction: -1 | 1, steps = 1) => transition('reorder', previous => reorderWorkspaceLeaf(previous, id, direction, steps), id),
   }
 }
