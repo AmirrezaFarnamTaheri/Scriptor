@@ -73,14 +73,16 @@ function buildDecorations(view: EditorView): DecorationSet {
   const activeLine = view.state.doc.lineAt(view.state.selection.main.head).number
   // Metadata is not prose. Collapse a complete YAML frontmatter block except
   // while the author is editing it. The source document remains unchanged.
+  let collapsedFrontmatterEnd = -1
   if (view.state.doc.lines >= 3 && view.state.doc.line(1).text.replace(/^\uFEFF/, '').trim() === '---') {
     let close = 0
     for (let number = 2; number <= Math.min(view.state.doc.lines, 256); number++) {
       if (/^(---|\.\.\.)\s*$/.test(view.state.doc.line(number).text)) { close = number; break }
     }
-    if (close > 0 && activeLine > close) {
+    if (close > 0 && !(view.hasFocus && activeLine <= close)) {
       const first = view.state.doc.line(1)
       const last = view.state.doc.line(close)
+      collapsedFrontmatterEnd = last.to
       ranges.push(Decoration.replace({block:true,widget:new FrontmatterWidget(first.from)}).range(first.from,last.to))
     }
   }
@@ -89,6 +91,7 @@ function buildDecorations(view: EditorView): DecorationSet {
       from,
       to,
       enter(node) {
+        if (node.from < collapsedFrontmatterEnd) return false
         const lineNumber = view.state.doc.lineAt(node.from).number
         const revealSyntax = lineNumber === activeLine
         const headingMatch = /^ATXHeading([1-6])$/.exec(node.name)
