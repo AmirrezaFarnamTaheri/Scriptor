@@ -154,7 +154,7 @@ test('preview shortcut opens a side leaf for an already-open note and closes wit
   await expect(field).toBeVisible()
 
   const shortcuts = page.locator('.workspace-activity-bar')
-  await shortcuts.getByRole('button', { name: 'Preview', exact: true }).click()
+  await shortcuts.getByRole('button', { name: 'Note preview', exact: true }).click()
   const preview = page.locator('.workspace-leaf-content.secondary .workspace-note-preview')
   await expect(preview).toBeVisible()
   await expect(preview).toContainText('Field Notes.md')
@@ -170,7 +170,7 @@ test('closing a writing tab does not remove its independently docked note previe
   await launchApp(page)
   await waitForWorkspace(page)
   await page.locator('.vault-panel .virtual-note-list').getByRole('button', { name: 'Field Notes.md' }).click()
-  await page.locator('.workspace-activity-bar').getByRole('button', { name: 'Preview', exact: true }).click()
+  await page.locator('.workspace-activity-bar').getByRole('button', { name: 'Note preview', exact: true }).click()
   const preview = page.locator('.workspace-leaf-content.secondary .workspace-note-preview')
   await expect(preview).toBeVisible()
 
@@ -186,9 +186,11 @@ test('virtual vault note rows respect mobile touch target height without overlap
   await page.setViewportSize({ width: 375, height: 800 })
   await page.addInitScript(() => window.sessionStorage.setItem('e2e:large-vault', '1'))
   await launchApp(page)
-  await waitForWorkspace(page)
+  // At mobile widths the vault is intentionally hidden until selected.
+  await waitForWorkspace(page, { allowHiddenVaultList: true })
   await page.getByRole('navigation', { name: 'Mobile workspace navigation', exact: true })
     .getByRole('button', { name: 'Vault', exact: true }).click()
+  await expect(page.locator('.vault-panel .virtual-note-list')).toBeVisible()
 
   const geometry = () => page.evaluate(() => {
     const lists = [...document.querySelectorAll<HTMLUListElement>('.vault-panel .virtual-note-list')]
@@ -227,7 +229,7 @@ test('side note preview follows unsaved writing changes instead of displaying st
   await page.locator('.vault-panel .virtual-note-list').getByRole('button', { name: 'Field Notes.md' }).click()
   await page.locator('.editor-toolbar').getByRole('button', { name: 'Tools', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Switch to CodeMirror editor' }).click()
-  await page.locator('.workspace-activity-bar').getByRole('button', { name: 'Preview', exact: true }).click()
+  await page.locator('.workspace-activity-bar').getByRole('button', { name: 'Note preview', exact: true }).click()
   const side = page.locator('.workspace-leaf-content.secondary .workspace-note-preview')
   await expect(side).toBeVisible()
   await expect(side.locator('article.markdown-preview')).toBeVisible()
