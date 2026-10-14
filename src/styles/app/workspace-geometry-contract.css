@@ -465,3 +465,8 @@
   height: 14px;
   flex: none;
 }
+
+/* Vault dock owns its scrolling independently of the document viewport. */
+.vault-panel > .vault-sidebar-scroll { min-width: 0; }
+.vault-sidebar-footer { flex: none; position: relative; z-index: 1; background: var(--surface); border-top: 1px solid var(--border); }
+.vault-recent-notes button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
