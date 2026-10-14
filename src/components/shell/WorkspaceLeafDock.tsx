@@ -34,7 +34,11 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
   const secondary = dock.leafForGroup('secondary')
   const revealed = dock.state.leaves.find(leaf => leaf.id === dock.revealed)
   const visible = (leafId: string, group: 'primary' | 'secondary') => (revealed?.group === group ? revealed.id : group === 'primary' ? primary?.id : secondary?.id) === leafId
-  const writing = !primary || (primary.reference.kind === 'note' && dock.visited.has(primary.id)) || (primary.reference.kind === 'feature' && primary.reference.id === 'editor')
+  // The vault's editor session can restore a note before the leaf layout is hydrated.
+  // When that exact note is already open, render the editor instead of an inert prompt.
+  const writing = !primary || (primary.reference.kind === 'note' &&
+    (dock.visited.has(primary.id) || workspace.activePath === primary.reference.path)) ||
+    (primary.reference.kind === 'feature' && primary.reference.id === 'editor')
   const vaultId = workspace.vault?.id
   const focusedGroup = revealed?.group ?? dock.activeLeaf?.group ?? 'primary'
   // The editor owns tabs for opened notes. Saved but unopened note references
@@ -62,7 +66,8 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
         <WorkspaceLeafTabs state={dock.state} group={group} label={dock.label} onSelect={dock.select} onClose={dock.close} onMove={dock.move} onReorder={dock.reorder} panelId={`${id}-${group}`} pending={dock.status === 'pending'} isVisible={group === 'primary' ? visiblePrimaryLeaf : undefined} />
       </div>)}
       <div className="workspace-writing-leaf" hidden={!writing || Boolean(revealed?.group === 'primary' && revealed.reference.kind !== 'note')} id={writing ? `${id}-primary` : undefined}>{children}</div>
-      {dock.state.leaves.filter(leaf => leaf.reference.kind !== 'note' || leaf.group === 'secondary' || !dock.visited.has(leaf.id)).map(leaf => {
+      {dock.state.leaves.filter(leaf => leaf.reference.kind !== 'note' || leaf.group === 'secondary' ||
+        (!dock.visited.has(leaf.id) && workspace.activePath !== leaf.reference.path)).map(leaf => {
         const ref = leaf.reference
         if (ref.kind === 'feature' && ref.id === 'editor') return null
         const view = ref.kind === 'plugin' ? plugins.contributions.workspaces.find(view => `${view.pluginId}:${view.id}` === ref.id) ?? null : null
