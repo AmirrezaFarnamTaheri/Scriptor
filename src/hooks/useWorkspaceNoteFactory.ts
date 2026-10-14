@@ -217,27 +217,40 @@ export function useWorkspaceNoteFactory({
   const createDailyNoteForOffset = useCallback(
     async (dayOffset = 0) => {
       if (!vault) return
+      const isCurrent = operationOwner()
       const iso = offsetIsoDate(formatLocalDate(), dayOffset)
       try {
         const plan = await vaultPlanDailyNote(iso)
+        if (!isCurrent()) return
+        let exists = false
         try {
           await vaultReadNote(plan.path)
-          await openNote(plan.path)
-          return
+          exists = true
         } catch {
-          // create below
+          // A read failure must not authorize overwriting an existing note.
+          // The create-only native CAS below fails closed if the path exists.
+        }
+        if (!isCurrent()) return
+        if (exists) {
+          await openNote(plan.path, isCurrent)
+          return
         }
         await vaultSaveNote(plan.path, plan.markdown, EXPECTED_MISSING_CONTENT_HASH, undefined, vault.id)
+        if (!isCurrent()) return
         await indexerUpdateNote(plan.path)
+        if (!isCurrent()) return
         await refreshVaultCore()
-        await openNote(plan.path)
+        if (!isCurrent()) return
+        await openNote(plan.path, isCurrent)
+        if (!isCurrent()) return
         logActivity('success', dayOffset === 0 ? 'Daily note created' : `Daily note for ${iso}`, plan.path)
       } catch (caught) {
+        if (!isCurrent()) return
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
       }
     },
-    [logActivity, openNote, refreshVaultCore, setError, vault],
+    [logActivity, openNote, operationOwner, refreshVaultCore, setError, vault],
   )
 
   const createNote = useCallback(
