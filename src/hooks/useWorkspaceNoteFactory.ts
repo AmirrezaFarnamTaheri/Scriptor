@@ -140,12 +140,14 @@ export function useWorkspaceNoteFactory({
         setError('Open a vault before creating a note.')
         return
       }
+      const isCurrent = operationOwner()
       const noteTitle = title?.trim() || `${typeName} ${formatLocalDate()}`
       const typeDef = noteTypes.find((entry) => entry.name === typeName)
       let templateBody: string | undefined
       if (typeDef) {
         try {
           const doc = await vaultReadNote(typeDef.path)
+          if (!isCurrent()) return
           const match = doc.markdown.match(/^---[\s\S]*?template:\s*\|\s*\n([\s\S]*?)\n---/m)
           templateBody = match?.[1]?.trim()
         } catch {
@@ -155,24 +157,31 @@ export function useWorkspaceNoteFactory({
       const pathBase = vaultConfig.inbox?.new_note_directory?.trim()
       const fileName = defaultNotePath(noteTitle)
       const path = pathBase ? `${pathBase.replace(/\/$/, '')}/${fileName}` : fileName
+      if (!isCurrent()) return
       const markdown = await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), typeName, templateBody ?? null)
+      if (!isCurrent()) return
       setError(null)
       try {
         const createdPath = await saveNewNoteWithUniqueName(path, markdown, vault.id)
+        if (!isCurrent()) return
         await indexerUpdateNote(createdPath)
+        if (!isCurrent()) return
         await refreshVaultCore()
-        await openNote(createdPath)
+        if (!isCurrent()) return
+        await openNote(createdPath, isCurrent)
+        if (!isCurrent()) return
         if (vaultConfig.inbox?.enabled !== false) {
           setSidebarView('inbox')
         }
         logActivity('success', `Created ${typeName} note`, createdPath)
       } catch (caught) {
+        if (!isCurrent()) return
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Failed to create typed note', message)
       }
     },
-    [logActivity, noteTypes, openNote, refreshVaultCore, setError, setSidebarView, vault, vaultConfig.inbox],
+    [logActivity, noteTypes, openNote, operationOwner, refreshVaultCore, setError, setSidebarView, vault, vaultConfig.inbox],
   )
 
   const createNoteFromTemplate = useCallback(
