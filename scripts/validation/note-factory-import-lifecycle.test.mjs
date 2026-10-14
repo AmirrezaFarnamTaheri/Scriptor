@@ -33,3 +33,73 @@ test('a Gmail note saved during vault replacement cannot navigate or change the 
   assert.deepEqual(calls.map(call => call[0]), ['error', 'save'])
   assert.equal(calls[1].at(-1), 'vault-a')
 })
+
+
+test('all new-note entry points use native create-only compare-and-swap', async () => {
+  const saves = []
+  const module = { exports: {} }
+  vm.runInNewContext(source, {
+    module, exports: module.exports,
+    require: id => id === 'react' ? { useCallback: fn => fn }
+      : id === '@scriptor/core/date' ? { formatLocalDate: () => '2026-10-14' }
+      : id.includes('/bridge/') ? {
+        vaultBuildNoteMarkdown: async title => '# ' + title,
+        vaultLoadTemplate: async () => '# Template',
+        vaultPlanDailyNote: async () => ({ path: 'daily/2026-10-14.md', markdown: '# Daily' }),
+        vaultReadNote: async () => { throw new Error('not found') },
+        vaultSaveNote: async (...args) => { saves.push(args) },
+        indexerUpdateNote: async () => {},
+      }
+      : id.includes('/knowledge/dailyNote') ? { offsetIsoDate: () => '2026-10-14' }
+      : { defaultNotePath: title => title + '.md' },
+  })
+  const factory = module.exports.useWorkspaceNoteFactory({
+    vault: { id: 'test-vault' }, vaultConfig: {}, noteTypes: [], inboxNotes: [],
+    setError: () => {}, setSidebarView: () => {}, logActivity: () => {},
+    refreshVaultCore: async () => {}, refreshNoteSummaries: async () => {},
+    openNote: async () => true, syncActiveNoteContent: async () => {},
+  })
+  await factory.createNote()
+  await factory.createNoteOfType('Idea')
+  await factory.createNoteFromTemplate('Templates/base.md')
+  await factory.createDailyNoteForOffset(0)
+  await factory.createNoteFromWikilink('Reference')
+  assert.equal(saves.length, 5)
+  for (const args of saves) {
+    assert.equal(args[2], '<missing>', args[0] + ' should never silently overwrite')
+    assert.equal(args[4], 'test-vault')
+  }
+})
+
+test('daily note read failure cannot replace an existing destination', async () => {
+  const actions = []
+  const module = { exports: {} }
+  vm.runInNewContext(source, {
+    module, exports: module.exports,
+    require: id => id === 'react' ? { useCallback: fn => fn }
+      : id === '@scriptor/core/date' ? { formatLocalDate: () => '2026-10-14' }
+      : id.includes('/bridge/') ? {
+        vaultPlanDailyNote: async () => ({ path: 'daily/2026-10-14.md', markdown: '# New daily' }),
+        vaultReadNote: async () => { throw new Error('Transient read failed') },
+        vaultSaveNote: async (path, markdown, expected) => {
+          assert.equal(expected, '<missing>')
+          actions.push('attempted-create-only')
+          throw new Error('Hash mismatch: existing daily note preserved')
+        },
+      }
+      : id.includes('/knowledge/dailyNote') ? { offsetIsoDate: () => '2026-10-14' }
+      : { defaultNotePath: title => title + '.md' },
+  })
+  const factory = module.exports.useWorkspaceNoteFactory({
+    vault: { id: 'test-vault' }, vaultConfig: {}, noteTypes: [], inboxNotes: [],
+    setError: error => actions.push(error), setSidebarView: () => {}, logActivity: () => {},
+    refreshVaultCore: async () => {}, refreshNoteSummaries: async () => {},
+    openNote: async () => { actions.push('open'); return true },
+    syncActiveNoteContent: async () => {},
+  })
+  await factory.createDailyNoteForOffset(0)
+  assert.deepEqual(actions, [
+    'attempted-create-only',
+    'Hash mismatch: existing daily note preserved',
+  ])
+})
