@@ -1663,7 +1663,7 @@ function App() {
       />
 
       <WorkspacePanelLaunchers
-        workspace={workspace}
+        workspace={workspace} onOpenNote={handleOpenNote}
         plugins={plugins}
         nativeReady={nativeReady}
         canvasOpen={canvasOpen}
@@ -1903,7 +1903,7 @@ function App() {
 
       {portalOpen || noteHistoryOpen ? (
         <WorkspacePortalOverlays
-          workspace={workspace}
+          workspace={workspace} onOpenNote={handleOpenNote}
           workspaceStore={workspaceStore}
           portalOpen={portalOpen}
           noteHistoryOpen={noteHistoryOpen}
