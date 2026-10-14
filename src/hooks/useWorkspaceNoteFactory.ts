@@ -90,22 +90,30 @@ export function useWorkspaceNoteFactory({
   const organizeNote = useCallback(
     async (path: string) => {
       if (!vault) return
+      const isCurrent = operationOwner()
       const next =
         vaultConfig.workflow?.auto_advance_inbox_after_organize && sidebarView === 'inbox' && activePath === path
           ? nextInboxEntryAfter(inboxNotes, path)
           : null
       try {
+        if (!isCurrent()) return
         await vaultFrontmatterSet(path, '_organized', 'true', undefined, vault.id)
+        if (!isCurrent()) return
         await indexerUpdateNote(path)
+        if (!isCurrent()) return
         await refreshNoteSummaries()
+        if (!isCurrent()) return
         if (activePath === path) {
           await syncActiveNoteContent(path)
+          if (!isCurrent()) return
         }
         if (next) {
-          await openNote(next.path)
+          await openNote(next.path, isCurrent)
+          if (!isCurrent()) return
         }
         logActivity('success', 'Note organized', path)
       } catch (caught) {
+        if (!isCurrent()) return
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Failed to organize note', message)
@@ -116,6 +124,7 @@ export function useWorkspaceNoteFactory({
       inboxNotes,
       logActivity,
       openNote,
+      operationOwner,
       refreshNoteSummaries,
       setError,
       sidebarView,
