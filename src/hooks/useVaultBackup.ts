@@ -53,8 +53,8 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const ownedVaultId = vaultOpen ? vaultId : null
   const [settings, setSettingsState] = useState<VaultBackupSettings>(loadSettings)
   const [backupView, setBackupView] = useState<{vaultId: string | null; path: string; value: VaultBackupEntry[]; error: string | null; loading: boolean}>({vaultId: ownedVaultId, path: settings.backupPath, value: [], error: null, loading: true})
-  const [errorView, setErrorView] = useState<{vaultId: string | null; value: string | null}>({vaultId: ownedVaultId, value: null})
-  const [messageView, setMessageView] = useState<{vaultId: string | null; value: string | null}>({vaultId: ownedVaultId, value: null})
+  const [errorView, setErrorView] = useState<{vaultId: string | null; path: string; value: string | null}>({vaultId: ownedVaultId, path: settings.backupPath, value: null})
+  const [messageView, setMessageView] = useState<{vaultId: string | null; path: string; value: string | null}>({vaultId: ownedVaultId, path: settings.backupPath, value: null})
   const [isBusy, setIsBusy] = useState(false)
   // Hide a previous vault's data on the very first render after switching.
   // React forbids synchronous setState in effects; owner-keyed state needs no reset effect.
@@ -64,12 +64,12 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const backups = visibleBackups?.value ?? EMPTY_BACKUPS
   const backupListError = visibleBackups?.error ?? null
   const backupListLoading = !visibleBackups || visibleBackups.loading
-  const lastError = errorView.vaultId === ownedVaultId ? errorView.value : null
-  const lastMessage = messageView.vaultId === ownedVaultId ? messageView.value : null
+  const lastError = errorView.vaultId === ownedVaultId && errorView.path === settings.backupPath ? errorView.value : null
+  const lastMessage = messageView.vaultId === ownedVaultId && messageView.path === settings.backupPath ? messageView.value : null
   const setBackups = useCallback((value: VaultBackupEntry[]) => setBackupView({vaultId: ownedVaultId, path: settings.backupPath, value, error: null, loading: false}), [ownedVaultId, settings.backupPath])
   const setBackupListError = useCallback(() => setBackupView({vaultId: ownedVaultId, path: settings.backupPath, value: [], error: 'Could not load backups from this location. Check its path and access permissions.', loading: false}), [ownedVaultId, settings.backupPath])
-  const setLastError = useCallback((value: string | null) => setErrorView({vaultId: ownedVaultId, value}), [ownedVaultId])
-  const setLastMessage = useCallback((value: string | null) => setMessageView({vaultId: ownedVaultId, value}), [ownedVaultId])
+  const setLastError = useCallback((value: string | null) => setErrorView({vaultId: ownedVaultId, path: settings.backupPath, value}), [ownedVaultId, settings.backupPath])
+  const setLastMessage = useCallback((value: string | null) => setMessageView({vaultId: ownedVaultId, path: settings.backupPath, value}), [ownedVaultId, settings.backupPath])
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const operationBusyRef = useRef(false)
   const currentVaultRef = useRef<string | null>(ownedVaultId)
