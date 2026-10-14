@@ -8,7 +8,7 @@ import {
   vaultRestoreBackup,
 } from '../bridge/commands'
 import type { VaultBackupEntry } from '../bridge/commands'
-import { DEFAULT_VAULT_BACKUP_SETTINGS, validateVaultBackupSettings, type VaultBackupSettings } from '../lib/vaultBackupPolicy'
+import { backupRetentionCandidates, DEFAULT_VAULT_BACKUP_SETTINGS, validateVaultBackupSettings, type VaultBackupSettings } from '../lib/vaultBackupPolicy'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
 const STORAGE_KEY = 'scriptor:vault-backup-settings'
@@ -125,7 +125,9 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       )
       const deleted = new Set<string>()
       const failedDeletes: string[] = []
-      for (const old of sorted.slice(settings.maxSnapshots)) {
+      // Shared external directories may contain backups from other vaults.
+      // Never prune a backup merely because its timestamp is older.
+      for (const old of backupRetentionCandidates(allBackups, entry.name, settings.maxSnapshots)) {
         if (!ownsVault(requestedVault)) return
         try {
           await vaultDeleteBackup(old.name, settings.backupPath || undefined)
