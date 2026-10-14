@@ -142,6 +142,8 @@ test('creating a note while a tool occupies the main workspace returns to writin
   const editor = page.locator('.workspace-writing-leaf .editor-panel[data-help-topic="editor"]')
   await expect(editor).toBeVisible()
   await expect(editor.getByRole('tab', { selected: true }).first()).toContainText('Untitled')
+  // The native scan should include the new note, and the inbox should expose it.
+  await expect(page.locator('.inbox-panel .note-row', { hasText: 'Untitled' })).toBeVisible()
 })
 
 

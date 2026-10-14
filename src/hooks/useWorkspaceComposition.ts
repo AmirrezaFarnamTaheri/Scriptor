@@ -78,6 +78,12 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
     if (existing?.group === 'secondary') return await leaves.move(existing.id, 'primary') && await leaves.select(existing.id)
     return leaves.open({ kind: 'note', path }, 'primary')
   }, [leaves])
+  // A new note first enters the vault editor. Make the workspace leaf active
+  // explicitly so a primary tool cannot hide the freshly created document.
+  const createNote = useCallback(async () => {
+    const path = await workspace.createNote()
+    return path ? openNote(path) : false
+  }, [openNote, workspace.createNote])
   // Most note navigation is workspace-aware, but note creation and some native
   // editor workflows intentionally load through the vault editor directly.
   // Reconcile *later* path changes so a new note is not hidden behind a tool
@@ -115,7 +121,7 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
     { id: 'open-source-file-editor', label: 'Source file editor', category: 'Workspace', keywords: ['latex', 'python', 'code', 'Overleaf'], run: () => openSource(null) },
     { id: 'customize-workspace-shortcuts', label: locale === 'de' ? 'Arbeitsbereich-Verknüpfungen anpassen' : locale === 'fa' ? 'سفارشی‌سازی میانبرهای فضای کاری' : 'Customize workspace shortcuts', category: 'Workspace', keywords: ['Customize workspace shortcuts', 'hide', 'pin', 'rename', 'resize', 'toolbar'], run: shortcuts.show },
   ] : [], [locale, nativeReady, openSource, shortcuts.show, vaultId])
-  return { ...leaves, commands, sourceCommands, openSource, openPlugin, openNote, openPreview, closeNote, lifecycle, shortcuts,
+  return { ...leaves, commands, sourceCommands, openSource, openPlugin, openNote, createNote, openPreview, closeNote, lifecycle, shortcuts,
     managerProps: { registeredWorkspaces: plugins.contributions.workspaces, registeredPluginManifests: plugins.plugins.map(plugin => plugin.manifest), workspacePolicies: plugins.pluginPolicies, vaultId, safeMode: plugins.snapshot.safeMode, onOpenPluginWorkspace: openPlugin, onSetPluginEnabled: plugins.setPluginEnabled },
     visited: visited.vaultId === vaultId ? visited.ids : new Set<string>(),
     revealed: revealed?.vaultId === vaultId ? revealed.id : null,
