@@ -16,6 +16,8 @@
 | High | Scheduled backup safety | Persisted interval/retention accepted non-finite, fractional or near-zero values; timer ticks and manual operations had no synchronous mutual exclusion | Normalize to finite integer UI limits; guard snapshot, restore and delete operations with a shared in-flight lock |
 | High | Backup vault ownership | Settings may remain mounted while switching between two open vaults; a delayed listing or cleanup could affect the newly selected vault's UI | Bind backup state and scheduler lifecycle to the vault identifier and reject obsolete asynchronous results before follow-on operations |
 | Medium | Versioned preference resilience | `localStorage.getItem` executed outside the storage read's `try`; a blocked getter could fail component initialization | Catch denied/missing storage access and use the configured default without interrupting initialization |
+| High | Note-factory async ownership | Creation and frontmatter organization can outlive their initiating vault while subsequent index/navigation steps target the latest active vault | Pass a vault-open generation guard through all note-factory entry points and set native expected-vault identity on organization writes |
+| Medium | Filtered tab reordering | Removing duplicated note leaves from the primary tab strip made reorder controls appear ineffective when hidden note leaves lay between visible tool tabs | Apply one atomic layout transition across the next visible sibling and test hidden-sibling ordering |
 | High | Note integrity | New/template/typed/daily note paths risked overwriting a same-named note if saved without create-only expectations | Enforce the native `<missing>` compare-and-swap contract; allocate numbered filenames for ordinary new notes |
 | Medium | Virtual note list | Shrinking a filtered list could leave the scroll offset outside its new range and render no usable rows | Clamp physical and virtual scroll positions after content-size changes |
 | High | Mobile virtual note rows | CSS enforces 44px touch targets while the virtual list originally advanced only 32px per note, causing overlapping hitboxes | Measure live row height, including CSS minimum when an overscan row is offscreen; reflow on viewport/theme changes |
@@ -32,6 +34,9 @@
 | Blocking | Rust dependency audit | Locked `rustls 0.23.45` triggered `RUSTSEC-2026-0346`, `-0347`, `-0348`, `-0349` | Update `Cargo.lock` to registry-verified `rustls 0.23.46` checksum; CI audit must verify |
 
 ## Test/verification coverage added
+
+- Node source-contract tests: delayed native organization and typed-note save complete after a vault-generation change without touching the new vault's index, navigation, or UI state.
+- Workspace model: tool tab reordering across hidden note leaves remains atomic, preserves note order, and rejects invalid jump distances.
 
 - Node: finite integer limits for persisted backup schedules and retention, malformed/oversized backup settings, blocked `localStorage` getter, corrupted storage quarantine and unwritable storage fallback.
 
