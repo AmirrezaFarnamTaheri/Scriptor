@@ -76,7 +76,11 @@ impl WorkspaceSession {
         if let Some(path) = &self.active_path {
             check_session_path(path)?;
         }
-        if self.sidebar_view.as_ref().is_some_and(|value| value.len() > 32 || value.chars().any(char::is_control)) {
+        if self
+            .sidebar_view
+            .as_ref()
+            .is_some_and(|value| value.len() > 32 || value.chars().any(char::is_control))
+        {
             return Err(VaultError::InvalidWorkspaceSession(
                 "invalid sidebar view".into(),
             ));
