@@ -13,6 +13,9 @@
 | High | Restored active note | A saved leaf could remain inert even when editor session had already opened the exact same note, leaving writing hidden | Use the existing editor for a matching restored active note; regression test |
 | High | Cross-surface note navigation | Recent notes, wikilinks, diagnostics, deep links and note-creation flows could update editor state without selecting the visible workspace | Route explicit navigation through workspace composition and reconcile later direct editor-originated changes without activating saved sessions |
 | High | Side-note preview | A reused component could expose stale content/errors while switching note or vault | Key fetched result to vault ID + path; discard obsolete asynchronous results |
+| High | Scheduled backup safety | Persisted interval/retention accepted non-finite, fractional or near-zero values; timer ticks and manual operations had no synchronous mutual exclusion | Normalize to finite integer UI limits; guard snapshot, restore and delete operations with a shared in-flight lock |
+| High | Backup vault ownership | Settings may remain mounted while switching between two open vaults; a delayed listing or cleanup could affect the newly selected vault's UI | Bind backup state and scheduler lifecycle to the vault identifier and reject obsolete asynchronous results before follow-on operations |
+| Medium | Versioned preference resilience | `localStorage.getItem` executed outside the storage read's `try`; a blocked getter could fail component initialization | Catch denied/missing storage access and use the configured default without interrupting initialization |
 | High | Note integrity | New/template/typed/daily note paths risked overwriting a same-named note if saved without create-only expectations | Enforce the native `<missing>` compare-and-swap contract; allocate numbered filenames for ordinary new notes |
 | Medium | Virtual note list | Shrinking a filtered list could leave the scroll offset outside its new range and render no usable rows | Clamp physical and virtual scroll positions after content-size changes |
 | High | Mobile virtual note rows | CSS enforces 44px touch targets while the virtual list originally advanced only 32px per note, causing overlapping hitboxes | Measure live row height, including CSS minimum when an overscan row is offscreen; reflow on viewport/theme changes |
@@ -29,6 +32,8 @@
 | Blocking | Rust dependency audit | Locked `rustls 0.23.45` triggered `RUSTSEC-2026-0346`, `-0347`, `-0348`, `-0349` | Update `Cargo.lock` to registry-verified `rustls 0.23.46` checksum; CI audit must verify |
 
 ## Test/verification coverage added
+
+- Node: finite integer limits for persisted backup schedules and retention, malformed/oversized backup settings, blocked `localStorage` getter, corrupted storage quarantine and unwritable storage fallback.
 
 - Playwright: short viewport dock scroll isolation and footer visibility; single note-tab owner; editor task/frontmatter controls; keyboard focus retained when toggling tasks; RTL tab arrows; a long filtered list re-clamped after shortening; restored active note remains visible; new-note navigation from a primary tool workspace.
 - Playwright (added later in this PR): mobile vault hitbox non-overlap and responsive row reflow; previewing an active note updates on unsaved draft changes and uses standard Markdown presentation.
