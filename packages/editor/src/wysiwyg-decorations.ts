@@ -172,6 +172,10 @@ function buildDecorations(view: EditorView): DecorationSet {
           const standardTask = /^(\s*[-*+] +)(\[[ xX]\])(?=\s|$)/.exec(line.text)
           if (!revealSyntax && standardTask) {
             const markerFrom = line.from + standardTask[1].length
+            // Hide the literal Markdown bullet beside the rendered checkbox.
+            // Keep source bytes intact and reveal their syntax on the active line.
+            const bulletFrom = line.from + (standardTask[1].match(/^\\s*/)?.[0].length ?? 0)
+            ranges.push(hiddenSyntax.range(bulletFrom, markerFrom))
             ranges.push(Decoration.replace({
               widget: new TaskCheckboxWidget(standardTask[2].toLowerCase() === '[x]', markerFrom),
             }).range(markerFrom, markerFrom + 3))
