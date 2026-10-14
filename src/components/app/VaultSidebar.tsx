@@ -155,6 +155,7 @@ function VaultSidebarImpl({
         menuLabel={t('vaultSidebar.options', { title: vault?.name ?? t('vaultSidebar.vault') })}
       />
 
+      <div className="vault-sidebar-scroll">
       <div className="vault-nav-tabs">
         <button
           type="button"
@@ -306,6 +307,7 @@ function VaultSidebarImpl({
         )}
       </div>
 
+      </div>
       <footer className="vault-sidebar-footer" aria-label={t('vaultSidebar.utilities')}>
         <IconButton label={t('vaultSidebar.tags')} onClick={onOpenTags}>
           <Tags />
