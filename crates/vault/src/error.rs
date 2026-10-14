@@ -36,6 +36,8 @@ pub enum VaultError {
     Json(#[from] serde_json::Error),
     #[error("invalid vault config: {message}")]
     InvalidConfig { message: String },
+    #[error("invalid workspace session: {0}")]
+    InvalidWorkspaceSession(String),
     #[error("vault scan exceeded the safety limit of {limit} entries")]
     ScanLimitExceeded { limit: usize },
 }
