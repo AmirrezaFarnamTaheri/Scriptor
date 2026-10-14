@@ -45,7 +45,11 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
       setRevealed({ vaultId: ownedVault, id: request.from.id })
       const approved = await lifecycle.requestClose(request.from.id)
       if (!approved || refs.current.vaultId !== ownedVault) return false
-      if (request.from.reference.kind === 'note' && !await refs.current.workspace.closeTab(request.from.reference.path)) return false
+      // A side leaf is a read-only preview, not the owner of an editor tab.
+      // Closing it must never close (or flush) a separate writing tab.
+      if (request.from.reference.kind === 'note' && request.from.group === 'primary' &&
+        refs.current.workspace.openTabs.some(tab => tab.path === request.from!.reference.path) &&
+        !await refs.current.workspace.closeTab(request.from.reference.path)) return false
     }
     const primary = getWorkspaceActiveLeaf(request.next, 'primary')
     if (primary?.reference.kind === 'note' && primary.reference.path !== refs.current.workspace.activePath) {
@@ -95,6 +99,11 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
     if (primary?.reference.kind === 'note' && primary.reference.path === path) return
     void leaves.open({kind:'note', path}, 'primary')
   }, [leaves, nativeReady, vaultId, workspace.activePath, workspace.status])
+  const openPreview = useCallback(async (path: string) => {
+    const existing = leaves.state.leaves.find(leaf => leaf.reference.kind === 'note' && leaf.reference.path === path)
+    if (existing?.group === 'primary') return await leaves.move(existing.id, 'secondary') && await leaves.select(existing.id)
+    return leaves.open({ kind: 'note', path }, 'secondary')
+  }, [leaves])
   const closeNote = useCallback((path: string) => {
     const leaf = leaves.state.leaves.find(leaf => leaf.reference.kind === 'note' && leaf.reference.path === path)
     return leaf ? leaves.close(leaf.id) : workspace.closeTab(path)
@@ -103,7 +112,7 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
     { id: 'open-source-file-editor', label: 'Source file editor', category: 'Workspace', keywords: ['latex', 'python', 'code', 'Overleaf'], run: () => openSource(null) },
     { id: 'customize-workspace-shortcuts', label: locale === 'de' ? 'Arbeitsbereich-Verknüpfungen anpassen' : locale === 'fa' ? 'سفارشی‌سازی میانبرهای فضای کاری' : 'Customize workspace shortcuts', category: 'Workspace', keywords: ['Customize workspace shortcuts', 'hide', 'pin', 'rename', 'resize', 'toolbar'], run: shortcuts.show },
   ] : [], [locale, nativeReady, openSource, shortcuts.show, vaultId])
-  return { ...leaves, commands, sourceCommands, openSource, openPlugin, openNote, closeNote, lifecycle, shortcuts,
+  return { ...leaves, commands, sourceCommands, openSource, openPlugin, openNote, openPreview, closeNote, lifecycle, shortcuts,
     managerProps: { registeredWorkspaces: plugins.contributions.workspaces, registeredPluginManifests: plugins.plugins.map(plugin => plugin.manifest), workspacePolicies: plugins.pluginPolicies, vaultId, safeMode: plugins.snapshot.safeMode, onOpenPluginWorkspace: openPlugin, onSetPluginEnabled: plugins.setPluginEnabled },
     visited: visited.vaultId === vaultId ? visited.ids : new Set<string>(),
     revealed: revealed?.vaultId === vaultId ? revealed.id : null,
