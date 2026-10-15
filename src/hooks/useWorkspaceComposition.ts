@@ -80,10 +80,11 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
   }, [leaves])
   // A new note first enters the vault editor. Make the workspace leaf active
   // explicitly so a primary tool cannot hide the freshly created document.
+  const createVaultNote = workspace.createNote
   const createNote = useCallback(async () => {
-    const path = await workspace.createNote()
+    const path = await createVaultNote()
     return path ? openNote(path) : false
-  }, [openNote, workspace.createNote])
+  }, [createVaultNote, openNote])
   // Most note navigation is workspace-aware, but note creation and some native
   // editor workflows intentionally load through the vault editor directly.
   // Reconcile *later* path changes so a new note is not hidden behind a tool
