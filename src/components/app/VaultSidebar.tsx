@@ -155,6 +155,7 @@ function VaultSidebarImpl({
         menuLabel={t('vaultSidebar.options', { title: vault?.name ?? t('vaultSidebar.vault') })}
       />
 
+      <div className="vault-sidebar-scroll">
       <div className="vault-nav-tabs">
         <button
           type="button"
@@ -181,8 +182,8 @@ function VaultSidebarImpl({
           <ul>
             {visibleRecentNotes.map((note) => (
               <li key={note.path}>
-                <button type="button" onClick={() => onOpenNote(note.path)}>
-                  {note.title}
+                <button type="button" title={note.path} aria-label={`${note.title} — ${note.path}`} onClick={() => onOpenNote(note.path)}>
+                  <bdi>{note.title}</bdi>
                 </button>
               </li>
             ))}
@@ -306,6 +307,7 @@ function VaultSidebarImpl({
         )}
       </div>
 
+      </div>
       <footer className="vault-sidebar-footer" aria-label={t('vaultSidebar.utilities')}>
         <IconButton label={t('vaultSidebar.tags')} onClick={onOpenTags}>
           <Tags />

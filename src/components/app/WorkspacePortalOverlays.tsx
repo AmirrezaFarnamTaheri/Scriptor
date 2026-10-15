@@ -9,6 +9,7 @@ import type { useWorkspaceStore } from '../../hooks/useWorkspaceStore'
 
 type WorkspacePortalOverlaysProps = {
   workspace: ReturnType<typeof useVaultWorkspace>
+  onOpenNote: (path: string) => void
   workspaceStore: ReturnType<typeof useWorkspaceStore>
   portalOpen: boolean
   noteHistoryOpen: boolean
@@ -19,6 +20,7 @@ type WorkspacePortalOverlaysProps = {
 
 export const WorkspacePortalOverlays = memo(function WorkspacePortalOverlays({
   workspace,
+  onOpenNote,
   workspaceStore,
   portalOpen,
   noteHistoryOpen,
@@ -54,7 +56,7 @@ export const WorkspacePortalOverlays = memo(function WorkspacePortalOverlays({
                 }))
               }
               onInsert={(body) => workspace.insertSnippet(body)}
-              onOpenNote={(path) => void workspace.openNote(path)}
+              onOpenNote={onOpenNote}
             />
           </Suspense>
         </ErrorBoundary>

@@ -88,7 +88,8 @@ test.describe('Frontend polish regressions', () => {
     await page.getByRole('button', { name: 'Field Notes.md' }).click()
     const documentTabs = page.getByRole('group', { name: 'Editor tabs', exact: true })
     const selected = documentTabs.getByRole('tab', { name: 'Field Notes', exact: true, selected: true })
-    await expect(page.getByRole('tablist', { name: 'Main workspace tabs', exact: true }).getByRole('tab', { name: 'Field Notes.md', selected: true })).toBeVisible()
+    // Opened notes have one owner: the editor tab bar, not a second leaf strip.
+    await expect(page.locator('.workspace-group-heading.primary').getByRole('tab', { name: 'Field Notes.md' })).toHaveCount(0)
     await expect(selected).toBeVisible()
     await selected.focus()
     await selected.press('ArrowLeft')

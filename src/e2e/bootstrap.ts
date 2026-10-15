@@ -12,6 +12,7 @@ import {
   e2eNoteDocument,
   e2eKanbanBoard,
   e2eKanbanMoveCard,
+  e2eListNotePaths,
   e2eQueryTasks,
   e2eRenameApply,
   e2eRenameDryRun,
@@ -92,7 +93,19 @@ function activeConflictFixture(): string | null {
 }
 
 function activeScanFixture() {
-  if (window.sessionStorage.getItem('e2e:large-vault') !== '1') return SCREENSHOT_SCAN
+  // The mocked filesystem is mutable: saved and renamed notes must appear in
+  // vault scans just as they do when using the native vault implementation.
+  const notePaths = e2eListNotePaths()
+  const known = new Set(SCREENSHOT_SCAN.map(entry => entry.path))
+  const recorded = new Set(notePaths)
+  const scanned = [
+    ...SCREENSHOT_SCAN.filter(entry => entry.kind !== 'note' || recorded.has(entry.path)),
+    ...notePaths.filter(path => !known.has(path)).map(path => {
+      const document = e2eNoteDocument(path)
+      return { path, kind: 'note' as const, size_bytes: new TextEncoder().encode(document.markdown).length, modified_at: document.metadata.modified_at }
+    }),
+  ]
+  if (window.sessionStorage.getItem('e2e:large-vault') !== '1') return scanned
   const generated = Array.from({ length: 600 }, (_, index) => {
     const ordinal = String(index + 1).padStart(4, '0')
     return {
@@ -102,7 +115,7 @@ function activeScanFixture() {
       modified_at: '2026-06-23T10:00:00Z',
     }
   })
-  return [...SCREENSHOT_SCAN, ...generated]
+  return [...scanned, ...generated]
 }
 
 function knowledgeRepairFixture() {
@@ -138,7 +151,7 @@ function activeNoteSummaries() {
       title: doc.metadata.title,
       modified_at: entry.modified_at ?? '',
       note_type: null,
-      organized: inboxFixture ? index >= 2 : true,
+      organized: SCREENSHOT_SCAN.some(original => original.kind === 'note' && original.path === entry.path) ? (inboxFixture ? index >= 2 : true) : false,
       archived: false,
       tags: doc.metadata.tags,
     }

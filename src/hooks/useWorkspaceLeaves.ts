@@ -6,6 +6,8 @@ export type { WorkspaceLeafTransition, WorkspaceLeafReason } from '../lib/worksp
 export type WorkspaceLeafStatus = 'idle' | 'pending' | 'refused'
 interface Options {
   vaultId: string | null
+  /** Wait for the vault's indexed note inventory before filtering saved references. */
+  restoreReady?: boolean
   available: (reference: WorkspaceLeafReference) => boolean
   approve: (transition: WorkspaceLeafTransition) => Promise<boolean> | boolean
   onCommitted?: (transition: WorkspaceLeafTransition) => void
@@ -17,10 +19,13 @@ function restore(vaultId: string | null, storage: Options['storage'], available:
 }
 
 /** Restoring references is inert; only explicit user transitions call the owner guard. */
-export function useWorkspaceLeaves({vaultId, available, approve, onCommitted, storage = browserStorage()}: Options) {
-  const [snapshot, setSnapshot] = useState(() => ({vaultId, state: restore(vaultId, storage, available)}))
+export function useWorkspaceLeaves({vaultId, available, approve, onCommitted, restoreReady = true, storage = browserStorage()}: Options) {
+  const initial = () => ({vaultId, state: restoreReady ? restore(vaultId, storage, available) : emptyWorkspaceLayout(), hydrated: restoreReady})
+  const [snapshot, setSnapshot] = useState(initial)
   const [feedback, setFeedback] = useState<{vaultId: string | null; status: WorkspaceLeafStatus; reason?: WorkspaceLeafReason}>({vaultId, status:'idle'})
-  if (snapshot.vaultId !== vaultId) setSnapshot({vaultId, state: restore(vaultId, storage, available)})
+  // A vault ID precedes its scan. Restoring while entries are empty prunes saved
+  // note leaves from the in-memory layout and never tries again after indexing.
+  if (snapshot.vaultId !== vaultId || (restoreReady && !snapshot.hydrated)) setSnapshot(initial())
   if (feedback.vaultId !== vaultId) setFeedback({vaultId, status:'idle'})
   const owner = useRef(snapshot)
   const generation = useRef(0)
@@ -39,6 +44,7 @@ export function useWorkspaceLeaves({vaultId, available, approve, onCommitted, st
     const operation = async () => {
       const owning = owner.current
       if (!owning.vaultId || owning.vaultId !== requestedVault || generation.current !== requestedGeneration) { report('refused','changed'); return false }
+      if (!owning.hydrated) { report('refused','unavailable'); return false }
       report('pending')
       const previous = owning.state
       const reduced = reduce(previous)
@@ -51,7 +57,7 @@ export function useWorkspaceLeaves({vaultId, available, approve, onCommitted, st
       if (!approved) { report('refused','guard'); return false }
       if (owner.current !== owning || generation.current !== requestedGeneration) { report('refused','changed'); return false }
       if (!next.leaves.every(leaf => callbacks.current.available(leaf.reference))) { report('refused','unavailable'); return false }
-      const updated = {vaultId: owning.vaultId, state: next}
+      const updated = {vaultId: owning.vaultId, state: next, hydrated: true}
       owner.current = updated
       setSnapshot(updated)
       try { callbacks.current.storage?.setItem(workspaceLayoutStorageKey(owning.vaultId), serializeWorkspaceLayout(next)) } catch { /* A quota error does not discard the current workspace. */ }
@@ -69,6 +75,6 @@ export function useWorkspaceLeaves({vaultId, available, approve, onCommitted, st
     select: (id: string) => transition('select', previous => selectWorkspaceLeaf(previous, id)),
     close: (id: string) => transition('close', previous => closeWorkspaceLeaf(previous, id), id),
     move: (id: string, group: WorkspaceLeafGroup) => transition('move', previous => moveWorkspaceLeaf(previous, id, group), id),
-    reorder: (id: string, direction: -1 | 1) => transition('reorder', previous => reorderWorkspaceLeaf(previous, id, direction), id),
+    reorder: (id: string, direction: -1 | 1, steps = 1) => transition('reorder', previous => reorderWorkspaceLeaf(previous, id, direction, steps), id),
   }
 }

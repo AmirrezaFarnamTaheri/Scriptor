@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, memo } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, memo } from 'react'
 import { BookOpen, FileText } from 'lucide-react'
 import { buildNoteLabels } from '../../lib/noteLabels'
 
-const ROW_HEIGHT = 32
+const MIN_ROW_HEIGHT = 32
 const OVERSCAN = 5
 
 interface VirtualNoteListProps {
@@ -25,19 +25,54 @@ function VirtualNoteListImpl({
   const containerRef = useRef<HTMLDivElement>(null)
   const [viewportHeight, setViewportHeight] = useState(320)
   const [scrollTop, setScrollTop] = useState(0)
+  const [rowHeight, setRowHeight] = useState(MIN_ROW_HEIGHT)
   const labels = useMemo(() => buildNoteLabels(paths), [paths])
+
+  // A fixed 32px virtual stride overlapped 44px mobile touch targets.
+  // Measure the actual CSS button, including font scaling and responsive reflow.
+  useLayoutEffect(() => {
+    const element = containerRef.current
+    if (!element) return
+    const syncGeometry = () => {
+      setViewportHeight(element.clientHeight)
+      const button = element.querySelector<HTMLButtonElement>('.note-row')
+      // content-visibility:auto can return its 32px placeholder for overscan rows.
+      // The computed min-height still reflects the 44px mobile touch contract.
+      const minimum = button ? Number.parseFloat(getComputedStyle(button).minHeight) : 0
+      const next = Math.max(MIN_ROW_HEIGHT, Number.isFinite(minimum) ? Math.ceil(minimum) : 0, button?.offsetHeight ?? 0)
+      setRowHeight(current => current === next ? current : next)
+    }
+    const observer = new ResizeObserver(syncGeometry)
+    observer.observe(element)
+    const button = element.querySelector('.note-row')
+    if (button) observer.observe(button)
+    const rootObserver = new MutationObserver(syncGeometry)
+    rootObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'style', 'data-ui-reflow', 'data-ui-zoom'],
+    })
+    window.addEventListener('resize', syncGeometry)
+    syncGeometry()
+    return () => {
+      observer.disconnect()
+      rootObserver.disconnect()
+      window.removeEventListener('resize', syncGeometry)
+    }
+  }, [paths.length])
 
   useEffect(() => {
     const element = containerRef.current
     if (!element) return
-    const observer = new ResizeObserver(() => setViewportHeight(element.clientHeight))
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
+    const maxScrollTop = Math.max(0, paths.length * rowHeight - element.clientHeight)
+    if (element.scrollTop > maxScrollTop) element.scrollTop = maxScrollTop
+    // A filtered list can shrink while the previous virtual offset is high.
+    // Update React's window even if the browser doesn't dispatch scroll.
+    setScrollTop(element.scrollTop)
+  }, [paths.length, rowHeight])
 
-  const totalHeight = paths.length * ROW_HEIGHT
-  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
-  const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + (OVERSCAN * 2)
+  const totalHeight = paths.length * rowHeight
+  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN)
+  const visibleCount = Math.ceil(viewportHeight / rowHeight) + (OVERSCAN * 2)
   const endIndex = Math.min(paths.length, startIndex + visibleCount)
   const visiblePaths = paths.slice(startIndex, endIndex)
 
@@ -60,10 +95,10 @@ function VirtualNoteListImpl({
               key={path}
               style={{
                 position: 'absolute',
-                top: absoluteIndex * ROW_HEIGHT,
+                top: absoluteIndex * rowHeight,
                 left: 0,
                 right: 0,
-                height: ROW_HEIGHT,
+                height: rowHeight,
               }}
             >
               <button

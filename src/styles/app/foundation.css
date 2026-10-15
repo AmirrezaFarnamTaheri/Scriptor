@@ -540,6 +540,8 @@ html[dir='rtl'] .history-controls button:nth-child(2) svg {
 
 .workspace-grid {
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   display: grid;
   /* Side rails are capped in % of the workspace content box so they squeeze
      proportionally as the window narrows OR when a docked side panel reserves

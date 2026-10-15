@@ -12,7 +12,7 @@ import type { AiProviderId } from '../hooks/useAiProvider'
 import type { AppTheme, AppearanceMode } from '../hooks/useAppTheme'
 import type { JourneySnapshot } from '../hooks/useJourneyMetrics'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
-import { useVaultBackup } from '../hooks/useVaultBackup'
+import type { useVaultBackup } from '../hooks/useVaultBackup'
 import type { WorkspaceChromePrefs } from '../hooks/useWorkspaceChrome'
 import { DEFAULT_WORKSPACE_LAYOUTS, type WorkspaceLayout } from '../hooks/useWorkspaceLayout'
 import type { WorkspaceMode } from '../hooks/useWorkspaceMode'
@@ -56,6 +56,7 @@ function mergeEditedVaultConfig(current: VaultConfig, baseline: VaultConfig, edi
 }
 
 interface SettingsPanelProps {
+  backup: ReturnType<typeof useVaultBackup>
   vaultOpen: boolean
   vaultId: string | null
   systemInfo: SystemInfoSnapshot | null
@@ -131,6 +132,7 @@ const SETTINGS_TABS: Array<{ id: SettingsTab; labelKey: string; helpTopic: strin
 
 /** Renders the tabbed application and vault settings surface. */
 function SettingsPanelImpl({
+  backup,
   vaultOpen,
   vaultId,
   systemInfo,
@@ -193,7 +195,6 @@ function SettingsPanelImpl({
   const [configReloadToken, setConfigReloadToken] = useState(0)
   const [status, setStatus] = useState('')
   const [pendingCloseVaultId, setPendingCloseVaultId] = useState<string | null>(null)
-  const backup = useVaultBackup(vaultOpen && nativeReady)
   const configReady = Boolean(vaultOpen && vaultId && configLoadedForVaultId === vaultId)
   const configDirty = configReady && !valuesEqual(config, configBaseline)
   const discardPromptOpen = Boolean(configDirty && vaultId && pendingCloseVaultId === vaultId)

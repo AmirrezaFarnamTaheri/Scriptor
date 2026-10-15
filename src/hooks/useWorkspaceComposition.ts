@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { PluginWorkspaceDefinition } from '@scriptor/plugin-api'
 import type { PaletteCommand } from '../components/CommandPalette'
 import type { useVaultWorkspace } from './useVaultWorkspace'
@@ -30,7 +30,7 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
     if (ref.kind === 'note') return workspace.entries.some(entry => entry.kind === 'note' && entry.path === ref.path)
     return 'id' in ref && (ref.id === 'editor' || ref.id === 'source-editor' || review.commands.some(command => command.id === ref.id))
   }, [nativeReady, plugins.contributions.workspaces, review.commands, vaultId, workspace.entries])
-  const leaves = useWorkspaceLeaves({ vaultId, available, approve: async request => {
+  const leaves = useWorkspaceLeaves({ vaultId, available, restoreReady: nativeReady && workspace.status === 'ready', approve: async request => {
     const ownedVault = refs.current.vaultId
     if (!ownedVault) return false
     if (document.querySelector('.workspace-leaf-dock [role="dialog"][aria-modal="true"]')) return false
@@ -45,7 +45,13 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
       setRevealed({ vaultId: ownedVault, id: request.from.id })
       const approved = await lifecycle.requestClose(request.from.id)
       if (!approved || refs.current.vaultId !== ownedVault) return false
-      if (request.from.reference.kind === 'note' && !await refs.current.workspace.closeTab(request.from.reference.path)) return false
+      // A side leaf is a read-only preview, not the owner of an editor tab.
+      // Closing it must never close (or flush) a separate writing tab.
+      if (request.from.reference.kind === 'note' && request.from.group === 'primary') {
+        const path = request.from.reference.path
+        if (refs.current.workspace.openTabs.some(tab => tab.path === path) &&
+          !await refs.current.workspace.closeTab(path)) return false
+      }
     }
     const primary = getWorkspaceActiveLeaf(request.next, 'primary')
     if (primary?.reference.kind === 'note' && primary.reference.path !== refs.current.workspace.activePath) {
@@ -72,15 +78,51 @@ export function useWorkspaceComposition(workspace: ReturnType<typeof useVaultWor
     if (existing?.group === 'secondary') return await leaves.move(existing.id, 'primary') && await leaves.select(existing.id)
     return leaves.open({ kind: 'note', path }, 'primary')
   }, [leaves])
+  // A new note first enters the vault editor. Make the workspace leaf active
+  // explicitly so a primary tool cannot hide the freshly created document.
+  const createVaultNote = workspace.createNote
+  const createNote = useCallback(async () => {
+    const path = await createVaultNote()
+    return path ? openNote(path) : false
+  }, [createVaultNote, openNote])
+  // Most note navigation is workspace-aware, but note creation and some native
+  // editor workflows intentionally load through the vault editor directly.
+  // Reconcile *later* path changes so a new note is not hidden behind a tool
+  // workspace. Initial vault/session restoration remains inert.
+  const lastEditorPath = useRef({vaultId, path: workspace.activePath, ready: workspace.status === 'ready'})
+  useEffect(() => {
+    const previous = lastEditorPath.current
+    const ready = nativeReady && workspace.status === 'ready'
+    const path = workspace.activePath
+    if (!ready || !previous.ready || previous.vaultId !== vaultId || !path) {
+      lastEditorPath.current = {vaultId, path, ready}
+      return
+    }
+    if (previous.path === path) return
+    // Do not consume the path change while a leaf approval is pending.
+    // The effect re-runs when that transition settles and must still
+    // reconcile the editor's latest note into the visible primary pane.
+    if (leaves.status === 'pending') return
+    lastEditorPath.current = {vaultId, path, ready}
+    const primary = getWorkspaceActiveLeaf(leaves.state, 'primary')
+    if (primary?.reference.kind === 'note' && primary.reference.path === path) return
+    void leaves.open({kind:'note', path}, 'primary')
+  }, [leaves, nativeReady, vaultId, workspace.activePath, workspace.status])
+  const openPreview = useCallback(async (path: string) => {
+    const existing = leaves.state.leaves.find(leaf => leaf.reference.kind === 'note' && leaf.reference.path === path)
+    if (existing?.group === 'primary') return await leaves.move(existing.id, 'secondary') && await leaves.select(existing.id)
+    return leaves.open({ kind: 'note', path }, 'secondary')
+  }, [leaves])
   const closeNote = useCallback((path: string) => {
     const leaf = leaves.state.leaves.find(leaf => leaf.reference.kind === 'note' && leaf.reference.path === path)
-    return leaf ? leaves.close(leaf.id) : workspace.closeTab(path)
+    // Closing the editor tab is independent of an open side preview.
+    return leaf?.group === 'primary' ? leaves.close(leaf.id) : workspace.closeTab(path)
   }, [leaves, workspace])
   const sourceCommands = useMemo<PaletteCommand[]>(() => vaultId && nativeReady ? [
     { id: 'open-source-file-editor', label: 'Source file editor', category: 'Workspace', keywords: ['latex', 'python', 'code', 'Overleaf'], run: () => openSource(null) },
     { id: 'customize-workspace-shortcuts', label: locale === 'de' ? 'Arbeitsbereich-Verknüpfungen anpassen' : locale === 'fa' ? 'سفارشی‌سازی میانبرهای فضای کاری' : 'Customize workspace shortcuts', category: 'Workspace', keywords: ['Customize workspace shortcuts', 'hide', 'pin', 'rename', 'resize', 'toolbar'], run: shortcuts.show },
   ] : [], [locale, nativeReady, openSource, shortcuts.show, vaultId])
-  return { ...leaves, commands, sourceCommands, openSource, openPlugin, openNote, closeNote, lifecycle, shortcuts,
+  return { ...leaves, commands, sourceCommands, openSource, openPlugin, openNote, createNote, openPreview, closeNote, lifecycle, shortcuts,
     managerProps: { registeredWorkspaces: plugins.contributions.workspaces, registeredPluginManifests: plugins.plugins.map(plugin => plugin.manifest), workspacePolicies: plugins.pluginPolicies, vaultId, safeMode: plugins.snapshot.safeMode, onOpenPluginWorkspace: openPlugin, onSetPluginEnabled: plugins.setPluginEnabled },
     visited: visited.vaultId === vaultId ? visited.ids : new Set<string>(),
     revealed: revealed?.vaultId === vaultId ? revealed.id : null,

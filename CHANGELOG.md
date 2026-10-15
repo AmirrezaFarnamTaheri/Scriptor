@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Fixed
+
+- Route note-opening actions from Canvas, tasks, graphs, bibliography, and the portal through workspace composition, including when the requested document is already active behind a primary tool pane; preserve explicit editor reload after MCP writes.
+- Scope backup inventories to both vault ID and selected backup destination; discard delayed responses from an old directory and distinguish unreadable backup locations from genuinely empty inventories.
+- Stabilize the empty backup snapshot to keep React Hook dependencies and strict lint deterministic.
+
+- Bind asynchronous note organization and creation to their originating vault generation so a switch cannot redirect post-write indexing, note navigation, or UI feedback; enforce the native expected-vault check for organization writes.
+- Keep scheduled backups alive outside the Settings dialog by moving ownership into the persistent vault workspace. Restrict automatic external-backup retention to the current vault fingerprint, even when multiple vaults share a disaster-recovery destination.
+- Bound scheduled backup intervals and retention to finite supported limits; serialize backup, restore and delete actions and discard stale backup results on vault changes. Restore stored preferences safely when browser storage is unavailable or blocked.
+- Preserve generated asset-note links for source files containing URL-reserved filename characters by encoding each vault-relative path segment.
+
+- Render side-note previews with the shared Markdown typography and current in-memory draft for the active note, while preserving vault-scoped disk reads for inactive notes.
+- Match virtualized vault row geometry to mobile touch targets even when overscan rows are outside the viewport; expose recent-note file paths for disambiguation.
+
+- Contain the Scriptor shell within the effective viewport, scrolling the vault navigation independently with its utility footer kept in view. Avoid duplicating note tab strips when workspace leaves contain only notes, while retaining tool-leaf navigation.
+- In editable Preview and Split surfaces, collapse YAML frontmatter into a revealable Properties control and render standard GFM task markers as editable checkbox controls. Keep extended Scriptor task markers intact and retain source-edit synchronization.
+- Add browser regression coverage for dock scroll ownership, duplicate note tabs and editable preview properties/tasks.
+
 ## 1.3.0 — 2026-10-13
 
 - Give the sticky mobile editor mode control and reader annotation dialog opaque themed bases so underlying icons and prose cannot show through them.

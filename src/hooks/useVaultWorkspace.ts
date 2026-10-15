@@ -37,6 +37,7 @@ import { useWorkspaceDiagnostics } from './useWorkspaceDiagnostics'
 import { useWorkspaceEditor } from './useWorkspaceEditor'
 import { useWorkspaceRename } from './useWorkspaceRename'
 import { useWorkspaceNoteFactory } from './useWorkspaceNoteFactory'
+import { useVaultBackup } from './useVaultBackup'
 import { useWorkspaceFilesystemSync } from './useWorkspaceFilesystemSync'
 import { useDaemonConfigEvents } from './useDaemonConfigEvents'
 import { buildVaultSections, buildVaultSectionsFromSummaries } from './vault/helpers'
@@ -138,6 +139,8 @@ export function useVaultWorkspace(options?: {
   const [status, setStatus] = useState<WorkspaceStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [vault, setVault] = useState<VaultDescriptor | null>(null)
+  // Always mounted: scheduled backup timers must outlive the Settings dialog.
+  const backup = useVaultBackup(Boolean(vault) && status === 'ready' && isNativeBridgeAvailable(), vault?.id ?? null)
   const [sections, setSections] = useState<VaultSection[]>([])
   const [entries, setEntries] = useState<ScannedEntry[]>([])
   const [isFixingVaultLint, setIsFixingVaultLint] = useState(false)
@@ -157,6 +160,7 @@ export function useVaultWorkspace(options?: {
   const loadGraphRef = useRef<(focusPath?: string | null) => Promise<void>>(async () => {})
   const exportProfilesRef = useRef<ExportProfile[]>([])
   const vaultOpenRequestIdRef = useRef(0)
+  const getVaultGeneration = useCallback(() => vaultOpenRequestIdRef.current, [])
   const configRefreshSequence = useRef(0)
   const logActivity = useCallback((kind: ActivityEntry['kind'], message: string, detail?: string) => {
     const entry = createActivityEntry(kind, message, detail)
@@ -571,6 +575,7 @@ export function useVaultWorkspace(options?: {
   const { inboxNotes, noteTypes, templatePaths } = useWorkspaceKnowledge(noteSummaries, entries, vaultConfig)
 
   const notes = useWorkspaceNoteFactory({
+    getVaultGeneration,
     vault,
     vaultConfig,
     activePath,
@@ -591,12 +596,12 @@ export function useVaultWorkspace(options?: {
     if (folder) await openVaultAt(folder)
   }, [openVaultAt])
 
-  const openWikilinkTarget = useCallback(async (target: string) => {
+  const openWikilinkTarget = useCallback(async (target: string, navigate: (path: string) => Promise<boolean> = openNote) => {
     const normalized = target.trim()
     try {
       const resolution = await indexerResolveWikilink(normalized)
       if (resolution.kind === 'resolved' && resolution.path) {
-        await openNote(resolution.path)
+        await navigate(resolution.path)
         return
       }
       if (resolution.kind === 'ambiguous') {
@@ -620,7 +625,7 @@ export function useVaultWorkspace(options?: {
       logActivity('error', 'Unresolved wikilink', normalized)
       return
     }
-    await openNote(match.path)
+    await navigate(match.path)
   }, [entries, logActivity, openNote])
 
   const commitActiveNote = useCallback(async () => {
@@ -666,6 +671,7 @@ export function useVaultWorkspace(options?: {
   } = editor
 
   return {
+    backup,
     status,
     error,
     vault,

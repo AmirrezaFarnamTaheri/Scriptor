@@ -414,7 +414,6 @@ function App() {
   )
 
   const splitPreviewActive = chrome.editorSurfaceMode === 'split'
-
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
     workspace.vault?.id,
@@ -598,7 +597,7 @@ function App() {
     items: workspaceStore.portal.items,
     enabled: workspaceStore.hydrated,
     onInsert: (body) => workspace.insertSnippet(body),
-    onOpenNote: (path) => void workspace.openNote(path),
+    onOpenNote: (path) => { void openNote(path) },
   })
   const runCodeChunk = useCallback(
     (language: string, code: string) => codeChunkRun(language, code),
@@ -879,7 +878,7 @@ function App() {
           })
         },
         deleteActiveNote: nativeReady ? () => void deleteActiveNote() : undefined,
-        openRecentNote: (path) => void workspace.openNote(path),
+        openRecentNote: (path) => { void openNote(path) },
         recentNotes,
         setEditorSurfaceMode,
         toggleVaultSidebar: () => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed }),
@@ -912,6 +911,7 @@ function App() {
       graphFullVault,
       mcp,
       nativeReady,
+      openNote,
       openKnowledgeWorkbench,
       patchChrome,
       pluginCommandEntries,
@@ -1042,7 +1042,7 @@ function App() {
   const sidebarActions = useVaultSidebarActions({
     nativeReady,
     chooseVaultFolder: workspace.chooseVaultFolder,
-    createNote: workspace.createNote,
+    createNote: composition.createNote,
     createNoteOfType: workspace.createNoteOfType,
     createNoteFromTemplate: workspace.createNoteFromTemplate,
     rebuildIndex: workspace.rebuildIndex,
@@ -1163,7 +1163,7 @@ function App() {
     setRenameOpen(true)
   }, [workspaceActivePath, setRenameTargetPath, setRenameOpen])
 
-  const handleOpenWikilinkTarget = useCallback((target: string) => void openWikilinkTarget(target), [openWikilinkTarget])
+  const handleOpenWikilinkTarget = useCallback((target: string) => { void openWikilinkTarget(target, openNote) }, [openWikilinkTarget, openNote])
   const handleOpenNote = useCallback((path: string) => void openNote(path), [openNote])
   const handleRenameSection = useCallback(
     (label: string) => {
@@ -1250,10 +1250,10 @@ function App() {
   )
   const handleOpenIssue = useCallback(
     (path: string, line?: number | null) => {
-      void openNoteAt(path, line)
+      void openNoteAt(path, line, openNote)
       setStatusDockTab('output')
     },
-    [openNoteAt, setStatusDockTab],
+    [openNoteAt, openNote, setStatusDockTab],
   )
   const handleOpenEditorLint = useCallback(
     (line: number) => {
@@ -1663,7 +1663,7 @@ function App() {
       />
 
       <WorkspacePanelLaunchers
-        workspace={workspace}
+        workspace={workspace} onOpenNote={handleOpenNote}
         plugins={plugins}
         nativeReady={nativeReady}
         canvasOpen={canvasOpen}
@@ -1733,7 +1733,7 @@ function App() {
           gmailEnabled={plugins.activePlugins.some(plugin => plugin.manifest.id === 'scriptor.gmail-manager')}
           onOpenGoogleWorkspace={openGoogleWorkspace}
           vaultOpen={Boolean(workspace.vault)}
-          vaultId={workspace.vault?.id ?? null}
+          vaultId={workspace.vault?.id ?? null} backup={workspace.backup}
           systemInfo={systemInfo}
           diagnosticsOptIn={diagnostics.optIn}
           onDiagnosticsOptInChange={diagnostics.setOptIn}
@@ -1832,7 +1832,7 @@ function App() {
             if (target.kind === 'vault') {
               void workspace.openVaultAt(target.path)
             } else {
-              void workspace.openNote(target.path)
+              void openNote(target.path)
             }
           }}
         />
@@ -1903,7 +1903,7 @@ function App() {
 
       {portalOpen || noteHistoryOpen ? (
         <WorkspacePortalOverlays
-          workspace={workspace}
+          workspace={workspace} onOpenNote={handleOpenNote}
           workspaceStore={workspaceStore}
           portalOpen={portalOpen}
           noteHistoryOpen={noteHistoryOpen}

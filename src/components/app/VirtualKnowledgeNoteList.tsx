@@ -57,6 +57,14 @@ function VirtualKnowledgeNoteListImpl({
     }
   }, [])
 
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) return
+    const maxScrollTop = Math.max(0, notes.length * rowHeight - element.clientHeight)
+    if (element.scrollTop > maxScrollTop) element.scrollTop = maxScrollTop
+    setScrollTop(element.scrollTop)
+  }, [notes.length, rowHeight])
+
   const totalHeight = notes.length * rowHeight
   const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - 4)
   const visibleCount = Math.ceil(viewportHeight / rowHeight) + 8

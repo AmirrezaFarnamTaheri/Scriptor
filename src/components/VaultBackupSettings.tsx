@@ -26,7 +26,7 @@ function formatDate(iso: string): string {
 }
 
 export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }: VaultBackupSettingsProps) {
-  const { settings, setSettings, backups, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup } =
+  const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup } =
     backup
 
   return (
@@ -73,6 +73,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
         Disaster-recovery backup path (absolute, outside vault)
         <input
           value={settings.backupPath}
+          disabled={isBusy}
           placeholder="Leave empty for local recovery snapshots"
           onChange={(event) => setSettings({ backupPath: event.target.value })}
         />
@@ -86,6 +87,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
 
       {lastMessage ? <p className="settings-status ok">{lastMessage}</p> : null}
       {lastError ? <p className="settings-status warn">{lastError}</p> : null}
+      {backupListError ? <p className="settings-status warn" role="alert">{backupListError}</p> : null}
 
       {backups.length > 0 ? (
         <>
@@ -119,9 +121,11 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
             ))}
           </ul>
         </>
-      ) : (
-        <p className="health-subtitle">No backups yet. Use &quot;Back up now&quot; to create one.</p>
-      )}
+      ) : !backupListError ? (
+        backupListLoading
+          ? <p role="status" className="health-subtitle">Loading backups…</p>
+          : <p className="health-subtitle">No backups yet. Use &quot;Back up now&quot; to create one.</p>
+      ) : null}
     </div>
   )
 })
