@@ -69,7 +69,10 @@ const cargoFiles = manifestCandidates.filter(
     // no release version.
     !file.replaceAll('\\', '/').endsWith('/crates/ipc/fuzz/Cargo.toml'),
 );
-const tauriFile = path.join(root, 'apps/desktop/src-tauri/tauri.conf.json');
+const tauriFiles = [
+  'apps/desktop/src-tauri/tauri.conf.json',
+  'apps/mobile/src-tauri/tauri.conf.json',
+].map((relative) => path.join(root, relative));
 const sourceVersionFiles = [{
   file: path.join(root, 'packages/mcp/src/server.ts'),
   pattern: /export const MCP_SERVER_VERSION = '([^']+)'/,
@@ -107,15 +110,17 @@ for (const file of cargoFiles) {
   }
 }
 
-const tauri = JSON.parse(fs.readFileSync(tauriFile, 'utf8'));
-if (mode === 'sync') {
-  if (tauri.version !== canonical) {
-    tauri.version = canonical;
-    fs.writeFileSync(tauriFile, `${JSON.stringify(tauri, null, 2)}\n`);
-    changed.push(path.relative(root, tauriFile));
+for (const tauriFile of tauriFiles) {
+  const tauri = JSON.parse(fs.readFileSync(tauriFile, 'utf8'));
+  if (mode === 'sync') {
+    if (tauri.version !== canonical) {
+      tauri.version = canonical;
+      fs.writeFileSync(tauriFile, `${JSON.stringify(tauri, null, 2)}\n`);
+      changed.push(path.relative(root, tauriFile));
+    }
+  } else if (tauri.version !== canonical) {
+    failures.push(`${path.relative(root, tauriFile)}: ${tauri.version}`);
   }
-} else if (tauri.version !== canonical) {
-  failures.push(`${path.relative(root, tauriFile)}: ${tauri.version}`);
 }
 
 for (const { file, pattern, replacement } of sourceVersionFiles) {
@@ -148,4 +153,4 @@ if (failures.length) {
 
 console.log(mode === 'sync'
   ? `Synchronized ${changed.length} manifest(s) to ${canonical}${changed.length ? `:\n- ${changed.join('\n- ')}` : ''}`
-  : `Version contract OK: ${canonical} across ${jsonFiles.length} package manifests, ${cargoFiles.length} Cargo manifests, Tauri config, and ${sourceVersionFiles.length} source version surface(s).`);
+  : `Version contract OK: ${canonical} across ${jsonFiles.length} package manifests, ${cargoFiles.length} Cargo manifests, both Tauri configs, and ${sourceVersionFiles.length} source version surface(s).`);

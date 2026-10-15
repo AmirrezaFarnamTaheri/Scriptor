@@ -41,14 +41,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = "$EXPECTED_BRANCH"
+          if ! test "$GITHUB_REF_NAME" = "$EXPECTED_BRANCH"; then
+            echo "::error title=Release branch mismatch::Release Kickoff must run from $EXPECTED_BRANCH, not $GITHUB_REF_NAME." >&2
+            exit 1
+          fi
           version=$(tr -d '[:space:]' < VERSION)
-          test "$version" = "$EXPECTED_VERSION"
+          if ! test "$version" = "$EXPECTED_VERSION"; then
+            echo "::error title=Release version mismatch::Requested $EXPECTED_VERSION, but VERSION contains $version. Synchronize and merge the release version before retrying." >&2
+            exit 1
+          fi
           SCRIPTOR_RELEASE_VERSION="v$version" node scripts/release/version.mjs check
           successful_ci_runs=$(gh api \
             "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&status=completed&per_page=100" \
             --jq '[.workflow_runs[] | select(.name == "CI" and .conclusion == "success")] | length')
-          test "$successful_ci_runs" -gt 0
+          if ! test "$successful_ci_runs" -gt 0; then
+            echo "::error title=CI prerequisite missing::No successful CI push run found for commit $GITHUB_SHA. Wait for the exact-commit main CI to pass before retrying." >&2
+            exit 1
+          fi
 
   tag-and-dispatch:
     needs: validate-release

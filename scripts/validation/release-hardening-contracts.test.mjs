@@ -122,6 +122,9 @@ test('release kickoff only tags the default-branch commit after CI succeeds for 
   assert.match(kickoff, /actions\/runs\?head_sha=\$GITHUB_SHA&event=push&status=completed/)
   assert.match(kickoff, /\.name == "CI" and \.conclusion == "success"/)
   assert.match(kickoff, /test "\$successful_ci_runs" -gt 0/)
+  assert.match(kickoff, /::error title=Release branch mismatch::/)
+  assert.match(kickoff, /::error title=Release version mismatch::/)
+  assert.match(kickoff, /::error title=CI prerequisite missing::/)
 })
 
 test('release receipt separates installer subjects from architecture trust metadata', () => {

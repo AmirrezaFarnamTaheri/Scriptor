@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.3.1 — 2026-10-15
+
 ### Fixed
 
 - Route note-opening actions from Canvas, tasks, graphs, bibliography, and the portal through workspace composition, including when the requested document is already active behind a primary tool pane; preserve explicit editor reload after MCP writes.

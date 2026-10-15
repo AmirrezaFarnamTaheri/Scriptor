@@ -248,7 +248,7 @@ jobs:
           node scripts/validation/docs-contracts.mjs
           node scripts/validation/source-contracts.mjs
           node scripts/validation/rustsec-exceptions.mjs
-          node --test scripts/release/signing-policy.test.mjs scripts/release/fetch-github-release-asset.test.mjs scripts/validation/rustsec-exceptions.test.mjs scripts/validation/release-hardening-contracts.test.mjs
+          node --test scripts/release/version.test.mjs scripts/release/signing-policy.test.mjs scripts/release/fetch-github-release-asset.test.mjs scripts/validation/rustsec-exceptions.test.mjs scripts/validation/release-hardening-contracts.test.mjs
           node --experimental-strip-types --test packages/mcp/src/audit.test.ts
 
       - name: Describe fast validation scope
