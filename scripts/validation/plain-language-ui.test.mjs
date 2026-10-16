@@ -245,3 +245,12 @@ test('files, search groups, article capture, and reports explain tasks without i
   assert.match(database, /Totals for loaded notes/)
   assert.match(perf, /Performance checks/)
 })
+
+test('Obsidian import checks browsed folders automatically without touching source files', () => {
+  const source = read('src/components/ObsidianImportDialog.tsx')
+  assert.match(source, /void validateSource\(path\)/)
+  assert.match(source, /check !== checkGeneration\.current/)
+  assert.match(source, /Keep note properties \(YAML frontmatter\)/)
+  assert.match(source, /disabled=\{isImporting \|\| isValidating/)
+  assert.doesNotMatch(source, /<span>Preserve YAML frontmatter<\/span>/)
+})
