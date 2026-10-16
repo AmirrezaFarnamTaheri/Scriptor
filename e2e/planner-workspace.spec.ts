@@ -14,7 +14,7 @@ test('offline weekly planner maps tasks to time blocks, retains them after resta
   await planner.getByRole('button', { name: 'Save time block', exact: true }).click()
   const block = planner.getByRole('listitem', { name: '2026-10-01', exact: true }).getByRole('button', { name: /Collect sources/ })
   await expect(block).toBeVisible()
-  await expect(planner.getByRole('button', { name: 'Review bidirectional sync', exact: true })).toBeDisabled()
+  await expect(planner.getByRole('button', { name: 'Review changes before syncing', exact: true })).toBeDisabled()
   await page.reload()
   await openCommandPalette(page)
   await runCommand(page, 'Open tasks panel')
