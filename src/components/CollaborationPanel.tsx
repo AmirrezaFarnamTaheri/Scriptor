@@ -201,9 +201,13 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   }
   return <UnifiedPanelShell title="Drive collaboration" ariaLabel="Drive collaboration" helpTopic="integrations" onClose={onClose} wide>
     <div className="collaboration-panel">
-      <p>Share immutable Markdown revisions in a Google Drive folder. Review incoming changes before applying them. Overlapping edits retain local, base and remote text for resolution.</p>
-      <p>The Google sign-in requests Drive access. Scriptor confines these transfers to the folder you enter. Your credentials stay in the operating-system keychain.</p>
-      <p>The last shared ancestor and this note’s peer identity are cached on this device, scoped to the confirmed Google account, vault and Drive folder. This cache includes note text; it is separate from your Markdown files and credentials.</p>
+      <p>Compare and share Markdown revisions through the selected Drive folder. Remote changes never overwrite local notes without review.</p>
+      <details className="collaboration-guidance">
+        <summary>How sharing works and where data is stored</summary>
+        <p>The Google sign-in requests Drive access. Scriptor confines these transfers to the folder you enter. Your credentials stay in the operating-system keychain.</p>
+        <p>The last shared ancestor and this note’s peer identity are cached on this device, scoped to the confirmed Google account, vault and Drive folder. This cache includes note text; it is separate from your Markdown files and credentials.</p>
+        <p>Revisions preserve local, base and remote text so overlapping changes can be resolved before applying them.</p>
+      </details>
       <label>Revision transport<select aria-label="Revision transport" value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); setTransport(event.target.value as CollaborationTransport); setPollConsent(false); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">Drive JSON revision records</option><option value="google_docs">Legacy Google Docs revisions (read-only)</option></select></label>
       {transport === 'google_docs' && <p role="note">Legacy Google Docs revision records can be inspected but cannot receive new shares. Select Drive JSON revisions for current sharing. These records are not live Google Docs editing: Markdown remains local, and embedded assets are not synchronized.</p>}
       {!hasPackagedGoogleOAuthClient() && <details className="google-developer-setup">
