@@ -21,6 +21,7 @@ import {
   LayoutTemplate,
   Lock,
   Package,
+  Search,
   ShieldAlert,
   ShieldCheck,
   ToggleLeft,
@@ -425,6 +426,12 @@ function PluginsTab({
   const installedIds = new Set(plugins.map((p) => p.manifest.id))
   const [pendingConsentPluginId, setPendingConsentPluginId] = useState<string | null>(null)
   const [pluginView, setPluginView] = useState<'installed' | 'marketplace'>('installed')
+  const [pluginFilter, setPluginFilter] = useState('')
+  const query = pluginFilter.trim().toLowerCase()
+  const matchesPlugin = (plugin: { name: string; description?: string; id: string }) =>
+    !query || `${plugin.name} ${plugin.description ?? ''} ${plugin.id}`.toLowerCase().includes(query)
+  const installedMatches = plugins.filter(plugin => matchesPlugin(plugin.manifest))
+  const availableMatches = marketplaceCatalog.filter(catalog => !installedIds.has(catalog.id) && matchesPlugin(catalog))
 
   return (
     <div className="store-stack">
@@ -448,6 +455,12 @@ function PluginsTab({
           {t('store.browsePlugins')}
         </button>
       </div>
+
+      <label className="store-plugin-search">
+        <Search size={15} aria-hidden="true" />
+        <input type="search" value={pluginFilter} onChange={event => setPluginFilter(event.target.value)}
+          placeholder={t('store.searchPlugins')} aria-label={t('store.searchPlugins')} />
+      </label>
 
       {/* Safe mode banner */}
       <div className={`store-banner${safeMode ? ' danger' : ''}`} hidden={pluginView !== 'installed'}>
@@ -477,7 +490,7 @@ function PluginsTab({
             {t('store.installedCount', { count: plugins.length })}
           </h3>
           <div className="store-stack-xs">
-            {plugins.map((plugin) => {
+            {installedMatches.map((plugin) => {
               const policy = pluginPolicies[plugin.manifest.id] ?? null
               const summary = summarizePluginContributions(plugin)
               const labels = contributionLabels(summary)
@@ -654,6 +667,9 @@ function PluginsTab({
                 </div>
               )
             })}
+            {installedMatches.length === 0 ? (
+              <p className="store-plugin-empty" role="status">{t('store.noPluginMatches')}</p>
+            ) : null}
           </div>
         </section>
       )}
@@ -673,9 +689,7 @@ function PluginsTab({
             {t('store.marketplaceAvailable', { count: marketplaceCatalog.filter((p) => !installedIds.has(p.id)).length })}
           </h3>
           <div className="store-stack-xs">
-            {marketplaceCatalog
-              .filter((p) => !installedIds.has(p.id))
-              .map((catalog) => (
+            {availableMatches.map((catalog) => (
                 <div
                   key={catalog.id}
                   className="store-card-row"
@@ -695,6 +709,9 @@ function PluginsTab({
                   </button>
                 </div>
               ))}
+            {availableMatches.length === 0 ? (
+              <p className="store-plugin-empty" role="status">{t('store.noPluginMatches')}</p>
+            ) : null}
           </div>
         </section>
       )}

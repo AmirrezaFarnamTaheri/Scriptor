@@ -730,7 +730,9 @@
     "healthIssues": "{{count}} vault health issue(s)",
     "marketplaceAvailable": "Marketplace · {{count}} available",
     "installAria": "Install {{name}}",
-    "install": "Install"
+    "install": "Install",
+    "searchPlugins": "Search plugins",
+    "noPluginMatches": "No matching plugins. Try another name or clear your search."
   },
   "canvasExport": {
     "export": "Export",

@@ -730,7 +730,9 @@
     "healthIssues": "{{count}} مورد سلامت خزانه",
     "marketplaceAvailable": "بازارچه · {{count}} مورد در دسترس",
     "installAria": "نصب {{name}}",
-    "install": "نصب"
+    "install": "نصب",
+    "searchPlugins": "جست‌وجوی افزونه‌ها",
+    "noPluginMatches": "افزونه‌ای پیدا نشد. عبارت دیگری را جست‌وجو کنید یا جست‌وجو را پاک کنید."
   },
   "canvasExport": {
     "export": "خروجی گرفتن",

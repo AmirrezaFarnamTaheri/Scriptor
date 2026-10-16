@@ -730,7 +730,9 @@
     "healthIssues": "{{count}} Tresor-Gesundheitsproblem(e)",
     "marketplaceAvailable": "Marketplace · {{count}} verfügbar",
     "installAria": "{{name}} installieren",
-    "install": "Installieren"
+    "install": "Installieren",
+    "searchPlugins": "Plugins suchen",
+    "noPluginMatches": "Keine passenden Plugins. Ändern oder löschen Sie Ihre Suche."
   },
   "canvasExport": {
     "export": "Exportieren",
