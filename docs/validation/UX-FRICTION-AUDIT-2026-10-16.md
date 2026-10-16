@@ -288,3 +288,55 @@ hundreds of combinations have been interactively exercised.
 - No statement of "full live Google Docs editing", "full Gmail client" or
   entire Overleaf project synchronization is appropriate until those product
   capabilities actually exist.
+
+## October 17 review: plugin navigation, collaboration, and saved-note groups
+
+The follow-up inspected checked-in desktop, mobile RTL, tablet, PDF-reader,
+Obsidian-import, Kanban, publishing, plugin-permission, editor-preview, MCP,
+Git-conflict, and shortcuts screenshots. These are **historical reference
+images**, not screenshots captured after this PR. The working tree includes
+hundreds of TS/TSX/CSS modules across React, plugin packages, and desktop/mobile
+surfaces; not every module's interactive states can be inferred from screenshots
+or source inspection alone.
+
+### Additional implemented improvements
+
+| Journey | Previously confusing behavior | Change |
+| --- | --- | --- |
+| Source checks | An unnecessary escape in a source-level plain-language test caused ESLint to fail before UI checks could run | Corrected the regular expression without weakening the assertion |
+| Plugins, installed/browse | Empty stores rendered an unhelpful blank page; subtabs did not have complete focus and keyboard semantics | Always-present tabpanels with accessible tab labels, Arrow/Home/End focus behavior, explicit empty and all-installed states, and E2E coverage |
+| Drive connection | A technical transport selector and credential-removal button competed with the primary Connect action | Task-oriented file-choice labels, connected account status, conditional Disconnect, and optional background-check details; native keychain and read/write permissions are unchanged |
+| Drive incoming revision | Cryptic merge terminology and peer IDs appeared ahead of the actual review action | Review incoming changes first, show version metadata on demand, and retain conflict detection before saving |
+| Google Docs text copies | “Translated merge” suggested language translation or full live Google Docs editing | Clear read/preview/save/create-text-copy actions, explicit conversion-loss consent, and E2E selectors updated; formatting and sharing limitations remain explicit |
+| Saved groups of notes | Search states showed “DQL”, processing time in milliseconds, and developer-centric language | Plain-language found/empty/loading states; localized group navigation and forms in English, German and Persian |
+| Saved group removal | An icon immediately removed the saved search definition | Named confirmation with Cancel focus and explicit assurance that note files remain untouched; browser regression covers cancellation and confirmation |
+
+### Risk and verification boundaries
+
+The source-level plain-language test now asserts the localized saved-group search
+label, service review checks and per-collection removal confirmation. Browser
+tests cover plugin subtabs, Google Docs loss approval, Drive connection checks
+and saved-group deletion. Existing vault-scoped operations remain unchanged.
+
+Do not infer product-wide completeness from the number of edited files. Fresh
+screen captures, contrast checks, keyboard/screen-reader coverage across all
+supported locales, end-to-end file-recovery scenarios, real Google credentials,
+Overleaf Git sessions, and full native builds are still separate acceptance gates.
+A successful consent flow is not evidence of completed synchronization, and
+linking a Google account is not permission to change local notes automatically.
+
+### Further product improvements, requiring dedicated implementation and testing
+
+- A consistent read-only **Connections** overview should report the connected
+  account, last successful transfer, pending review, and clear recovery actions
+  without merging provider-specific write permissions.
+- The compact top bar should prioritize writing and finding notes; additional
+  plugin, publishing, Git and diagnostics controls should remain easy to
+  discover through existing user-configurable paths rather than adding a
+  second navigation model.
+- Reader, Kanban, graph, Canvas, citation, bibliography, annotations and advanced
+  MCP panels need fresh post-change screenshots at 320/375/768/1024/1440 widths,
+  200% zoom, RTL, light/dark and keyboard-only operation.
+- Keep feature-specific advanced concepts such as DQL, Git conflict markers,
+  OAuth scopes and synchronization receipts in context-sensitive Help/Details,
+  but do not rewrite or hide the actual legal/security consequences of actions.

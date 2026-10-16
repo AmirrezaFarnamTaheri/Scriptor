@@ -163,6 +163,26 @@ test('collections keep compact rows and themed selection controls', async ({ pag
   expect(style.border).toBeGreaterThanOrEqual(1)
 })
 
+test('removing a saved note group requires confirmation and Cancel preserves it', async ({ page }) => {
+  await prepare(page)
+  await openPanel(page, 'Explore notes')
+  const workbench = page.getByRole('dialog', { name: 'Explore notes', exact: true })
+  await workbench.getByRole('tab', { name: 'Collections', exact: true }).click()
+  const groups = workbench.locator('.smart-collection')
+  await expect(groups).toHaveCount(3)
+  const remove = workbench.getByRole('button', { name: 'Remove Research notes', exact: true })
+  await remove.click()
+  const confirmation = workbench.getByRole('group', { name: 'Remove Research notes', exact: true })
+  await expect(confirmation).toContainText('Your notes will not be deleted')
+  await expect(confirmation.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+  await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(groups).toHaveCount(3)
+  await expect(confirmation).toHaveCount(0)
+  await remove.click()
+  await confirmation.getByRole('button', { name: 'Remove group', exact: true }).click()
+  await expect(groups).toHaveCount(2)
+})
+
 test('saved views actions have themed bounds and separated presets', async ({ page }) => {
   await prepare(page)
   await openPanel(page, 'Explore notes')
