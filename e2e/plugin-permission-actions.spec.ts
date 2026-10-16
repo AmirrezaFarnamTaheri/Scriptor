@@ -42,6 +42,21 @@ test('installed plugins are searchable without affecting permission decisions', 
   await expect.poll(() => store.locator('.store-card').count()).toBeGreaterThan(1)
 })
 
+test('installed and browse tabs support arrow keys and always show an accessible panel', async ({ page }) => {
+  const store = await openInstalled(page)
+  const installed = store.getByRole('tab', { name: 'Manage installed' })
+  const browse = store.getByRole('tab', { name: 'Browse plugins' })
+  await installed.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(browse).toBeFocused()
+  await expect(browse).toHaveAttribute('aria-selected', 'true')
+  await expect(browse).toHaveAttribute('aria-controls', 'store-plugin-panel-marketplace')
+  await expect(store.getByRole('tabpanel', { name: 'Browse plugins' })).toBeVisible()
+  await page.keyboard.press('Home')
+  await expect(installed).toBeFocused()
+  await expect(store.getByRole('tabpanel', { name: 'Manage installed' })).toBeVisible()
+})
+
 test('a plugin awaiting consent shows no inert Enable toggle', async ({ page }) => {
   const store = await openInstalled(page)
   const permissions = store.getByRole('region', { name: `Permissions for ${VAULT_LINT}`, exact: true })

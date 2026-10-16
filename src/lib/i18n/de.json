@@ -735,7 +735,10 @@
     "installAria": "{{name}} installieren",
     "install": "Installieren",
     "searchPlugins": "Plugins suchen",
-    "noPluginMatches": "Keine passenden Plugins. Ändern oder löschen Sie Ihre Suche."
+    "noPluginMatches": "Keine passenden Plugins. Ändern oder löschen Sie Ihre Suche.",
+    "noPluginsInstalled": "Noch keine Plugins installiert. Unter „Plugins entdecken“ können Sie welche hinzufügen.",
+    "noPluginsAvailable": "Derzeit sind keine weiteren Plugins zur Installation verfügbar.",
+    "allPluginsInstalled": "Alle verfügbaren Plugins sind bereits installiert."
   },
   "canvasExport": {
     "export": "Exportieren",
