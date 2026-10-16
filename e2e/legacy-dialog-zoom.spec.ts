@@ -273,6 +273,14 @@ for (const viewport of viewports) {
       await expectReachable(close)
       await captureDialog(page, testInfo)
       await close.click()
+      if (surface.name === 'Snippet catalog') {
+        // The in-context unsaved-change confirmation must be reachable at 200% zoom.
+        const confirm = dialog.getByRole('group', { name: 'Discard unsaved snippet edits' })
+        await expect(confirm).toBeVisible()
+        await expectFullBounds(confirm)
+        await expectReachable(confirm.getByRole('button', { name: 'Discard changes' }))
+        await confirm.getByRole('button', { name: 'Discard changes' }).click()
+      }
       await expect(dialog).toBeHidden()
     })
   }
