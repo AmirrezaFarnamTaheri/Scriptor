@@ -23,6 +23,16 @@ import {
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import '../styles/components/resource-sync.css'
 
+function targetStatusLabel(status: ResourceTarget['status']): string {
+  switch (status) {
+    case 'confirmed': return 'Installed'
+    case 'configured': return 'Found in settings'
+    case 'partial': return 'Partly installed'
+    case 'available': return 'Available'
+    case 'conflicted': return 'Needs attention'
+  }
+}
+
 function targetCanReceiveResources(target: ResourceTarget): boolean {
   if (target.supportLevel === 'inventory_only' || target.resourceRoots.length === 0) return false
   return target.id === 'universal' || target.status === 'confirmed'
@@ -243,7 +253,7 @@ export function ResourceSyncPanel() {
                     <div className="resource-target-title">
                       <div>
                         <strong>{target.label}</strong>
-                        <span className={`resource-badge ${target.status}`}>{target.status}</span>
+                        <span className={`resource-badge ${target.status}`}>{targetStatusLabel(target.status)}</span>
                       </div>
                       <label>
                         <input
@@ -257,12 +267,12 @@ export function ResourceSyncPanel() {
                       </label>
                     </div>
                     <p className="resource-target-support">
-                      <span>{target.installations.length} confirmed installation{target.installations.length === 1 ? '' : 's'}</span>
+                      <span>{target.installations.length} installation{target.installations.length === 1 ? '' : 's'}</span>
                       {target.supportLevel === 'native'
-                        ? 'Native resource target'
+                        ? 'Can receive shared files'
                         : target.supportLevel === 'compatible'
-                          ? 'Reviewed compatibility adapter'
-                          : 'Inventory only'}
+                          ? 'Can receive shared files (compatible)'
+                          : 'View only — cannot sync'}
                     </p>
                     <details>
                       <summary>Detection evidence</summary>
@@ -290,11 +300,10 @@ export function ResourceSyncPanel() {
                 <table className="resource-table">
                   <thead>
                     <tr>
-                      <th>Resource</th>
-                      <th>Target</th>
-                      <th>State</th>
-                      <th>Fingerprint</th>
-                      <th>Select source</th>
+                      <th>Item</th>
+                      <th>App</th>
+                      <th>Status</th>
+                      <th>Share this copy</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -305,20 +314,26 @@ export function ResourceSyncPanel() {
                           <span>{resource.logicalId}</span>
                         </td>
                         <td>
-                          <span>{resource.targetId}</span>
+                          <span>{inventory.targets.find(target => target.id === resource.targetId)?.label ?? resource.targetId}</span>
                           <small>{resource.scope}</small>
                         </td>
                         <td>
                           <span className={`resource-badge ${resource.managed ? 'managed' : 'unmanaged'}`}>
-                            {resource.managed ? 'managed' : 'unmanaged'}
+                            {resource.managed ? 'Managed by Scriptor' : 'Found locally'}
                           </span>
                           <span className={`resource-badge ${resource.valid ? 'valid' : 'invalid'}`}>
-                            {resource.valid ? 'valid' : 'invalid'}
+                            {resource.valid ? 'Ready' : 'Needs attention'}
                           </span>
-                          {resource.symlinked ? <small>linked</small> : <small>contained copy</small>}
+                          {resource.symlinked ? <small>Linked from another location</small> : null}
                           {resource.issues.map((issue) => <small key={issue}>{issue}</small>)}
+                          <details className="resource-copy-details">
+                            <summary>Content details</summary>
+                            <dl>
+                              <dt>Content check</dt><dd><code>{shortHash(resource.contentHash)}</code></dd>
+                              <dt>File path</dt><dd><code>{resource.path}</code></dd>
+                            </dl>
+                          </details>
                         </td>
-                        <td><code>{shortHash(resource.contentHash)}</code></td>
                         <td>
                           <input
                             type="radio"

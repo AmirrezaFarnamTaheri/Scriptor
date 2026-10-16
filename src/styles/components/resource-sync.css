@@ -200,7 +200,7 @@
 
 .resource-table {
   width: 100%;
-  min-width: 620px;
+  min-width: 500px;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.78rem;
@@ -328,3 +328,12 @@
 .resource-plan-technical { min-width: 0; }
 .resource-plan-technical > summary { cursor: pointer; padding-block: 8px; }
 .resource-plan-technical[open] .resource-plan-meta { margin-block: 8px 12px; }
+
+/* Keep identifiers and paths available for troubleshooting, but out of the
+   default decision table. */
+.resource-copy-details { margin-top: 8px; font-size: 0.78rem; }
+.resource-copy-details > summary { width: fit-content; cursor: pointer; color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
+.resource-copy-details dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 8px; margin: 8px 0 0; }
+.resource-copy-details dt { font-weight: 600; color: var(--text-muted); }
+.resource-copy-details dd { margin: 0; overflow-wrap: anywhere; }
+.resource-copy-details code { white-space: normal; overflow-wrap: anywhere; }
