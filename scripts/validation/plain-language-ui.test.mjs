@@ -50,6 +50,35 @@ test('prominent help text favors actions over implementation jargon in every loc
   }
 })
 
+test('note link problems explain what is missing, not use insider jargon', () => {
+  const expected = {
+    en: {
+      orphans: 'No incoming links ({{count}})',
+      deadEnds: 'No outgoing links ({{count}})',
+      unresolved: 'Broken note links ({{count}})',
+    },
+    de: {
+      orphans: 'Keine eingehenden Links ({{count}})',
+      deadEnds: 'Keine ausgehenden Links ({{count}})',
+      unresolved: 'Defekte Notizlinks ({{count}})',
+    },
+    fa: {
+      orphans: 'بدون پیوند ورودی ({{count}})',
+      deadEnds: 'بدون پیوند خروجی ({{count}})',
+      unresolved: 'پیوندهای خراب یادداشت ({{count}})',
+    },
+  }
+  for (const locale of ['en', 'de', 'fa']) {
+    for (const [name, copy] of Object.entries(expected[locale])) {
+      assert.equal(get(locale, `knowledge.filters.${name}`), copy)
+    }
+  }
+  assert.equal(get('en', 'knowledge.filters.startTriage'), 'Review {{count}} notes')
+  assert.equal(get('en', 'knowledge.filters.triageProgress'), 'Reviewing {{current}} of {{count}}: {{title}}')
+  assert.equal(get('en', 'inspector.noWikilinks'), 'No links to other notes')
+  assert.equal(get('en', 'editor.empty.tagline'), 'Your Markdown files stay in your folder.')
+})
+
 test('major workflow explanations avoid internal-only language', () => {
   const checks = [
     ['src/components/ResourceSyncPanel.tsx', /Inventory what is contained and installed|Each physical instance keeps|Canonical resource/],
