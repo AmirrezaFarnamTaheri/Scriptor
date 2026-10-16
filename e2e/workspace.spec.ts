@@ -47,12 +47,37 @@ test.describe('workspace flows', () => {
     const tour = page.getByRole('dialog', { name: 'Product tour' })
     await expect(tour).toBeVisible()
     await expect(tour.getByRole('button', { name: 'Next' })).toBeFocused()
-    await page.keyboard.press('Escape')
-    await expect(tour).toBeVisible()
+    await expect(tour.getByRole('progressbar')).toHaveAttribute('max', '3')
+    await expect(tour.getByRole('button', { name: 'Close Your vault' })).toBeVisible()
     await tour.getByRole('button', { name: 'Skip tour' }).click()
     await expect(tour).toBeHidden()
     await page.reload({ waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('dialog', { name: 'Product tour' })).toBeHidden()
+  })
+
+  test('first-run tour yields to Escape and does not reopen after dismissal', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.removeItem('scriptor:onboarding-complete')
+    })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    const tour = page.getByRole('dialog', { name: 'Product tour' })
+    await expect(tour).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(tour).toBeHidden()
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('scriptor:onboarding-complete'))).toBe('true')
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await expect(tour).toBeHidden()
+  })
+
+  test('mobile command navigation remains usable without a duplicate search row', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await launchApp(page)
+    await settleLayout(page)
+    await expect(page.locator('header.topbar .command-search')).toBeHidden()
+    const command = page.getByRole('navigation', { name: 'Mobile workspace navigation' }).getByRole('button', { name: 'Command', exact: true })
+    await expect(command).toBeVisible()
+    await command.click()
+    await expect(page.locator('.command-palette-overlay')).toBeVisible()
   })
 
   test('workspace session persists open tabs', async ({ page }) => {
