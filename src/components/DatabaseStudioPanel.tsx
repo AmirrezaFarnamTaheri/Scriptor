@@ -143,7 +143,7 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
       {!native ? <p>Open a folder of notes in the desktop app to view and edit note properties. Saved views stay on this device.</p> : null}
       {error ? <p role="alert">{error}</p> : null}{presetLoadFailed?<><p>Review the loading error, repair the stored view file if needed, then reload before saving.</p><button type="button" disabled={busy} onClick={()=>setReloadPresets(value=>value+1)}>Reload saved views</button></>:null}<p role="status">{status}</p>
       <DatabaseStudioResults rows={rows} columns={loadedColumns} values={values} mode={view.mode} busy={busy} onOpenNote={onOpenNote} onEdit={editCell} />
-      {rows.length ? <details><summary>Aggregates for loaded rows</summary><dl>{loadedColumns.map((column,index) => <div key={column.key}><dt>{column.label}</dt><dd>Numeric count {aggregates[index].count}; sum {aggregates[index].sum ?? '—'}; average {aggregates[index].average ?? '—'}; min {aggregates[index].min ?? '—'}; max {aggregates[index].max ?? '—'}</dd></div>)}</dl></details> : null}
+      {rows.length ? <details><summary>Totals for loaded notes</summary><dl>{loadedColumns.map((column,index) => <div key={column.key}><dt>{column.label}</dt><dd>Numeric count {aggregates[index].count}; sum {aggregates[index].sum ?? '—'}; average {aggregates[index].average ?? '—'}; min {aggregates[index].min ?? '—'}; max {aggregates[index].max ?? '—'}</dd></div>)}</dl></details> : null}
     </div>
   </>
   if (inline) return <section className="database-studio" aria-label="Database Studio" data-help-topic="saved-views">{body}</section>

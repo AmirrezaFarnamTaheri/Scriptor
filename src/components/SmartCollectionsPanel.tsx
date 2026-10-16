@@ -172,7 +172,7 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
             <Database size={16} />
             Smart collections
           </h3>
-          <p className="health-subtitle">Saved groups of notes that update as Scriptor indexes changes.</p>
+          <p className="health-subtitle">Save a search to find the same kind of notes again. Refresh to check for updates.</p>
           {vaultOpen ? (
             <button
               type="button"
@@ -182,7 +182,7 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
                 saveCollections(collections)
               }}
             >
-              Save presets to vault
+              Save groups to this vault
             </button>
           ) : null}
         </header>
@@ -247,8 +247,9 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
               <input value={draftLabel} onChange={(event) => setDraftLabel(event.target.value)} placeholder="Weekly review" />
             </label>
             <label>
-              Search rule (DQL)
+              Rule for matching notes
               <input value={draftQuery} onChange={(event) => setDraftQuery(event.target.value)} placeholder="path has #review" />
+              <small className="health-subtitle">Example: path has #review. More search rules are explained in Help.</small>
             </label>
             <button type="submit" className="primary-button">
               <Plus size={14} />

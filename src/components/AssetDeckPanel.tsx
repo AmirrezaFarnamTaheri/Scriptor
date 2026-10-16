@@ -37,13 +37,20 @@ export function AssetDeckPanel({ assets, onClose, onOpenAsset, onOpenNote, onCre
     finally { setBusyId(null) }
   }
   const body = <>
-    {embedded && <p>{assets.length} vault assets · source files stay in the vault</p>}
-    <p>Usage reflects the derived link index. Rebuild the vault index after external file changes.{!usageComplete && ' Inventory reached its processing limit; usage counts are partial and unused filtering is unavailable.'}</p>
-    <div className="research-controls"><label>Filter assets<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} /></label><label className="research-toggle"><input type="checkbox" checked={onlyUnused} disabled={!usageComplete} onChange={(event) => setOnlyUnused(event.target.checked)} /><span>Unused assets only</span></label></div>
+    {embedded && <p>{assets.length} files in this vault</p>}
+    <p>Browse files and see which notes link to them.</p>
+    {!usageComplete && <p role="status">Not all files were checked. The unused-only filter is unavailable until the file check finishes.</p>}
+    <details className="asset-usage-help">
+      <summary>How file usage is counted</summary>
+      <p>Usage is based on links found in your notes. If files changed outside Scriptor, rebuild the note index to refresh these counts.</p>
+    </details>
+    <div className="research-controls"><label>Find a file<input type="search" value={query} placeholder="File name or folder" onChange={(event) => setQuery(event.target.value)} /></label><label className="research-toggle"><input type="checkbox" checked={onlyUnused} disabled={!usageComplete} onChange={(event) => setOnlyUnused(event.target.checked)} /><span>Unused assets only</span></label></div>
     <ul className="research-asset-list">
-      {filtered.length === 0 && <li>No assets match. Import a PDF, EPUB, image, or other source into the vault.</li>}
+      {filtered.length === 0 && <li>{assets.length === 0
+        ? 'No files found. Add a PDF, image, ebook, or audio file to the vault to get started.'
+        : 'No files match. Try another name or turn off the unused-only filter.'}</li>}
       {filtered.slice(0, 500).map((asset) => <li key={asset.path}>
-        <strong>{asset.name ?? asset.path.split('/').at(-1)}</strong><p>{asset.path}{asset.bytes !== undefined ? ` · ${asset.bytes.toLocaleString()} bytes` : ''} · {asset.usedBy.length} linked notes</p>
+        <strong>{asset.name ?? asset.path.split('/').at(-1)}</strong><p><bdi>{asset.path}</bdi>{asset.bytes !== undefined ? ` · ${asset.bytes.toLocaleString()} bytes` : ''} · Used in {asset.usedBy.length} notes</p>
         <div className="research-controls"><button type="button" className="toolbar-button" disabled={mediaKind(asset.path) === null} title={mediaKind(asset.path) ? 'Open vault source preview' : 'Preview supports PDF, EPUB, raster images, MP3, WAV, Ogg and FLAC'} onClick={() => onOpenAsset(asset.path)}><BookOpen size={14} />Open source</button><button type="button" className="toolbar-button" disabled={busyId !== null} onClick={() => void capture(asset)}><FilePlus size={14} />Create linked note</button></div>
         {asset.usedBy.length > 0 && <details><summary>Used in {asset.usedBy.length} notes</summary><ul>{asset.usedBy.map((path) => <li key={path}><button type="button" className="toolbar-button" onClick={() => onOpenNote(path)}>{path}</button></li>)}</ul></details>}
         {activeAssetPath === asset.path && annotations.length > 0 && <details open><summary>Saved annotations</summary><ul>{annotations.map((annotation) => <li key={annotation.id}><blockquote>{annotation.quote}</blockquote>{annotation.body && <p>{annotation.body}</p>}<button type="button" className="toolbar-button" disabled={busyId !== null} onClick={() => void capture(asset, annotation)}>{busyId === annotation.id ? 'Creating…' : 'Create note from annotation'}</button></li>)}</ul></details>}
