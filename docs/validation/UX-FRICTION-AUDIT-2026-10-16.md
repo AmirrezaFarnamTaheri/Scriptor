@@ -117,7 +117,7 @@ include desktop and responsive snapshots, dark/high-contrast and RTL surfaces,
 dialogs, recovery flows, settings, plugin permissions, and advanced tools.
 Screenshots document the earlier implementation; they do **not** establish
 new live screenshots or a complete end-to-end test pass for the current PR.
-The repository currently contains roughly 150 frontend TSX components,
+The repository currently contains more than 150 frontend TSX components,
 including shared shells and smaller widgets; this is an inventory-based review,
 not a claim every reachable component state was manually exercised.
 
@@ -182,3 +182,46 @@ accessibility, screen-reader, browser, or provider testing.
   credential storage, and explicitly approved writes. Faster UX must not
   silently broaden permissions.
 
+
+
+## Additional plain-language and progressive-disclosure pass — 2026-10-17
+
+A further repository inventory found **171 files under `src/components`**, 95
+under `src/hooks`, 172 under `src/lib`, 65 under `src/styles`, and 35
+checked-in PNG/JPEG/WebP screenshots under `docs/assets/screenshots`.
+These counts include source-adjacent files and do not imply that every
+component is a unique route or was interactively tested. The source and checked-in
+screenshots provide breadth; current visual behavior must still be proven by
+the branch-head browser and screenshot workflows.
+
+| Area | Plain-language change | Important behavior intentionally retained |
+| --- | --- | --- |
+| Settings (General, Appearance, Integrations, Workspace) | Replace "workspace chrome", "vault configuration" and "desktop runtime" in everyday guidance with controls, settings and saved-state language | App preferences save immediately; vault settings still require an explicit Save |
+| Empty editor and recovery | Describe picking a folder of notes and switching editor rather than abstract editor rendering | Opening/saving files and fallback editors behave as before |
+| Note history and advanced analysis | "Browse saved versions", concise daily activity guidance; optional word-history graph is collapsed | Previous revisions, comparisons and deliberate restore confirmations remain |
+| Sharing and sync | Found copies, Preview changes, Apply these changes; plan IDs and fingerprints moved to Technical details | Native authorization, expiry, inventory checks, per-operation warnings and reviewed writes remain |
+| Google Drive/Docs | One clear read-only note for older Google Docs revisions, removed duplicated accessibility note | New revisions still use the supported Drive transport; no live Docs editing is implied |
+| Google Planner/Tasks | "Review changes before syncing"; explain device-local times and separate Calendar/Tasks behavior | Existing account, event ownership, conflict and approval rules stay intact |
+| Export & Publish | Describe file format, save location and offline PDF availability | Existing export profiles, preview, cancellation and actual compilation remain |
+| Health checks and repairs | "Fix note issues", "Preview fix", user-readable file paths | Review checkbox, expected-vault identity, source-change checks and recovery receipts remain |
+| Board and knowledge collections | Show the Create board action before advanced Markdown properties; explain collections as saved groups of notes | Board format, DQL search syntax and data storage are unchanged |
+| Plugins, modules and permissions | Catalog search and direct navigation reduce discoverability burden | Plugin grants remain per vault; no enabled toggle without required consent |
+| German and Persian support | Match common English wording and keep feature/action labels localized | Same route identifiers, keyboard navigation, and right-to-left support |
+
+**Language acceptance rules:** Primary actions describe the result, not the
+implementation. Error messages say what happened and the next safe action.
+Technical identifiers, hashes, advanced metadata, and provider limitations
+remain discoverable, but should not dominate first use. Do not hide a safety
+warning, make an irreversible operation automatic, describe "connected" as
+"synced", or promise a full Gmail/Docs/Overleaf client where only partial
+features exist.
+
+The existing `scripts/validation/plain-language-ui.test.mjs` now also
+checks the revised settings, sync, history, repair, collection and board labels.
+Browser tests still own focus, accessibility and interaction behavior; a
+static text contract does not prove a screen is easy to use.
+
+**Still to verify on the current head:** full source tests, all Playwright
+flows, visual snapshots, RTL at 320–375 pixels and 200% zoom, live provider
+authentication, and the publisher-owned Google OAuth configuration. A review of
+stored screenshots is not a fresh interactive audit or a measured usability test.

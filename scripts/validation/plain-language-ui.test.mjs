@@ -103,3 +103,50 @@ test('major workflow explanations avoid internal-only language', () => {
   ]
   for (const [path, jargon] of checks) assert.doesNotMatch(read(path), jargon, path)
 })
+
+
+test('everyday settings, sharing and planning labels stay clear in all shipped languages', () => {
+  const keys = [
+    'settings.subtitle', 'settingsPanel.persistence', 'settingsPanel.workspaceChrome',
+    'settingsPanel.resetWorkspaceChrome', 'settingsPanel.saveVaultConfig',
+    'settingsPanel.configLoaded', 'settingsPanel.configSaved', 'settingsPanel.configReadFailed',
+    'editor.error.detail', 'editor.empty.openBody', 'store.layoutHint',
+    'plannerWorkspace.explanation', 'plannerWorkspace.reviewSync',
+    'appearanceSettings.blurNone', 'integrations.google.clientLifecycle',
+  ]
+  for (const key of keys) {
+    const english = get('en', key)
+    assert.equal(typeof english, 'string', `Missing English ${key}`)
+    assert.ok(english.trim(), `Empty English ${key}`)
+    for (const locale of ['de', 'fa']) {
+      const translated = get(locale, key)
+      assert.equal(typeof translated, 'string', `Missing ${locale} ${key}`)
+      assert.ok(translated.trim(), `Empty ${locale} ${key}`)
+      assert.deepEqual(placeholders(translated), placeholders(english), `Variable drift: ${locale} ${key}`)
+    }
+  }
+  const oldJargon = /workspace chrome|vault configuration|bidirectional sync|editor surface failed|desktop runtime, vault workflow/i
+  for (const key of keys) assert.doesNotMatch(get('en', key), oldJargon, `Unclear copy: ${key}`)
+  for (const locale of ['en', 'de', 'fa']) {
+    assert.match(get(locale, 'integrations.google.saveConnectionFailed'), /\{error\}/)
+  }
+})
+
+test('sync review and recovery lead with actions and hide technical details on demand', () => {
+  const sync = read('src/components/ResourceSyncPanel.tsx')
+  assert.match(sync, />Preview changes<\//)
+  assert.match(sync, />Apply these changes<\//)
+  assert.match(sync, /<details className="resource-plan-technical">/)
+  assert.doesNotMatch(sync, /Build reviewed plan|AgentStack-managed resources/)
+  const history = read('src/components/NoteHistoryPanel.tsx')
+  assert.match(history, /<details className="note-history-advanced-stats">/)
+  assert.match(history, /Browse saved versions/)
+  const repair = read('src/components/HealthRepairCards.tsx')
+  assert.match(repair, /<h3>Fix note issues<\/h3>/)
+  assert.match(repair, />Preview fix<\//)
+  const board = read('src/components/KanbanPanel.tsx')
+  assert.match(board, /<details className="kanban-advanced-help">/)
+  assert.doesNotMatch(board, /This note is not a kanban file/)
+  const collections = read('src/components/SmartCollectionsPanel.tsx')
+  assert.doesNotMatch(collections, /Persistent DQL folders/)
+})
