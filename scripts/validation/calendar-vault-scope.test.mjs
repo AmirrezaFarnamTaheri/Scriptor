@@ -75,7 +75,9 @@ function harness(remoteTasks, vaultNotes = []) {
     module, exports: module.exports,
     require: (id) => id === 'react' ? react
       : id.endsWith('/google_calendar.ts') ? commands
-        : id.endsWith('/googleAuthErrors.ts') ? { googleAuthErrorMessage: String, isGoogleAuthRequiredError: () => false } : {},
+        : id.endsWith('/googleAuthErrors.ts') ? { googleAuthErrorMessage: String, isGoogleAuthRequiredError: () => false }
+          : id.endsWith('/googleOAuthClient.ts') ? { getGoogleOAuthClientId: (legacyClientId) => legacyClientId?.trim() ?? '' }
+          : {},
   })
   const render = () => { cursor = 0; return module.exports.useGoogleCalendarSync(options) }
   return { render, options, commands, batches, calls }

@@ -210,7 +210,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         <summary>{t('integrations.google.developerSetup')}</summary>
         <label>Google OAuth desktop client ID<input value={clientIdOverride ?? googleConfig?.google_client_id ?? ''} onChange={event => setClientIdOverride(event.target.value)} disabled={busy} autoComplete="off" /></label>
       </details>}
-      {!clientId && <p className="publish-error" role="alert">{t('integrations.google.notConfigured')}</p>
+      {!clientId && <p className="publish-error" role="alert">{t('integrations.google.notConfigured')}</p>}
       <div className="collaboration-actions">
         <button disabled={busy || polling.active || polling.starting || !clientId.trim()} onClick={() => void run(async current => {
           const value = await collaborationConnect(clientId.trim())
