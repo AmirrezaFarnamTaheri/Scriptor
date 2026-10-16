@@ -1275,5 +1275,20 @@
   },
   "collaborationAtomic": {
     "legacyDocsReadOnly": "Legacy Google Docs revisions can still be read, but you cannot share new revisions using that format. Choose Drive revision files to share safely."
+  },
+  "collaborationUi": {
+    "format": "Where shared versions are saved",
+    "driveFiles": "Drive files (recommended)",
+    "legacyDocs": "Older Google Docs versions (read-only)",
+    "disconnect": "Disconnect Google Drive",
+    "autoTitle": "Check for new versions",
+    "autoExplain": "Check this folder for new versions every 30 seconds, for up to 15 minutes. No changes are made to local notes without review.",
+    "autoConsent": "Allow read-only checks for this folder",
+    "autoLimits": "Check limits and stopping conditions",
+    "autoLimitsText": "Each check reads up to 100 versions, with no more than 30 checks. Checking stops when the panel closes, notes or vaults change, the app is hidden, or three checks fail.",
+    "connected": "Connected as {{account}}",
+    "localNote": "Local note",
+    "share": "Share saved version",
+    "refresh": "Check shared versions"
   }
 }

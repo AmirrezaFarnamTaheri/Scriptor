@@ -1275,5 +1275,20 @@
   },
   "collaborationAtomic": {
     "legacyDocsReadOnly": "Ältere Google-Docs-Versionen können Sie weiter lesen, aber nicht mehr in diesem Format teilen. Wählen Sie Drive-Revisionsdateien, um neue Versionen sicher zu teilen."
+  },
+  "collaborationUi": {
+    "format": "Speicherort geteilter Versionen",
+    "driveFiles": "Drive-Dateien (empfohlen)",
+    "legacyDocs": "Ältere Google-Docs-Versionen (nur lesen)",
+    "disconnect": "Google Drive trennen",
+    "autoTitle": "Neue Versionen prüfen",
+    "autoExplain": "Diesen Ordner bis zu 15 Minuten alle 30 Sekunden auf Änderungen prüfen. Lokale Notizen werden nur nach Ihrer Prüfung verändert.",
+    "autoConsent": "Schreibgeschützte Prüfungen für diesen Ordner erlauben",
+    "autoLimits": "Grenzen und Ende der Prüfungen",
+    "autoLimitsText": "Jede Prüfung liest bis zu 100 Versionen; insgesamt bis zu 30 Prüfungen. Die Prüfung endet beim Schließen, beim Notiz- oder Tresorwechsel, beim Ausblenden der App oder nach drei Fehlern.",
+    "connected": "Verbunden mit {{account}}",
+    "localNote": "Lokale Notiz",
+    "share": "Gespeicherte Version teilen",
+    "refresh": "Geteilte Versionen prüfen"
   }
 }

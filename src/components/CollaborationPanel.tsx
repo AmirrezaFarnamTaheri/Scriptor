@@ -208,7 +208,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         <p>The last shared ancestor and this note’s peer identity are cached on this device, scoped to the confirmed Google account, vault and Drive folder. This cache includes note text; it is separate from your Markdown files and credentials.</p>
         <p>Revisions preserve local, base and remote text so overlapping changes can be resolved before applying them.</p>
       </details>
-      <label>Revision transport<select aria-label="Revision transport" value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); setTransport(event.target.value as CollaborationTransport); setPollConsent(false); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">Drive JSON revision records</option><option value="google_docs">Legacy Google Docs revisions (read-only)</option></select></label>
+      <label>{t('collaborationUi.format')}<select aria-label={t('collaborationUi.format')} value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); setTransport(event.target.value as CollaborationTransport); setPollConsent(false); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">{t('collaborationUi.driveFiles')}</option><option value="google_docs">{t('collaborationUi.legacyDocs')}</option></select></label>
       {!hasPackagedGoogleOAuthClient() && <details className="google-developer-setup">
         <summary>{t('integrations.google.developerSetup')}</summary>
         <label>Google OAuth desktop client ID<input value={clientIdOverride ?? googleConfig?.google_client_id ?? ''} onChange={event => setClientIdOverride(event.target.value)} disabled={busy} autoComplete="off" /></label>
@@ -229,7 +229,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           await persistSetup()
           if (current === epoch.current) { setMessage(copy.saved); await onApplied() }
         })}>Connect Google Drive</button>
-        <button disabled={busy || polling.starting} onClick={() => void run(async current => {
+        {account ? <button disabled={busy || polling.starting} onClick={() => void run(async current => {
           polling.stop(); await collaborationDisconnect()
           accountReadGeneration.current++
           window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', { detail: { service: 'drive', origin: current === epoch.current ? accountOrigin.current : {} } }))
@@ -239,16 +239,9 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           setPollConsent(false); setDocsConsent(false); folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
           base.current = null; peer.current = crypto.randomUUID()
           setMessage(copy.removed)
-        })}>Remove saved credential</button>
+        })}>{t('collaborationUi.disconnect')}</button> : null}
       </div>
-      <section aria-label="Shared revision polling">
-        <p>Optional automatic checks read the newest 100 revision records, at most once every 30 seconds, for up to 15 minutes or 30 checks. Checks stop when this panel closes, its note or vault changes, the window is hidden, or three checks fail. Existing merge previews and local notes remain unchanged.</p>
-        <label><input type="checkbox" checked={pollConsent} disabled={polling.active || polling.starting} onChange={event => setPollConsent(event.target.checked)} />Allow this bounded read-only polling session for the selected folder</label>
-        <button disabled={busy || polling.active || polling.starting || !pollConsent || !folderId || !vaultId || !account} onClick={() => void polling.start()}>Start automatic checks</button>
-        {(polling.active || polling.starting) && <button onClick={polling.stop}>Stop automatic checks</button>}
-        {polling.status && <p role="status">{polling.status}</p>}{polling.error && <p role="alert">{polling.error}</p>}
-      </section>
-      {account && <p>Connected: {account}</p>}
+      {account && <p role="status">{t('collaborationUi.connected', { account })}</p>
       <CollaborationResources kind="folders" resources={folders} selectedId={folderId} busy={busy || !vaultId} canAccess={Boolean(account)} hasMore={Boolean(folderPage)} onSelect={selectFolder}
         onBrowse={next => void run(current => browseResources(current, 'folders', next))} newFolderName={newFolderName} onNameChange={setNewFolderName}
         onCreate={() => void run(async current => {
@@ -258,7 +251,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           selectFolder(folder.id); setMessage(copy.folderCreated)
         })}
         onSave={() => void run(async current => { await persistSetup(); if (current === epoch.current) { setMessage(copy.bindingSaved); await onApplied() } })} />
-      <p>Mapped local note: <bdi>{path ?? 'Select a note'}</bdi></p>
+      <p>{t('collaborationUi.localNote')}: <bdi>{path ?? 'Select a note'}</bdi></p>
       {transport === 'google_docs' && <p role="note">{t('collaborationAtomic.legacyDocsReadOnly')}</p>}
       <div className="collaboration-actions">
         <button disabled={busy || !folderId || !path || !vaultId || !account || transport === 'google_docs'} onClick={() => void run(async current => {
@@ -280,8 +273,8 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           await collaborationAppend(vaultId!, folderId, record, transport)
           localStorage.removeItem(pendingKey)
           if (current === epoch.current) setMessage(`Revision shared. Local note was unchanged.${remember(note.markdown)}`)
-        })}>Share current saved revision</button>
-        <button disabled={busy || !folderId || !vaultId || !account} onClick={() => void run(current => list(current))}>Refresh shared revisions</button>
+        })}>{t('collaborationUi.share')}</button>
+        <button disabled={busy || !folderId || !vaultId || !account} onClick={() => void run(current => list(current))}>{t('collaborationUi.refresh')}</button>
         {pageToken && <button disabled={busy || rows.length >= 1000} onClick={() => void run(current => list(current, pageToken))}>Load next page</button>}
       </div>
       <ul>{rows.map(row => <li key={row.id}><button disabled={busy || !path} onClick={() => void run(async current => {
@@ -294,6 +287,15 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         setPreview({ record, ...merged, hash: local.metadata.content_hash })
       })}><bdi>{row.name}</bdi></button></li>)}</ul>
       {rows.length >= 1000 && pageToken && <p>Listing reached 1,000 revisions. Use a smaller shared folder.</p>}
+      <section className="collaboration-auto-checks" aria-label={t('collaborationUi.autoTitle')}>
+        <h3>{t('collaborationUi.autoTitle')}</h3>
+        <p>{t('collaborationUi.autoExplain')}</p>
+        <label><input type="checkbox" checked={pollConsent} disabled={polling.active || polling.starting} onChange={event => setPollConsent(event.target.checked)} />{t('collaborationUi.autoConsent')}</label>
+        <button disabled={busy || polling.active || polling.starting || !pollConsent || !folderId || !vaultId || !account} onClick={() => void polling.start()}>Start automatic checks</button>
+        {(polling.active || polling.starting) && <button onClick={polling.stop}>Stop automatic checks</button>}
+        {polling.status && <p role="status">{polling.status}</p>}{polling.error && <p role="alert">{polling.error}</p>}
+        <details className="collaboration-guidance"><summary>{t('collaborationUi.autoLimits')}</summary><p>{t('collaborationUi.autoLimitsText')}</p></details>
+      </section>
       {preview && <>
         <p>{preview.conflict ? 'Resolve every conflict marker before applying.' : 'Merge preview is ready.'} Shared {preview.record.created_at} by <bdi>{preview.record.peer_id}</bdi>.</p>
         <label>Reviewed merge<textarea rows={16} value={preview.markdown} disabled={busy} onChange={event => setPreview({ ...preview, markdown: event.target.value })} /></label>
