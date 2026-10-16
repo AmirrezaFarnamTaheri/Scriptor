@@ -38,6 +38,15 @@ function targetCanReceiveResources(target: ResourceTarget): boolean {
   return target.id === 'universal' || target.status === 'confirmed'
 }
 
+function changeLabel(kind: ResourceSyncPlan['operations'][number]['kind']): string {
+  switch (kind) {
+    case 'install': return 'Add copy'
+    case 'update': return 'Update copy'
+    case 'noop': return 'Already up to date'
+    case 'quarantine_duplicate': return 'Move extra copy aside'
+  }
+}
+
 function shortHash(value: string): string {
   return value.slice(0, 10)
 }
@@ -101,7 +110,7 @@ export function ResourceSyncPanel() {
         return preserved
       })
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not inventory agent resources')
+      setError(cause instanceof Error ? cause.message : 'Could not check connected apps and files.')
       setInventory(null)
     } finally {
       setLoading(false)
@@ -188,7 +197,7 @@ export function ResourceSyncPanel() {
         <Boxes size={30} aria-hidden="true" />
         <h3>Sharing and sync requires the desktop app</h3>
         <p>
-          Browser preview cannot inspect local applications or modify agent resources. Open the unified Scriptor desktop app to continue.
+          Open Scriptor for desktop to check installed apps and share files. This browser preview cannot access files on your computer.
         </p>
       </section>
     )
@@ -370,10 +379,10 @@ export function ResourceSyncPanel() {
                 {inventory.duplicates.map((group) => {
                   const canonicalId = group.instanceIds[0]
                   const description = group.kind === 'exact_mirror'
-                    ? 'Verified mirror across targets; keep it installed where each target needs it'
+                    ? 'These copies match across apps. Keep each one if the app needs it.'
                     : group.kind === 'redundant'
-                      ? 'Redundant exact copy inside the same target and scope'
-                      : 'Same logical identity with divergent content; manual merge required'
+                      ? 'This app has two identical copies.'
+                      : 'Copies with the same name contain different text. Compare them before replacing either.'
                   return (
                     <li key={`${group.logicalId}-${group.kind}-${group.instanceIds.join('-')}`}>
                       {group.kind === 'diverged' ? <AlertTriangle size={16} /> : <CopyCheck size={16} />}
@@ -389,11 +398,11 @@ export function ResourceSyncPanel() {
                           disabled={planning || applying}
                           onClick={() => void buildDedupPlan(canonicalId)}
                         >
-                          Review duplicate cleanup
+                          Review extra copies
                         </button>
                       ) : (
                         <span className="resource-badge protected">
-                          {group.kind === 'exact_mirror' ? 'identical copy' : 'review needed'}
+                          {group.kind === 'exact_mirror' ? 'same content' : 'copies differ'}
                         </span>
                       )}
                     </li>
@@ -435,7 +444,7 @@ export function ResourceSyncPanel() {
               <ol>
                 {plan.operations.map((operation) => (
                   <li key={operation.id}>
-                    <span className={`resource-badge ${operation.kind}`}>{operation.kind}</span>
+                    <span className={`resource-badge ${operation.kind}`}>{changeLabel(operation.kind)}</span>
                     <div>
                       <strong>{operation.summary}</strong>
                       <small>{operation.destinationPath}</small>
@@ -459,8 +468,8 @@ export function ResourceSyncPanel() {
             <section className={`resource-sync-message ${applyResult.status}`} role="status">
               <CheckCircle2 size={17} aria-hidden="true" />
               <div>
-                <strong>Sync {applyResult.status}</strong>
-                <span>{applyResult.receipts.length} operation(s) verified; {applyResult.failures.length} failure(s).</span>
+                <strong>{applyResult.status === 'completed' ? 'Sync finished' : applyResult.status === 'partial' ? 'Sync partly finished' : 'Sync could not finish'}</strong>
+                <span>{applyResult.receipts.length} steps confirmed · {applyResult.failures.length} failed</span>
                 {applyResult.failures.map((failure) => (
                   <small key={failure.operationId}>{failure.targetId}: {failure.message}</small>
                 ))}

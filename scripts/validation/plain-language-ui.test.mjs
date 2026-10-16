@@ -181,3 +181,13 @@ test('automation permissions stay readable at the narrow panel sizes in screensh
   assert.doesNotMatch(css, /\.mcp-mode-option-copy small \{[^}]*font-size: 10px;/)
   assert.ok(css.includes('overflow-wrap: anywhere;'))
 })
+
+test('resource sharing names copy differences and safe actions, not internal plan states', () => {
+  const source = read('src/components/ResourceSyncPanel.tsx')
+  for (const phrase of ['These copies match across apps', 'This app has two identical copies',
+    'Move extra copy aside', 'Sync partly finished', 'Content details']) {
+    assert.ok(source.includes(phrase), `Missing task-based resource wording: ${phrase}`)
+  }
+  assert.doesNotMatch(source, /Redundant exact copy inside the same target|Same logical identity with divergent content|Could not inventory agent resources/)
+  assert.ok(source.includes('resourceApplyPlan(plan.id, 3)'))
+})
