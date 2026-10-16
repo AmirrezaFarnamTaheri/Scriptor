@@ -25,6 +25,11 @@ for (const scenario of [
         && box.right <= window.innerWidth + 1 && box.bottom <= window.innerHeight + 1
     })).toBe(true)
     await expect(panel.getByRole('heading', { name: 'Note history', exact: true })).toBeInViewport()
+    const activitySliderRatio = await panel.locator('.note-history-activity').evaluate(element => {
+      const slider = element.querySelector('input[type="range"]')!
+      return slider.getBoundingClientRect().width / element.getBoundingClientRect().width
+    })
+    expect(activitySliderRatio).toBeGreaterThanOrEqual(0.8)
     const geometry = await panel.evaluate(element => {
       const grid = element.querySelector<HTMLElement>('.note-history-layout')!
       const activity = element.querySelector('.note-history-activity')!.getBoundingClientRect()

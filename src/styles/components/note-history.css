@@ -12,6 +12,21 @@
   grid-row: 1 / span 2;
   min-width: 0;
 }
+.note-history-activity label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.note-history-activity input[type='range'] {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
 
 .note-history-timeline {
   grid-column: 2;
