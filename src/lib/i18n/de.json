@@ -595,7 +595,8 @@
       "cache": "Cache",
       "cacheFresh": "Aktuell",
       "cacheStale": "Veraltet",
-      "cacheRebuilding": "Wird neu aufgebaut"
+      "cacheRebuilding": "Wird neu aufgebaut",
+      "showDetails": "Prüfungen anzeigen"
     },
     "previewSyncSplit": "Die geteilte Vorschau ist mit Bildlauf-Synchronisierung neben dem Editor geöffnet.",
     "previewSyncActive": "Die Bildlauf-Synchronisierung zwischen Editor und Vorschau ist aktiv.",

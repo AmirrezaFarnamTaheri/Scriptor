@@ -595,7 +595,8 @@
       "cache": "Cache",
       "cacheFresh": "Fresh",
       "cacheStale": "Stale",
-      "cacheRebuilding": "Rebuilding"
+      "cacheRebuilding": "Rebuilding",
+      "showDetails": "View checks"
     },
     "previewSyncSplit": "Split preview is open beside the editor with scroll sync.",
     "previewSyncActive": "Scroll sync is active between editor and preview.",

@@ -159,6 +159,12 @@ function InspectorRailImpl({
     () => citationRows.filter((key) => !bibliographyKeys.has(key)).length,
     [citationRows, bibliographyKeys],
   )
+  const vaultChecksClear = health !== null
+    && health.broken_links === 0
+    && health.orphan_assets === 0
+    && health.duplicate_titles === 0
+    && health.invalid_frontmatter === 0
+    && health.unresolved_citations === 0
   const handleInspectorTabKeys = useTablistKeys(INSPECTOR_TABS, activeMode, (id) => onModeChange(id as 'inspector' | 'preview' | 'plugins'))
   const presetIds = useMemo(
     () => INSPECTOR_PRESETS.map((entry) => `inspector-preset-${entry.id}`),
@@ -374,14 +380,28 @@ function InspectorRailImpl({
 
             {showInspectorHealth ? (
               <WidgetCard title={t('inspector.noteHealth')} action={healthAction} onAction={onOpenHealthDashboard}>
-                <div className="metric-grid">
-                  {healthMetrics.map(([label, value]) => (
-                    <div className="metric" key={label}>
-                      <span>{label}</span>
-                      <strong>{value}</strong>
+                {inspectorPreset === 'balanced' && vaultChecksClear ? (
+                  <details className="inspector-health-breakdown">
+                    <summary>{t('inspector.health.showDetails')}</summary>
+                    <div className="metric-grid">
+                      {healthMetrics.map(([label, value]) => (
+                        <div className="metric" key={label}>
+                          <span>{label}</span>
+                          <strong>{value}</strong>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </details>
+                ) : (
+                  <div className="metric-grid">
+                    {healthMetrics.map(([label, value]) => (
+                      <div className="metric" key={label}>
+                        <span>{label}</span>
+                        <strong>{value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </WidgetCard>
             ) : null}
 
