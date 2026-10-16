@@ -199,7 +199,7 @@
     "architecture": "Architecture",
     "family": "Family",
     "locale": "Locale",
-    "systemMetadataAvailable": "System metadata is available in the desktop shell.",
+    "systemMetadataAvailable": "App version and system details are available in the desktop app.",
     "dailyNotePreview": "Today's daily note: {{path}} — title {{title}}",
     "inboxPeriods": {
       "all": "All time",
@@ -470,7 +470,7 @@
       "insertTable": "Insert Table",
       "addRow": "Add Row",
       "addColumn": "Add Column",
-      "markOrganized": "Mark note organized (inbox triage)",
+      "markOrganized": "Mark as organized (hide from Inbox)",
       "writingTargets": "Writing Targets",
       "cheatsheet": "Markdown cheatsheet"
     },
@@ -588,7 +588,7 @@
       "good": "Good",
       "needsReview": "Needs review",
       "brokenLinks": "Broken links",
-      "orphanAssets": "Orphan assets",
+      "orphanAssets": "Unlinked files",
       "duplicateTitles": "Duplicate titles",
       "invalidFrontmatter": "Invalid frontmatter",
       "missingCitations": "Unresolved citations",
@@ -596,7 +596,7 @@
       "vaultWords": "Vault words",
       "cache": "Cache",
       "cacheFresh": "Fresh",
-      "cacheStale": "Stale",
+      "cacheStale": "Index needs updating",
       "cacheRebuilding": "Rebuilding",
       "showDetails": "View checks"
     },
@@ -1085,7 +1085,7 @@
   },
   "aiSettings": {
     "title": "AI provider (optional)",
-    "description": "Credentials are stored in the operating-system keychain. Draft proposals still require explicit MCP write approval.",
+    "description": "Provider keys are stored in your system keychain. Suggested note changes still need approval.",
     "provider": "Provider",
     "off": "Off",
     "openaiCompatible": "OpenAI-compatible HTTP API",
@@ -1111,7 +1111,7 @@
     "refreshStatus": "Refresh status",
     "startEngine": "Start engine",
     "updates": "Updates",
-    "updatesHelp": "Updates are distributed as signed, checksum-published release artifacts. Built-in updating remains disabled until an authenticated delivery channel is configured.",
+    "updatesHelp": "Scriptor does not update itself yet. Download new versions from the official Releases page and verify the publisher before installing.",
     "releaseQuality": "Release quality",
     "diagnostics": "Diagnostics",
     "storeDiagnostics": "Store local client diagnostics in .scriptor/diagnostics/client.jsonl",
@@ -1125,7 +1125,7 @@
     "family": "Family",
     "locale": "Locale",
     "unknown": "unknown",
-    "systemMetadata": "System metadata is available in the desktop shell.",
+    "systemMetadata": "App version and system details are available in the desktop app.",
     "pandocNotFound": "Pandoc not found"
   },
   "tasks": {

@@ -150,3 +150,26 @@ test('sync review and recovery lead with actions and hide technical details on d
   const collections = read('src/components/SmartCollectionsPanel.tsx')
   assert.doesNotMatch(collections, /Persistent DQL folders/)
 })
+
+test('routine editor tools and update guidance use plain, concrete language', () => {
+  const toolbar = read('src/lib/i18n/editorToolbarStrings.ts')
+  assert.match(toolbar, /'typography\\.zapGremlins': 'Remove hidden characters'/)
+  assert.match(toolbar, /'typography\\.stripDuplicateSpaces': 'Remove extra spaces'/)
+  assert.doesNotMatch(toolbar, /Zap gremlins|Strip duplicate spaces/)
+  for (const locale of ['en', 'de', 'fa']) {
+    for (const key of [
+      'advancedSettings.updatesHelp', 'advancedSettings.systemMetadata',
+      'settings.systemMetadataAvailable', 'editor.transforms.markOrganized',
+      'inspector.health.orphanAssets', 'inspector.health.cacheStale', 'aiSettings.description',
+    ]) {
+      const value = get(locale, key)
+      assert.equal(typeof value, 'string', `${locale}: ${key}`)
+      assert.ok(value.trim(), `${locale}: ${key} is empty`)
+      assert.deepEqual(placeholders(value), placeholders(get('en', key)), `${locale}: ${key} placeholders`)
+    }
+  }
+  assert.doesNotMatch(get('en', 'advancedSettings.updatesHelp'), /checksum-published release artifacts|authenticated delivery channel/i)
+  assert.doesNotMatch(get('en', 'advancedSettings.systemMetadata'), /desktop shell|system metadata/i)
+  assert.doesNotMatch(get('en', 'editor.transforms.markOrganized'), /triage/i)
+  assert.doesNotMatch(get('en', 'aiSettings.description'), /MCP write approval/i)
+})

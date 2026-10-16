@@ -196,7 +196,7 @@
     "architecture": "Architektur",
     "family": "Familie",
     "locale": "Sprache",
-    "systemMetadataAvailable": "System-Metadaten sind in der Desktop-Shell verfügbar.",
+    "systemMetadataAvailable": "App-Version und Systeminformationen finden Sie in der Desktop-App.",
     "dailyNotePreview": "Heutige Tagesnotiz: {{path}} — Titel {{title}}",
     "inboxPeriods": {
       "all": "Gesamter Zeitraum",
@@ -470,7 +470,7 @@
       "insertTable": "Tabelle einfügen",
       "addRow": "Zeile hinzufügen",
       "addColumn": "Spalte hinzufügen",
-      "markOrganized": "Notiz als sortiert markieren (Inbox-Triage)",
+      "markOrganized": "Als organisiert markieren (im Posteingang ausblenden)",
       "writingTargets": "Schreibziele",
       "cheatsheet": "Markdown-Spickzettel"
     },
@@ -588,7 +588,7 @@
       "good": "Gut",
       "needsReview": "Prüfung erforderlich",
       "brokenLinks": "Defekte Links",
-      "orphanAssets": "Verwaiste Dateien",
+      "orphanAssets": "Nicht verlinkte Dateien",
       "duplicateTitles": "Doppelte Titel",
       "invalidFrontmatter": "Ungültige Metadaten",
       "missingCitations": "Unaufgelöste Zitate",
@@ -596,7 +596,7 @@
       "vaultWords": "Wörter im Vault",
       "cache": "Cache",
       "cacheFresh": "Aktuell",
-      "cacheStale": "Veraltet",
+      "cacheStale": "Index muss aktualisiert werden",
       "cacheRebuilding": "Wird neu aufgebaut",
       "showDetails": "Prüfungen anzeigen"
     },
@@ -1085,7 +1085,7 @@
   },
   "aiSettings": {
     "title": "KI-Anbieter (optional)",
-    "description": "Zugangsdaten werden im Schlüsselbund des Betriebssystems gespeichert. Entwürfe benötigen weiterhin eine ausdrückliche MCP-Schreibfreigabe.",
+    "description": "Anbieterschlüssel bleiben im Schlüsselbund des Systems. Vorgeschlagene Notizänderungen müssen weiterhin genehmigt werden.",
     "provider": "Anbieter",
     "off": "Aus",
     "openaiCompatible": "OpenAI-kompatible HTTP-API",
@@ -1111,7 +1111,7 @@
     "refreshStatus": "Status aktualisieren",
     "startEngine": "Engine starten",
     "updates": "Updates",
-    "updatesHelp": "Updates werden als signierte Release-Artefakte mit veröffentlichten Prüfsummen verteilt. Die integrierte Aktualisierung bleibt deaktiviert, bis ein authentifizierter Auslieferungskanal eingerichtet ist.",
+    "updatesHelp": "Scriptor aktualisiert sich noch nicht automatisch. Laden Sie neue Versionen von der offiziellen Releases-Seite herunter und prüfen Sie vor der Installation den Herausgeber.",
     "releaseQuality": "Release-Qualität",
     "diagnostics": "Diagnose",
     "storeDiagnostics": "Lokale Client-Diagnose in .scriptor/diagnostics/client.jsonl speichern",
@@ -1125,7 +1125,7 @@
     "family": "Familie",
     "locale": "Sprache",
     "unknown": "unbekannt",
-    "systemMetadata": "System-Metadaten sind in der Desktop-Shell verfügbar.",
+    "systemMetadata": "App-Version und Systeminformationen finden Sie in der Desktop-App.",
     "pandocNotFound": "Pandoc nicht gefunden"
   },
   "tasks": {
