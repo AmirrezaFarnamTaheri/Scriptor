@@ -124,9 +124,12 @@ pub fn import_text_bundle(
             .map_err(|error| VaultError::InvalidConfig {
                 message: error.to_string(),
             })?;
-        let name = entry.name().map_err(|error| VaultError::InvalidConfig {
-            message: error.to_string(),
-        })?.into_owned();
+        let name = entry
+            .name()
+            .map_err(|error| VaultError::InvalidConfig {
+                message: error.to_string(),
+            })?
+            .into_owned();
         let size = entry.size();
         total_bytes = total_bytes
             .checked_add(size)
