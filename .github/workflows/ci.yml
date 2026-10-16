@@ -60,7 +60,7 @@ jobs:
           "| Source archive | PASS | - | 0 | ``source-archive.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
       - name: Upload exact source tree
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: scriptor-source-head-${{ github.event.pull_request.head.sha || github.sha }}
           path: scriptor-source.zip
@@ -81,7 +81,7 @@ jobs:
 
       - name: Upload source snapshot evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-source-snapshot-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -108,7 +108,7 @@ jobs:
           pnpm --version
 
       - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.16.0
           cache: pnpm
@@ -203,7 +203,7 @@ jobs:
 
       - name: Upload supply-chain evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-supply-chain-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -231,7 +231,7 @@ jobs:
           pnpm --version
 
       - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.16.0
           cache: pnpm
@@ -349,7 +349,7 @@ jobs:
 
       - name: Upload fast validation evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-validate-fast-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -430,7 +430,7 @@ jobs:
 
       - name: Upload Rust validation evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-validate-rust-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -457,7 +457,7 @@ jobs:
           pnpm --version
 
       - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.16.0
           cache: pnpm
@@ -537,7 +537,7 @@ jobs:
 
       - name: Upload frontend validation evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-validate-frontend-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -565,7 +565,7 @@ jobs:
           pnpm --version
 
       - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.16.0
           cache: pnpm
@@ -606,7 +606,7 @@ jobs:
 
       - name: Upload browser reports and evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-validate-browser-${{ github.run_attempt }}
           path: |
@@ -635,7 +635,7 @@ jobs:
           pnpm --version
 
       - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.16.0
           cache: pnpm
@@ -696,7 +696,7 @@ jobs:
 
       - name: Upload Windows release evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-release-smoke-windows-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -740,7 +740,7 @@ jobs:
 
       - name: Upload container evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-evidence-container-smoke-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}

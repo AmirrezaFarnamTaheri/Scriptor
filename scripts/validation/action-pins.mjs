@@ -10,9 +10,9 @@ const files = fs.readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(name)
 // the workflow reference and this lock, which prevents valid-looking SHA/comment drift.
 const approvedPins = new Map([
   ['actions/checkout@v7.0.1', '3d3c42e5aac5ba805825da76410c181273ba90b1'],
-  ['actions/setup-node@v7.0.0', '820762786026740c76f36085b0efc47a31fe5020'],
-  ['actions/upload-artifact@v7.0.1', '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'],
-  ['actions/download-artifact@v8.0.1', '3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c'],
+  ['actions/setup-node@v7.1.0', '949feb2413d6458794dcd2491c4babbbce0c15c1'],
+  ['actions/upload-artifact@v7.0.2', 'cf430e030ddbb5b0abf93d22962f4752f3646cd9'],
+  ['actions/download-artifact@v8.0.2', '9000827ccba6bdab643e8b6fd33ac0654aef8333'],
   ['actions/attest@v4.2.2', '1e69f48acb82d1966a394da916b4c1698aa569d6'],
   ['actions/upload-pages-artifact@v5.0.0', 'fc324d3547104276b827a68afc52ff2a11cc49c9'],
   ['actions/deploy-pages@v5.0.1', '368f82528645a54fb793d4d04e342629a3f51346'],

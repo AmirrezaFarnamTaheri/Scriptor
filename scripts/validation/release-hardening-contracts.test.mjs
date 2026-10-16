@@ -315,3 +315,15 @@ test('hash mismatch fixture fails only the first qualifying save', () => {
     /if\s*\(\s*window\.sessionStorage\.getItem\('e2e:hash-mismatch'\)\s*===\s*'1'\s*&&\s*body\.expectedContentHash\s*&&\s*!hashMismatchTriggered\s*\)\s*\{\s*hashMismatchTriggered\s*=\s*true[\s\S]{0,200}?throw new Error\(/,
   )
 })
+
+
+test('v1.3.1 automatic kickoff only follows successful push CI for the same default-branch commit', () => {
+  const kickoff = read('.github/workflows/release-kickoff.yml')
+  assert.match(kickoff, /workflow_run:/)
+  assert.match(kickoff, /workflows: \["CI"\]/)
+  assert.match(kickoff, /github\.event\.workflow_run\.conclusion == 'success'/)
+  assert.match(kickoff, /github\.event\.workflow_run\.event == 'push'/)
+  assert.match(kickoff, /\$GITHUB_SHA" != "\$SOURCE_SHA/)
+  assert.match(kickoff, /refs\/tags\/v1\.3\.1/)
+  assert.match(kickoff, /needs\.validate-release\.outputs\.eligible == 'true'/)
+})
