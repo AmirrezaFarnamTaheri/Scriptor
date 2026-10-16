@@ -241,7 +241,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           setMessage(copy.removed)
         })}>{t('collaborationUi.disconnect')}</button> : null}
       </div>
-      {account && <p role="status">{t('collaborationUi.connected', { account })}</p>
+      {account && <p role="status">{t('collaborationUi.connected', { account })}</p>}
       <CollaborationResources kind="folders" resources={folders} selectedId={folderId} busy={busy || !vaultId} canAccess={Boolean(account)} hasMore={Boolean(folderPage)} onSelect={selectFolder}
         onBrowse={next => void run(current => browseResources(current, 'folders', next))} newFolderName={newFolderName} onNameChange={setNewFolderName}
         onCreate={() => void run(async current => {
