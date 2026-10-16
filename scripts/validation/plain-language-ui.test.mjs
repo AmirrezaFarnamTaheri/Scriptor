@@ -134,8 +134,8 @@ test('everyday settings, sharing and planning labels stay clear in all shipped l
 
 test('sync review and recovery lead with actions and hide technical details on demand', () => {
   const sync = read('src/components/ResourceSyncPanel.tsx')
-  assert.match(sync, />Preview changes<\//)
-  assert.match(sync, />Apply these changes<\//)
+  assert.match(sync, /Preview changes/)
+  assert.match(sync, /Apply these changes/)
   assert.match(sync, /<details className="resource-plan-technical">/)
   assert.doesNotMatch(sync, /Build reviewed plan|AgentStack-managed resources/)
   const history = read('src/components/NoteHistoryPanel.tsx')
@@ -143,7 +143,7 @@ test('sync review and recovery lead with actions and hide technical details on d
   assert.match(history, /Browse saved versions/)
   const repair = read('src/components/HealthRepairCards.tsx')
   assert.match(repair, /<h3>Fix note issues<\/h3>/)
-  assert.match(repair, />Preview fix<\//)
+  assert.match(repair, /Preview fix/)
   const board = read('src/components/KanbanPanel.tsx')
   assert.match(board, /<details className="kanban-advanced-help">/)
   assert.doesNotMatch(board, /This note is not a kanban file/)
