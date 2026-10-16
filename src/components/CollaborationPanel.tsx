@@ -11,6 +11,7 @@ import { acceptGoogleResourcePage, appendGoogleResources, GOOGLE_COLLABORATION_C
 import { useI18n } from '../lib/i18n'
 import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
+import { getGoogleOAuthClientId, hasPackagedGoogleOAuthClient } from '../lib/googleOAuthClient'
 import type { VaultConfig } from '../types/vault'
 import { CollaborationResources } from './CollaborationResources'
 
@@ -31,7 +32,8 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     try { return { ...parseGoogleCollaborationSetup(googleConfig), error: '' } }
     catch (caught) { return { folderId: '', transport: 'drive_json' as const, error: caught instanceof Error ? caught.message : String(caught) } }
   })
-  const [clientId, setClientId] = useState(googleConfig?.google_client_id ?? '')
+  const [clientIdOverride, setClientIdOverride] = useState<string | null>(null)
+  const clientId = getGoogleOAuthClientId(clientIdOverride ?? googleConfig?.google_client_id)
   const [folderId, setFolderId] = useState(initial.folderId)
   const [account, setAccount] = useState('')
   const [rows, setRows] = useState<Array<{ id: string; name: string }>>([])
@@ -73,7 +75,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     setupVault.current = vaultId
     epoch.current++; operation.current++; occupied.current = false; setBusy(false)
     setFolders(null); setFolderPage(undefined); folderTokens.current.clear()
-    setNewFolderName(''); setClientId(googleConfig?.google_client_id ?? '')
+    setNewFolderName(''); setClientIdOverride(null)
     try {
       const saved = parseGoogleCollaborationSetup(googleConfig)
       setFolderId(saved.folderId); setTransport(saved.transport); setError(''); setMessage('')
@@ -195,7 +197,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   async function persistSetup() {
     if (!vaultId) throw new Error(copy.openVault)
     parseGoogleCollaborationSetup({ google_drive_folder_id: folderId, google_drive_transport: transport })
-    await mutateVaultConfig(current => ({ ...current, calendar_sync: { ...DEFAULT_VAULT_CONFIG.calendar_sync!, ...current.calendar_sync, google_client_id: clientId.trim() || current.calendar_sync?.google_client_id || null, google_drive_folder_id: folderId || null, google_drive_transport: transport } }), vaultId)
+    await mutateVaultConfig(current => ({ ...current, calendar_sync: { ...DEFAULT_VAULT_CONFIG.calendar_sync!, ...current.calendar_sync, google_client_id: hasPackagedGoogleOAuthClient() ? (current.calendar_sync?.google_client_id ?? null) : (clientId.trim() || current.calendar_sync?.google_client_id || null), google_drive_folder_id: folderId || null, google_drive_transport: transport } }), vaultId)
   }
   return <UnifiedPanelShell title="Drive collaboration" ariaLabel="Drive collaboration" helpTopic="integrations" onClose={onClose} wide>
     <div className="collaboration-panel">
@@ -204,7 +206,11 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       <p>The last shared ancestor and this note’s peer identity are cached on this device, scoped to the confirmed Google account, vault and Drive folder. This cache includes note text; it is separate from your Markdown files and credentials.</p>
       <label>Revision transport<select aria-label="Revision transport" value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); setTransport(event.target.value as CollaborationTransport); setPollConsent(false); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">Drive JSON revision records</option><option value="google_docs">Google Docs as an opaque Markdown tunnel</option></select></label>
       {transport === 'google_docs' && <p>Google Docs hosts schema-marked, checksum-verified copies of the Markdown revision bytes. Scriptor creates new records and never edits previous records. Do not edit their encoded bodies in Google Docs: edited markers, checksums, extra tabs or non-text blocks are rejected. Local Markdown remains the writing surface. Embedded asset files are not synchronized by this transport.</p>}
-      <label>Google OAuth desktop client ID<input value={clientId} onChange={event => setClientId(event.target.value)} disabled={busy} autoComplete="off" /></label>
+      {!hasPackagedGoogleOAuthClient() && <details className="google-developer-setup">
+        <summary>{t('integrations.google.developerSetup')}</summary>
+        <label>Google OAuth desktop client ID<input value={clientIdOverride ?? googleConfig?.google_client_id ?? ''} onChange={event => setClientIdOverride(event.target.value)} disabled={busy} autoComplete="off" /></label>
+      </details>}
+      {!clientId && <p className="publish-error" role="alert">{t('integrations.google.notConfigured')}</p>
       <div className="collaboration-actions">
         <button disabled={busy || polling.active || polling.starting || !clientId.trim()} onClick={() => void run(async current => {
           const value = await collaborationConnect(clientId.trim())

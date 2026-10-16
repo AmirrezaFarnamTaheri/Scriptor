@@ -4,6 +4,7 @@ import { useGoogleCalendarSync } from '../hooks/useGoogleCalendarSync'
 import { useGoogleIntegrationAccounts } from '../hooks/useGoogleIntegrationAccounts'
 import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 import { googleResourceOptions, mergeGoogleClientId } from '../lib/googleIntegrationSetup'
+import { getGoogleOAuthClientId, hasPackagedGoogleOAuthClient } from '../lib/googleOAuthClient'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import { useI18n } from '../lib/i18n'
 import type { VaultConfig } from '../types/vault'
@@ -23,12 +24,13 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
   const { t } = useI18n()
   const calendarSync = useGoogleCalendarSync({ config: config.calendar_sync, vaultId })
   const sync = config.calendar_sync ?? DEFAULT_VAULT_CONFIG.calendar_sync!
-  const clientId = sync.google_client_id ?? ''
+  const clientId = getGoogleOAuthClientId(sync.google_client_id)
   const [savingConnection, setSavingConnection] = useState(false)
   const [setupError, setSetupError] = useState<string | null>(null)
   const mounted = useRef(true)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const persistClientId = useCallback(async (value: string) => {
+    if (hasPackagedGoogleOAuthClient()) return
     try {
       await mutateVaultConfig((current) => mergeGoogleClientId({ ...current, calendar_sync: { ...DEFAULT_VAULT_CONFIG.calendar_sync!, ...current.calendar_sync } }, value), vaultId)
     } catch (caught) {
@@ -55,7 +57,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
       if (!await calendarSync.startAuth() || !mounted.current) return
       await mutateVaultConfig((current) => ({ ...current, calendar_sync: {
         ...DEFAULT_VAULT_CONFIG.calendar_sync!, ...current.calendar_sync,
-        enabled: sync.enabled, google_client_id: clientId.trim(), google_calendar_id: sync.google_calendar_id,
+        enabled: sync.enabled, google_client_id: hasPackagedGoogleOAuthClient() ? (current.calendar_sync?.google_client_id ?? null) : clientId.trim(), google_calendar_id: sync.google_calendar_id,
         google_task_list_id: sync.google_task_list_id, lookahead_days: sync.lookahead_days,
         show_events_in_tasks: sync.show_events_in_tasks, push_vault_tasks: sync.push_vault_tasks,
         capture_note_path: sync.capture_note_path,
@@ -91,11 +93,19 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
         <div><h3 id="google-integration-heading">{t('integrations.google.title')}</h3><p className="health-subtitle">{t('integrations.google.description')}</p></div>
       </div>
       <div className="integration-maturity-note" role="note"><strong>{t('integrations.google.experimental')}</strong> {t('integrations.google.security')}</div>
-      <label className="settings-field">{t('integrations.google.clientId')}
-        <input value={clientId} placeholder="1234567890-….apps.googleusercontent.com" autoComplete="off" disabled={setupBusy} onChange={(event) => patchSync({ google_client_id: event.target.value.trim() || null })} />
-      </label>
-      <p className="health-subtitle">{t('integrations.google.clientHelp')}</p>
-      <p className="health-subtitle">{t('integrations.google.clientLifecycle')}</p>
+      {hasPackagedGoogleOAuthClient()
+        ? <p className="health-subtitle" role="status">{t('integrations.google.appManaged')}</p>
+        : <>
+          {!clientId && <p className="publish-error" role="alert">{t('integrations.google.notConfigured')}</p>}
+          <details className="google-developer-setup">
+            <summary>{t('integrations.google.developerSetup')}</summary>
+            <label className="settings-field">{t('integrations.google.clientId')}
+              <input value={sync.google_client_id ?? ''} placeholder="1234567890-abc.apps.googleusercontent.com" autoComplete="off" disabled={setupBusy} onChange={(event) => patchSync({ google_client_id: event.target.value.trim() || null })} />
+            </label>
+            <p className="health-subtitle">{t('integrations.google.clientHelp')}</p>
+            <p className="health-subtitle">{t('integrations.google.clientLifecycle')}</p>
+          </details>
+        </>}
       <div className="settings-subgroup google-integration-fields" role="group" aria-labelledby="google-drive-heading">
         <h4 id="google-drive-heading">{t('integrations.google.driveDocs')}</h4>
         <p className="health-subtitle">{t('integrations.google.driveDocsHelp')}</p>
