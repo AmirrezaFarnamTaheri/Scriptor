@@ -49,7 +49,7 @@ test('normal UI exposes structured sharing state without raw process streams', (
   const mcp = read('src/components/McpPanel.tsx')
 
   assert.match(panel, /Sharing and sync/)
-  assert.match(panel, /Already installed or contained/)
+  assert.match(panel, /Found on this device/)
   assert.match(panel, /Review changes before syncing/)
   assert.doesNotMatch(panel, /stdout|stderr|npm install|pnpm install/)
   assert.match(mcp, /id: 'sharing', label: t\('mcp\.tabSharing'\)/)

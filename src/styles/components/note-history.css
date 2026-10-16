@@ -282,3 +282,8 @@
   .note-history-preview-pane { grid-column: 1; grid-row: auto; }
   .note-history-timeline { max-height: 180px; }
 }
+
+/* Word-frequency analysis is optional; restoring a saved version stays primary. */
+.note-history-advanced-stats { min-width: 0; }
+.note-history-advanced-stats > summary { cursor: pointer; min-height: 40px; padding-block: 9px; font-weight: 600; }
+.note-history-advanced-stats[open] > .vocabulary-evolution { margin-block: 12px; }

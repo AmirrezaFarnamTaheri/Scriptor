@@ -363,7 +363,7 @@ test.describe('visual review states', () => {
     // The table is the highest intrinsic-width region in this flow. Exercise it
     // directly so a future column/string change cannot widen the entire dock
     // while the top-of-panel screenshot still looks healthy.
-    const installedSection = sharing.locator('.resource-sync-section').filter({ hasText: 'Already installed or contained' }).first()
+    const installedSection = sharing.locator('.resource-sync-section').filter({ hasText: 'Found on this device' }).first()
     const tableWrap = installedSection.locator('.resource-table-wrap')
     await expect(installedSection).toBeVisible()
     await tableWrap.scrollIntoViewIfNeeded()

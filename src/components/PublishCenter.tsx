@@ -126,7 +126,7 @@ export const PublishCenter = memo(function PublishCenter({
             Export this note
           </h3>
           <p className="health-subtitle">
-            Export with a configured profile, or use the bundled offline PDF compiler.
+            Choose a file format and save location. PDF export can work without an internet connection.
           </p>
           <ul className="publish-profile-list">
             {exportProfiles.map((profile) => {
@@ -179,7 +179,7 @@ export const PublishCenter = memo(function PublishCenter({
             Compile with LaTeX (Tectonic)
           </h3>
           <p className="health-subtitle">
-            Compile the active TeX file using the self-contained Tectonic TeX engine.
+            Turn the open LaTeX file into a PDF using the built-in compiler.
           </p>
           <div className="publish-profile-actions">
             <button

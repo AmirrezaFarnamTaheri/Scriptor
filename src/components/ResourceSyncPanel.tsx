@@ -122,7 +122,7 @@ export function ResourceSyncPanel() {
     try {
       setPlan(await resourceCreatePlan(source.id, [...selectedTargetIds]))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create a reviewed sync plan')
+      setError(cause instanceof Error ? cause.message : 'Could not preview these changes. Try again.')
     } finally {
       setPlanning(false)
     }
@@ -137,7 +137,7 @@ export function ResourceSyncPanel() {
     try {
       setPlan(await resourceCreateDedupPlan(canonicalInstanceId))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create a reviewed deduplication plan')
+      setError(cause instanceof Error ? cause.message : 'Could not prepare the duplicate cleanup. Try again.')
     } finally {
       setPlanning(false)
     }
@@ -155,7 +155,7 @@ export function ResourceSyncPanel() {
       }
       setApplyResult(result)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not apply the approved sync plan')
+      setError(cause instanceof Error ? cause.message : 'Sync could not finish. Check which changes completed.')
     } finally {
       setApplying(false)
     }
@@ -192,7 +192,7 @@ export function ResourceSyncPanel() {
     <section className="resource-sync-panel" data-help-topic="resource-sync" aria-label="Sharing and sync">
       <header className="resource-sync-heading">
         <div>
-          <p className="resource-sync-eyebrow">AgentStack-managed resources</p>
+          <p className="resource-sync-eyebrow">Installed tools and shared files</p>
           <h3>Sharing and sync</h3>
           <p>
             See what's installed and where. Compare copies and review changes before syncing.
@@ -212,16 +212,16 @@ export function ResourceSyncPanel() {
       ) : null}
 
       <div className="resource-sync-stats" aria-label="Resource inventory summary">
-        <div><strong>{confirmedTargets}</strong><span>confirmed apps and CLIs</span></div>
-        <div><strong>{inventory?.resources.length ?? 0}</strong><span>installed resources</span></div>
-        <div><strong>{managedResources}</strong><span>AgentStack-managed</span></div>
-        <div><strong>{redundantDuplicates}</strong><span>redundant duplicate groups</span></div>
+        <div><strong>{confirmedTargets}</strong><span>apps found</span></div>
+        <div><strong>{inventory?.resources.length ?? 0}</strong><span>items found</span></div>
+        <div><strong>{managedResources}</strong><span>managed items</span></div>
+        <div><strong>{redundantDuplicates}</strong><span>extra copy groups</span></div>
       </div>
 
       {loading && !inventory ? (
         <div className="resource-sync-loading" role="status">
           <LoaderCircle className="spin" size={20} />
-          Identifying executables, configuration roots, scopes, and resource fingerprints…
+          Checking installed apps and shared files…
         </div>
       ) : null}
 
@@ -279,12 +279,12 @@ export function ResourceSyncPanel() {
           <section className="resource-sync-section">
             <div className="resource-sync-section-heading">
               <div>
-                <h4>Already installed or contained</h4>
-                <p>Review where each copy is installed and whether Scriptor manages it.</p>
+                <h4>Found on this device</h4>
+                <p>Choose the copy you want to share. Nothing is changed until you approve.</p>
               </div>
             </div>
             {inventory.resources.length === 0 ? (
-              <p className="resource-sync-empty-row">No validated skills were found in the known resource roots.</p>
+              <p className="resource-sync-empty-row">No shared items found in the locations Scriptor checks.</p>
             ) : (
               <div className="resource-table-wrap">
                 <table className="resource-table">
@@ -349,7 +349,7 @@ export function ResourceSyncPanel() {
               </div>
             </div>
             {inventory.duplicates.length === 0 ? (
-              <p className="resource-sync-empty-row">No duplicate logical identities were found.</p>
+              <p className="resource-sync-empty-row">No duplicate copies found.</p>
             ) : (
               <ul className="resource-duplicate-list">
                 {inventory.duplicates.map((group) => {
@@ -374,11 +374,11 @@ export function ResourceSyncPanel() {
                           disabled={planning || applying}
                           onClick={() => void buildDedupPlan(canonicalId)}
                         >
-                          Review dedup plan
+                          Review duplicate cleanup
                         </button>
                       ) : (
                         <span className="resource-badge protected">
-                          {group.kind === 'exact_mirror' ? 'synced mirror' : 'review required'}
+                          {group.kind === 'exact_mirror' ? 'identical copy' : 'review needed'}
                         </span>
                       )}
                     </li>
@@ -402,18 +402,21 @@ export function ResourceSyncPanel() {
               onClick={() => void buildPlan()}
             >
               {planning ? <LoaderCircle className="spin" size={15} /> : <ShieldCheck size={15} />}
-              Build reviewed plan
+              Preview changes
             </button>
           </section>
 
           {plan ? (
             <section className="resource-sync-section resource-plan" aria-label="Synchronization plan">
-              <div className="resource-plan-meta">
-                <div><span>Plan</span><code>{plan.id}</code></div>
-                <div><span>Inventory</span><code>{shortHash(plan.inventoryFingerprint)}</code></div>
-                <div><span>Plan fingerprint</span><code>{shortHash(plan.planFingerprint)}</code></div>
-                <div><span>Expires</span><time>{new Date(plan.expiresAtMs).toLocaleTimeString()}</time></div>
-              </div>
+              <p className="resource-plan-expiry">Review before <time>{new Date(plan.expiresAtMs).toLocaleTimeString()}</time>.</p>
+              <details className="resource-plan-technical">
+                <summary>Technical details</summary>
+                <div className="resource-plan-meta">
+                  <div><span>Plan ID</span><code>{plan.id}</code></div>
+                  <div><span>Inventory check</span><code>{shortHash(plan.inventoryFingerprint)}</code></div>
+                  <div><span>Plan check</span><code>{shortHash(plan.planFingerprint)}</code></div>
+                </div>
+              </details>
               <ol>
                 {plan.operations.map((operation) => (
                   <li key={operation.id}>
@@ -432,7 +435,7 @@ export function ResourceSyncPanel() {
               ) : null}
               <button type="button" className="primary-button" disabled={applying} onClick={() => void applyPlan()}>
                 {applying ? <LoaderCircle className="spin" size={15} /> : <CheckCircle2 size={15} />}
-                Approve and apply once
+                Apply these changes
               </button>
             </section>
           ) : null}
@@ -441,7 +444,7 @@ export function ResourceSyncPanel() {
             <section className={`resource-sync-message ${applyResult.status}`} role="status">
               <CheckCircle2 size={17} aria-hidden="true" />
               <div>
-                <strong>Plan {applyResult.status}</strong>
+                <strong>Sync {applyResult.status}</strong>
                 <span>{applyResult.receipts.length} operation(s) verified; {applyResult.failures.length} failure(s).</span>
                 {applyResult.failures.map((failure) => (
                   <small key={failure.operationId}>{failure.targetId}: {failure.message}</small>
