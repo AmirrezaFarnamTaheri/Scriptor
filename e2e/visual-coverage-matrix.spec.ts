@@ -237,9 +237,9 @@ test.describe('visual coverage matrix', () => {
 
     const resolver = page.getByRole('dialog', { name: 'Resolve merge conflicts' })
     await expectDarkSurface(resolver)
-    await expect(resolver.getByRole('button', { name: 'Apply resolved file' })).toBeDisabled()
-    await resolver.getByRole('radio', { name: 'Keep theirs', exact: true }).check()
-    await expect(resolver.getByRole('button', { name: 'Apply resolved file' })).toBeEnabled()
+    await expect(resolver.getByRole('button', { name: 'Apply selected changes' })).toBeDisabled()
+    await resolver.getByRole('radio', { name: 'Keep incoming changes', exact: true }).check()
+    await expect(resolver.getByRole('button', { name: 'Apply selected changes' })).toBeEnabled()
   })
 
   test('long localized workspace chrome never produces page-level horizontal scrolling', async ({ page }) => {

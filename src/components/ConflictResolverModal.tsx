@@ -91,15 +91,15 @@ export const ConflictResolverModal = memo(function ConflictResolverModal({
       >
         <header>
           <div>
-            <h2>Resolve merge conflicts</h2>
-            <p>Choose a resolution for every conflict. Nothing is selected automatically.</p>
+            <h2>Choose which changes to keep</h2>
+            <p>Choose a version for each conflicting section. Review the result before applying it. Nothing is selected automatically.</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
             <X />
           </button>
         </header>
         <p>
-          <strong>{path}</strong>
+          <strong><bdi>{path}</bdi></strong>
         </p>
 
         {parsed.hunks.length === 0 ? (
@@ -132,17 +132,17 @@ export const ConflictResolverModal = memo(function ConflictResolverModal({
                             checked={choices[hunk.id] === choice}
                             onChange={() => setHunkChoice(hunk.id, choice)}
                           />
-                          {choice === 'base' ? 'Ancestor' : choice === 'ours' ? 'Keep ours' : 'Keep theirs'}
+                          {choice === 'base' ? 'Keep earlier version' : choice === 'ours' ? 'Keep current changes' : 'Keep incoming changes'}
                         </label>
                       ))}
                     </fieldset>
                   </header>
                   <div className={`conflict-preview-grid${hunk.base !== undefined ? ' conflict-preview-grid-3' : ''}`}>
                     {hunk.base !== undefined ? (
-                      <NumberedConflictBlock title="Ancestor" text={hunk.base} tone="base" />
+                      <NumberedConflictBlock title="Earlier version" text={hunk.base} tone="base" />
                     ) : null}
-                    <NumberedConflictBlock title="Ours" text={hunk.ours} startLine={hunk.startLine + 1} tone="ours" />
-                    <NumberedConflictBlock title="Theirs" text={hunk.theirs} startLine={hunk.startLine + 1} tone="theirs" />
+                    <NumberedConflictBlock title="Current file" text={hunk.ours} startLine={hunk.startLine + 1} tone="ours" />
+                    <NumberedConflictBlock title="Incoming file" text={hunk.theirs} startLine={hunk.startLine + 1} tone="theirs" />
                   </div>
                 </section>
               )
@@ -152,9 +152,9 @@ export const ConflictResolverModal = memo(function ConflictResolverModal({
 
         {basePreview && parsed.hunks.every((hunk) => hunk.base === undefined) ? (
           <details className="conflict-ancestor-reference">
-            <summary>View whole-file common ancestor</summary>
+            <summary>Show the earlier version of the whole file</summary>
             <p className="health-subtitle">
-              Reference only. It is not mapped to individual conflicts unless exact diff3 ancestor markers are present.
+              For reference only. You can select an earlier version for a conflict only if that version is included in the conflict.
             </p>
             <pre className="numbered-conflict-pre conflict-ancestor-body">{basePreview}</pre>
           </details>
@@ -162,7 +162,7 @@ export const ConflictResolverModal = memo(function ConflictResolverModal({
 
         <section className="conflict-merged-preview">
           <div className="conflict-merged-preview-heading">
-            <h3>Merged preview</h3>
+            <h3>Result preview</h3>
             {unresolvedCount > 0 ? (
               <span className="conflict-unresolved-status" role="status">
                 <AlertTriangle size={14} />
@@ -178,10 +178,10 @@ export const ConflictResolverModal = memo(function ConflictResolverModal({
         <footer className="conflict-resolver-actions">
           <div className="conflict-bulk-actions" role="group" aria-label="Bulk resolution choices">
             <button type="button" className="toolbar-button" disabled={isBusy || parsed.hunks.length === 0} onClick={() => chooseAll('ours')}>
-              Choose ours for all
+              Keep current changes in all sections
             </button>
             <button type="button" className="toolbar-button" disabled={isBusy || parsed.hunks.length === 0} onClick={() => chooseAll('theirs')}>
-              Choose theirs for all
+              Keep incoming changes in all sections
             </button>
           </div>
           <button
@@ -190,7 +190,7 @@ export const ConflictResolverModal = memo(function ConflictResolverModal({
             disabled={isBusy || !allResolved}
             onClick={() => onResolveMerged(mergedPreview)}
           >
-            Apply resolved file
+            Apply selected changes
           </button>
         </footer>
       </section>

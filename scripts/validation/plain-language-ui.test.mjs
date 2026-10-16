@@ -191,3 +191,27 @@ test('resource sharing names copy differences and safe actions, not internal pla
   assert.doesNotMatch(source, /Redundant exact copy inside the same target|Same logical identity with divergent content|Could not inventory agent resources/)
   assert.ok(source.includes('resourceApplyPlan(plan.id, 3)'))
 })
+
+test('conflict resolution gives readable choices without changing the underlying ours/theirs semantics', () => {
+  const source = read('src/components/ConflictResolverModal.tsx')
+  for (const label of ['Keep current changes', 'Keep incoming changes', 'Keep earlier version',
+    'Result preview', 'Apply selected changes']) {
+    assert.ok(source.includes(label), `Missing plain-language conflict choice: ${label}`)
+  }
+  assert.doesNotMatch(source, /Keep ours|Keep theirs|Choose ours for all|Choose theirs for all/)
+  assert.match(source, /onResolveMerged\(mergedPreview\)/)
+  assert.match(source, /chooseAll\('ours'\)/)
+  assert.match(source, /chooseAll\('theirs'\)/)
+})
+
+test('backup recovery and snippets have honest confirmation and name-collision guards', () => {
+  const backup = read('src/components/VaultBackupSettings.tsx')
+  const snippets = read('src/components/SnippetsPanel.tsx')
+  assert.match(backup, /setPendingAction\(\{ name: entry\.name, action: 'restore' \}\)/)
+  assert.match(backup, /setPendingAction\(\{ name: entry\.name, action: 'delete' \}\)/)
+  assert.match(backup, /<MutationConfirmation/)
+  assert.match(snippets, /snippetNameTaken/)
+  assert.match(snippets, /nextAvailableSnippetName/)
+  assert.match(snippets, /Discard unsaved snippet edits/)
+  assert.doesNotMatch(backup, /DR backup|legacy\/unverified/)
+})
