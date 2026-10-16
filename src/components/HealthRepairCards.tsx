@@ -102,7 +102,7 @@ export function HealthRepairCards({ expectedVaultId, issues, onRepairsApplied, r
     <p>{descriptions[kind]}</p>
     <label>{kind === 'prune_asset' ? 'File' : 'Note'} path in this vault<input value={path} disabled={busy || !native} placeholder={kind === 'prune_asset' ? 'assets/image.png' : 'Research/New note.md'} onChange={event => { resetReview(); setPath(event.target.value) }} /></label>
     {suggestions.length ? <div className="health-repair-suggestions" aria-label="Paths from current diagnostics">{suggestions.map(value => <button type="button" className="toolbar-button" key={value} disabled={busy || !native} onClick={() => { resetReview(); setPath(value) }}>{value}</button>)}</div> : null}
-    <button type="button" className="toolbar-button" disabled={!native || busy || !path.trim()} onClick={() => void review()}>{busy ? 'Working…' : 'Review repair plan'}</button>
+    <button type="button" className="toolbar-button" disabled={!native || busy || !path.trim()} onClick={() => void review()}>{busy ? 'Working…' : 'Preview fix'}</button>
     {plan ? <section className="health-repair-preview" aria-label="Repair plan">
       <strong>{labels[plan.request.kind]}: {plan.request.path}</strong>
       <p>{plan.request.kind === 'prune_asset' ? `${plan.changes[0].bytes.toLocaleString()} bytes will be removed from the working vault and retained in recovery. ${plan.scan?.notes ?? 0} notes were included in the complete reference scan.` : 'Review the exact content before applying. Changed sources require a new plan.'}</p>
