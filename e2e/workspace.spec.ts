@@ -80,6 +80,27 @@ test.describe('workspace flows', () => {
     await expect(page.locator('.command-palette-overlay')).toBeVisible()
   })
 
+  for (const locale of ['de', 'fa'] as const) {
+    test(`mobile navigation is localized and accessible in ${locale}`, async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 812 })
+      await page.addInitScript(value => localStorage.setItem('scriptor:locale', value), locale)
+      await launchApp(page)
+      const navigation = page.getByRole('navigation', {
+        name: locale === 'de' ? 'Mobile-Arbeitsbereich-Navigation' : 'پیمایش محیط کاری موبایل',
+      })
+      await expect(navigation).toBeVisible()
+      const commandName = locale === 'de' ? 'Befehl' : 'فرمان'
+      const command = navigation.getByRole('button', { name: commandName, exact: true })
+      await expect(command).toBeVisible()
+      await command.click()
+      await expect(page.locator('.command-palette-overlay')).toBeVisible()
+      await page.keyboard.press('Escape')
+      await navigation.getByRole('button', { name: locale === 'de' ? 'Plugins' : 'افزونه‌ها' }).click()
+      await expect(navigation.getByRole('button', { name: locale === 'de' ? 'Plugins' : 'افزونه‌ها' }))
+        .toHaveAttribute('aria-current', 'page')
+    })
+  }
+
   test('workspace session persists open tabs', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
