@@ -149,7 +149,7 @@ export const PublishCenter = memo(function PublishCenter({
                     type="button"
                     className="toolbar-button"
                     disabled={!activePath || isExporting || profile.id === 'pdf-offline' || profile.id === 'pdf-translate'}
-                    title="Validate the export command and inputs without writing an artifact"
+                    title="Check export settings without creating a file"
                     onClick={() => onExport(profile.id, true)}
                   >
                     Preview export
@@ -313,7 +313,7 @@ export const PublishCenter = memo(function PublishCenter({
         {exportResult && !exportResult.dry_run ? (
           <section className="publish-center-section">
             <h3>Latest file export</h3>
-            <p className="health-subtitle">Artifact written to disk.</p>
+            <p className="health-subtitle">Exported file saved.</p>
             <code className="publish-artifact">{exportResult.artifact_path}</code>
           </section>
         ) : null}

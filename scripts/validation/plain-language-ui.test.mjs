@@ -8,7 +8,7 @@ const messages = Object.fromEntries(
   ['en', 'de', 'fa'].map(locale => [locale, JSON.parse(read(`src/lib/i18n/${locale}.json`))]),
 )
 const get = (locale, path) => path.split('.').reduce((value, part) => value?.[part], messages[locale])
-const placeholders = (value) => [...new Set([...value.matchAll(/\\{\\{(\\w+)\\}\\}/g)].map(match => match[1]))].sort()
+const placeholders = (value) => [...new Set([...value.matchAll(/\{\{(\w+)\}\}/g)].map(match => match[1]))].sort()
 
 test('all note-exploration entry points share one short localized name', () => {
   for (const locale of ['en', 'de', 'fa']) {
@@ -36,7 +36,7 @@ test('prominent help text favors actions over implementation jargon in every loc
     'themeCustomizer.livePreview', 'themeCustomizer.loadPreset',
     'advancedSettings.description',
   ]
-  const forbidden = /\\b(workbench|chrome|runtime|canonical|triage|fidelity|snapshot|metadata|graph-assisted)\\b|real-time interactive live preview|default inspector layout|OAuth connection status/i
+  const forbidden = /\b(workbench|chrome|runtime|canonical|triage|fidelity|snapshot|metadata|graph-assisted)\b|real-time interactive live preview|default inspector layout|OAuth connection status/i
   for (const key of paths) {
     const english = get('en', key)
     assert.equal(typeof english, 'string', `missing English ${key}`)

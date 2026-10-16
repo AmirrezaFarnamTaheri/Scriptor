@@ -213,7 +213,7 @@ for (const viewport of viewports) {
     const create = palettes.getByRole('button', { name: 'Create Custom Palette', exact: true })
     await expectReachable(create)
     await create.click()
-    const dialog = page.getByRole('dialog', { name: 'Theme Customizer & Builder', exact: true })
+    const dialog = page.getByRole('dialog', { name: 'Color theme editor', exact: true })
     const card = dialog.locator('.customizer-modal')
     await settleLayout(page)
     await expectFullBounds(card)
@@ -302,14 +302,14 @@ for (const viewport of viewports) {
     })
   }
 
-  // These commands now open embedded panels in Knowledge workbench. Cover the
+  // These commands now open embedded panels in Explore notes. Cover the
   // supported routes without claiming standalone SavedViews/TagBrowser coverage.
   for (const command of ['Saved views', 'Browse tags']) {
     test(`${command} remains reachable in its workbench at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
       await prepare(page, viewport)
-      const dialog = await openCommand(page, command, 'Knowledge workbench')
+      const dialog = await openCommand(page, command, 'Explore notes')
       await expectFullBounds(dialog)
-      const close = dialog.getByRole('button', { name: 'Close Knowledge workbench', exact: true })
+      const close = dialog.getByRole('button', { name: 'Close Explore notes', exact: true })
       await expectFullBounds(close)
       if (command === 'Saved views') {
         await expect(dialog.getByRole('tab', { name: 'Views', exact: true })).toHaveAttribute('aria-selected', 'true')

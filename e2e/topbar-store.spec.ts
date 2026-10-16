@@ -121,8 +121,8 @@ test.describe('top bar customization and support', () => {
     await runCommand(page, 'Open built-in modules')
     const modules = page.getByRole('dialog', { name: 'Built-in modules' })
     await expect(modules).toBeVisible()
-    await expect(modules.getByText('Installer Profile Preset:')).toBeVisible()
-    await expect(modules.getByRole('button', { name: 'Open runtime plugin marketplace' })).toBeVisible()
+    await expect(modules.getByText('Feature set:')).toBeVisible()
+    await expect(modules.getByRole('button', { name: 'Browse plugins' })).toBeVisible()
     await expect(modules.getByText('Category Filter:')).toHaveCount(0)
     await modules.getByRole('button', { name: 'Close' }).click()
 
@@ -139,8 +139,8 @@ test.describe('top bar customization and support', () => {
     await expect(palettes).toBeVisible()
     await expect(palettes.getByText('Category Filter:')).toBeVisible()
     await expect(palettes.getByRole('button', { name: 'Create Custom Palette' })).toBeVisible()
-    await expect(palettes.getByRole('button', { name: 'Open runtime plugin marketplace' })).toHaveCount(0)
-    await expect(palettes.getByText('Installer Profile Preset:')).toHaveCount(0)
+    await expect(palettes.getByRole('button', { name: 'Browse plugins' })).toHaveCount(0)
+    await expect(palettes.getByText('Feature set:')).toHaveCount(0)
   })
 
   test('Appearance prioritizes editor typography and keeps niche options expandable', async ({ page }) => {

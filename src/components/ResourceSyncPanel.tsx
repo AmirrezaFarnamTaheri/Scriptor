@@ -195,7 +195,7 @@ export function ResourceSyncPanel() {
           <p className="resource-sync-eyebrow">AgentStack-managed resources</p>
           <h3>Sharing and sync</h3>
           <p>
-            Inventory what is contained and installed, compare canonical identities, and review every connection or synchronization change before it runs.
+            See what's installed and where. Compare copies and review changes before syncing.
           </p>
         </div>
         <button type="button" className="toolbar-button" onClick={() => void refresh()} disabled={loading}>
@@ -231,7 +231,7 @@ export function ResourceSyncPanel() {
             <div className="resource-sync-section-heading">
               <div>
                 <h4>Applications, IDEs, and CLIs</h4>
-                <p>“Confirmed” requires executable, application, or installed-extension identity. Configuration-only evidence remains explicitly labeled.</p>
+                <p>Verified apps were found on this device. Entries found only in settings are marked separately.</p>
               </div>
             </div>
             <div className="resource-target-grid">
@@ -280,7 +280,7 @@ export function ResourceSyncPanel() {
             <div className="resource-sync-section-heading">
               <div>
                 <h4>Already installed or contained</h4>
-                <p>Each physical instance keeps its target, scope, path, ownership, and normalized content hash.</p>
+                <p>Review where each copy is installed and whether Scriptor manages it.</p>
               </div>
             </div>
             {inventory.resources.length === 0 ? (
@@ -290,7 +290,7 @@ export function ResourceSyncPanel() {
                 <table className="resource-table">
                   <thead>
                     <tr>
-                      <th>Canonical resource</th>
+                      <th>Resource</th>
                       <th>Target</th>
                       <th>State</th>
                       <th>Fingerprint</th>
@@ -344,8 +344,8 @@ export function ResourceSyncPanel() {
           <section className="resource-sync-section">
             <div className="resource-sync-section-heading">
               <div>
-                <h4>Duplicate analysis</h4>
-                <p>Exact and diverged resources are separated. Nothing is deleted automatically.</p>
+                <h4>Compare duplicates</h4>
+                <p>Compare identical and changed copies. Nothing is deleted automatically.</p>
               </div>
             </div>
             {inventory.duplicates.length === 0 ? (
@@ -390,9 +390,9 @@ export function ResourceSyncPanel() {
 
           <section className="resource-sync-section resource-plan-builder">
             <div>
-              <h4>Reviewed synchronization plan</h4>
+              <h4>Review changes before syncing</h4>
               <p>
-                Plans are bound to the current inventory fingerprint. If any source or destination changes, application stops and requires a new review.
+                If a source or destination changes after review, syncing stops until you review again.
               </p>
             </div>
             <button

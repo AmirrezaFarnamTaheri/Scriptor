@@ -158,8 +158,8 @@ test.describe('visual coverage matrix', () => {
     await closeSurface(graph)
 
     await openCommandPalette(page)
-    await runCommand(page, 'Open knowledge workbench')
-    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+    await runCommand(page, 'Explore notes')
+    const workbench = page.getByRole('dialog', { name: 'Explore notes' })
     await expectDarkSurface(workbench)
     await closeSurface(workbench)
 
@@ -341,8 +341,8 @@ test.describe('visual coverage matrix', () => {
     await settleLayout(page)
 
     await openCommandPalette(page)
-    await runCommand(page, 'Open knowledge workbench')
-    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+    await runCommand(page, 'Explore notes')
+    const workbench = page.getByRole('dialog', { name: 'Explore notes' })
     await expect(workbench).toBeVisible()
 
     const orphanTab = workbench.getByRole('tab', { name: /Orphans \(3\)/ })

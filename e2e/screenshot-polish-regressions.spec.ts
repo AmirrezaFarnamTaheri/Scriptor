@@ -149,8 +149,8 @@ test('palette search focus ring has clearance on all sides', async ({ page }) =>
 
 test('collections keep compact rows and themed selection controls', async ({ page }) => {
   await prepare(page)
-  await openPanel(page, 'Open knowledge workbench')
-  const workbench = page.getByRole('dialog', { name: 'Knowledge workbench', exact: true })
+  await openPanel(page, 'Explore notes')
+  const workbench = page.getByRole('dialog', { name: 'Explore notes', exact: true })
   await workbench.getByRole('tab', { name: 'Collections', exact: true }).click()
   const rows = workbench.locator('.smart-collection')
   await expect(rows).toHaveCount(3)
@@ -165,8 +165,8 @@ test('collections keep compact rows and themed selection controls', async ({ pag
 
 test('saved views actions have themed bounds and separated presets', async ({ page }) => {
   await prepare(page)
-  await openPanel(page, 'Open knowledge workbench')
-  const workbench = page.getByRole('dialog', { name: 'Knowledge workbench', exact: true })
+  await openPanel(page, 'Explore notes')
+  const workbench = page.getByRole('dialog', { name: 'Explore notes', exact: true })
   await workbench.getByRole('tab', { name: 'Views', exact: true }).click()
   const style = await controlStyle(workbench.getByRole('button', { name: 'Open Database Studio', exact: true }))
   expect(style.height).toBeGreaterThanOrEqual(36)

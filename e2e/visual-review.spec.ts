@@ -499,9 +499,9 @@ test.describe('visual review states', () => {
     })
     await openVisualWorkspace(page)
     await openCommandPalette(page)
-    await runCommand(page, 'Open knowledge workbench')
+    await runCommand(page, 'Explore notes')
 
-    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+    const workbench = page.getByRole('dialog', { name: 'Explore notes' })
     await expect(workbench).toBeVisible()
     const orphanTab = workbench.getByRole('tab', { name: /Orphans \(3\)/ })
     await orphanTab.click()
@@ -1730,7 +1730,7 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Open built-in modules')
     const modules = page.getByRole('dialog', { name: 'Built-in modules', exact: true })
     await expect(modules).toBeVisible()
-    await expect(modules.getByText('Installer Profile Preset:')).toBeVisible()
+    await expect(modules.getByText('Feature set:')).toBeVisible()
     expect(await modules.evaluate(element =>
       element.querySelector('.plugin-marketplace-link')!.getBoundingClientRect().top
       - element.querySelector('.plugin-manager-header')!.getBoundingClientRect().bottom,
@@ -1810,11 +1810,11 @@ test.describe('visual review states', () => {
     await captureElement(page, rename, 'visual-rename-preview.png')
   })
 
-  test('Knowledge workbench tab evidence', async ({ page }) => {
+  test('Explore notes tab evidence', async ({ page }) => {
     await openVisualWorkspace(page)
     await openCommandPalette(page)
-    await runCommand(page, 'Open knowledge workbench')
-    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench', exact: true })
+    await runCommand(page, 'Explore notes')
+    const workbench = page.getByRole('dialog', { name: 'Explore notes', exact: true })
     await expect(workbench).toBeVisible()
 
     const states = [
@@ -1889,9 +1889,9 @@ test.describe('visual review states', () => {
     await captureElement(page, palettes, 'visual-color-palettes.png')
 
     await createPalette.click()
-    const themeCustomizer = page.getByRole('dialog', { name: 'Theme Customizer & Builder', exact: true })
+    const themeCustomizer = page.getByRole('dialog', { name: 'Color theme editor', exact: true })
     await expect(themeCustomizer).toBeVisible()
-    await expect(themeCustomizer.getByRole('heading', { name: 'Custom Theme Builder & Color Editor', exact: true })).toBeVisible()
+    await expect(themeCustomizer.getByRole('heading', { name: 'Create a color theme', exact: true })).toBeVisible()
     await expect(themeCustomizer.getByRole('button', { name: 'Create New Theme', exact: true })).toBeVisible()
     await captureElement(page, themeCustomizer, 'visual-theme-customizer.png')
   })
