@@ -1018,7 +1018,8 @@
     "editorLineHeight": "ارتفاع خط ویرایشگر",
     "editorPadding": "فاصله کناری ویرایشگر (px)",
     "previewWidth": "بیشینه عرض پیش‌نمایش Split/Inspector (ch)",
-    "managePalettes": "مدیریت پالت‌های رنگی"
+    "managePalettes": "مدیریت پالت‌های رنگی",
+    "advanced": "تنظیمات پیشرفتهٔ ظاهر و فاصله‌گذاری"
   },
   "settingsPanel": {
     "tabs": {

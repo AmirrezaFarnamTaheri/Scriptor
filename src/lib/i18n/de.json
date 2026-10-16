@@ -1018,7 +1018,8 @@
     "editorLineHeight": "Editor-Zeilenhöhe",
     "editorPadding": "Editor-Seitenabstand (px)",
     "previewWidth": "Maximale Breite für Split-/Inspektor-Vorschau (ch)",
-    "managePalettes": "Farbpaletten verwalten"
+    "managePalettes": "Farbpaletten verwalten",
+    "advanced": "Erweiterte Darstellung und Abstände"
   },
   "settingsPanel": {
     "tabs": {
