@@ -107,3 +107,78 @@ progressive help. Full branch CI/visual checks, native packaging and live
 account tests are separate gates; list them by outcome rather than describing
 them as passed in advance. The public production OAuth client ID must be
 registered and configured before these desktop builds can ship.
+
+## Extended product-wide visual and language review
+
+This continuation also inspected all **nine checked-in September 24 contact
+sheets** at `e2e/visual-review/2026-09-24/contact-sheets/sheet-01.png`
+through `sheet-09.png`, which index **129 numbered visual states**. They
+include desktop and responsive snapshots, dark/high-contrast and RTL surfaces,
+dialogs, recovery flows, settings, plugin permissions, and advanced tools.
+Screenshots document the earlier implementation; they do **not** establish
+new live screenshots or a complete end-to-end test pass for the current PR.
+The repository currently contains roughly 150 frontend TSX components,
+including shared shells and smaller widgets; this is an inventory-based review,
+not a claim every reachable component state was manually exercised.
+
+| Area / indexed screenshot states | Evidence-backed UX issue or risk | Current PR response / further gate |
+| --- | --- | --- |
+| Workspace, top bar and 320–200%-zoom views (025–030, 080–084, 120–128) | Compact layouts repeat a global command row despite bottom Command navigation; desktop chrome is dense | Removed duplicate mobile command search and localized mobile navigation; re-capture actual screens at 320, 375, 768, 1024 and 200% zoom |
+| First-run guidance and help (016, 060–063, 088) | Seven explanatory steps interrupt entry into writing; help copy includes unnecessary technical terms | Three optional steps with Escape/Close/Skip; readable settings/help entry points; verify focus and exit paths |
+| Empty editor, note tabs and editor recovery (004, 049–053, 082–084) | "Open another vault" appears even when a vault is already available; recovery labels need action-first copy | Empty editor now offers Find a note; toolbar/editor behavior and save/conflict protection remain unchanged |
+| Note search, sidebar and inbox (065, 075, 114, 120–121) | Similar discovery actions are distributed among sidebar, command search, knowledge tools and templates | "Explore notes" is the consistent exploratory destination; searching keeps the original command and keyboard routes |
+| Inspector, preview and status dock (007, 013, 023–024, 045–048, 067, 118–119) | Healthy state filled with eight mostly-zero tiles and could inaccurately report Good while other health checks fail | Healthy metrics collapse on demand; health badge now considers links, assets, titles, frontmatter, citations, slow exports and index freshness |
+| Knowledge workbench, saved views, tags and repair (009, 070–074) | "Workbench", "triage", and "graph-assisted curation" are opaque starting points | Main destination is "Explore notes"; saved searches and repair actions use shorter, task-based labels. Preserve DQL as an advanced query format |
+| Graph and layout controls (006, 058–059) | A three-note graph occupied a tiny region of a large blank stage | Sparse SVG graph views now frame the nodes to fill more of the stage while preserving node coordinates and link geometry; validate visual/keyboard behavior |
+| Canvas, notes and drawing tools (001, 033–035, 111, 115) | Blank canvas first-open guidance and many formatting controls can compete for attention | Existing focused editor presets retained; targeted canvas placement guidance and zoom parity remain opportunities requiring fresh screenshots |
+| Task list, planner and Kanban (023, 068–069, 113) | Board/task state and provider sync are easy to conflate | Simplified sync explanation but preserved review/approval boundary; test transitions across Notes, Calendar and task cards before further redesign |
+| Reader and annotations (095–098) | Narrow reader and annotation controls consume much of the viewport | Scope identified; maintain annotation save/recovery guarantees. Responsive reader detail still needs fresh verification |
+| Plugins, catalog, consent and installed modules (017–019, 032, 076–077) | Permission notices and long plugin lists obscure the action needed to start | Search installed and available plugins; no inert Enable button before consent; per-vault approval remains required |
+| MCP permissions and sharing (010–012, 078–079) | Terms such as "authorization scope", "runtime", and "recipes" may conceal read/write consequences | Clearer permission-mode descriptions in all shipped locales; no relaxation of write-approval rules |
+| Publishing, export and print preview (020, 092–093) | "dry run", "artifact" and "eligibility" phrasing competes with primary actions | Reworded export checks and eligibility guidance; real export output/preview validation remains a separate release gate |
+| Gmail, Drive/Docs, Calendar/Tasks, Overleaf (057, 106 and workflow tests) | Account setup, privacy explanations and provider limitations could obscure Connect | Shared public Desktop OAuth identity for properly configured releases; shorter connection steps, optional privacy details and explicit legacy-Docs read-only limits |
+| Git changes, conflict resolution and rename previews (003, 005, 044, 053–056, 099–100) | Destructive or remote operations require especially clear compare/review steps | Keep explicit diff, conflict, stale revision and approval flows. Avoid changes that would imply unreviewed overwrite |
+| Appearance/theme builder (021–022, 042, 101–102, 105, 115) | Repeated adjectives and overly technical controls make an ordinary theme change look complex | "Create a color theme", "Preview", "Start from a theme" and shorter field names; keep existing contrast validation |
+| Shortcut configuration and sidebar customization (008, 108, 116) | Tables are dense, but full labels and keyboard affordances are necessary | Preserved shortcut and customization functionality. Consider hiding rare settings behind a disclosure rather than removing them |
+| Vault health, maintenance, backups and repairs (024, 101, 103, 107, 118–119) | Technical snapshot language makes a health check hard to interpret | "No problems found in the latest check"; the Good state now includes all current summary checks. Repair stays deliberate and reviewable |
+| Portal, capture, templates and bibliography (031, 090–091, 094, 110, 114) | Multiple ways to create content can look like separate products | Preserve the existing task-specific destinations and favor a direct create/find action first |
+| Support and writing-target tracking (112, 129) | Optional utilities should not interrupt writing | Kept out of mandatory onboarding; review their existing opt-in and shortcut discoverability before adding more chrome |
+
+### Plain-language acceptance criteria
+
+User-visible headings should describe an action or result, not an internal
+component, transport, state machine or architectural subsystem. Prefer
+**Explore notes**, **Check export settings**, **Find broken links**, and
+**Save and use theme** over "Workbench", "artifact", "canonical", "runtime
+surface", or stacked promotional adjectives. Keep established proper names
+such as Git, MCP, Google OAuth, and Markdown where accuracy matters; place
+their implementation details in optional Help/Advanced content. Always say
+which vault/account is affected and whether an action reads, stages, changes,
+sends, or deletes data. "Connected" must not imply "synced" or "saved".
+
+The source-level `scripts/validation/plain-language-ui.test.mjs` enforces
+consistency of prominent labels across English, German, and Persian, checks
+translation placeholders, and detects selected regressions into internal-only
+copy. It does not measure real-world language comprehension or replace
+accessibility, screen-reader, browser, or provider testing.
+
+### Verification boundaries
+
+- New tests cover three-step onboarding, the mobile Command path, empty-note
+  search, English/German/Persian mobile labels, the Drive information disclosure,
+  plugin catalog search, concise health details, complete health scoring, and
+  readable framing for sparse graph layouts.
+- Review code-generated UI strings as well as locale dictionaries; a translated
+  dictionary is not a guarantee that every third-party, backend, error, and
+  legacy tool string is localized.
+- Before merge, review current **branch-head** source tests, TypeScript,
+  ESLint, browser UX, accessibility, visual snapshots, release smoke, and
+  non-mocked Google/Overleaf flows. A successful earlier commit does not prove
+  the current commit passes.
+- Production Google sign-in still requires a real publisher-registered Google
+  Desktop OAuth app and `SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID`. The synthetic
+  E2E client identity cannot authorize a public release.
+- Preserve vault boundaries, remote conflict review, plugin consent, desktop
+  credential storage, and explicitly approved writes. Faster UX must not
+  silently broaden permissions.
+
