@@ -172,7 +172,7 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
             <Database size={16} />
             Smart collections
           </h3>
-          <p className="health-subtitle">Persistent DQL folders that stay in sync with the vault index.</p>
+          <p className="health-subtitle">Saved groups of notes that update as Scriptor indexes changes.</p>
           {vaultOpen ? (
             <button
               type="button"
@@ -247,7 +247,7 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
               <input value={draftLabel} onChange={(event) => setDraftLabel(event.target.value)} placeholder="Weekly review" />
             </label>
             <label>
-              DQL query
+              Search rule (DQL)
               <input value={draftQuery} onChange={(event) => setDraftQuery(event.target.value)} placeholder="path has #review" />
             </label>
             <button type="submit" className="primary-button">
