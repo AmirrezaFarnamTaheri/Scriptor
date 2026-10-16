@@ -1320,13 +1320,7 @@ function App() {
     },
     [setMobilePane, setActiveMode],
   )
-
-  const handleOpenPlugins = useCallback(() => {
-    patchChrome({ inspectorCollapsed: false })
-    setActiveMode('plugins')
-    setMobilePane('inspector')
-  }, [patchChrome, setActiveMode, setMobilePane])
-
+  const handleOpenPlugins = useCallback(() => { patchChrome({ inspectorCollapsed: false }); setActiveMode('plugins'); setMobilePane('inspector') }, [patchChrome, setActiveMode, setMobilePane])
   const handleCloseCanvas = useCallback(() => setCanvasOpen(false), [setCanvasOpen])
   const handleCloseReader = useCallback(() => {
     setReaderOpen(false)
@@ -1375,9 +1369,7 @@ function App() {
           onOpenMcp={() => setPanel('mcpPanelOpen', (open) => !open)}
           onOpenSupport={() => setPanel('supportOpen', (open) => !open)}
           onOpenSettings={() => setPanel('settingsOpen', (open) => !open)}
-          onOpenPluginManager={handleTogglePluginManager}
-          onOpenPlugins={handleOpenPlugins}
-          pluginsActive={activeMode === 'plugins' && !chrome.inspectorCollapsed}
+          onOpenPluginManager={handleTogglePluginManager} onOpenPlugins={handleOpenPlugins} pluginsActive={activeMode === 'plugins' && !chrome.inspectorCollapsed}
           theme={theme}
           appearance={appearance}
           resolvedAppearance={resolvedAppearance}
@@ -1663,9 +1655,7 @@ function App() {
         activePane={mobilePane}
         workspaceMode={workspaceMode}
         onSelectPane={handleSelectMobilePane}
-        onOpenCommand={handleOpenCommandPalette}
-        onOpenPlugins={handleOpenPlugins}
-        pluginsActive={activeMode === 'plugins'}
+        onOpenCommand={handleOpenCommandPalette} onOpenPlugins={handleOpenPlugins} pluginsActive={activeMode === 'plugins'}
         onOpenKnowledgeWorkbench={handleOpenKnowledgeWorkbenchRepair}
         onOpenPublishCenter={handleOpenPublishCenter}
         onOpenHealth={handleOpenHealthDashboard}
