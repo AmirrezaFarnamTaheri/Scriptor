@@ -254,3 +254,13 @@ test('Obsidian import checks browsed folders automatically without touching sour
   assert.match(source, /disabled=\{isImporting \|\| isValidating/)
   assert.doesNotMatch(source, /<span>Preserve YAML frontmatter<\/span>/)
 })
+
+test('snippet renaming allows clearing and replacing the field before committing', () => {
+  const source = read('src/components/SnippetsPanel.tsx')
+  assert.match(source, /value=\{nameDraft \?\? active\.name\}/)
+  assert.match(source, /setNameDraft\(event\.target\.value\)/)
+  assert.match(source, /onBlur=\{\(\) => \{/)
+  assert.match(source, /stagedName/)
+  assert.match(source, /snippetNameTaken\(snippets, selected, nextName\)/)
+  assert.doesNotMatch(source, /if \(!nextName\.trim\(\)\) \{[\s\S]{0,100}return/)
+})
