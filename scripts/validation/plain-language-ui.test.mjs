@@ -239,6 +239,14 @@ test('Drive sharing uses task language but keeps incoming-review consent and con
   assert.doesNotMatch(source, /Optional Google Docs text translation|Reviewed translated merge|Remove saved credential/)
 })
 
+test('saved note groups use readable status and confirm removal without deleting notes', () => {
+  const source = read('src/components/SmartCollectionsPanel.tsx')
+  assert.match(source, /collectionsUi\.needsVault/)
+  assert.match(source, /MutationConfirmation/)
+  assert.match(source, /onCancel=\{\(\) => setPendingRemoval\(null\)\}/)
+  assert.doesNotMatch(source, /DQL collections|run its DQL query|note\(s\) matched/)
+})
+
 test('files, search groups, article capture, and reports explain tasks without internal jargon', () => {
   const files = read('src/components/AssetDeckPanel.tsx')
   const cheat = read('src/components/CheatsheetPanel.tsx')

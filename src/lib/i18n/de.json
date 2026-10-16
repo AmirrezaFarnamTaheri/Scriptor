@@ -1303,5 +1303,28 @@
     "docsConsent": "Ich verstehe, dass Kommentare, Formatierung, Verlauf, Bilder und Freigaberechte nicht übertragen werden.",
     "docsSave": "Geprüften Text speichern",
     "docsCreate": "Neues Google-Dokument mit Klartext erstellen"
+  },
+  "collectionsUi": {
+    "title": "Gespeicherte Notizgruppen",
+    "intro": "Suchen für häufig benötigte Notizen speichern. Aktualisieren zeigt neue Treffer.",
+    "save": "Gruppen in diesem Tresor speichern",
+    "list": "Gespeicherte Notizgruppen",
+    "remove": "{{name}} entfernen",
+    "removePrompt": "Gespeicherte Gruppe „{{name}}“ entfernen? Ihre Notizen bleiben erhalten.",
+    "removeConfirm": "Gruppe entfernen",
+    "select": "Wählen Sie eine Gruppe, um passende Notizen anzuzeigen.",
+    "needsVault": "Öffnen Sie einen Tresor in der Desktop-App, um gespeicherte Gruppen zu durchsuchen.",
+    "found": "{{count}} passende Notizen in „{{name}}“ gefunden.",
+    "running": "Suche Notizen in „{{name}}“…",
+    "searchError": "Suche fehlgeschlagen. Prüfen Sie die Suchregel und versuchen Sie es erneut.",
+    "new": "Neue Gruppe",
+    "name": "Name",
+    "query": "Regel zum Finden von Notizen",
+    "queryHelp": "Beispiel: path has #review. Weitere Suchregeln stehen in der Hilfe.",
+    "add": "Gruppe hinzufügen",
+    "refresh": "Aktualisieren",
+    "empty": "Keine passenden Notizen. Ändern Sie die Regel oder wählen Sie eine andere Gruppe.",
+    "emptyGroups": "Fügen Sie zum Start eine gespeicherte Gruppe hinzu.",
+    "placeholder": "Wöchentlicher Rückblick"
   }
 }

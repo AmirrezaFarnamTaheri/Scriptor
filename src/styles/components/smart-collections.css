@@ -67,3 +67,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Keep the selected group and its safe removal confirmation within a narrow rail. */
+.smart-collection.is-confirming { display: grid; grid-template-columns: minmax(0, 1fr); }
+.smart-collection.is-confirming > .mutation-confirmation { min-width: 0; width: 100%; }
+.smart-collection.is-confirming .mutation-confirmation-actions { flex-wrap: wrap; }

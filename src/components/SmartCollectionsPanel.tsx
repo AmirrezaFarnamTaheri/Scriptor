@@ -12,6 +12,8 @@ import { VirtualKnowledgeNoteList } from './app/VirtualKnowledgeNoteList'
 import type { KnowledgeNoteSummary } from '../types/vault'
 import { expectArray, expectRecord, expectString } from '../lib/runtimeSchema'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
+import { useI18n } from '../lib/i18n'
+import { MutationConfirmation } from './chrome/MutationConfirmation'
 
 export interface SmartCollection {
   id: string
@@ -61,12 +63,14 @@ interface SmartCollectionsPanelProps {
 }
 
 export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embedded = false, vaultOpen, vaultId = null, onOpenNote }: SmartCollectionsPanelProps) {
+  const { t } = useI18n()
   const canQuery = vaultOpen && isNativeBridgeAvailable()
   const [collections, setCollections] = useState<SmartCollection[]>(() => loadCollections())
   const [activeId, setActiveId] = useState(collections[0]?.id ?? '')
   const [results, setResults] = useState<KnowledgeNoteSummary[]>([])
   const [queryState, setQueryState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
-  const [status, setStatus] = useState('Select a collection to run its DQL query.')
+  const [status, setStatus] = useState(() => t('collectionsUi.select'))
+  const [pendingRemoval, setPendingRemoval] = useState<string | null>(null)
   const [draftLabel, setDraftLabel] = useState('')
   const [draftQuery, setDraftQuery] = useState('path has #tag')
   const requestIdRef = useRef(0)
@@ -92,7 +96,6 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
 
   const executeQuery = useCallback(async (collection: SmartCollection, requestId: number) => {
     try {
-      const started = performance.now()
       const rows = await indexerExecuteDql(collection.query)
       if (requestId !== requestIdRef.current) return
       const mapped: KnowledgeNoteSummary[] = rows.map((row) => ({
@@ -103,31 +106,30 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
       }))
       setResults(mapped)
       setQueryState('success')
-      const durationMs = Math.round(performance.now() - started)
-      setStatus(`${mapped.length} note(s) matched "${collection.label}" in ${durationMs}ms.`)
+      setStatus(t('collectionsUi.found', { count: mapped.length, name: collection.label }))
     } catch (error) {
       if (requestId !== requestIdRef.current) return
       setResults([])
       setQueryState('error')
-      setStatus(error instanceof Error ? error.message : 'Search failed')
+      setStatus(error instanceof Error ? `${t('collectionsUi.searchError')} ${error.message}` : t('collectionsUi.searchError'))
     }
-  }, [])
+  }, [t])
 
   const runQuery = useCallback(
     (collection: SmartCollection) => {
       const requestId = ++requestIdRef.current
       if (!canQuery) {
-        setStatus('Open a vault in the desktop app to run DQL collections.')
+        setStatus(t('collectionsUi.needsVault'))
         setResults([])
         setQueryState('idle')
         return
       }
       setResults([])
       setQueryState('loading')
-      setStatus(`Running "${collection.label}"…`)
+      setStatus(t('collectionsUi.running', { name: collection.label }))
       void executeQuery(collection, requestId)
     },
-    [canQuery, executeQuery],
+    [canQuery, executeQuery, t],
   )
 
   useEffect(() => {
@@ -135,15 +137,15 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
     if (!canQuery || !activeCollection) {
       setResults([])
       setQueryState('idle')
-      setStatus('Open a vault in the desktop app to run DQL collections.')
+      setStatus(t('collectionsUi.needsVault'))
       return
     }
     setResults([])
     setQueryState('loading')
-    setStatus(`Running "${activeCollection.label}"…`)
+    setStatus(t('collectionsUi.running', { name: activeCollection.label }))
     void executeQuery(activeCollection, requestId)
     return () => { requestIdRef.current += 1 }
-  }, [activeCollection, canQuery, executeQuery, vaultId])
+  }, [activeCollection, canQuery, executeQuery, vaultId, t])
 
   const addCollection = () => {
     const label = draftLabel.trim()
@@ -162,6 +164,7 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
     setCollections(next)
     saveCollections(next)
     if (activeId === id) setActiveId(next[0]?.id ?? '')
+    setPendingRemoval(null)
   }
 
   return (
@@ -170,9 +173,9 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
         <header className="smart-collections-header">
           <h3>
             <Database size={16} />
-            Smart collections
+            {t('collectionsUi.title')}
           </h3>
-          <p className="health-subtitle">Save a search to find the same kind of notes again. Refresh to check for updates.</p>
+          <p className="health-subtitle">{t('collectionsUi.intro')}</p>
           {vaultOpen ? (
             <button
               type="button"
@@ -182,7 +185,7 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
                 saveCollections(collections)
               }}
             >
-              Save groups to this vault
+              {t('collectionsUi.save')}
             </button>
           ) : null}
         </header>
@@ -191,20 +194,29 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
       )}
 
       <div className="smart-collections-layout">
-        <aside className="smart-collections-sidebar" aria-label="Collection list">
+        <aside className="smart-collections-sidebar" aria-label={t('collectionsUi.list')}>
           {collections.map((collection) => (
-            <div key={collection.id} className={activeId === collection.id ? 'smart-collection active' : 'smart-collection'}>
+            <div key={collection.id} className={`smart-collection${activeId === collection.id ? ' active' : ''}${pendingRemoval === collection.id ? ' is-confirming' : ''}`}>
               <button type="button" className="toolbar-button smart-collection-select" onClick={() => setActiveId(collection.id)}>
                 {collection.label}
               </button>
               <button
                 type="button"
                 className="icon-button"
-                aria-label={`Remove ${collection.label}`}
-                onClick={() => removeCollection(collection.id)}
+                aria-label={t('collectionsUi.remove', { name: collection.label })}
+                onClick={() => setPendingRemoval(collection.id)}
               >
                 <Trash2 size={14} />
               </button>
+              {pendingRemoval === collection.id ? (
+                <MutationConfirmation
+                  ariaLabel={t('collectionsUi.remove', { name: collection.label })}
+                  message={t('collectionsUi.removePrompt', { name: collection.label })}
+                  confirmLabel={t('collectionsUi.removeConfirm')}
+                  onCancel={() => setPendingRemoval(null)}
+                  onConfirm={() => removeCollection(collection.id)}
+                />
+              ) : null}
             </div>
           ))}
         </aside>
@@ -216,7 +228,7 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
                 <code className="smart-collection-query">{activeCollection.query}</code>
                 <button type="button" className="toolbar-button" disabled={!canQuery || queryState === 'loading'} onClick={() => runQuery(activeCollection)}>
                   <RefreshCw size={14} />
-                  Refresh
+                  {t('collectionsUi.refresh')}
                 </button>
               </div>
               {embedded ? null : (
@@ -225,13 +237,13 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
                 </p>
               )}
               {queryState === 'success' && results.length === 0 ? (
-                <p className="empty-state">No notes matched this collection.</p>
+                <p className="empty-state">{t('collectionsUi.empty')}</p>
               ) : results.length > 0 ? (
                 <VirtualKnowledgeNoteList notes={results} onOpenNote={onOpenNote} triageLabel="Open" />
               ) : null}
             </>
           ) : (
-            <p className="empty-state">Add a smart collection to get started.</p>
+            <p className="empty-state">{t('collectionsUi.emptyGroups')}</p>
           )}
 
           <form
@@ -241,19 +253,19 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
               addCollection()
             }}
           >
-            <h4>New collection</h4>
+            <h4>{t('collectionsUi.new')}</h4>
             <label>
-              Label
-              <input value={draftLabel} onChange={(event) => setDraftLabel(event.target.value)} placeholder="Weekly review" />
+              {t('collectionsUi.name')}
+              <input value={draftLabel} onChange={(event) => setDraftLabel(event.target.value)} placeholder={t('collectionsUi.placeholder')} />
             </label>
             <label>
-              Rule for matching notes
+              {t('collectionsUi.query')}
               <input value={draftQuery} onChange={(event) => setDraftQuery(event.target.value)} placeholder="path has #review" />
-              <small className="health-subtitle">Example: path has #review. More search rules are explained in Help.</small>
+              <small className="health-subtitle">{t('collectionsUi.queryHelp')}</small>
             </label>
             <button type="submit" className="primary-button">
               <Plus size={14} />
-              Add collection
+              {t('collectionsUi.add')}
             </button>
           </form>
         </div>

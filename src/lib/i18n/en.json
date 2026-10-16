@@ -1303,5 +1303,28 @@
     "docsConsent": "I understand that comments, formatting, history, images and sharing permissions do not transfer.",
     "docsSave": "Save reviewed text",
     "docsCreate": "Create a new Google Doc with plain text"
+  },
+  "collectionsUi": {
+    "title": "Smart collections",
+    "intro": "Save searches for notes you want to revisit. Refresh to find new matches.",
+    "save": "Save groups to this vault",
+    "list": "Saved note groups",
+    "remove": "Remove {{name}}",
+    "removePrompt": "Remove the saved group {{name}}? Your notes will not be deleted.",
+    "removeConfirm": "Remove group",
+    "select": "Choose a saved group to see matching notes.",
+    "needsVault": "Open a vault in the desktop app to search saved note groups.",
+    "found": "Found {{count}} matching notes in {{name}}.",
+    "running": "Finding notes in {{name}}…",
+    "searchError": "Search failed. Check the group’s rule and try again.",
+    "new": "New group",
+    "name": "Name",
+    "query": "Rule for matching notes",
+    "queryHelp": "For example: path has #review. More search rules are in Help.",
+    "add": "Add group",
+    "refresh": "Refresh",
+    "empty": "No matching notes. Check the rule or try another group.",
+    "emptyGroups": "Add a saved note group to get started.",
+    "placeholder": "Weekly review"
   }
 }
