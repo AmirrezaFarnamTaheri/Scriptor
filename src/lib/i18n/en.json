@@ -51,7 +51,8 @@
     "workspaceMode": "Workspace mode",
     "openCommandPalette": "Open command palette ({{shortcut}})",
     "appearanceControl": "{{action}} · {{palette}} palette",
-    "appearanceControlSystem": "{{action}} · {{palette}} palette · follows system"
+    "appearanceControlSystem": "{{action}} · {{palette}} palette · follows system",
+    "plugins": "Plugins"
   },
   "commandPalette": {
     "placeholder": "Type a command or note...",
@@ -752,7 +753,7 @@
   "integrations": {
     "google": {
       "title": "Google",
-      "description": "Use one public Google OAuth Desktop-app client ID with separate connections for Drive and Docs, Calendar and Tasks, and Gmail. Each connection requests its own permissions.",
+      "description": "Connect Drive & Docs, Calendar & Tasks, and Gmail independently. Each service requests only the access it needs.",
       "clientLifecycle": "Changing the client ID keeps existing credentials. Reconnect each service explicitly to use the new client. Save vault configuration to retain edits made without connecting.",
       "driveDocs": "Google Drive & Docs",
       "gmailDisabled": "Enable Gmail Manager in Plugins to connect or read Gmail. Other Google connections remain available.",
@@ -796,7 +797,10 @@
         "synced": "Connected",
         "error": "Needs attention"
       },
-      "gmailNote": "Gmail Manager is enabled separately under Plugins and requests Gmail-specific permission. It can reuse this client ID."
+      "gmailNote": "Gmail requests separate mail permissions. Enable Gmail Manager under Plugins to use it.",
+      "appManaged": "Google sign-in is ready. Choose Connect Google to sign in securely in your system browser; no developer setup is needed.",
+      "notConfigured": "Google sign-in is not configured in this build. The Scriptor publisher must register and supply the application's Google Desktop OAuth client.",
+      "developerSetup": "Advanced: use your own Google OAuth client (developers)"
     },
     "gmail": {
       "title": "Gmail",
@@ -823,7 +827,7 @@
       "refresh": "Search or refresh messages",
       "checkingConnection": "Checking Gmail connection…",
       "notConnected": "Gmail is not connected",
-      "connectPrompt": "Connect your Google account in the Account tab to read, import, and send mail.",
+      "connectPrompt": "Connect with Google to read, import, and send mail.",
       "connectAccount": "Connect Gmail account",
       "messageListAria": "Gmail messages",
       "noMessages": "No messages found.",

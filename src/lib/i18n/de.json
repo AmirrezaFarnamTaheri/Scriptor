@@ -51,7 +51,8 @@
     "workspaceMode": "Arbeitsbereichsmodus",
     "openCommandPalette": "Befehlspalette öffnen ({{shortcut}})",
     "appearanceControl": "{{action}} · Palette {{palette}}",
-    "appearanceControlSystem": "{{action}} · Palette {{palette}} · folgt dem System"
+    "appearanceControlSystem": "{{action}} · Palette {{palette}} · folgt dem System",
+    "plugins": "Plugins"
   },
   "commandPalette": {
     "placeholder": "Befehl oder Notiz eingeben...",
@@ -752,7 +753,7 @@
   "integrations": {
     "google": {
       "title": "Google",
-      "description": "Verwenden Sie eine öffentliche Google-OAuth-Client-ID vom Typ Desktop-App mit getrennten Verbindungen für Drive und Docs, Kalender und Aufgaben sowie Gmail. Jede Verbindung fordert eigene Berechtigungen an.",
+      "description": "Verbinden Sie Drive & Docs, Kalender & Aufgaben und Gmail unabhängig voneinander. Jeder Dienst fordert nur die nötigen Berechtigungen an.",
       "clientLifecycle": "Eine geänderte Client-ID löscht bestehende Zugangsdaten nicht. Verbinden Sie jeden Dienst ausdrücklich neu. Speichern Sie die Vault-Konfiguration, um Änderungen ohne Verbindung dauerhaft zu behalten.",
       "driveDocs": "Google Drive & Docs",
       "gmailDisabled": "Aktivieren Sie den Gmail-Manager unter Plugins, um Gmail zu verbinden oder zu lesen. Andere Google-Verbindungen bleiben verfügbar.",
@@ -796,7 +797,10 @@
         "synced": "Verbunden",
         "error": "Aktion erforderlich"
       },
-      "gmailNote": "Der Gmail-Manager wird separat unter Plugins aktiviert und fordert eigene Gmail-Berechtigungen an. Er kann dieselbe Client-ID verwenden."
+      "gmailNote": "Gmail fordert separate E-Mail-Berechtigungen an. Aktivieren Sie Gmail Manager unter Plugins.",
+      "appManaged": "Die Google-Anmeldung ist bereit. Klicken Sie auf „Mit Google verbinden“, um sich sicher im Standardbrowser anzumelden. Keine Entwicklereinrichtung nötig.",
+      "notConfigured": "Die Google-Anmeldung ist in diesem Build nicht eingerichtet. Der Scriptor-Herausgeber muss einen Google-Desktop-OAuth-Client registrieren und bereitstellen.",
+      "developerSetup": "Erweitert: eigenen Google-OAuth-Client verwenden (Entwicklung)"
     },
     "gmail": {
       "title": "Gmail",
@@ -823,7 +827,7 @@
       "refresh": "Nachrichten suchen oder aktualisieren",
       "checkingConnection": "Gmail-Verbindung wird geprüft…",
       "notConnected": "Gmail ist nicht verbunden",
-      "connectPrompt": "Verbinden Sie Ihr Google-Konto im Reiter Konto, um E-Mails zu lesen, zu importieren und zu senden.",
+      "connectPrompt": "Verbinden Sie Ihr Google-Konto, um E-Mails zu lesen, zu importieren und zu senden.",
       "connectAccount": "Gmail-Konto verbinden",
       "messageListAria": "Gmail-Nachrichten",
       "noMessages": "Keine Nachrichten gefunden.",
