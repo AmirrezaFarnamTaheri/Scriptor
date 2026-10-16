@@ -173,3 +173,11 @@ test('routine editor tools and update guidance use plain, concrete language', ()
   assert.doesNotMatch(get('en', 'editor.transforms.markOrganized'), /triage/i)
   assert.doesNotMatch(get('en', 'aiSettings.description'), /MCP write approval/i)
 })
+
+test('automation permissions stay readable at the narrow panel sizes in screenshots', () => {
+  const css = read('src/styles/components/mcp-panel.css')
+  assert.match(css, /mcp-mode-option-copy small/)
+  assert.ok(css.includes('font-size: 12px;'))
+  assert.doesNotMatch(css, /\.mcp-mode-option-copy small \{[^}]*font-size: 10px;/)
+  assert.ok(css.includes('overflow-wrap: anywhere;'))
+})
