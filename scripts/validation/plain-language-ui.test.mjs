@@ -153,8 +153,8 @@ test('sync review and recovery lead with actions and hide technical details on d
 
 test('routine editor tools and update guidance use plain, concrete language', () => {
   const toolbar = read('src/lib/i18n/editorToolbarStrings.ts')
-  assert.match(toolbar, /'typography\\.zapGremlins': 'Remove hidden characters'/)
-  assert.match(toolbar, /'typography\\.stripDuplicateSpaces': 'Remove extra spaces'/)
+  assert.ok(toolbar.includes("'typography.zapGremlins': 'Remove hidden characters'"))
+  assert.ok(toolbar.includes("'typography.stripDuplicateSpaces': 'Remove extra spaces'"))
   assert.doesNotMatch(toolbar, /Zap gremlins|Strip duplicate spaces/)
   for (const locale of ['en', 'de', 'fa']) {
     for (const key of [
