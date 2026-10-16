@@ -55,6 +55,20 @@ test('Persian Drive resource setup uses real RTL localization at restored 200 pe
   expect((await calls(page)).filter(call => call.cmd === 'collaboration_write')).toHaveLength(0)
 })
 
+test('Drive keeps important account and cache privacy details available without blocking the first action', async ({ page }) => {
+  await launchGoogle(page)
+  const panel = await openDrive(page)
+  const details = panel.locator('details.collaboration-guidance')
+  await expect(details).toBeVisible()
+  await expect(details).not.toHaveAttribute('open', '')
+  await expect(panel.getByRole('button', { name: 'Connect Google Drive', exact: true })).toBeVisible()
+  await expect(panel.getByText('The last shared ancestor and this note’s peer identity', { exact: false })).toBeHidden()
+  await details.locator('summary').click()
+  await expect(details).toHaveAttribute('open', '')
+  await expect(panel.getByText('The last shared ancestor and this note’s peer identity', { exact: false })).toBeVisible()
+  await expect(panel.getByRole('button', { name: 'Start automatic checks', exact: true })).toBeVisible()
+})
+
 test('Drive discovers and deduplicates folders, authorizes creation, and persists its transport after reopening', async ({ page }, testInfo) => {
   await launchGoogle(page)
   const panel = await openDrive(page)
