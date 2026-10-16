@@ -214,7 +214,16 @@
     "search": "Suchen",
     "graph": "Graph",
     "settings": "Einstellungen",
-    "singlePaneNote": "Einzelbereich-Modus — wechseln Sie unten zwischen Editor und Tresorbaum."
+    "singlePaneNote": "Einzelbereich-Modus — wechseln Sie unten zwischen Editor und Tresorbaum.",
+    "inspector": "Inspektor",
+    "command": "Befehl",
+    "navigation": "Mobile-Arbeitsbereich-Navigation",
+    "modeActions": "Aktionen: {{mode}}",
+    "modeLabel": "Modus: {{mode}}",
+    "openWorkbench": "Arbeitsbereich öffnen",
+    "openPublish": "Veröffentlichungszentrale öffnen",
+    "openHealth": "Tresor-Zustand öffnen",
+    "openMcp": "MCP-Bereich öffnen"
   },
   "notes": {
     "untitled": "Unbenannt",

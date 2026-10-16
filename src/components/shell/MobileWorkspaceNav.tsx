@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { BookOpen, Command, FileOutput, LayoutGrid, PenLine, Puzzle, Sparkles } from 'lucide-react'
 
-import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
+import { type WorkspaceMode } from '../../hooks/useWorkspaceMode'
 import { useI18n } from '../../lib/i18n'
 
 export type MobilePane = 'vault' | 'editor' | 'inspector' | 'command'
@@ -19,12 +19,12 @@ interface MobileWorkspaceNavProps {
   onOpenMcp?: () => void
 }
 
-const ITEMS: { id: MobilePane | 'plugins'; label: string; icon: typeof BookOpen }[] = [
-  { id: 'vault', label: 'Vault', icon: LayoutGrid },
-  { id: 'editor', label: 'Write', icon: PenLine },
-  { id: 'inspector', label: 'Inspector', icon: BookOpen },
-  { id: 'command', label: 'Command', icon: Command },
-  { id: 'plugins', label: 'Plugins', icon: Puzzle },
+const ITEMS: { id: MobilePane | 'plugins'; labelKey: string; icon: typeof BookOpen }[] = [
+  { id: 'vault', labelKey: 'mobile.vault', icon: LayoutGrid },
+  { id: 'editor', labelKey: 'mobile.write', icon: PenLine },
+  { id: 'inspector', labelKey: 'mobile.inspector', icon: BookOpen },
+  { id: 'command', labelKey: 'mobile.command', icon: Command },
+  { id: 'plugins', labelKey: 'topBar.plugins', icon: Puzzle },
 ]
 
 function MobileWorkspaceNavImpl({
@@ -42,20 +42,20 @@ function MobileWorkspaceNavImpl({
   const { t } = useI18n()
   const modeAction =
     workspaceMode === 'knowledge' && onOpenKnowledgeWorkbench
-      ? { label: 'Open workbench', run: onOpenKnowledgeWorkbench }
+      ? { label: t('mobile.openWorkbench'), run: onOpenKnowledgeWorkbench }
       : workspaceMode === 'publish' && onOpenPublishCenter
-        ? { label: 'Open publish center', run: onOpenPublishCenter }
+        ? { label: t('mobile.openPublish'), run: onOpenPublishCenter }
         : workspaceMode === 'review' && onOpenHealth
-          ? { label: 'Open vault health', run: onOpenHealth }
+          ? { label: t('mobile.openHealth'), run: onOpenHealth }
           : workspaceMode === 'automation' && onOpenMcp
-            ? { label: 'Open MCP panel', run: onOpenMcp }
+            ? { label: t('mobile.openMcp'), run: onOpenMcp }
             : null
 
   return (
     <div className="mobile-workspace-chrome">
       {modeAction ? (
-        <div className="mobile-mode-actions" role="region" aria-label={`${WORKSPACE_MODE_LABELS[workspaceMode]} actions`}>
-          <span className="mobile-mode-label">{WORKSPACE_MODE_LABELS[workspaceMode]} mode</span>
+        <div className="mobile-mode-actions" role="region" aria-label={t('mobile.modeActions', { mode: t(`workspaceModes.${workspaceMode}`) })}>
+          <span className="mobile-mode-label">{t('mobile.modeLabel', { mode: t(`workspaceModes.${workspaceMode}`) })}</span>
           <button type="button" className="mobile-mode-action" onClick={modeAction.run}>
             {workspaceMode === 'publish' ? <FileOutput size={14} /> : <Sparkles size={14} />}
             {modeAction.label}
@@ -63,14 +63,14 @@ function MobileWorkspaceNavImpl({
         </div>
       ) : null}
 
-      <nav className="mobile-workspace-nav surface-glass" aria-label="Mobile workspace navigation">
-        {ITEMS.map(({ id, label, icon: Icon }) => (
+      <nav className="mobile-workspace-nav surface-glass" aria-label={t('mobile.navigation')}>
+        {ITEMS.map(({ id, labelKey, icon: Icon }) => (
           <button
             key={id}
             type="button"
             className={`mobile-nav-item pressable ${(id === 'plugins' ? activePane === 'inspector' && pluginsActive : activePane === id && (id !== 'inspector' || !pluginsActive)) ? 'is-active' : ''}`}
-            aria-label={id === 'plugins' ? t('topBar.plugins') : label}
-            title={id === 'plugins' ? t('topBar.plugins') : label}
+            aria-label={t(labelKey)}
+            title={t(labelKey)}
             aria-current={(id === 'plugins' ? activePane === 'inspector' && pluginsActive : activePane === id && (id !== 'inspector' || !pluginsActive)) ? 'page' : undefined}
             onClick={() => {
               if (id === 'command') {
@@ -85,7 +85,7 @@ function MobileWorkspaceNavImpl({
             }}
           >
             <Icon aria-hidden />
-            <span>{id === 'plugins' ? t('topBar.plugins') : label}</span>
+            <span>{t(labelKey)}</span>
           </button>
         ))}
       </nav>
