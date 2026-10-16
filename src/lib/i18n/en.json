@@ -1271,6 +1271,6 @@
     "cancelledReview": "Review cancelled. No further changes applied."
   },
   "collaborationAtomic": {
-    "legacyDocsReadOnly": "Legacy Google Docs revisions can still be read, but new revision sharing is disabled because Google cannot atomically reserve native Docs file IDs. Choose Drive JSON to share safely."
+    "legacyDocsReadOnly": "Legacy Google Docs revisions can still be read, but you cannot share new revisions using that format. Choose Drive revision files to share safely."
   }
 }

@@ -209,7 +209,6 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         <p>Revisions preserve local, base and remote text so overlapping changes can be resolved before applying them.</p>
       </details>
       <label>Revision transport<select aria-label="Revision transport" value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); setTransport(event.target.value as CollaborationTransport); setPollConsent(false); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">Drive JSON revision records</option><option value="google_docs">Legacy Google Docs revisions (read-only)</option></select></label>
-      {transport === 'google_docs' && <p role="note">Legacy Google Docs revision records can be inspected but cannot receive new shares. Select Drive JSON revisions for current sharing. These records are not live Google Docs editing: Markdown remains local, and embedded assets are not synchronized.</p>}
       {!hasPackagedGoogleOAuthClient() && <details className="google-developer-setup">
         <summary>{t('integrations.google.developerSetup')}</summary>
         <label>Google OAuth desktop client ID<input value={clientIdOverride ?? googleConfig?.google_client_id ?? ''} onChange={event => setClientIdOverride(event.target.value)} disabled={busy} autoComplete="off" /></label>

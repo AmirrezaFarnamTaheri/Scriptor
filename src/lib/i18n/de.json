@@ -1271,6 +1271,6 @@
     "cancelledReview": "Prüfung abgebrochen. Keine weiteren Änderungen übernommen."
   },
   "collaborationAtomic": {
-    "legacyDocsReadOnly": "Vorhandene Google-Docs-Revisionen bleiben lesbar. Neue Revisionen können dort nicht sicher erstellt werden, da Google Docs keine atomar reservierten Datei-IDs unterstützt. Wählen Sie Drive JSON für die sichere Freigabe."
+    "legacyDocsReadOnly": "Ältere Google-Docs-Versionen können Sie weiter lesen, aber nicht mehr in diesem Format teilen. Wählen Sie Drive-Revisionsdateien, um neue Versionen sicher zu teilen."
   }
 }

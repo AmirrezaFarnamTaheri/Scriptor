@@ -71,6 +71,7 @@ function harness(connected = true) {
       if (id.includes('/platform.ts')) return { isNativeBridgeAvailable: () => true }
       if (id.includes('gmailRfc5322')) return { buildRfc5322Message: () => 'encoded', buildGmailMarkdown: () => '# Research' }
       if (id.includes('googleAuthErrors')) return { googleAuthErrorMessage: String, isGoogleAuthRequiredError: error => String(error).includes('GOOGLE_AUTH_REQUIRED:') }
+      if (id.includes('googleOAuthClient')) return { getGoogleOAuthClientId: legacy => legacy?.trim() ?? '', hasPackagedGoogleOAuthClient: () => false }
       if (id.includes('/i18n/')) return { useI18n: () => ({ t: translators[locale] }) }
       return { UnifiedPanelShell: 'panel' }
     },
