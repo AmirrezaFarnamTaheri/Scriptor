@@ -345,7 +345,7 @@ test.describe('visual coverage matrix', () => {
     const workbench = page.getByRole('dialog', { name: 'Explore notes' })
     await expect(workbench).toBeVisible()
 
-    const orphanTab = workbench.getByRole('tab', { name: /Orphans \(3\)/ })
+    const orphanTab = workbench.getByRole('tab', { name: /No incoming links \(3\)/ })
     await orphanTab.click()
     const rows = workbench.locator('.virtual-knowledge-list > li')
     await expect(rows).toHaveCount(3)
@@ -369,14 +369,14 @@ test.describe('visual coverage matrix', () => {
       workbench.getByText('Field Notes with an intentionally long title for zoom coverage', { exact: true }),
     ).toBeVisible()
 
-    const startTriage = workbench.getByRole('button', { name: /Start triage/ })
+    const startTriage = workbench.getByRole('button', { name: /Review 3 notes/ })
     await startTriage.click()
     await expect(workbench).toBeVisible()
-    await expect(workbench.getByText(/Triage 1 of 3/)).toBeVisible()
+    await expect(workbench.getByText(/Reviewing 1 of 3/)).toBeVisible()
     await expect(startTriage).toHaveCount(0)
     await workbench.getByRole('button', { name: 'Next', exact: true }).click()
     await expect(workbench).toBeVisible()
-    await expect(workbench.getByText(/Triage 2 of 3/)).toBeVisible()
+    await expect(workbench.getByText(/Reviewing 2 of 3/)).toBeVisible()
     await expectNoHorizontalOverflow(page)
   })
 

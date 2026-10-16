@@ -113,13 +113,13 @@ test('triage keeps metrics aligned and its progress action separate from note ro
   await openCommandPalette(page)
   await runCommand(page, 'Explore notes')
   const workbench = page.getByRole('dialog', { name: 'Explore notes', exact: true })
-  await workbench.getByRole('tab', { name: /Orphans \(3\)/ }).click()
-  await workbench.getByRole('button', { name: /Start triage/ }).click()
-  await expect(workbench.getByText(/Triage 1 of 3/)).toBeVisible()
+  await workbench.getByRole('tab', { name: /No incoming links \(3\)/ }).click()
+  await workbench.getByRole('button', { name: /Review 3 notes/ }).click()
+  await expect(workbench.getByText(/Reviewing 1 of 3/)).toBeVisible()
   const rightEdges = await workbench.locator('.knowledge-note-meta').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().right))
   expect(Math.max(...rightEdges) - Math.min(...rightEdges)).toBeLessThanOrEqual(1)
   await workbench.locator('.knowledge-triage-bar').getByRole('button', { name: 'Next', exact: true }).click()
-  await expect(workbench.getByText(/Triage 2 of 3/)).toBeVisible()
+  await expect(workbench.getByText(/Reviewing 2 of 3/)).toBeVisible()
 })
 
 test('writing-history chart shows stable values on its first rendered frames', async ({ page }) => {

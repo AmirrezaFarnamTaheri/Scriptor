@@ -503,7 +503,7 @@ test.describe('visual review states', () => {
 
     const workbench = page.getByRole('dialog', { name: 'Explore notes' })
     await expect(workbench).toBeVisible()
-    const orphanTab = workbench.getByRole('tab', { name: /Orphans \(3\)/ })
+    const orphanTab = workbench.getByRole('tab', { name: /No incoming links \(3\)/ })
     await orphanTab.click()
     const rows = workbench.locator('.virtual-knowledge-list > li')
     await expect(rows).toHaveCount(3)
@@ -511,8 +511,8 @@ test.describe('visual review states', () => {
       workbench.getByText('Field Notes with an intentionally long title for zoom coverage', { exact: true }),
     ).toBeVisible()
 
-    await workbench.getByRole('button', { name: /Start triage/ }).click()
-    await expect(workbench.getByText(/Triage 1 of 3/)).toBeVisible()
+    await workbench.getByRole('button', { name: /Review 3 notes/ }).click()
+    await expect(workbench.getByText(/Reviewing 1 of 3/)).toBeVisible()
     await settleLayout(page)
 
     await captureElement(page, workbench, 'visual-knowledge-triage-populated.png')
