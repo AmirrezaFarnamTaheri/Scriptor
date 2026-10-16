@@ -130,6 +130,19 @@ test.describe('top bar customization and support', () => {
     await expect(palettes.getByText('Installer Profile Preset:')).toHaveCount(0)
   })
 
+  test('Appearance prioritizes editor typography and keeps niche options expandable', async ({ page }) => {
+    await launchApp(page)
+    await page.getByRole('button', { name: 'Settings', exact: true }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings', exact: true })
+    await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
+    await expect(settings.getByLabel('Editor font size (px)')).toBeVisible()
+    const advanced = settings.locator('details.appearance-advanced-options')
+    await expect(advanced).not.toHaveAttribute('open', '')
+    await advanced.locator('summary').click()
+    await expect(advanced).toHaveAttribute('open', '')
+    await expect(settings.getByLabel('UI border radius')).toBeVisible()
+  })
+
   test('Plugins opens from top chrome and from mobile navigation without commands', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await launchApp(page)

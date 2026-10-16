@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { BookOpen, Command, FileOutput, LayoutGrid, PenLine, Puzzle, Sparkles } from 'lucide-react'
 
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
+import { useI18n } from '../../lib/i18n'
 
 export type MobilePane = 'vault' | 'editor' | 'inspector' | 'command'
 
@@ -38,6 +39,7 @@ function MobileWorkspaceNavImpl({
   onOpenHealth,
   onOpenMcp,
 }: MobileWorkspaceNavProps) {
+  const { t } = useI18n()
   const modeAction =
     workspaceMode === 'knowledge' && onOpenKnowledgeWorkbench
       ? { label: 'Open workbench', run: onOpenKnowledgeWorkbench }
@@ -67,8 +69,8 @@ function MobileWorkspaceNavImpl({
             key={id}
             type="button"
             className={`mobile-nav-item pressable ${(id === 'plugins' ? activePane === 'inspector' && pluginsActive : activePane === id && (id !== 'inspector' || !pluginsActive)) ? 'is-active' : ''}`}
-            aria-label={label}
-            title={label}
+            aria-label={id === 'plugins' ? t('topBar.plugins') : label}
+            title={id === 'plugins' ? t('topBar.plugins') : label}
             aria-current={(id === 'plugins' ? activePane === 'inspector' && pluginsActive : activePane === id && (id !== 'inspector' || !pluginsActive)) ? 'page' : undefined}
             onClick={() => {
               if (id === 'command') {
@@ -83,7 +85,7 @@ function MobileWorkspaceNavImpl({
             }}
           >
             <Icon aria-hidden />
-            <span>{label}</span>
+            <span>{id === 'plugins' ? t('topBar.plugins') : label}</span>
           </button>
         ))}
       </nav>

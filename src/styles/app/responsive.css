@@ -709,3 +709,9 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-switcher { margin:
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-switcher select { min-height:32px; height:32px; padding:4px 6px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-strip { padding:0; border:0; border-radius:0; background:transparent; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-select { min-height:32px; height:32px; padding:4px 6px; border:1px solid var(--border); border-radius:6px; background:var(--surface); font-size:12px; }
+
+/* The mobile bar already has a direct Plugins destination. Do not duplicate its icon above. */
+@media (max-width: 640px) {
+  .topbar-plugins-entry { display: none; }
+}
+html[data-ui-reflow='mobile'] .topbar-plugins-entry { display: none; }

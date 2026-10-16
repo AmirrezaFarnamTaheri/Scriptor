@@ -213,7 +213,7 @@ function VaultSidebarImpl({
         </p>
       ) : null}
 
-      <button type="button" className="filter-button" onClick={onOpenFilters}>
+      <button type="button" className="filter-button" onClick={onOpenFilters} title={t('vaultSidebar.knowledgeFilters')}>
         <Filter />
         {t('vaultSidebar.knowledgeFilters')}
       </button>
@@ -237,7 +237,7 @@ function VaultSidebarImpl({
       ) : null}
 
       {onOpenTemplatePicker ? (
-        <button type="button" className="filter-button" onClick={onOpenTemplatePicker}>
+        <button type="button" className="filter-button" onClick={onOpenTemplatePicker} title={t('vaultSidebar.newFromTemplate')}>
           <LayoutTemplate aria-hidden />
           {templatePaths.length > 0
             ? t('vaultSidebar.newFromTemplateCount', { count: templatePaths.length })
