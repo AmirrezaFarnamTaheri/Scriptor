@@ -108,7 +108,7 @@ test.describe('top bar customization and support', () => {
     await empty.getByRole('button', { name: 'Find a note', exact: true }).click()
     const palette = page.getByRole('dialog', { name: 'Command palette', exact: true })
     await expect(palette).toBeVisible()
-    await expect(palette.getByRole('combobox')).toBeFocused()
+    await expect(palette.getByRole('searchbox', { name: 'Command palette' })).toBeFocused()
     await expect(page.locator('.workspace-switcher')).toBeVisible()
   })
 

@@ -511,7 +511,8 @@
       "newNote": "Neue Notiz",
       "openAnother": "Anderen Tresor öffnen",
       "openVault": "Tresor öffnen",
-      "tagline": "Lokal zuerst · Nativ Markdown · Ihre Dateien gehören Ihnen"
+      "tagline": "Lokal zuerst · Nativ Markdown · Ihre Dateien gehören Ihnen",
+      "findNote": "Notiz suchen"
     },
     "previewAria": "Geteilte Markdown-Vorschau",
     "previewError": {

@@ -511,7 +511,8 @@
       "newNote": "New note",
       "openAnother": "Open another vault",
       "openVault": "Open vault",
-      "tagline": "Local-first · Markdown-native · Your files stay yours"
+      "tagline": "Local-first · Markdown-native · Your files stay yours",
+      "findNote": "Find a note"
     },
     "previewAria": "Split Markdown preview",
     "previewError": {

@@ -1457,7 +1457,7 @@ function App() {
         <WorkspaceLeafDock composition={composition} workspace={workspace} plugins={plugins} onOpenAsset={handleOpenReaderDocument} {...pluginWorkspaceHandlers}>
         <EditorWorkspace
           activePath={workspace.activePath}
-          onOpenVault={handleChooseVault}
+          onOpenVault={handleChooseVault} onFindNote={() => setCommandPaletteOpen(true)}
           hasOpenVault={Boolean(workspace.vault)}
           onCreateNote={sidebarActions.handleCreateNote}
           openTabs={workspace.openTabs}
