@@ -268,7 +268,7 @@ test('snippet renaming allows clearing and replacing the field before committing
 test('unsaved snippet confirmation replaces the bounded modal footer instead of overflowing it', () => {
   const source = read('src/components/SnippetsPanel.tsx')
   const css = read('src/styles/app/workspace.css')
-  assert.match(source, /className=\{\`snippets-footer/)
+  assert.match(source, /className=\{`snippets-footer/)
   assert.match(source, /confirmDiscard \? <MutationConfirmation/)
   assert.match(css, /\.snippets-footer\.is-confirming \{ display: block; \}/)
   assert.doesNotMatch(source, /<\/footer>\s*\{confirmDiscard/)
