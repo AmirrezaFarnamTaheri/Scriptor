@@ -19,6 +19,7 @@ import { INSPECTOR_PRESETS, type InspectorPreset } from '../../lib/inspectorPres
 import type { BibliographyEntry, BacklinkHit, ExportJobOutput, VaultHealthDiagnostics, VaultHealthReport } from '../../types/vault'
 import { useTablistKeys } from '../../hooks/useTablistKeys'
 import { useI18n } from '../../lib/i18n'
+import { isVaultHealthClear } from '../../lib/vaultHealth'
 
 const StorePanel = lazy(() =>
   import('../StorePanel').then((module) => ({ default: module.StorePanel })),
@@ -159,12 +160,7 @@ function InspectorRailImpl({
     () => citationRows.filter((key) => !bibliographyKeys.has(key)).length,
     [citationRows, bibliographyKeys],
   )
-  const vaultChecksClear = health !== null
-    && health.broken_links === 0
-    && health.orphan_assets === 0
-    && health.duplicate_titles === 0
-    && health.invalid_frontmatter === 0
-    && health.unresolved_citations === 0
+  const vaultChecksClear = isVaultHealthClear(health)
   const handleInspectorTabKeys = useTablistKeys(INSPECTOR_TABS, activeMode, (id) => onModeChange(id as 'inspector' | 'preview' | 'plugins'))
   const presetIds = useMemo(
     () => INSPECTOR_PRESETS.map((entry) => `inspector-preset-${entry.id}`),

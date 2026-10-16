@@ -95,7 +95,7 @@ import {
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
 import { useI18n } from './lib/i18n'
-import { cacheStatusLabel } from './lib/vaultHealth'
+import { cacheStatusLabel, vaultHealthStatus } from './lib/vaultHealth'
 import { useStoreSurfaceController } from './hooks/useStoreSurfaceController'
 import { CapabilityWorkflowOverlays } from './components/app/CapabilityWorkflowOverlays'
 import { usePluginCommandRuntime } from './hooks/usePluginCommandRuntime'
@@ -709,11 +709,7 @@ function App() {
       activeNote: workspace.activeNote,
       isNoteDirty,
     })
-  const healthAction = !workspace.health
-    ? t('inspector.health.loading')
-    : workspace.health.broken_links === 0 && workspace.health.unresolved_citations === 0
-      ? t('inspector.health.good')
-      : t('inspector.health.needsReview')
+  const healthAction = t(`inspector.health.${vaultHealthStatus(workspace.health)}`)
 
   const handleCloseProblemsDock = useCallback(() => setStatusDockTab('output'), [setStatusDockTab])
   useEscapeToClose(statusDockTab === 'problems' && totalProblemCount > 0, handleCloseProblemsDock)

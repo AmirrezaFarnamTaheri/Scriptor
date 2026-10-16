@@ -76,7 +76,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
     <div className="health-repair-actions">
       {onOpenWorkbench ? (
         <button type="button" className="toolbar-button" onClick={onOpenWorkbench}>
-          Open knowledge workbench
+          Explore notes
         </button>
       ) : null}
       {onGenerateLinkReferences ? (
