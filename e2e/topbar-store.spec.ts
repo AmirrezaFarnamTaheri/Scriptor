@@ -99,6 +99,19 @@ test.describe('top bar customization and support', () => {
     }
   })
 
+  test('empty editor offers note search in the active vault instead of switching vaults', async ({ page }) => {
+    await launchApp(page)
+    await page.locator('.tabs-row').getByRole('button', { name: 'Close Research Plan' }).click()
+    const empty = page.locator('.editor-empty-card')
+    await expect(empty.getByRole('button', { name: 'Find a note', exact: true })).toBeVisible()
+    await expect(empty.getByRole('button', { name: 'Open another vault', exact: true })).toHaveCount(0)
+    await empty.getByRole('button', { name: 'Find a note', exact: true }).click()
+    const palette = page.getByRole('dialog', { name: 'Command palette', exact: true })
+    await expect(palette).toBeVisible()
+    await expect(palette.getByRole('combobox')).toBeFocused()
+    await expect(page.locator('.workspace-switcher')).toBeVisible()
+  })
+
   test('palette and built-in module managers remain separate product surfaces', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await launchApp(page)
