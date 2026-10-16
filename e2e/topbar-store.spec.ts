@@ -130,4 +130,24 @@ test.describe('top bar customization and support', () => {
     await expect(palettes.getByText('Installer Profile Preset:')).toHaveCount(0)
   })
 
+  test('Plugins opens from top chrome and from mobile navigation without commands', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await launchApp(page)
+    await settleLayout(page)
+
+    const entry = page.locator('.topbar-plugins-entry')
+    await expect(entry).toBeVisible()
+    await entry.click()
+    await expect(page.getByRole('tab', { name: 'Tools', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await expect(entry).toHaveAttribute('aria-pressed', 'true')
+
+    await page.setViewportSize({ width: 375, height: 812 })
+    await settleLayout(page)
+    const mobilePlugins = page.locator('.mobile-workspace-nav').getByRole('button', { name: 'Plugins' })
+    await expect(mobilePlugins).toBeVisible()
+    await mobilePlugins.click()
+    await expect(mobilePlugins).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('tab', { name: 'Tools', exact: true })).toHaveAttribute('aria-selected', 'true')
+  })
+
 })

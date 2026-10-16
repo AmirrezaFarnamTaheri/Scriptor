@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { BookOpen, Command, FileOutput, LayoutGrid, PenLine, Sparkles } from 'lucide-react'
+import { BookOpen, Command, FileOutput, LayoutGrid, PenLine, Puzzle, Sparkles } from 'lucide-react'
 
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
 
@@ -10,17 +10,20 @@ interface MobileWorkspaceNavProps {
   workspaceMode: WorkspaceMode
   onSelectPane: (pane: MobilePane) => void
   onOpenCommand: () => void
+  onOpenPlugins: () => void
+  pluginsActive: boolean
   onOpenKnowledgeWorkbench?: () => void
   onOpenPublishCenter?: () => void
   onOpenHealth?: () => void
   onOpenMcp?: () => void
 }
 
-const ITEMS: { id: MobilePane; label: string; icon: typeof BookOpen }[] = [
+const ITEMS: { id: MobilePane | 'plugins'; label: string; icon: typeof BookOpen }[] = [
   { id: 'vault', label: 'Vault', icon: LayoutGrid },
   { id: 'editor', label: 'Write', icon: PenLine },
   { id: 'inspector', label: 'Inspector', icon: BookOpen },
   { id: 'command', label: 'Command', icon: Command },
+  { id: 'plugins', label: 'Plugins', icon: Puzzle },
 ]
 
 function MobileWorkspaceNavImpl({
@@ -28,6 +31,8 @@ function MobileWorkspaceNavImpl({
   workspaceMode,
   onSelectPane,
   onOpenCommand,
+  onOpenPlugins,
+  pluginsActive,
   onOpenKnowledgeWorkbench,
   onOpenPublishCenter,
   onOpenHealth,
@@ -61,13 +66,17 @@ function MobileWorkspaceNavImpl({
           <button
             key={id}
             type="button"
-            className={`mobile-nav-item pressable ${activePane === id ? 'is-active' : ''}`}
+            className={`mobile-nav-item pressable ${(id === 'plugins' ? activePane === 'inspector' && pluginsActive : activePane === id && (id !== 'inspector' || !pluginsActive)) ? 'is-active' : ''}`}
             aria-label={label}
             title={label}
-            aria-current={activePane === id ? 'page' : undefined}
+            aria-current={(id === 'plugins' ? activePane === 'inspector' && pluginsActive : activePane === id && (id !== 'inspector' || !pluginsActive)) ? 'page' : undefined}
             onClick={() => {
               if (id === 'command') {
                 onOpenCommand()
+                return
+              }
+              if (id === 'plugins') {
+                onOpenPlugins()
                 return
               }
               onSelectPane(id)

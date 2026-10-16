@@ -685,7 +685,7 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
    keeping the navigation chrome smaller than the document it serves. */
 html[data-ui-zoom='high'] [data-workspace-header-only='true'] { display:none; }
 html[data-ui-zoom='high'] .workspace-embedded-panel .unified-panel-body { padding:8px; }
-html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(4,minmax(32px,1fr)); gap:2px; padding:4px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(5,minmax(32px,1fr)); gap:2px; padding:4px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item { min-width:32px; min-height:32px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item > span { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls button:disabled { display:none; }

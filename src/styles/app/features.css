@@ -37,7 +37,7 @@
   position: sticky;
   bottom: 0;
   z-index: 40;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0));
   border-top: 1px solid var(--glass-border);
@@ -1535,4 +1535,11 @@
 
 .editor-toolbar-wrapper::-webkit-scrollbar {
   display: none;
+}
+
+/* One-click plugin discovery without sending users through the command palette. */
+.topbar-plugins-entry[aria-pressed='true'] {
+  color: var(--primary-strong);
+  background: var(--primary-soft);
+  border-color: var(--primary);
 }
