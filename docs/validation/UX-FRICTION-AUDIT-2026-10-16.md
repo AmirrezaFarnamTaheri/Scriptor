@@ -225,3 +225,66 @@ static text contract does not prove a screen is easy to use.
 flows, visual snapshots, RTL at 320–375 pixels and 200% zoom, live provider
 authentication, and the publisher-owned Google OAuth configuration. A review of
 stored screenshots is not a fresh interactive audit or a measured usability test.
+
+## Deeper cross-module review and implementation — October 17 follow-up
+
+In addition to the screen inventory above, source paths inspected individually
+include `src/components/{AppTopBar,EditorWorkspace,StatusDockPanel,InspectorRail}`
+and the implementations for Git, graph, canvas, tasks, planner, databases,
+smart collections, saved views, source files, bibliography, snippets, capture,
+assets, note history, backup, import, plugins, permissions, MCP, diagnostics,
+settings, publishing and inline error handling. Component names are abbreviated
+here; the actual canonical paths live under `src/components` and the
+`app/`, `editor/`, `plugins/`, and `shell/` subdirectories.
+This is a cross-module **source audit**, not proof that all internal states and
+hundreds of combinations have been interactively exercised.
+
+### Additional implemented fixes
+
+| Journey | Root cause in existing UI | Improvement in this PR | Guardrail |
+| --- | --- | --- | --- |
+| Recover a note changed by another program | "Keep editing" silently set `saveOverwriteRef`; next save would overwrite external edits, while "Reload" discarded unsaved work immediately | Shared `ExternalChangeActions` clearly distinguishes disk and local versions and requires an explicit confirm for either destructive choice in both editor banner and diagnostics | Same editor persistence logic retained; E2E verifies Cancel and both confirmed actions |
+| Resolve Git conflicts | "Ours", "Theirs" and "Ancestor" obscured which content would survive | "Current file", "Incoming file", "Earlier version", result preview and explicit bulk choices | Unresolved hunks still block applying; no automatic choice or force merge |
+| Create/rename snippets | Auto-generated names depended on array length and could duplicate when entries were deleted; selected snippets were identified by mutable names, so clearing a field interrupted editing | Find an unused default name, case-insensitive duplicate checks, staged editable rename field, status and confirmation before closing unsaved changes | Validation at save; Native catalog contract unchanged; new helper and UI regressions |
+| Restore or delete backups | Small adjacent generic buttons immediately invoked risky operations without identifying the chosen backup | Confirmations state selected name and consequences; accessible button names include the affected backup | Existing vault transaction, verified manifest, lifecycle and expected-scope guards remain authoritative |
+| Import an Obsidian vault | Browsing for a folder required another explicit validation click | Selecting a folder starts read-only detection; stale validation replies are discarded when the source changes | Import still requires explicit submission; source vault is never modified |
+| Find an existing file or asset | "Derived link index" and "inventory processing limit" appeared before the actual file list; zero results conflated no files and no matches | Clear file search and empty states; usage-count mechanics behind an optional help section | Unused-only filter still unavailable with partial index data |
+| Create a collection from a search | Unexplained DQL and "saved presets" sounded like configuration rather than note search | "Rule for matching notes", example and "Save groups to this vault" | Search syntax and query semantics unchanged |
+| Capture a web article | "Capture reviewer" and "source snapshot" led with implementation jargon | "Save a web article" and "Original page text" | Sandboxed offline HTML preview, review and deliberate save retained |
+| Read templates and statistics | Cheat sheets, database totals and developer performance panels exposed terms intended for maintainers | "Diagram examples", "Totals for loaded notes", "Performance checks" | Underlying calculations and export commands untouched |
+| Search within the daemon | "Daemon search" and "search hits" use process terminology instead of a task | "Search indexed notes", "Found N notes..." | Daemon command still invokes the same bounded read-only search |
+
+### Cross-surface opportunities still open
+
+* **Account and sync clarity.** Build a shared *read-only* status summary for
+  Google, Overleaf and publication connections (account, last successful sync,
+  pending changes, needs sign-in) without conflating authorization and syncing.
+  Do not merge write authorities or automatically import remote revisions.
+* **Dense technical panels.** MCP inventory, Git diagnostics, advanced file
+  properties and backup system data should reveal technical details on demand,
+  preserving command and scope transparency for power users.
+* **Responsive continuity.** Visual evidence supports friction in top-bar and
+  narrow inspector sizing, but a validated redesign requires fresh *current-PR*
+  screenshots at 320/375/768/1024/1440 pixels, both appearances, 200% zoom,
+  RTL and keyboard focus. Do not simply replace older images with assumed results.
+* **Editor and reader continuity.** Verify early-exit, dirty file protection,
+  selection focus and recovered notes across editor modes, reader annotations,
+  Canvas, plan boards, bibliography and source editor.
+* **Provider reality.** Live Google OAuth testing and Overleaf Git login must
+  use registered application credentials and supported external accounts.
+  Mock-driven CI cannot demonstrate production sign-in.
+
+### Merge acceptance gates (current-HEAD only)
+
+- Source and TypeScript tests, compilation, desktop smoke and workflow results
+  must pass on **this head**, not on a superseded commit.
+- Browser tests must verify the newly visible confirm actions and their Cancel
+  paths, vault-scoped permissions, search and selected backups, not just text
+  existence.
+- Re-captured screenshot results should be inspected for clipping, overflow,
+  text contrasts and reachable actions under zoom/RTL.
+- Production builds require the publisher-owned Google Desktop OAuth client
+  variable. Placeholder test identities cannot authorize users.
+- No statement of "full live Google Docs editing", "full Gmail client" or
+  entire Overleaf project synchronization is appropriate until those product
+  capabilities actually exist.

@@ -13,6 +13,11 @@
 - Keep tablet vault destinations on compact rows, prioritize editor typography above advanced appearance effects, and clarify Overleaf's individual-file review workflow and legacy read-only Google Docs revision records.
 - Document Google provider setup and limitations, screenshots reviewed and follow-up UX priorities, with regression coverage for the revised entry points.
 - Simplify first-use copy across settings, recovery, history, sync, exports, task planning, note repair, boards, collections and saved searches; keep advanced diagnostics available behind disclosure and update related tests.
+- Require explicit review before replacing local notes with an outside disk edit (or overwriting the outside edit), using one shared recovery flow in the editor and diagnostics panel.
+- Clarify current versus incoming Git conflict versions while retaining manual choice and merge confirmation.
+- Prevent duplicate snippet names, allow whole-field renaming, warn before losing unsaved catalog edits, and confirm restore/delete of the selected backup.
+- Automatically check chosen Obsidian source folders before importing and simplify everyday copy in file browsing, collections, article capture, examples, reports and background search.
+- Expand the screenshot-grounded cross-module audit and cover critical workflows with source and browser regression checks.
 
 ## 1.3.1 — 2026-10-15
 
