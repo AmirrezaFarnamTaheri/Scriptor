@@ -879,8 +879,8 @@ test.describe('visual review states', () => {
 
     const banner = page.getByRole('alert').filter({ hasText: 'This note changed on disk' })
     await expect(banner).toBeVisible({ timeout: 15_000 })
-    await expect(banner.getByRole('button', { name: 'Reload from disk', exact: true })).toBeVisible()
-    await expect(banner.getByRole('button', { name: 'Keep editing', exact: true })).toBeVisible()
+    await expect(banner.getByRole('button', { name: 'Use disk version', exact: true })).toBeVisible()
+    await expect(banner.getByRole('button', { name: 'Keep my changes', exact: true })).toBeVisible()
     await expect.poll(() => banner.evaluate((element) => {
       const rect = element.getBoundingClientRect()
       return rect.width > 240

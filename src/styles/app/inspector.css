@@ -259,9 +259,18 @@
 
 .external-change-banner-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-left: auto;
-  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+.external-change-banner-actions .mutation-confirmation {
+  flex-basis: 100%;
+  min-width: 0;
+  margin: 4px 0 0;
 }
 
 .git-conflict-banner {

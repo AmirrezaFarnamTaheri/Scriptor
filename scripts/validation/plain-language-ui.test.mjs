@@ -215,3 +215,16 @@ test('backup recovery and snippets have honest confirmation and name-collision g
   assert.match(snippets, /Discard unsaved snippet edits/)
   assert.doesNotMatch(backup, /DR backup|legacy\/unverified/)
 })
+
+test('external change recovery warns before discarding or overwriting user edits', () => {
+  const actions = read('src/components/ExternalChangeActions.tsx')
+  const banner = read('src/components/ExternalChangeBanner.tsx')
+  const diagnostics = read('src/components/DiagnosticsPanel.tsx')
+  assert.match(actions, /<MutationConfirmation/)
+  assert.match(actions, /Your unsaved edits in Scriptor will be discarded/)
+  assert.match(actions, /they will overwrite changes made outside Scriptor/)
+  assert.match(actions, /onCancel=\{\(\) => setPending\(null\)\}/)
+  assert.match(banner, /<ExternalChangeActions/)
+  assert.match(diagnostics, /<ExternalChangeActions/)
+  assert.doesNotMatch(banner, /onClick=\{onKeepEditing\}/)
+})

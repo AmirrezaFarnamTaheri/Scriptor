@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react'
+import { ExternalChangeActions } from './ExternalChangeActions'
 
 import type { ExternalChangeConflict } from '../types/vault'
 
@@ -15,17 +16,10 @@ export function ExternalChangeBanner({ conflict, onReload, onKeepEditing }: Exte
       <div className="external-change-banner-copy">
         <strong>This note changed on disk</strong>
         <span>
-          {conflict.path} was modified externally while you have unsaved edits.
+          <bdi>{conflict.path}</bdi> was modified outside Scriptor while you have unsaved edits.
         </span>
       </div>
-      <div className="external-change-banner-actions">
-        <button type="button" className="toolbar-button" onClick={onReload}>
-          Reload from disk
-        </button>
-        <button type="button" className="toolbar-button" onClick={onKeepEditing}>
-          Keep editing
-        </button>
-      </div>
+      <ExternalChangeActions path={conflict.path} onReload={onReload} onKeepEditing={onKeepEditing} />
     </div>
   )
 }

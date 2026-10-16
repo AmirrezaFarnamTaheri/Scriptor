@@ -251,8 +251,8 @@ test.describe('workspace flows', () => {
 
     const banner = page.getByRole('alert').filter({ hasText: 'This note changed on disk' })
     await expect(banner).toBeVisible({ timeout: 15_000 })
-    await expect(banner.getByRole('button', { name: 'Reload from disk' })).toBeVisible()
-    await expect(banner.getByRole('button', { name: 'Keep editing' })).toBeVisible()
+    await expect(banner.getByRole('button', { name: 'Use disk version' })).toBeVisible()
+    await expect(banner.getByRole('button', { name: 'Keep my changes' })).toBeVisible()
   })
 
   test('reload from disk discards local edits after a hash mismatch', async ({ page }) => {
@@ -266,7 +266,13 @@ test.describe('workspace flows', () => {
 
     const banner = page.getByRole('alert').filter({ hasText: 'This note changed on disk' })
     await expect(banner).toBeVisible({ timeout: 15_000 })
-    await banner.getByRole('button', { name: 'Reload from disk' }).click()
+    await banner.getByRole('button', { name: 'Use disk version' }).click()
+    await expect(banner).toContainText('Your unsaved edits in Scriptor will be discarded.')
+    await banner.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await expect(banner).toBeVisible()
+    await expect(page.locator('.monaco-editor .view-lines')).toContainText(localMarker)
+    await banner.getByRole('button', { name: 'Use disk version' }).click()
+    await banner.getByRole('button', { name: 'Discard my edits' }).click()
 
     await expect(banner).toBeHidden()
     await expect(page.locator('.monaco-editor .view-lines')).toContainText('External disk edit.')
@@ -285,7 +291,9 @@ test.describe('workspace flows', () => {
 
     const banner = page.getByRole('alert').filter({ hasText: 'This note changed on disk' })
     await expect(banner).toBeVisible({ timeout: 15_000 })
-    await banner.getByRole('button', { name: 'Keep editing' }).click()
+    await banner.getByRole('button', { name: 'Keep my changes' }).click()
+    await expect(banner).toContainText('they will overwrite changes made outside Scriptor')
+    await banner.getByRole('button', { name: 'Overwrite disk changes' }).click()
 
     await expect(banner).toBeHidden()
     await expect(page.locator('.monaco-editor .view-lines')).toContainText(localMarker)

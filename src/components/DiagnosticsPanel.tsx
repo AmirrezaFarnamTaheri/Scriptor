@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { X } from 'lucide-react'
+import { ExternalChangeActions } from './ExternalChangeActions'
 
 import type { ClientDiagnosticEvent } from '../hooks/useDiagnosticsSettings'
 import type { EditorLintMessage } from '@scriptor/editor'
@@ -74,17 +75,11 @@ function DiagnosticsPanelImpl({
                 <li>
                   <div className="client-diagnostic-row">
                     <span className="issue-kind">conflict</span>
-                    <span>{externalChange.path}</span>
-                    <small>Modified on disk while you have unsaved edits</small>
+                    <bdi>{externalChange.path}</bdi>
+                    <small>Another app changed the file while this note has unsaved edits</small>
                   </div>
-                  <div className="external-change-banner-actions">
-                    <button type="button" className="toolbar-button" onClick={onReloadExternalChange}>
-                      Reload from disk
-                    </button>
-                    <button type="button" className="toolbar-button" onClick={onKeepEditingExternalChange}>
-                      Keep editing
-                    </button>
-                  </div>
+                  <ExternalChangeActions path={externalChange.path}
+                    onReload={onReloadExternalChange} onKeepEditing={onKeepEditingExternalChange} />
                 </li>
               </ul>
             </section>
