@@ -51,7 +51,7 @@ for (const direction of ['ltr', 'rtl']) for (const width of [320, 375]) for (con
     expect((await body.boundingBox())!.height).toBeGreaterThanOrEqual(250)
     await expect(page.getByRole('button', { name: 'Close Asset deck', exact: true })).toHaveCount(1)
     expect((await page.locator('header.topbar').boundingBox())!.height).toBeLessThanOrEqual(300)
-    const filter = panel.getByRole('searchbox', { name: 'Filter assets', exact: true })
+    const filter = panel.getByRole('searchbox', { name: 'Find a file', exact: true })
     await filter.scrollIntoViewIfNeeded()
     await filter.fill('pixel')
     await expect(filter).toHaveValue('pixel')

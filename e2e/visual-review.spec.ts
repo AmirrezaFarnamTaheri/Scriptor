@@ -1113,7 +1113,7 @@ test.describe('visual review states', () => {
 
     const releaseQuality = settings.locator('.release-quality-panel')
     await expect(releaseQuality).toBeVisible()
-    const releaseQualityHeading = releaseQuality.getByRole('heading', { name: 'Release quality dashboard', exact: true })
+    const releaseQualityHeading = releaseQuality.getByRole('heading', { name: 'Performance checks', exact: true })
     await releaseQualityHeading.scrollIntoViewIfNeeded()
     await expect(releaseQualityHeading).toBeInViewport()
     // Capture the bounded Settings viewport, not the panel's full offscreen
