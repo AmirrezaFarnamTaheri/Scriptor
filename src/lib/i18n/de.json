@@ -358,7 +358,9 @@
     "enable": "Graph aktivieren",
     "pausedTitle": "Graph pausiert",
     "pausedDescription": "Der Graph pausiert, damit Scriptor flüssig reagiert. Setzen Sie die Anzeige fort.",
-    "resume": "Graph fortsetzen"
+    "resume": "Graph fortsetzen",
+    "canvasAria": "Graph mit {{nodes}} Notizen und {{edges}} Verknüpfungen. Mit Pfeiltasten navigieren; mit Eingabe öffnen.",
+    "canvasNodeAnnouncement": "{{name}}, Notiz {{index}} von {{total}}"
   },
   "knowledge": {
     "title": "Notizen entdecken",

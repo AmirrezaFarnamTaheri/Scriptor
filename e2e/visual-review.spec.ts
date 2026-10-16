@@ -444,7 +444,7 @@ test.describe('visual review states', () => {
     const canvas = graph.locator('.graph-canvas-accessible-shell canvas')
     await expect(stage).toBeVisible()
     await expect(canvas).toBeVisible({ timeout: 15_000 })
-    await expect(canvas).toHaveAttribute('aria-label', /120 nodes and 160 directed edges/)
+    await expect(canvas).toHaveAttribute('aria-label', /120 notes and 160 links/)
     const geometry = await stage.evaluate((element) => {
       const canvas = element.querySelector('canvas')
       if (!canvas) return null

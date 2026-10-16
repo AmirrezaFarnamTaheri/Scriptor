@@ -358,7 +358,9 @@
     "enable": "Enable Graph",
     "pausedTitle": "Graph paused",
     "pausedDescription": "The graph is paused to keep Scriptor responsive. Resume to explore.",
-    "resume": "Resume graph"
+    "resume": "Resume graph",
+    "canvasAria": "Graph with {{nodes}} notes and {{edges}} links. Use arrow keys to explore notes; press Enter to open.",
+    "canvasNodeAnnouncement": "{{name}}, note {{index}} of {{total}}"
   },
   "knowledge": {
     "title": "Explore notes",
