@@ -261,7 +261,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-left: auto;
+  margin-inline-start: auto;
   min-width: 0;
   max-width: 100%;
   flex: 0 1 auto;
@@ -417,3 +417,9 @@
   outline-offset: 2px;
 }
 .inspector-health-breakdown[open] .metric-grid { margin-top: 10px; }
+
+/* Recovery choices and their confirmation must remain reachable under RTL/zoom. */
+@container workspace-chrome (max-width: 700px) {
+  .external-change-banner { flex-wrap: wrap; }
+  .external-change-banner-actions { width: 100%; margin-inline-start: 0; }
+}

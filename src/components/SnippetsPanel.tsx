@@ -216,23 +216,24 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
           )}
         </div>
 
-        <footer className="snippets-footer">
-          <button type="button" className="toolbar-button" disabled={!selected || isSaving} onClick={removeSnippet}>
-            <Trash2 size={14} />
-            Delete
-          </button>
-          <button type="button" className="primary-button" disabled={isSaving || !dirty} onClick={() => void save()}>
-            <Save size={14} />
-            {isSaving ? 'Saving…' : 'Save catalog'}
-          </button>
+        <footer className={`snippets-footer${confirmDiscard ? ' is-confirming' : ''}`}>
+          {confirmDiscard ? <MutationConfirmation
+            ariaLabel="Discard unsaved snippet edits"
+            message="Your snippet changes have not been saved. Close without keeping them?"
+            confirmLabel="Discard changes"
+            onCancel={() => setConfirmDiscard(false)}
+            onConfirm={onClose}
+          /> : <>
+            <button type="button" className="toolbar-button" disabled={!selected || isSaving} onClick={removeSnippet}>
+              <Trash2 size={14} />
+              Delete
+            </button>
+            <button type="button" className="primary-button" disabled={isSaving || !dirty} onClick={() => void save()}>
+              <Save size={14} />
+              {isSaving ? 'Saving…' : 'Save catalog'}
+            </button>
+          </>}
         </footer>
-        {confirmDiscard ? <MutationConfirmation
-          ariaLabel="Discard unsaved snippet edits"
-          message="Your snippet changes have not been saved. Close without keeping them?"
-          confirmLabel="Discard changes"
-          onCancel={() => setConfirmDiscard(false)}
-          onConfirm={onClose}
-        /> : null}
       </section>
     </div>
   )
