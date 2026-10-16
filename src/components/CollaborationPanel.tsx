@@ -297,8 +297,12 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         <details className="collaboration-guidance"><summary>{t('collaborationUi.autoLimits')}</summary><p>{t('collaborationUi.autoLimitsText')}</p></details>
       </section>
       {preview && <>
-        <p>{preview.conflict ? 'Resolve every conflict marker before applying.' : 'Merge preview is ready.'} Shared {preview.record.created_at} by <bdi>{preview.record.peer_id}</bdi>.</p>
-        <label>Reviewed merge<textarea rows={16} value={preview.markdown} disabled={busy} onChange={event => setPreview({ ...preview, markdown: event.target.value })} /></label>
+        <h3>{t('collaborationUi.reviewHeading')}</h3>
+        <p>{t(preview.conflict ? 'collaborationUi.conflict' : 'collaborationUi.ready')}</p>
+        <details className="collaboration-guidance"><summary>{t('collaborationUi.versionDetails')}</summary>
+          <p>{t('collaborationUi.versionShared', { date: preview.record.created_at })} · <bdi>{preview.record.peer_id}</bdi></p>
+        </details>
+        <label>{t('collaborationUi.reviewLabel')}<textarea rows={16} value={preview.markdown} disabled={busy} onChange={event => setPreview({ ...preview, markdown: event.target.value })} /></label>
         <button disabled={busy || !vaultId || hasUnresolvedSharedConflict(preview.markdown)} onClick={() => void run(async current => {
           if (preview.record.document !== path) throw new Error('Selected note changed; review again.')
           const applied = await runSourceNoteMutation(path!, async () => {
@@ -309,9 +313,9 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
             const warning = remember(preview.markdown)
             setPreview(null); setMessage(`Reviewed merge saved.${warning}`); await onApplied()
           }
-        })}>Apply reviewed merge</button>
+        })}>{t('collaborationUi.saveReviewed')}</button>
       </>}
-      <details><summary>Optional Google Docs text translation</summary>
+      <details><summary>{t('collaborationUi.docsTitle')}</summary>
         {folderId && <CollaborationResources kind="docs" resources={documents} selectedId={docsId} busy={busy || !vaultId} canAccess={Boolean(account)} hasMore={Boolean(documentPage)} onSelect={id => { setDocsId(id); setDocsPreview(null); setDocsConsent(false) }} onBrowse={next => void run(current => browseResources(current, 'docs', next))} />}
         <p>Import a reviewed text copy from a Google document in this folder, or create a new plain-text Google document from the saved Markdown. This preserves text, not rich document fidelity. Comments, suggestions, history, layout, embedded media and access permissions do not transfer. Markdown syntax remains literal in exported plain-text copies. Existing Google documents are never overwritten.</p>
         <label>Google document ID<input value={docsId} disabled={busy} onChange={event => { setDocsId(event.target.value.trim()); setDocsPreview(null); setDocsConsent(false) }} autoComplete="off" /></label>
@@ -322,21 +326,21 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           if (current !== epoch.current) return
           const merged = mergeSharedRevision(sharedRevisionBase(base.current, path!), local.markdown, translated.markdown)
           setDocsConsent(false); setDocsPreview({ ...translated, markdown: merged.markdown, hash: local.metadata.content_hash })
-        })}>Preview translated Google document</button>
-        {docsPreview && <><h3><bdi>{docsPreview.title}</bdi></h3><ul>{docsPreview.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><label>Reviewed translated merge<textarea rows={12} value={docsPreview.markdown} disabled={busy} onChange={event => setDocsPreview({ ...docsPreview, markdown: event.target.value })} /></label></>}
-        <label><input type="checkbox" checked={docsConsent} disabled={busy} onChange={event => setDocsConsent(event.target.checked)} />I reviewed and accept the text conversion losses for this action</label>
+        })}>{t('collaborationUi.docsPreview')}</button>
+        {docsPreview && <><h3><bdi>{docsPreview.title}</bdi></h3><ul>{docsPreview.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><label>{t('collaborationUi.docsReview')}<textarea rows={12} value={docsPreview.markdown} disabled={busy} onChange={event => setDocsPreview({ ...docsPreview, markdown: event.target.value })} /></label></>}
+        <label><input type="checkbox" checked={docsConsent} disabled={busy} onChange={event => setDocsConsent(event.target.checked)} />{t('collaborationUi.docsConsent')}</label>
         {docsPreview && <button disabled={busy || !docsConsent || !path || !vaultId || hasUnresolvedSharedConflict(docsPreview.markdown)} onClick={() => void run(async current => {
           const applied = await runSourceNoteMutation(path!, () => vaultSaveNote(path!, docsPreview.markdown, docsPreview.hash, false, vaultId!).then(() => undefined))
           if (!applied) throw new Error('Save the editor draft and preview this translation again.')
           if (current === epoch.current) { setMessage(`Reviewed Google Docs translation saved.${remember(docsPreview.markdown)}`); setDocsPreview(null); setDocsConsent(false); await onApplied() }
-        })}>Apply reviewed translated merge</button>}
+        })}>{t('collaborationUi.docsSave')}</button>}
         <button disabled={busy || !docsConsent || !folderId || !path || !vaultId || !account} onClick={() => void run(async current => {
           const local = await vaultReadNote(path!)
           if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
           if (current !== epoch.current) return
           const result = await collaborationCreateDocs(vaultId!, folderId, `${path} — text copy`, docsPlainTextExport(local.markdown))
           if (current === epoch.current) { setDocsConsent(false); setMessage(`Created new Google document “${result.name}”. Existing documents and local note were unchanged.`) }
-        })}>Create new Google Docs text copy</button>
+        })}>{t('collaborationUi.docsCreate')}</button>
       </details>
       {busy && <p role="status">Working…</p>}
       {message && <p role="status">{message}</p>}

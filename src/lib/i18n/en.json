@@ -1289,6 +1289,19 @@
     "connected": "Connected as {{account}}",
     "localNote": "Local note",
     "share": "Share saved version",
-    "refresh": "Check shared versions"
+    "refresh": "Check shared versions",
+    "reviewHeading": "Review incoming changes",
+    "conflict": "Resolve the marked differences before saving.",
+    "ready": "Review the suggested changes before saving this note.",
+    "versionDetails": "About this shared version",
+    "versionShared": "Shared on {{date}}",
+    "reviewLabel": "Changes to this note",
+    "saveReviewed": "Save reviewed changes",
+    "docsTitle": "Google Docs text copies",
+    "docsPreview": "Preview text from Google Docs",
+    "docsReview": "Review imported text",
+    "docsConsent": "I understand that comments, formatting, history, images and sharing permissions do not transfer.",
+    "docsSave": "Save reviewed text",
+    "docsCreate": "Create a new Google Doc with plain text"
   }
 }

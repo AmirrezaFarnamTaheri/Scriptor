@@ -229,6 +229,16 @@ test('external change recovery warns before discarding or overwriting user edits
   assert.doesNotMatch(banner, /onClick=\{onKeepEditing\}/)
 })
 
+test('Drive sharing uses task language but keeps incoming-review consent and conflict details', () => {
+  const source = read('src/components/CollaborationPanel.tsx')
+  assert.match(source, /collaborationUi\.docsConsent/)
+  assert.match(source, /collaborationUi\.saveReviewed/)
+  assert.match(source, /collaborationUi\.versionDetails/)
+  assert.match(source, /hasUnresolvedSharedConflict/)
+  assert.match(source, /runSourceNoteMutation/)
+  assert.doesNotMatch(source, /Optional Google Docs text translation|Reviewed translated merge|Remove saved credential/)
+})
+
 test('files, search groups, article capture, and reports explain tasks without internal jargon', () => {
   const files = read('src/components/AssetDeckPanel.tsx')
   const cheat = read('src/components/CheatsheetPanel.tsx')

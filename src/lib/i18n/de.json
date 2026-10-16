@@ -1289,6 +1289,19 @@
     "connected": "Verbunden mit {{account}}",
     "localNote": "Lokale Notiz",
     "share": "Gespeicherte Version teilen",
-    "refresh": "Geteilte Versionen prüfen"
+    "refresh": "Geteilte Versionen prüfen",
+    "reviewHeading": "Eingehende Änderungen prüfen",
+    "conflict": "Lösen Sie die markierten Unterschiede vor dem Speichern.",
+    "ready": "Prüfen Sie die vorgeschlagenen Änderungen, bevor Sie diese Notiz speichern.",
+    "versionDetails": "Informationen zu dieser geteilten Version",
+    "versionShared": "Geteilt am {{date}}",
+    "reviewLabel": "Änderungen an dieser Notiz",
+    "saveReviewed": "Geprüfte Änderungen speichern",
+    "docsTitle": "Google Docs – Textkopien",
+    "docsPreview": "Text aus Google Docs ansehen",
+    "docsReview": "Importierten Text prüfen",
+    "docsConsent": "Ich verstehe, dass Kommentare, Formatierung, Verlauf, Bilder und Freigaberechte nicht übertragen werden.",
+    "docsSave": "Geprüften Text speichern",
+    "docsCreate": "Neues Google-Dokument mit Klartext erstellen"
   }
 }
