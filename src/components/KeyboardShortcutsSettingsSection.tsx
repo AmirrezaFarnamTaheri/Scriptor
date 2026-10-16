@@ -102,8 +102,7 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
           return (
             <div className="shortcut-table-row" role="row" key={entry.id}>
               <div role="cell" className="shortcut-command-copy">
-                <strong>{entry.label}</strong>
-                <small>{entry.id}</small>
+                <strong title={`Command ID: ${entry.id}`}>{entry.label}</strong>
               </div>
               <div role="cell">
                 <label className="sr-only" htmlFor={`shortcut-${entry.id}`}>Shortcut for {entry.label}</label>
@@ -157,9 +156,7 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
                   >
                     Reset
                   </button>
-                ) : (
-                  <span className="shortcut-default-badge">Default</span>
-                )}
+                ) : null}
               </div>
             </div>
           )

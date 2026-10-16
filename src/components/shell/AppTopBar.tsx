@@ -16,6 +16,7 @@ import {
   PanelLeft,
   PanelRight,
   Palette,
+  Puzzle,
   Search,
   Settings,
   SlidersHorizontal,
@@ -65,6 +66,8 @@ interface AppTopBarProps {
   onOpenSupport: () => void
   onOpenSettings: () => void
   onOpenPluginManager?: () => void
+  onOpenPlugins: () => void
+  pluginsActive: boolean
   theme: AppTheme
   appearance: AppearanceMode
   resolvedAppearance: ResolvedAppearance
@@ -114,6 +117,8 @@ function AppTopBarImpl({
   onOpenSupport,
   onOpenSettings,
   onOpenPluginManager,
+  onOpenPlugins,
+  pluginsActive,
   theme,
   appearance,
   resolvedAppearance,
@@ -168,6 +173,7 @@ function AppTopBarImpl({
   const statusActions = [
     { id: 'git', label: gitTitle, icon: <GitBranch />, onClick: onOpenGit },
     { id: 'mcp', label: mcpLabel, icon: <Lock />, onClick: onOpenMcp },
+    { id: 'plugins', label: t('topBar.plugins'), icon: <Puzzle />, onClick: onOpenPlugins },
     { id: 'support', label: t('topBar.supportScriptor'), icon: <Heart />, onClick: onOpenSupport },
     ...(onOpenPluginManager
       ? [{ id: 'paletteStore', label: t('topBar.paletteStore'), icon: <Palette />, onClick: onOpenPluginManager }]
@@ -407,6 +413,14 @@ function AppTopBarImpl({
             <IconButton tooltip={false} className="palette-store-action" label={t('topBar.paletteStore')} onClick={onOpenPluginManager}>
               <Palette />
             </IconButton>
+          ) : null}
+          {!hiddenTopBarActions.has('plugins') ? (
+            <button type="button" className="action-button topbar-plugins-entry"
+              onClick={onOpenPlugins} aria-label={t('topBar.plugins')} title={t('topBar.plugins')}
+              aria-pressed={pluginsActive}>
+              <Puzzle aria-hidden="true" />
+              <span className="action-button-label">{t('topBar.plugins')}</span>
+            </button>
           ) : null}
           <IconButton tooltip={false} label={t('topBar.settings')} onClick={onOpenSettings}>
             <Settings />

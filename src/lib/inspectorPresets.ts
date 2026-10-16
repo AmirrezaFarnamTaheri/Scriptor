@@ -16,7 +16,7 @@ export const INSPECTOR_PRESETS: InspectorPresetConfig[] = [
   {
     id: 'balanced',
     label: 'Balanced',
-    description: 'Default inspector layout.',
+    description: 'Outline, links, and vault checks.',
     showOutline: true,
     showLinks: true,
     showBacklinks: true,
@@ -27,7 +27,7 @@ export const INSPECTOR_PRESETS: InspectorPresetConfig[] = [
   {
     id: 'research',
     label: 'Research',
-    description: 'Links, backlinks, and citation context.',
+    description: 'Find note links and citations.',
     showOutline: true,
     showLinks: true,
     showBacklinks: true,
@@ -49,7 +49,7 @@ export const INSPECTOR_PRESETS: InspectorPresetConfig[] = [
   {
     id: 'cleanup',
     label: 'Cleanup',
-    description: 'Quality signals and broken-link repair focus.',
+    description: 'Find broken links and other problems.',
     showOutline: false,
     showLinks: true,
     showBacklinks: true,

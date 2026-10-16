@@ -158,8 +158,8 @@ test.describe('visual coverage matrix', () => {
     await closeSurface(graph)
 
     await openCommandPalette(page)
-    await runCommand(page, 'Open knowledge workbench')
-    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+    await runCommand(page, 'Explore notes')
+    const workbench = page.getByRole('dialog', { name: 'Explore notes' })
     await expectDarkSurface(workbench)
     await closeSurface(workbench)
 
@@ -237,9 +237,9 @@ test.describe('visual coverage matrix', () => {
 
     const resolver = page.getByRole('dialog', { name: 'Resolve merge conflicts' })
     await expectDarkSurface(resolver)
-    await expect(resolver.getByRole('button', { name: 'Apply resolved file' })).toBeDisabled()
-    await resolver.getByRole('radio', { name: 'Keep theirs', exact: true }).check()
-    await expect(resolver.getByRole('button', { name: 'Apply resolved file' })).toBeEnabled()
+    await expect(resolver.getByRole('button', { name: 'Apply selected changes' })).toBeDisabled()
+    await resolver.getByRole('radio', { name: 'Keep incoming changes', exact: true }).check()
+    await expect(resolver.getByRole('button', { name: 'Apply selected changes' })).toBeEnabled()
   })
 
   test('long localized workspace chrome never produces page-level horizontal scrolling', async ({ page }) => {
@@ -341,11 +341,11 @@ test.describe('visual coverage matrix', () => {
     await settleLayout(page)
 
     await openCommandPalette(page)
-    await runCommand(page, 'Open knowledge workbench')
-    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+    await runCommand(page, 'Explore notes')
+    const workbench = page.getByRole('dialog', { name: 'Explore notes' })
     await expect(workbench).toBeVisible()
 
-    const orphanTab = workbench.getByRole('tab', { name: /Orphans \(3\)/ })
+    const orphanTab = workbench.getByRole('tab', { name: /No incoming links \(3\)/ })
     await orphanTab.click()
     const rows = workbench.locator('.virtual-knowledge-list > li')
     await expect(rows).toHaveCount(3)
@@ -369,14 +369,14 @@ test.describe('visual coverage matrix', () => {
       workbench.getByText('Field Notes with an intentionally long title for zoom coverage', { exact: true }),
     ).toBeVisible()
 
-    const startTriage = workbench.getByRole('button', { name: /Start triage/ })
+    const startTriage = workbench.getByRole('button', { name: /Review 3 notes/ })
     await startTriage.click()
     await expect(workbench).toBeVisible()
-    await expect(workbench.getByText(/Triage 1 of 3/)).toBeVisible()
+    await expect(workbench.getByText(/Reviewing 1 of 3/)).toBeVisible()
     await expect(startTriage).toHaveCount(0)
     await workbench.getByRole('button', { name: 'Next', exact: true }).click()
     await expect(workbench).toBeVisible()
-    await expect(workbench.getByText(/Triage 2 of 3/)).toBeVisible()
+    await expect(workbench.getByText(/Reviewing 2 of 3/)).toBeVisible()
     await expectNoHorizontalOverflow(page)
   })
 

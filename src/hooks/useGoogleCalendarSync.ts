@@ -32,6 +32,7 @@ import {
 } from '../bridge/commands/google_calendar.ts'
 import { safeExternalMarkdownDestination, safeExternalMarkdownText } from '../lib/safeExternalUrl.ts'
 import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors.ts'
+import { getGoogleOAuthClientId } from '../lib/googleOAuthClient.ts'
 
 export type CalendarSyncStatus =
   | 'disconnected'
@@ -202,7 +203,7 @@ export function useGoogleCalendarSync({
   const discoveryGenerationRef = useRef(0)
 
   const enabled = config?.enabled ?? false
-  const clientId = config?.google_client_id ?? null
+  const clientId = getGoogleOAuthClientId(config?.google_client_id)
   const calendarId = config?.google_calendar_id ?? 'primary'
   const taskListId = config?.google_task_list_id ?? '@default'
   const lookaheadDays = config?.lookahead_days ?? DEFAULT_LOOKAHEAD_DAYS
@@ -224,7 +225,7 @@ export function useGoogleCalendarSync({
 
   const startAuth = useCallback(async (): Promise<boolean> => {
     if (!clientId) {
-      setError('Google OAuth client ID not configured. Set it in Settings → Integrations.')
+      setError('Google sign-in is not configured in this build. Ask the Scriptor maintainer to provide an app-owned Desktop OAuth client.')
       return false
     }
     const currentLifecycle = lifecycleGenerationRef.current

@@ -47,7 +47,7 @@ export function CaptureReviewerPanel({vaultOpen,vaultId,onClose,onSaved,embedded
   }
   const highlight=()=>{const input=editor.current;if(!input||input.selectionStart===input.selectionEnd)return;const start=input.selectionStart,end=input.selectionEnd;setMarkdown(markdown.slice(0,start)+'=='+markdown.slice(start,end)+'=='+markdown.slice(end));input.focus()}
   const body=<>
-    <header data-workspace-header-only={workspaceEmbedded ? 'true' : undefined}><h2>Capture reviewer</h2>{!workspaceEmbedded && <button type="button" onClick={onClose}>Close capture reviewer</button>}</header>
+    <header data-workspace-header-only={workspaceEmbedded ? 'true' : undefined}><h2>Save a web article</h2>{!workspaceEmbedded && <button type="button" onClick={onClose}>Close article capture</button>}</header>
     <form onSubmit={event=>{event.preventDefault();void extract()}}>
       <label>Article URL<input type="url" required value={url} disabled={busy} onChange={event=>setUrl(event.target.value)} placeholder="https://example.org/article"/></label>
       <button type="submit" disabled={!native||busy||!url.trim()}>Extract preview</button>
@@ -75,7 +75,7 @@ export function CaptureReviewerPanel({vaultOpen,vaultId,onClose,onSaved,embedded
       setStatus('Ignoring the pending result. Controls unlock when the operation finishes. A submitted save may still finish; check the vault before retrying.')
     }}>Stop waiting</button>:null}
   </>
-  const sourcePreview=source?<section aria-label="Original source snapshot"><h3>Original source snapshot</h3><p>Text and structure from the fetched page. Images, scripts, styling, forms and navigation are removed.</p>{snapshotError?<p role="alert">{snapshotError}</p>:sourceSnapshot?<iframe title="Original source snapshot" sandbox="" referrerPolicy="no-referrer" srcDoc={sourceSnapshot}/>:null}</section>:null
+  const sourcePreview=source?<section aria-label="Original source snapshot"><h3>Original page text</h3><p>This preview shows the article text without images, forms, scripts, or navigation.</p>{snapshotError?<p role="alert">{snapshotError}</p>:sourceSnapshot?<iframe title="Original source snapshot" sandbox="" referrerPolicy="no-referrer" srcDoc={sourceSnapshot}/>:null}</section>:null
   if(inline)return <section className="capture-reviewer" aria-label="Capture reviewer" data-help-topic="capture">{body}{sourcePreview}</section>
   return <div className="modal-backdrop"><div ref={dialog} className="modal-card capture-reviewer" role="dialog" aria-modal="true" aria-label="Capture reviewer" data-help-topic="capture">{body}{sourcePreview}</div></div>
 }

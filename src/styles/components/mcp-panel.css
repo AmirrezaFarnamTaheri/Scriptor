@@ -110,11 +110,11 @@
 }
 
 .mcp-mode-option-header strong {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .mcp-mode-indicator {
@@ -160,8 +160,8 @@
 
 .mcp-mode-option-copy small {
   color: var(--muted);
-  font-size: 10px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.45;
   overflow-wrap: break-word;
 }
 

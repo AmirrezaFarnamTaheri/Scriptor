@@ -26,9 +26,9 @@ export const ReleaseQualityPanel = memo(function ReleaseQualityPanel({
 
   return (
     <div className="release-quality-panel" data-help-topic="quality">
-      <h3>Release quality dashboard</h3>
+      <h3>Performance checks</h3>
       <p className="health-subtitle">
-        Run benchmarks from a terminal in the repo root. Journey metrics below are captured locally in this workspace.
+        Run detailed checks from the Scriptor project folder in a terminal. The usage numbers below come from this device.
       </p>
 
       <div className="metric-grid health-metrics journey-metrics">
@@ -45,13 +45,13 @@ export const ReleaseQualityPanel = memo(function ReleaseQualityPanel({
           <strong>{formatDuration(journey.lastIndexRebuildMs)}</strong>
         </div>
         <div className="metric">
-          <span>Panel opens tracked</span>
+          <span>Times panels opened</span>
           <strong>{Object.values(journey.panelOpens).reduce((sum, count) => sum + count, 0)}</strong>
         </div>
       </div>
 
       <button type="button" className="toolbar-button" onClick={onResetJourney}>
-        Reset journey metrics
+        Clear local usage numbers
       </button>
 
       {categories.map((category) => (

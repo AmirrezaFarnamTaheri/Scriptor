@@ -330,6 +330,8 @@
   justify-content: space-between;
   gap: 10px;
 }
+.snippets-footer.is-confirming { display: block; }
+.snippets-footer > .mutation-confirmation { width: 100%; min-width: 0; }
 
 .folder-node {
   display: flex;
@@ -516,17 +518,40 @@
 }
 
 @container vault-rail (max-width: 220px) {
+  /* Prefer one compact navigation row over the stacked controls seen at tablet widths. */
   .vault-nav-tabs {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-inline: 6px;
+    gap: 3px;
   }
-
+  .vault-nav-tabs .toolbar-button {
+    min-width: 0;
+    padding-inline: 3px;
+    gap: 3px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .vault-nav-tabs .toolbar-button > svg { flex: none; }
+  .vault-panel .filter-button {
+    margin-inline: 8px;
+    padding-inline: 7px;
+    min-width: 0;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vault-panel .filter-button > svg { flex: none; }
   .daily-note-nav {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    margin-inline: 4px;
   }
-
-  .daily-note-button {
-    grid-column: 1 / -1;
-    grid-row: 1;
+  .daily-note-nav .toolbar-button { padding-inline: 3px; }
+  .daily-note-label-full { display: none; }
+  .daily-note-label-compact {
+    display: inline;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 

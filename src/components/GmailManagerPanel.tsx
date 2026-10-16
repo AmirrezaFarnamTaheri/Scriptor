@@ -28,6 +28,7 @@ import {
 import { isNativeBridgeAvailable } from '../bridge/platform.ts'
 import { buildGmailMarkdown, buildRfc5322Message } from '../lib/gmailRfc5322.ts'
 import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors.ts'
+import { getGoogleOAuthClientId, hasPackagedGoogleOAuthClient } from '../lib/googleOAuthClient.ts'
 import { useI18n } from '../lib/i18n/index.ts'
 import { UnifiedPanelShell, type PanelTab } from './chrome/UnifiedPanelShell.tsx'
 import type { PanelPresentation } from '../hooks/usePanelPresentation.ts'
@@ -60,7 +61,7 @@ export function GmailManagerPanel({
   const nativeReady = isNativeBridgeAvailable()
   const [activeTab, setActiveTab] = useState<GmailTab>('messages')
   const [clientIdOverride, setClientIdOverride] = useState<string | null>(null)
-  const clientId = clientIdOverride ?? defaultClientId
+  const clientId = getGoogleOAuthClientId(clientIdOverride ?? defaultClientId)
   const [isAuthed, setIsAuthed] = useState(false)
   const [accountEmail, setAccountEmail] = useState<string | null>(null)
   const [checkingAuth, setCheckingAuth] = useState(nativeReady)
@@ -227,8 +228,8 @@ export function GmailManagerPanel({
     }
   }, [nativeReady, clearAccount])
 
-  const handleStartAuth = async (event: React.FormEvent) => {
-    event.preventDefault()
+  const handleStartAuth = async (event?: React.FormEvent) => {
+    event?.preventDefault()
     if (!clientId.trim() || !nativeReady || loading || sending) return
     const operation = ++operationSequence.current
     const account = ++accountSequence.current
@@ -489,8 +490,10 @@ export function GmailManagerPanel({
                 <Key size={32} aria-hidden="true" />
                 <h3>{t('integrations.gmail.notConnected')}</h3>
                 <p>{t('integrations.gmail.connectPrompt')}</p>
-                <button type="button" className="action-button" onClick={() => setActiveTab('account')}>
-                  {t('integrations.gmail.connectAccount')}
+                <button type="button" className="action-button"
+                  disabled={loading || sending || checkingAuth || !nativeReady}
+                  onClick={() => { if (clientId.trim()) void handleStartAuth(); else setActiveTab('account') }}>
+                  {t(clientId.trim() ? 'integrations.gmail.connectGoogle' : 'integrations.gmail.connectAccount')}
                 </button>
               </div>
             ) : null}
@@ -670,18 +673,25 @@ export function GmailManagerPanel({
                 </button>
               ) : (
                 <form onSubmit={handleStartAuth} className="gmail-manager-account-form">
-                  <label className="settings-field">
-                    {t('integrations.gmail.clientId')}
-                    <input
-                      type="text"
-                      value={clientId}
-                      onChange={(event) => setClientIdOverride(event.target.value)}
-                      placeholder="1234567890-abc.apps.googleusercontent.com"
-                      required
-                      disabled={loading || sending || checkingAuth}
-                    />
-                  </label>
-                  <p className="gmail-manager-help">{t('integrations.gmail.clientHelp')}</p>
+                  {!hasPackagedGoogleOAuthClient() ? (
+                    <>
+                      {!clientId && <p className="publish-error" role="alert">{t('integrations.google.notConfigured')}</p>}
+                      <details className="google-developer-setup">
+                        <summary>{t('integrations.google.developerSetup')}</summary>
+                        <label className="settings-field">
+                          {t('integrations.gmail.clientId')}
+                          <input
+                            type="text"
+                            value={clientIdOverride ?? defaultClientId}
+                            onChange={(event) => setClientIdOverride(event.target.value)}
+                            placeholder="1234567890-abc.apps.googleusercontent.com"
+                            disabled={loading || sending || checkingAuth}
+                          />
+                        </label>
+                        <p className="gmail-manager-help">{t('integrations.gmail.clientHelp')}</p>
+                      </details>
+                    </>
+                  ) : <p className="gmail-manager-help">{t('integrations.google.appManaged')}</p>}
                   <div>
                     <button type="submit" className="action-button" disabled={loading || sending || checkingAuth || !nativeReady || !clientId.trim()}>
                       {loading ? t('integrations.gmail.startingAuth') : t('integrations.gmail.connectGoogle')}

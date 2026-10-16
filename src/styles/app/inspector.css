@@ -259,9 +259,18 @@
 
 .external-change-banner-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  margin-left: auto;
-  flex: 0 0 auto;
+  margin-inline-start: auto;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+.external-change-banner-actions .mutation-confirmation {
+  flex-basis: 100%;
+  min-width: 0;
+  margin: 4px 0 0;
 }
 
 .git-conflict-banner {
@@ -393,3 +402,24 @@
   color: var(--ink);
 }
 
+
+/* A healthy vault needs a small status, not eight zero-valued tiles by default.
+ * The breakdown remains available with a native keyboard-accessible disclosure. */
+.inspector-health-breakdown { min-width: 0; }
+.inspector-health-breakdown summary {
+  padding: 7px 2px;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+.inspector-health-breakdown summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.inspector-health-breakdown[open] .metric-grid { margin-top: 10px; }
+
+/* Recovery choices and their confirmation must remain reachable under RTL/zoom. */
+@container workspace-chrome (max-width: 700px) {
+  .external-change-banner { flex-wrap: wrap; }
+  .external-change-banner-actions { width: 100%; margin-inline-start: 0; }
+}

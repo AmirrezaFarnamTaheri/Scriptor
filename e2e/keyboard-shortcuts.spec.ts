@@ -24,6 +24,11 @@ test('settings exposes and persists keyboard shortcut editing', async ({ page })
 
   const table = settings.getByRole('table', { name: 'Keyboard shortcuts' })
   await expect(table).toBeVisible()
+  // Keep developer-only command IDs and repetitive Default badges off the
+  // everyday settings table while preserving IDs in accessible tooltips.
+  await expect(table.locator('.shortcut-command-copy small')).toHaveCount(0)
+  await expect(table.locator('.shortcut-default-badge')).toHaveCount(0)
+  await expect(table.locator('.shortcut-command-copy').first().locator('strong')).toHaveAttribute('title', /^Command ID:/)
   const graphInput = settings.getByLabel('Shortcut for Open graph')
   await expect(graphInput).toHaveValue('Alt+G')
   await graphInput.fill('Alt+H')

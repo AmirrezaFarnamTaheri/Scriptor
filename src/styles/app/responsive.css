@@ -408,12 +408,10 @@
     min-width: 0;
   }
 
+  /* A persistent bottom Command destination already opens the same search.
+     Remove its duplicate full-width row to give the document more space. */
   .command-search {
-    grid-column: 1 / -1;
-    order: 4;
-    width: 100%;
-    max-width: none;
-    height: 42px;
+    display: none;
   }
 
   .inspector-panel,
@@ -554,12 +552,7 @@ html[data-ui-reflow='mobile'] .workspace-mode-select {
 }
 
 html[data-ui-reflow='mobile'] .command-search {
-  grid-column: 1 / -1;
-  order: 4;
-  width: 100%;
-  max-width: none;
-  min-width: 0;
-  height: 42px;
+  display: none;
 }
 
 html[data-ui-reflow='mobile'] .status-strip {
@@ -685,7 +678,7 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
    keeping the navigation chrome smaller than the document it serves. */
 html[data-ui-zoom='high'] [data-workspace-header-only='true'] { display:none; }
 html[data-ui-zoom='high'] .workspace-embedded-panel .unified-panel-body { padding:8px; }
-html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(4,minmax(32px,1fr)); gap:2px; padding:4px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(5,minmax(32px,1fr)); gap:2px; padding:4px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item { min-width:32px; min-height:32px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item > span { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls button:disabled { display:none; }
@@ -709,3 +702,9 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-switcher { margin:
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-switcher select { min-height:32px; height:32px; padding:4px 6px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-strip { padding:0; border:0; border-radius:0; background:transparent; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-select { min-height:32px; height:32px; padding:4px 6px; border:1px solid var(--border); border-radius:6px; background:var(--surface); font-size:12px; }
+
+/* The mobile bar already has a direct Plugins destination. Do not duplicate its icon above. */
+@media (max-width: 640px) {
+  .topbar-plugins-entry { display: none; }
+}
+html[data-ui-reflow='mobile'] .topbar-plugins-entry { display: none; }

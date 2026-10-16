@@ -126,7 +126,7 @@ export const PublishCenter = memo(function PublishCenter({
             Export this note
           </h3>
           <p className="health-subtitle">
-            Export with a configured profile, or use the bundled offline PDF compiler.
+            Choose a file format and save location. PDF export can work without an internet connection.
           </p>
           <ul className="publish-profile-list">
             {exportProfiles.map((profile) => {
@@ -149,7 +149,7 @@ export const PublishCenter = memo(function PublishCenter({
                     type="button"
                     className="toolbar-button"
                     disabled={!activePath || isExporting || profile.id === 'pdf-offline' || profile.id === 'pdf-translate'}
-                    title="Validate the export command and inputs without writing an artifact"
+                    title="Check export settings without creating a file"
                     onClick={() => onExport(profile.id, true)}
                   >
                     Preview export
@@ -179,7 +179,7 @@ export const PublishCenter = memo(function PublishCenter({
             Compile with LaTeX (Tectonic)
           </h3>
           <p className="health-subtitle">
-            Compile the active TeX file using the self-contained Tectonic TeX engine.
+            Turn the open LaTeX file into a PDF using the built-in compiler.
           </p>
           <div className="publish-profile-actions">
             <button
@@ -313,7 +313,7 @@ export const PublishCenter = memo(function PublishCenter({
         {exportResult && !exportResult.dry_run ? (
           <section className="publish-center-section">
             <h3>Latest file export</h3>
-            <p className="health-subtitle">Artifact written to disk.</p>
+            <p className="health-subtitle">Exported file saved.</p>
             <code className="publish-artifact">{exportResult.artifact_path}</code>
           </section>
         ) : null}

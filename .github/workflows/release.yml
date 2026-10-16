@@ -47,6 +47,8 @@ defaults:
     working-directory: .
 
 env:
+  # Public OAuth Desktop application identity; configured once per Scriptor release, not per user.
+  VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID }}
   SCRIPTOR_RELEASE_VERSION: >-
     ${{
       (inputs.publish && startsWith(github.ref, 'refs/tags/v'))
@@ -309,6 +311,9 @@ jobs:
           APPLE_PASSWORD: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_TEAM_ID || '' }}
         run: |
+          if ($env:SCRIPTOR_RELEASE_CHANNEL -eq 'production' -and -not $env:VITE_GOOGLE_OAUTH_CLIENT_ID) {
+            throw "Configure repository variable SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID with Scriptor's registered Google Desktop OAuth client ID before publishing installers."
+          }
           if ($env:SCRIPTOR_TAURI_SIGNING_CONFIG) {
             $arguments = @("--dir", "apps/desktop", "exec", "tauri", "build", "--config", $env:SCRIPTOR_TAURI_SIGNING_CONFIG)
           } else {

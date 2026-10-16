@@ -110,7 +110,7 @@ test('database layouts preserve calculated values and scoped aggregate evidence'
   await panel.getByRole('button',{name:'Load notes',exact:true}).click()
   await expect(panel.locator('tbody tr')).toHaveCount(2)
   await expect(panel.locator('tbody tr').first()).toContainText('24')
-  await panel.getByText('Aggregates for loaded rows',{exact:true}).click()
+  await panel.getByText('Totals for loaded notes',{exact:true}).click()
   await expect(panel.locator('details')).toContainText('sum 30')
   await panel.getByRole('combobox',{name:'Layout',exact:true}).selectOption('list')
   await expect(panel.locator('.database-results-list > li')).toHaveCount(2)

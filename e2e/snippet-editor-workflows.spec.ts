@@ -1,0 +1,26 @@
+import { expect, test } from '@playwright/test'
+import { launchApp, openCommandPalette, runCommand, waitForWorkspace } from './helpers'
+
+test('snippet names can be replaced, saved and protected from accidental discards', async ({ page }) => {
+  await page.addInitScript(() => { sessionStorage.setItem('e2e:snippets-populated', '1') })
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await openCommandPalette(page)
+  await runCommand(page, 'Manage snippet catalog')
+  const panel = page.getByRole('dialog', { name: 'Snippet catalog', exact: true })
+  const name = panel.getByRole('textbox', { name: 'Name', exact: true })
+  await expect(name).toHaveValue('literature-note')
+  await name.fill('')
+  await expect(name).toHaveValue('')
+  await name.fill('research-summary')
+  await name.press('Enter')
+  await expect(panel.getByRole('button', { name: 'research-summary', exact: true })).toBeVisible()
+  await panel.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(panel.getByRole('group', { name: 'Discard unsaved snippet edits' })).toBeVisible()
+  await panel.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(panel).toBeVisible()
+  await panel.getByRole('button', { name: 'Save catalog', exact: true }).click()
+  await expect(panel).toContainText('Snippets saved.')
+  await panel.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(panel).toBeHidden()
+})

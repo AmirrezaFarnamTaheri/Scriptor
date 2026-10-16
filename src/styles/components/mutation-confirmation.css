@@ -1,5 +1,7 @@
 /* In-context confirmation for consequential mutations inside an existing panel. */
 .mutation-confirmation {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: grid;
   gap: 10px;
   padding: 12px;

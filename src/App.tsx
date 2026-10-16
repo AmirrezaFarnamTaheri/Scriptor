@@ -95,7 +95,7 @@ import {
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
 import { useI18n } from './lib/i18n'
-import { cacheStatusLabel } from './lib/vaultHealth'
+import { cacheStatusLabel, vaultHealthStatus } from './lib/vaultHealth'
 import { useStoreSurfaceController } from './hooks/useStoreSurfaceController'
 import { CapabilityWorkflowOverlays } from './components/app/CapabilityWorkflowOverlays'
 import { usePluginCommandRuntime } from './hooks/usePluginCommandRuntime'
@@ -709,11 +709,7 @@ function App() {
       activeNote: workspace.activeNote,
       isNoteDirty,
     })
-  const healthAction = !workspace.health
-    ? t('inspector.health.loading')
-    : workspace.health.broken_links === 0 && workspace.health.unresolved_citations === 0
-      ? t('inspector.health.good')
-      : t('inspector.health.needsReview')
+  const healthAction = t(`inspector.health.${vaultHealthStatus(workspace.health)}`)
 
   const handleCloseProblemsDock = useCallback(() => setStatusDockTab('output'), [setStatusDockTab])
   useEscapeToClose(statusDockTab === 'problems' && totalProblemCount > 0, handleCloseProblemsDock)
@@ -1320,7 +1316,7 @@ function App() {
     },
     [setMobilePane, setActiveMode],
   )
-
+  const handleOpenPlugins = useCallback(() => { patchChrome({ inspectorCollapsed: false }); setActiveMode('plugins'); setMobilePane('inspector') }, [patchChrome, setActiveMode, setMobilePane])
   const handleCloseCanvas = useCallback(() => setCanvasOpen(false), [setCanvasOpen])
   const handleCloseReader = useCallback(() => {
     setReaderOpen(false)
@@ -1369,7 +1365,7 @@ function App() {
           onOpenMcp={() => setPanel('mcpPanelOpen', (open) => !open)}
           onOpenSupport={() => setPanel('supportOpen', (open) => !open)}
           onOpenSettings={() => setPanel('settingsOpen', (open) => !open)}
-          onOpenPluginManager={handleTogglePluginManager}
+          onOpenPluginManager={handleTogglePluginManager} onOpenPlugins={handleOpenPlugins} pluginsActive={activeMode === 'plugins' && !chrome.inspectorCollapsed}
           theme={theme}
           appearance={appearance}
           resolvedAppearance={resolvedAppearance}
@@ -1457,7 +1453,7 @@ function App() {
         <WorkspaceLeafDock composition={composition} workspace={workspace} plugins={plugins} onOpenAsset={handleOpenReaderDocument} {...pluginWorkspaceHandlers}>
         <EditorWorkspace
           activePath={workspace.activePath}
-          onOpenVault={handleChooseVault}
+          onOpenVault={handleChooseVault} onFindNote={() => setCommandPaletteOpen(true)}
           hasOpenVault={Boolean(workspace.vault)}
           onCreateNote={sidebarActions.handleCreateNote}
           openTabs={workspace.openTabs}
@@ -1655,7 +1651,7 @@ function App() {
         activePane={mobilePane}
         workspaceMode={workspaceMode}
         onSelectPane={handleSelectMobilePane}
-        onOpenCommand={handleOpenCommandPalette}
+        onOpenCommand={handleOpenCommandPalette} onOpenPlugins={handleOpenPlugins} pluginsActive={activeMode === 'plugins'}
         onOpenKnowledgeWorkbench={handleOpenKnowledgeWorkbenchRepair}
         onOpenPublishCenter={handleOpenPublishCenter}
         onOpenHealth={handleOpenHealthDashboard}

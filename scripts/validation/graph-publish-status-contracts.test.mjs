@@ -220,9 +220,10 @@ test('the shortcut helper only speaks when normalising changes the shortcut', ()
   assert.match(shortcutSettings, /<small className="shortcut-effective-label">Disabled<\/small>/)
   assert.match(shortcutSettings, /placeholder=\{entry\.defaultShortcut \?\? 'Unassigned'\}/)
 
-  // The action column has to stay truthful: an override gets a working Reset, and
-  // only a row that really is on its default gets the `Default` badge.
+  // The action column shows Reset only when a custom shortcut exists. Default
+  // shortcuts need no repeating `Default` badge or inert action control.
   assert.match(shortcutSettings, /hasOverride \? \(/)
   assert.match(shortcutSettings, /shortcuts\.resetShortcut\(entry\.id\)/)
-  assert.match(shortcutSettings, /<span className="shortcut-default-badge">Default<\/span>/)
+  assert.doesNotMatch(shortcutSettings, /shortcut-default-badge/)
+  assert.match(shortcutSettings, /\) : null\}/)
 })

@@ -363,7 +363,7 @@ test.describe('visual review states', () => {
     // The table is the highest intrinsic-width region in this flow. Exercise it
     // directly so a future column/string change cannot widen the entire dock
     // while the top-of-panel screenshot still looks healthy.
-    const installedSection = sharing.locator('.resource-sync-section').filter({ hasText: 'Already installed or contained' }).first()
+    const installedSection = sharing.locator('.resource-sync-section').filter({ hasText: 'Found on this device' }).first()
     const tableWrap = installedSection.locator('.resource-table-wrap')
     await expect(installedSection).toBeVisible()
     await tableWrap.scrollIntoViewIfNeeded()
@@ -444,7 +444,7 @@ test.describe('visual review states', () => {
     const canvas = graph.locator('.graph-canvas-accessible-shell canvas')
     await expect(stage).toBeVisible()
     await expect(canvas).toBeVisible({ timeout: 15_000 })
-    await expect(canvas).toHaveAttribute('aria-label', /120 nodes and 160 directed edges/)
+    await expect(canvas).toHaveAttribute('aria-label', /120 notes and 160 links/)
     const geometry = await stage.evaluate((element) => {
       const canvas = element.querySelector('canvas')
       if (!canvas) return null
@@ -499,11 +499,11 @@ test.describe('visual review states', () => {
     })
     await openVisualWorkspace(page)
     await openCommandPalette(page)
-    await runCommand(page, 'Open knowledge workbench')
+    await runCommand(page, 'Explore notes')
 
-    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+    const workbench = page.getByRole('dialog', { name: 'Explore notes' })
     await expect(workbench).toBeVisible()
-    const orphanTab = workbench.getByRole('tab', { name: /Orphans \(3\)/ })
+    const orphanTab = workbench.getByRole('tab', { name: /No incoming links \(3\)/ })
     await orphanTab.click()
     const rows = workbench.locator('.virtual-knowledge-list > li')
     await expect(rows).toHaveCount(3)
@@ -511,8 +511,8 @@ test.describe('visual review states', () => {
       workbench.getByText('Field Notes with an intentionally long title for zoom coverage', { exact: true }),
     ).toBeVisible()
 
-    await workbench.getByRole('button', { name: /Start triage/ }).click()
-    await expect(workbench.getByText(/Triage 1 of 3/)).toBeVisible()
+    await workbench.getByRole('button', { name: /Review 3 notes/ }).click()
+    await expect(workbench.getByText(/Reviewing 1 of 3/)).toBeVisible()
     await settleLayout(page)
 
     await captureElement(page, workbench, 'visual-knowledge-triage-populated.png')
@@ -879,8 +879,8 @@ test.describe('visual review states', () => {
 
     const banner = page.getByRole('alert').filter({ hasText: 'This note changed on disk' })
     await expect(banner).toBeVisible({ timeout: 15_000 })
-    await expect(banner.getByRole('button', { name: 'Reload from disk', exact: true })).toBeVisible()
-    await expect(banner.getByRole('button', { name: 'Keep editing', exact: true })).toBeVisible()
+    await expect(banner.getByRole('button', { name: 'Use disk version', exact: true })).toBeVisible()
+    await expect(banner.getByRole('button', { name: 'Keep my changes', exact: true })).toBeVisible()
     await expect.poll(() => banner.evaluate((element) => {
       const rect = element.getBoundingClientRect()
       return rect.width > 240
@@ -1113,7 +1113,7 @@ test.describe('visual review states', () => {
 
     const releaseQuality = settings.locator('.release-quality-panel')
     await expect(releaseQuality).toBeVisible()
-    const releaseQualityHeading = releaseQuality.getByRole('heading', { name: 'Release quality dashboard', exact: true })
+    const releaseQualityHeading = releaseQuality.getByRole('heading', { name: 'Performance checks', exact: true })
     await releaseQualityHeading.scrollIntoViewIfNeeded()
     await expect(releaseQualityHeading).toBeInViewport()
     // Capture the bounded Settings viewport, not the panel's full offscreen
@@ -1730,7 +1730,7 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Open built-in modules')
     const modules = page.getByRole('dialog', { name: 'Built-in modules', exact: true })
     await expect(modules).toBeVisible()
-    await expect(modules.getByText('Installer Profile Preset:')).toBeVisible()
+    await expect(modules.getByText('Feature set:')).toBeVisible()
     expect(await modules.evaluate(element =>
       element.querySelector('.plugin-marketplace-link')!.getBoundingClientRect().top
       - element.querySelector('.plugin-manager-header')!.getBoundingClientRect().bottom,
@@ -1810,11 +1810,11 @@ test.describe('visual review states', () => {
     await captureElement(page, rename, 'visual-rename-preview.png')
   })
 
-  test('Knowledge workbench tab evidence', async ({ page }) => {
+  test('Explore notes tab evidence', async ({ page }) => {
     await openVisualWorkspace(page)
     await openCommandPalette(page)
-    await runCommand(page, 'Open knowledge workbench')
-    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench', exact: true })
+    await runCommand(page, 'Explore notes')
+    const workbench = page.getByRole('dialog', { name: 'Explore notes', exact: true })
     await expect(workbench).toBeVisible()
 
     const states = [
@@ -1889,9 +1889,9 @@ test.describe('visual review states', () => {
     await captureElement(page, palettes, 'visual-color-palettes.png')
 
     await createPalette.click()
-    const themeCustomizer = page.getByRole('dialog', { name: 'Theme Customizer & Builder', exact: true })
+    const themeCustomizer = page.getByRole('dialog', { name: 'Color theme editor', exact: true })
     await expect(themeCustomizer).toBeVisible()
-    await expect(themeCustomizer.getByRole('heading', { name: 'Custom Theme Builder & Color Editor', exact: true })).toBeVisible()
+    await expect(themeCustomizer.getByRole('heading', { name: 'Create a color theme', exact: true })).toBeVisible()
     await expect(themeCustomizer.getByRole('button', { name: 'Create New Theme', exact: true })).toBeVisible()
     await captureElement(page, themeCustomizer, 'visual-theme-customizer.png')
   })

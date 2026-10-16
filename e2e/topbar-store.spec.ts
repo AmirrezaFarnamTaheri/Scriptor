@@ -99,6 +99,19 @@ test.describe('top bar customization and support', () => {
     }
   })
 
+  test('empty editor offers note search in the active vault instead of switching vaults', async ({ page }) => {
+    await launchApp(page)
+    await page.locator('.tabs-row').getByRole('button', { name: 'Close Research Plan' }).click()
+    const empty = page.locator('.editor-empty-card')
+    await expect(empty.getByRole('button', { name: 'Find a note', exact: true })).toBeVisible()
+    await expect(empty.getByRole('button', { name: 'Open another vault', exact: true })).toHaveCount(0)
+    await empty.getByRole('button', { name: 'Find a note', exact: true }).click()
+    const palette = page.getByRole('dialog', { name: 'Command palette', exact: true })
+    await expect(palette).toBeVisible()
+    await expect(palette.getByRole('searchbox', { name: 'Command palette' })).toBeFocused()
+    await expect(page.locator('.workspace-switcher')).toBeVisible()
+  })
+
   test('palette and built-in module managers remain separate product surfaces', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await launchApp(page)
@@ -108,8 +121,8 @@ test.describe('top bar customization and support', () => {
     await runCommand(page, 'Open built-in modules')
     const modules = page.getByRole('dialog', { name: 'Built-in modules' })
     await expect(modules).toBeVisible()
-    await expect(modules.getByText('Installer Profile Preset:')).toBeVisible()
-    await expect(modules.getByRole('button', { name: 'Open runtime plugin marketplace' })).toBeVisible()
+    await expect(modules.getByText('Feature set:')).toBeVisible()
+    await expect(modules.getByRole('button', { name: 'Browse plugins' })).toBeVisible()
     await expect(modules.getByText('Category Filter:')).toHaveCount(0)
     await modules.getByRole('button', { name: 'Close' }).click()
 
@@ -126,8 +139,41 @@ test.describe('top bar customization and support', () => {
     await expect(palettes).toBeVisible()
     await expect(palettes.getByText('Category Filter:')).toBeVisible()
     await expect(palettes.getByRole('button', { name: 'Create Custom Palette' })).toBeVisible()
-    await expect(palettes.getByRole('button', { name: 'Open runtime plugin marketplace' })).toHaveCount(0)
-    await expect(palettes.getByText('Installer Profile Preset:')).toHaveCount(0)
+    await expect(palettes.getByRole('button', { name: 'Browse plugins' })).toHaveCount(0)
+    await expect(palettes.getByText('Feature set:')).toHaveCount(0)
+  })
+
+  test('Appearance prioritizes editor typography and keeps niche options expandable', async ({ page }) => {
+    await launchApp(page)
+    await page.getByRole('button', { name: 'Settings', exact: true }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings', exact: true })
+    await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
+    await expect(settings.getByLabel('Editor font size (px)')).toBeVisible()
+    const advanced = settings.locator('details.appearance-advanced-options')
+    await expect(advanced).not.toHaveAttribute('open', '')
+    await advanced.locator('summary').click()
+    await expect(advanced).toHaveAttribute('open', '')
+    await expect(settings.getByLabel('UI border radius')).toBeVisible()
+  })
+
+  test('Plugins opens from top chrome and from mobile navigation without commands', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await launchApp(page)
+    await settleLayout(page)
+
+    const entry = page.locator('.topbar-plugins-entry')
+    await expect(entry).toBeVisible()
+    await entry.click()
+    await expect(page.getByRole('tab', { name: 'Tools', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await expect(entry).toHaveAttribute('aria-pressed', 'true')
+
+    await page.setViewportSize({ width: 375, height: 812 })
+    await settleLayout(page)
+    const mobilePlugins = page.locator('.mobile-workspace-nav').getByRole('button', { name: 'Plugins' })
+    await expect(mobilePlugins).toBeVisible()
+    await mobilePlugins.click()
+    await expect(mobilePlugins).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('tab', { name: 'Tools', exact: true })).toHaveAttribute('aria-selected', 'true')
   })
 
 })

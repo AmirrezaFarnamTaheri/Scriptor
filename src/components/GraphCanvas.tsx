@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useI18n } from '../lib/i18n'
 
 const FOLDER_COLORS = ['#6366f1', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#a855f7', '#22c55e']
 
@@ -101,6 +102,7 @@ function reciprocalOffsetFor(
 }
 
 export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNode }: GraphCanvasProps) {
+  const { t } = useI18n()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const hoveredIdRef = useRef<string | null>(null)
   const transformRef = useRef({ x: 0, y: 0, scale: 1 })
@@ -405,8 +407,8 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     }
     setKeyboardNodeIndex(nextIndex)
     const node = nodes[nextIndex]
-    if (node) setKeyboardAnnouncement(`${node.label}, node ${nextIndex + 1} of ${nodes.length}`)
-  }, [activeKeyboardNodeIndex, nodes, onSelectNode])
+    if (node) setKeyboardAnnouncement(t('graph.canvasNodeAnnouncement', { name: node.label, index: nextIndex + 1, total: nodes.length }))
+  }, [activeKeyboardNodeIndex, nodes, onSelectNode, t])
 
   return (
     <div className="graph-canvas-accessible-shell">
@@ -416,7 +418,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
         style={{ cursor: 'grab' }}
         role="application"
         tabIndex={0}
-        aria-label={`Knowledge graph with ${nodes.length} nodes and ${edges.length} directed edges. Use arrow keys to browse nodes and Enter to open one.`}
+        aria-label={t('graph.canvasAria', { nodes: nodes.length, edges: edges.length })}
         onFocus={() => setKeyboardFocused(true)}
         onBlur={() => setKeyboardFocused(false)}
         onKeyDown={handleKeyDown}

@@ -175,7 +175,7 @@ export const SavedViewsPanel = memo(function SavedViewsPanel({
       setStatus(`${hits.length} note${hits.length === 1 ? '' : 's'} match this view`)
     } catch (error) {
       setResults([])
-      setStatus(error instanceof Error ? error.message : 'View query failed')
+      setStatus(error instanceof Error ? error.message : 'Could not run this saved search')
     }
   }, [canQuery, filterJson])
 
@@ -192,7 +192,7 @@ export const SavedViewsPanel = memo(function SavedViewsPanel({
         .catch((error: unknown) => {
           if (cancelled) return
           setResults([])
-          setStatus(error instanceof Error ? error.message : 'View query failed')
+          setStatus(error instanceof Error ? error.message : 'Could not run this saved search')
         })
     }, 150)
     return () => {

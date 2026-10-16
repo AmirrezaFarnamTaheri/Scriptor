@@ -69,7 +69,7 @@ test('Appearance settings owns the palette-management route', async ({ page }) =
   const palettes = page.getByRole('dialog', { name: 'Color palettes' })
   await expect(palettes).toBeVisible()
   await expect(palettes.getByRole('button', { name: 'Create Custom Palette' })).toBeVisible()
-  await expect(palettes.getByRole('button', { name: 'Open runtime plugin marketplace' })).toHaveCount(0)
+  await expect(palettes.getByRole('button', { name: 'Browse plugins' })).toHaveCount(0)
 })
 
 test('appearance and workspace tabs keep separate ownership', async ({ page }) => {

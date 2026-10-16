@@ -21,6 +21,7 @@ import {
   LayoutTemplate,
   Lock,
   Package,
+  Search,
   ShieldAlert,
   ShieldCheck,
   ToggleLeft,
@@ -39,12 +40,14 @@ import type { LayoutPreset } from '../lib/workspace/layoutPresets'
 import type { VaultHealthDiagnostics } from '../types/vault'
 import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { useI18n } from '../lib/i18n'
+import { useTablistKeys } from '../hooks/useTablistKeys'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 type StoreTab = 'plugins' | 'mcp' | 'features' | 'layouts'
+const PLUGIN_SUBTABS = ['store-plugin-tab-installed', 'store-plugin-tab-marketplace'] as const
 
 export interface FeatureFlagEntry {
   key: string
@@ -425,14 +428,26 @@ function PluginsTab({
   const installedIds = new Set(plugins.map((p) => p.manifest.id))
   const [pendingConsentPluginId, setPendingConsentPluginId] = useState<string | null>(null)
   const [pluginView, setPluginView] = useState<'installed' | 'marketplace'>('installed')
+  const [pluginFilter, setPluginFilter] = useState('')
+  const query = pluginFilter.trim().toLowerCase()
+  const matchesPlugin = (plugin: { name: string; description?: string; id: string }) =>
+    !query || `${plugin.name} ${plugin.description ?? ''} ${plugin.id}`.toLowerCase().includes(query)
+  const installedMatches = plugins.filter(plugin => matchesPlugin(plugin.manifest))
+  const availableMatches = marketplaceCatalog.filter(catalog => !installedIds.has(catalog.id) && matchesPlugin(catalog))
+  const availableCount = marketplaceCatalog.filter(catalog => !installedIds.has(catalog.id)).length
+  const onPluginTabsKeyDown = useTablistKeys(PLUGIN_SUBTABS, pluginView === 'installed' ? PLUGIN_SUBTABS[0] : PLUGIN_SUBTABS[1],
+    (id) => setPluginView(id === PLUGIN_SUBTABS[1] ? 'marketplace' : 'installed'))
 
   return (
     <div className="store-stack">
-      <div className="store-plugin-subnav" role="tablist" aria-label={t('store.pluginViews')}>
+      <div className="store-plugin-subnav" role="tablist" aria-label={t('store.pluginViews')} onKeyDown={onPluginTabsKeyDown}>
         <button
           type="button"
           role="tab"
+          id={PLUGIN_SUBTABS[0]}
+          aria-controls="store-plugin-panel-installed"
           aria-selected={pluginView === 'installed'}
+          tabIndex={pluginView === 'installed' ? 0 : -1}
           className={pluginView === 'installed' ? 'active' : undefined}
           onClick={() => setPluginView('installed')}
         >
@@ -441,13 +456,22 @@ function PluginsTab({
         <button
           type="button"
           role="tab"
+          id={PLUGIN_SUBTABS[1]}
+          aria-controls="store-plugin-panel-marketplace"
           aria-selected={pluginView === 'marketplace'}
+          tabIndex={pluginView === 'marketplace' ? 0 : -1}
           className={pluginView === 'marketplace' ? 'active' : undefined}
           onClick={() => setPluginView('marketplace')}
         >
           {t('store.browsePlugins')}
         </button>
       </div>
+
+      <label className="store-plugin-search">
+        <Search size={15} aria-hidden="true" />
+        <input type="search" value={pluginFilter} onChange={event => setPluginFilter(event.target.value)}
+          placeholder={t('store.searchPlugins')} aria-label={t('store.searchPlugins')} />
+      </label>
 
       {/* Safe mode banner */}
       <div className={`store-banner${safeMode ? ' danger' : ''}`} hidden={pluginView !== 'installed'}>
@@ -471,13 +495,12 @@ function PluginsTab({
       </div>
 
       {/* Installed plugins */}
-      {plugins.length > 0 && (
-        <section hidden={pluginView !== 'installed'}>
+      <section id="store-plugin-panel-installed" role="tabpanel" aria-labelledby={PLUGIN_SUBTABS[0]} tabIndex={0} hidden={pluginView !== 'installed'}>
           <h3 className="store-section-label">
             {t('store.installedCount', { count: plugins.length })}
           </h3>
           <div className="store-stack-xs">
-            {plugins.map((plugin) => {
+            {installedMatches.map((plugin) => {
               const policy = pluginPolicies[plugin.manifest.id] ?? null
               const summary = summarizePluginContributions(plugin)
               const labels = contributionLabels(summary)
@@ -654,9 +677,11 @@ function PluginsTab({
                 </div>
               )
             })}
+            {installedMatches.length === 0 ? (
+              <p className="store-plugin-empty" role="status">{t(query ? 'store.noPluginMatches' : 'store.noPluginsInstalled')}</p>
+            ) : null}
           </div>
-        </section>
-      )}
+      </section>
 
       {/* Lint summary */}
       {lintSummary && lintSummary.total > 0 && (
@@ -667,15 +692,12 @@ function PluginsTab({
       )}
 
       {/* Marketplace */}
-      {marketplaceCatalog.length > 0 && (
-        <section hidden={pluginView !== 'marketplace'}>
+      <section id="store-plugin-panel-marketplace" role="tabpanel" aria-labelledby={PLUGIN_SUBTABS[1]} tabIndex={0} hidden={pluginView !== 'marketplace'}>
           <h3 className="store-section-label">
-            {t('store.marketplaceAvailable', { count: marketplaceCatalog.filter((p) => !installedIds.has(p.id)).length })}
+            {t('store.marketplaceAvailable', { count: availableCount })}
           </h3>
           <div className="store-stack-xs">
-            {marketplaceCatalog
-              .filter((p) => !installedIds.has(p.id))
-              .map((catalog) => (
+            {availableMatches.map((catalog) => (
                 <div
                   key={catalog.id}
                   className="store-card-row"
@@ -695,9 +717,11 @@ function PluginsTab({
                   </button>
                 </div>
               ))}
+            {availableMatches.length === 0 ? (
+              <p className="store-plugin-empty" role="status">{t(query ? 'store.noPluginMatches' : availableCount === 0 && marketplaceCatalog.length > 0 ? 'store.allPluginsInstalled' : 'store.noPluginsAvailable')}</p>
+            ) : null}
           </div>
-        </section>
-      )}
+      </section>
     </div>
   )
 }

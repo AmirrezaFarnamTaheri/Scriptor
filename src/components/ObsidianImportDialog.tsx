@@ -26,27 +26,30 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
   const [isValid, setIsValid] = useState<boolean | null>(null)
   const [result, setResult] = useState<ObsidianImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const checkGeneration = useRef(0)
 
   useEscapeToClose(true, onClose)
   useFocusTrap(dialogRef, { active: true, initialFocus: false })
 
-  const handleValidate = useCallback(async () => {
-    if (!sourcePath.trim()) return
+  const validateSource = useCallback(async (path: string) => {
+    const check = ++checkGeneration.current
+    if (!path.trim()) { setIsValid(null); setIsValidating(false); return }
     setIsValidating(true)
     setError(null)
     try {
-      const detected = await vaultDetectObsidian(sourcePath.trim())
+      const detected = await vaultDetectObsidian(path.trim())
+      if (check !== checkGeneration.current) return
       setIsValid(detected)
-      if (!detected) {
-        setError('No .obsidian/ directory found at this path')
-      }
+      if (!detected) setError('This folder does not contain an Obsidian vault (.obsidian).')
     } catch (caught) {
+      if (check !== checkGeneration.current) return
       setIsValid(false)
-      setError(String(caught))
+      setError(caught instanceof Error ? caught.message : String(caught))
     } finally {
-      setIsValidating(false)
+      if (check === checkGeneration.current) setIsValidating(false)
     }
-  }, [sourcePath])
+  }, [])
+  const handleValidate = useCallback(() => void validateSource(sourcePath), [sourcePath, validateSource])
 
   const handleBrowse = useCallback(async () => {
     const { open } = await import('@tauri-apps/plugin-dialog')
@@ -60,7 +63,10 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
     setSourcePath(path)
     setIsValid(null)
     setError(null)
-  }, [])
+    // Selecting a folder is the user's intent to inspect it; no second
+    // "Validate" click is required, and no files are changed.
+    void validateSource(path)
+  }, [validateSource])
 
   const handleImport = useCallback(async () => {
     if (!sourcePath.trim()) return
@@ -135,8 +141,10 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
               type="text"
               value={sourcePath}
               onChange={(event) => {
+                checkGeneration.current += 1
                 setSourcePath(event.target.value)
                 setIsValid(null)
+                setIsValidating(false)
                 setError(null)
               }}
               placeholder="/path/to/obsidian-vault"
@@ -153,7 +161,7 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
               onClick={() => void handleValidate()}
               disabled={isValidating || !sourcePath.trim()}
             >
-              {isValidating ? 'Checking…' : 'Validate'}
+              {isValidating ? 'Checking…' : 'Check folder'}
             </button>
           </div>
           <div id={statusId} className="obsidian-import-status" aria-live="polite">
@@ -190,7 +198,7 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
               checked={preserveFrontmatter}
               onChange={(event) => setPreserveFrontmatter(event.target.checked)}
             />
-            <span>Preserve YAML frontmatter</span>
+            <span>Keep note properties (YAML frontmatter)</span>
           </label>
         </fieldset>
 
@@ -229,7 +237,7 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
             {result ? 'Close' : 'Cancel'}
           </button>
           {!result ? (
-            <button type="submit" className="primary-button" disabled={isImporting || !sourcePath.trim()}>
+            <button type="submit" className="primary-button" disabled={isImporting || isValidating || isValid === false || !sourcePath.trim()}>
               {isImporting ? 'Importing…' : 'Import vault'}
             </button>
           ) : null}

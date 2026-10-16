@@ -206,16 +206,16 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
       {!path ? (
         <p className="empty-state">Select a note to view its revision timeline.</p>
       ) : revisions.length === 0 ? (
-        <p className="empty-state">No saved revisions yet. Edits are captured before each save.</p>
+        <p className="empty-state">No previous versions yet. Scriptor keeps earlier versions when you save.</p>
       ) : (
         <div className="note-history-layout">
           <section aria-label="Revision activity" className="note-history-activity">
-            <label>Scrub saved revisions
+            <label>Browse saved versions
               <input type="range" min={0} max={Math.max(0, revisions.length - 1)} value={Math.max(0, revisions.findIndex((row) => row.id === selectedId))} disabled={busy || revisions.length < 2} onChange={(event) => { setSelectedId(revisions[Number(event.target.value)]?.id ?? null); setConfirmRestore(false) }} aria-valuetext={selectedRevision ? formatRevisionDate(selectedRevision.saved_at) : 'No revision selected'} />
             </label>
-            <p>Retained saves per UTC day, through {activity.at(-1)?.date}. Empty cells mean no retained revision; they do not prove no editing occurred.</p>
+            <p>Saved versions by day (UTC), through {activity.at(-1)?.date}. An empty day doesn't mean the note wasn't edited.</p>
             <div className="revision-heatmap-scroll"><ul className="revision-heatmap" aria-label="Saved revisions per UTC day">{activity.map((day) => <li key={day.date} data-level={day.count === 0 ? 'none' : day.count >= 5 ? 'high' : 'low'} title={`${day.date}: ${day.count} retained saves`}><span className="sr-only">{day.date}: {day.count} retained saves</span></li>)}</ul></div>
-            <p className="revision-heatmap-legend">Monday to Sunday in each column. Color intensity increases with the number of retained saves.</p>
+            <p className="revision-heatmap-legend">Each column is a week, Monday–Sunday. Darker squares mean more saved versions.</p>
           </section>
           <ul className="note-history-timeline" aria-label="Saved revisions">
             {revisions.map((revision) => (
@@ -339,9 +339,12 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
               </section>
             </div>
           </div>
-          <section className="note-history-vocabulary" aria-label="Vocabulary analysis">
-            <VocabularyEvolution key={`${vaultId}:${path}`} path={path} vaultId={vaultId} revisions={revisions}/>
-            {vocabulary && <details><summary>Vocabulary comparison</summary><p>Measured from the Markdown source, including code and metadata. Distinct word ratio measures repetition; it is not a readability or quality score.</p><table><thead><tr><th>Measure</th><th>Current note</th><th>Selected revision</th></tr></thead><tbody><tr><th>Words</th><td>{vocabulary.current.words}</td><td>{vocabulary.revision.words}</td></tr><tr><th>Distinct words</th><td>{vocabulary.current.uniqueWords}</td><td>{vocabulary.revision.uniqueWords}</td></tr><tr><th>Distinct word ratio</th><td>{vocabulary.current.diversity === null ? 'No words' : `${(vocabulary.current.diversity * 100).toFixed(1)}%`}</td><td>{vocabulary.revision.diversity === null ? 'No words' : `${(vocabulary.revision.diversity * 100).toFixed(1)}%`}</td></tr></tbody></table></details>}
+          <section className="note-history-vocabulary" aria-label="Writing statistics">
+            <details className="note-history-advanced-stats">
+              <summary>Advanced: word history</summary>
+              <VocabularyEvolution key={`${vaultId}:${path}`} path={path} vaultId={vaultId} revisions={revisions}/>
+            </details>
+            {vocabulary && <details><summary>Word comparison</summary><p>Measured from the Markdown source, including code and metadata. Distinct word ratio measures repetition; it is not a readability or quality score.</p><table><thead><tr><th>Measure</th><th>Current note</th><th>Selected revision</th></tr></thead><tbody><tr><th>Words</th><td>{vocabulary.current.words}</td><td>{vocabulary.revision.words}</td></tr><tr><th>Distinct words</th><td>{vocabulary.current.uniqueWords}</td><td>{vocabulary.revision.uniqueWords}</td></tr><tr><th>Distinct word ratio</th><td>{vocabulary.current.diversity === null ? 'No words' : `${(vocabulary.current.diversity * 100).toFixed(1)}%`}</td><td>{vocabulary.revision.diversity === null ? 'No words' : `${(vocabulary.revision.diversity * 100).toFixed(1)}%`}</td></tr></tbody></table></details>}
           </section>
         </div>
       )}

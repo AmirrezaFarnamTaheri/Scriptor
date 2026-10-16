@@ -213,7 +213,7 @@ for (const viewport of viewports) {
     const create = palettes.getByRole('button', { name: 'Create Custom Palette', exact: true })
     await expectReachable(create)
     await create.click()
-    const dialog = page.getByRole('dialog', { name: 'Theme Customizer & Builder', exact: true })
+    const dialog = page.getByRole('dialog', { name: 'Color theme editor', exact: true })
     const card = dialog.locator('.customizer-modal')
     await settleLayout(page)
     await expectFullBounds(card)
@@ -273,6 +273,14 @@ for (const viewport of viewports) {
       await expectReachable(close)
       await captureDialog(page, testInfo)
       await close.click()
+      if (surface.name === 'Snippet catalog') {
+        // The in-context unsaved-change confirmation must be reachable at 200% zoom.
+        const confirm = dialog.getByRole('group', { name: 'Discard unsaved snippet edits' })
+        await expect(confirm).toBeVisible()
+        await expectFullBounds(confirm)
+        await expectReachable(confirm.getByRole('button', { name: 'Discard changes' }))
+        await confirm.getByRole('button', { name: 'Discard changes' }).click()
+      }
       await expect(dialog).toBeHidden()
     })
   }
@@ -302,14 +310,14 @@ for (const viewport of viewports) {
     })
   }
 
-  // These commands now open embedded panels in Knowledge workbench. Cover the
+  // These commands now open embedded panels in Explore notes. Cover the
   // supported routes without claiming standalone SavedViews/TagBrowser coverage.
   for (const command of ['Saved views', 'Browse tags']) {
     test(`${command} remains reachable in its workbench at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
       await prepare(page, viewport)
-      const dialog = await openCommand(page, command, 'Knowledge workbench')
+      const dialog = await openCommand(page, command, 'Explore notes')
       await expectFullBounds(dialog)
-      const close = dialog.getByRole('button', { name: 'Close Knowledge workbench', exact: true })
+      const close = dialog.getByRole('button', { name: 'Close Explore notes', exact: true })
       await expectFullBounds(close)
       if (command === 'Saved views') {
         await expect(dialog.getByRole('tab', { name: 'Views', exact: true })).toHaveAttribute('aria-selected', 'true')
@@ -380,11 +388,11 @@ for (const viewport of viewports) {
     await git.getByRole('button', { name: 'Resolve', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Resolve merge conflicts', exact: true })
     await expectFullBounds(dialog)
-    const choice = dialog.getByRole('radio', { name: 'Keep theirs', exact: true })
+    const choice = dialog.getByRole('radio', { name: 'Keep incoming changes', exact: true })
     await expectReachable(choice)
     await choice.check()
     await expect(dialog.locator('.conflict-merged-body')).toContainText('Updated field observations after second pass.')
-    const apply = dialog.getByRole('button', { name: 'Apply resolved file', exact: true })
+    const apply = dialog.getByRole('button', { name: 'Apply selected changes', exact: true })
     await expect(apply).toBeEnabled()
     await expectReachable(apply)
     const close = dialog.getByRole('button', { name: 'Close', exact: true })

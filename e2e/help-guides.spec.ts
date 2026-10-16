@@ -95,7 +95,7 @@ test('tour progress resumes, missing targets are honest, and reset preserves oth
 for (const [command, title, selector] of [
   ['Open MCP panel', 'MCP automation modes and tools', '.mcp-panel'],
   ['Open canvas', 'Canvas board and spatial notes', '.canvas-overlay'],
-  ['Open knowledge workbench', 'Knowledge Workbench', '.knowledge-workbench-panel'],
+  ['Explore notes', 'Explore notes', '.knowledge-workbench-panel'],
   ['Open tasks panel', 'Markdown-backed tasks', '.task-panel'],
 ] as const) {
   test(`contextual F1 guide for ${command} without inline Help chrome`, async ({ page }) => {

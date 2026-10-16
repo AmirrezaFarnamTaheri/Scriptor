@@ -431,3 +431,18 @@
   font-size: 12px;
   line-height: 1.45;
 }
+
+/* Keep common editor typography visible; reveal niche effects on demand. */
+.appearance-advanced-options {
+  margin-block: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.appearance-advanced-options > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.appearance-advanced-options[open] > .settings-field {
+  margin-block: 12px;
+}

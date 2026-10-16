@@ -443,7 +443,7 @@ export const KanbanPanel = memo(function KanbanPanel({ notePath, onClose, onCrea
       }
     >
       {!notePath && (
-        <p className="empty-state">Open a kanban note to view the board.</p>
+        <p className="empty-state">Open a board note to view its cards.</p>
       )}
       {store.isLoading && <p className="health-subtitle">Loading board…</p>}
       {store.error && <p className="error-state">{store.error}</p>}
@@ -452,8 +452,12 @@ export const KanbanPanel = memo(function KanbanPanel({ notePath, onClose, onCrea
       )}
       {isNotKanban && (
         <div className="empty-state">
-          <p>This note is not a kanban file. Create a separate board, or add <code>kanban-plugin: basic</code> to this note’s frontmatter.</p>
+          <p>This note isn't a board. Create one to organize your tasks.</p>
           {onCreateBoard ? <button type="button" className="primary-button" onClick={onCreateBoard}>Create a new board</button> : null}
+          <details className="kanban-advanced-help">
+            <summary>Turn this note into a board (advanced)</summary>
+            <p>Add <code>kanban-plugin: basic</code> to the properties at the top of this Markdown file.</p>
+          </details>
         </div>
       )}
 
