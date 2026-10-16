@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+
+- Expose the existing permission-aware Plugins workspace directly from the desktop top bar and mobile navigation, without requiring command-palette discovery.
+- Allow production builds to carry Scriptor's public Google Desktop OAuth client identity, while retaining advanced development overrides and independent Google service permissions.
+
+### Improved
+
+- Start Gmail's native Google sign-in directly from the disconnected inbox, without an ordinary user's OAuth-client-ID field; require a registered publisher client before production installers are packaged.
+- Keep tablet vault destinations on compact rows, prioritize editor typography above advanced appearance effects, and clarify Overleaf's individual-file review workflow and legacy read-only Google Docs revision records.
+- Document Google provider setup and limitations, screenshots reviewed and follow-up UX priorities, with regression coverage for the revised entry points.
+
 ## 1.3.1 — 2026-10-15
 
 ### Fixed
