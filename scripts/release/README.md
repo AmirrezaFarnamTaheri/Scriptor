@@ -5,7 +5,7 @@ Release engineering scripts for Scriptor.
 ## Source of truth
 
 - [`VERSION`](../../VERSION) is the canonical release version.
-- `node scripts/release/version.mjs check` verifies npm, Cargo, Tauri, workflow-input, and tag parity.
+- `node scripts/release/version.mjs check` verifies npm, Cargo, both desktop/mobile Tauri configs, workflow-input, and tag parity.
 - `node scripts/release/version.mjs sync` updates versioned manifests in a reviewed release branch; lockfiles are regenerated separately.
 - Built-in self-updating is not shipped. Release scripts must not inject updater configuration or permissions.
 - Official GitHub Release installers are intentionally unsigned. Publication depends on source identity, exact artifact membership, SHA-256 checksums, CycloneDX SBOM, receipt schema 4, architecture-bound trust-status evidence, and GitHub attestations rather than repository signing secrets.
