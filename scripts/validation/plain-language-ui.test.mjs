@@ -79,6 +79,21 @@ test('note link problems explain what is missing, not use insider jargon', () =>
   assert.equal(get('en', 'editor.empty.tagline'), 'Your Markdown files stay in your folder.')
 })
 
+test('dense graph canvas instructions follow the active interface language', () => {
+  const graphCanvas = read('src/components/GraphCanvas.tsx')
+  assert.match(graphCanvas, /t\('graph\.canvasAria'/)
+  assert.match(graphCanvas, /t\('graph\.canvasNodeAnnouncement'/)
+  assert.doesNotMatch(graphCanvas, /Knowledge graph with \$\{nodes\.length\} nodes/)
+  for (const locale of ['en', 'de', 'fa']) {
+    const aria = get(locale, 'graph.canvasAria')
+    const selection = get(locale, 'graph.canvasNodeAnnouncement')
+    assert.ok(aria?.length > 20)
+    assert.ok(selection?.length > 10)
+    assert.deepEqual(placeholders(aria), ['edges', 'nodes'])
+    assert.deepEqual(placeholders(selection), ['index', 'name', 'total'])
+  }
+})
+
 test('major workflow explanations avoid internal-only language', () => {
   const checks = [
     ['src/components/ResourceSyncPanel.tsx', /Inventory what is contained and installed|Each physical instance keeps|Canonical resource/],
