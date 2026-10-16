@@ -1,4 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { nextAvailableSnippetName, snippetNameTaken } from '../lib/snippetNames'
+import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { Plus, Save, Trash2, X } from 'lucide-react'
 
 import { vaultLoadSnippets, vaultSaveSnippets } from '../bridge/commands'
@@ -18,8 +20,17 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
   const [selected, setSelected] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<string | null>(null)
+  const [savedBaseline, setSavedBaseline] = useState('[]')
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const dirty = JSON.stringify(snippets) !== savedBaseline
+  const requestClose = () => {
+    if (isSaving) return
+    if (dirty) setConfirmDiscard(true)
+    else onClose()
+  }
 
-  useEscapeToClose(true, onClose)
+  useEscapeToClose(true, confirmDiscard ? () => setConfirmDiscard(false) : requestClose)
   const dialogRef = useRef<HTMLElement>(null)
   useFocusTrap(dialogRef, { active: true })
 
@@ -30,6 +41,8 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
       .then((loaded) => {
         if (!active) return
         setSnippets(loaded)
+        setSavedBaseline(JSON.stringify(loaded))
+        setStatus(null)
         setSelected(loaded[0]?.name ?? null)
       })
       .catch((caught) => {
@@ -45,29 +58,46 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
 
   const updateActive = useCallback((patch: Partial<VaultSnippet>) => {
     if (!selected) return
+    setStatus(null)
     setSnippets((current) =>
       current.map((snippet) => (snippet.name === selected ? { ...snippet, ...patch } : snippet)),
     )
   }, [selected])
 
   const addSnippet = () => {
-    const name = `snippet-${snippets.length + 1}`
+    const name = nextAvailableSnippetName(snippets)
     const next = { name, content: '${1:placeholder}', description: 'New snippet' }
     setSnippets((current) => [...current, next])
     setSelected(name)
+    setError(null)
+    setStatus(null)
   }
 
   const removeSnippet = () => {
     if (!selected) return
-    setSnippets((current) => current.filter((snippet) => snippet.name !== selected))
-    setSelected(null)
+    const index = snippets.findIndex((snippet) => snippet.name === selected)
+    const remaining = snippets.filter((snippet) => snippet.name !== selected)
+    setSnippets(remaining)
+    setSelected(remaining[Math.min(index, remaining.length - 1)]?.name ?? null)
+    setStatus(null)
+    setError(null)
   }
 
   const save = async () => {
+    const names = snippets.map((snippet) => snippet.name.trim().toLowerCase())
+    if (new Set(names).size !== names.length || snippets.some((snippet) => !snippet.name.trim() || !snippet.content.trim())) {
+      setError('Each snippet needs a unique name and some text before it can be saved.')
+      return
+    }
+    const saved = snippets.map((snippet) => ({ ...snippet, name: snippet.name.trim() }))
     setIsSaving(true)
     setError(null)
+    setStatus(null)
     try {
-      await vaultSaveSnippets(snippets, vaultId)
+      await vaultSaveSnippets(saved, vaultId)
+      setSnippets(saved)
+      setSavedBaseline(JSON.stringify(saved))
+      setStatus('Snippets saved.')
       onSaved?.()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught))
@@ -77,23 +107,24 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+    <div className="modal-backdrop" role="presentation" onClick={requestClose}>
       <section ref={dialogRef} className="snippets-panel" data-help-topic="snippets" role="dialog" aria-modal="true" aria-label="Snippet catalog" onClick={(event) => event.stopPropagation()}>
         <header>
           <div>
             <h2>Snippet catalog</h2>
-            <p className="health-subtitle">Manage `.scriptor/snippets.json` for editor autocomplete and palette inserts.</p>
+            <p className="health-subtitle">Save reusable text blocks here, then insert them into notes when you need them.</p>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+          <button type="button" className="icon-button" onClick={requestClose} aria-label="Close" disabled={isSaving}>
             <X />
           </button>
         </header>
 
-        {error ? <p className="preview-error">{error}</p> : null}
+        {error ? <p className="preview-error" role="alert">{error}</p> : null}
+        {status ? <p className="settings-status ok" role="status">{status}</p> : null}
 
         <div className="snippets-layout">
           <aside>
-            <button type="button" className="toolbar-button" onClick={addSnippet}>
+            <button type="button" className="toolbar-button" onClick={addSnippet} disabled={isSaving}>
               <Plus size={14} />
               New snippet
             </button>
@@ -103,6 +134,7 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
                   <button
                     type="button"
                     className={selected === snippet.name ? 'active' : undefined}
+                    aria-current={selected === snippet.name ? 'true' : undefined}
                     onClick={() => setSelected(snippet.name)}
                   >
                     {snippet.name}
@@ -119,14 +151,25 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
                 <input
                   aria-label="Name"
                   value={active.name}
+                  disabled={isSaving}
                   onChange={(event) => {
                     const nextName = event.target.value
+                    if (!nextName.trim()) {
+                      setError('Give this snippet a name.')
+                      return
+                    }
+                    if (snippetNameTaken(snippets, selected, nextName)) {
+                      setError('Another snippet already uses this name.')
+                      return
+                    }
                     setSnippets((current) =>
                       current.map((snippet) =>
                         snippet.name === selected ? { ...snippet, name: nextName } : snippet,
                       ),
                     )
                     setSelected(nextName)
+                    setError(null)
+                    setStatus(null)
                   }}
                 />
               </label>
@@ -135,6 +178,7 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
                 <input
                   aria-label="Description"
                   value={active.description ?? ''}
+                  disabled={isSaving}
                   onChange={(event) => updateActive({ description: event.target.value })}
                 />
               </label>
@@ -144,6 +188,7 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
                   aria-label="Content"
                   rows={12}
                   value={active.content}
+                  disabled={isSaving}
                   onChange={(event) => updateActive({ content: event.target.value })}
                   spellCheck={false}
                 />
@@ -155,15 +200,22 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
         </div>
 
         <footer className="snippets-footer">
-          <button type="button" className="toolbar-button" disabled={!selected} onClick={removeSnippet}>
+          <button type="button" className="toolbar-button" disabled={!selected || isSaving} onClick={removeSnippet}>
             <Trash2 size={14} />
             Delete
           </button>
-          <button type="button" className="primary-button" disabled={isSaving} onClick={() => void save()}>
+          <button type="button" className="primary-button" disabled={isSaving || !dirty} onClick={() => void save()}>
             <Save size={14} />
             {isSaving ? 'Saving…' : 'Save catalog'}
           </button>
         </footer>
+        {confirmDiscard ? <MutationConfirmation
+          ariaLabel="Discard unsaved snippet edits"
+          message="Your snippet changes have not been saved. Close without keeping them?"
+          confirmLabel="Discard changes"
+          onCancel={() => setConfirmDiscard(false)}
+          onConfirm={onClose}
+        /> : null}
       </section>
     </div>
   )

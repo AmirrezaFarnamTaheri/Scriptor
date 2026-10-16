@@ -1,4 +1,5 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
+import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { HardDrive } from 'lucide-react'
 
 import type { useVaultBackup } from '../hooks/useVaultBackup'
@@ -19,7 +20,8 @@ function formatBytes(bytes: number): string {
 function formatDate(iso: string): string {
   if (!iso) return '—'
   try {
-    return new Date(iso).toLocaleString()
+    const parsed = new Date(iso)
+    return Number.isNaN(parsed.getTime()) ? iso : parsed.toLocaleString()
   } catch {
     return iso
   }
@@ -29,13 +31,14 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
   const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup } =
     backup
 
+  const [pendingAction, setPendingAction] = useState<{ name: string; action: 'restore' | 'delete' } | null>(null)
   return (
     <div className="settings-section" data-help-topic="backups">
       <h3>
         <HardDrive size={16} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />
         Backup
       </h3>
-      <p className="health-subtitle">Verified recovery snapshots can stay inside the vault; disaster-recovery backups must use an absolute path on another disk or synced location.</p>
+      <p className="health-subtitle">A recovery copy inside the vault cannot protect you if that folder is lost. Save important backups on another drive or backup location.</p>
 
       <label className="diagnostics-opt-in">
         <input
@@ -59,7 +62,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
       </label>
 
       <label className="settings-field">
-        Max snapshots to keep
+        Recovery copies to keep
         <input
           type="number"
           min={1}
@@ -70,11 +73,11 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
       </label>
 
       <label className="settings-field">
-        Disaster-recovery backup path (absolute, outside vault)
+        Backup folder outside this vault
         <input
           value={settings.backupPath}
           disabled={isBusy}
-          placeholder="Leave empty for local recovery snapshots"
+          placeholder="Leave empty to keep recovery copies in this vault"
           onChange={(event) => setSettings({ backupPath: event.target.value })}
         />
       </label>
@@ -95,7 +98,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
           <ul className="backup-list">
             {backups.slice(0, 10).map((entry) => (
               <li key={entry.name} className="backup-entry">
-                <span className="backup-name">{entry.name} · {entry.storage_kind === 'external_backup' ? 'DR backup' : 'local snapshot'}{entry.verified ? ' · verified' : ' · legacy/unverified'}</span>
+                <span className="backup-name">{entry.name} · {entry.storage_kind === 'external_backup' ? 'Backup outside vault' : 'Local recovery copy'}{entry.verified ? ' · verified' : ' · not verified'}</span>
                 <span className="backup-meta">
                   {formatDate(entry.created_at)} · {formatBytes(entry.size_bytes)}
                 </span>
@@ -104,7 +107,8 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
                     type="button"
                     className="toolbar-button"
                     disabled={isBusy}
-                    onClick={() => void restoreBackup(entry.name)}
+                    aria-label={`Restore backup ${entry.name}`}
+                    onClick={() => setPendingAction({ name: entry.name, action: 'restore' })}
                   >
                     Restore
                   </button>
@@ -112,11 +116,27 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
                     type="button"
                     className="toolbar-button danger"
                     disabled={isBusy}
-                    onClick={() => void deleteBackup(entry.name)}
+                    aria-label={`Delete backup ${entry.name}`}
+                    onClick={() => setPendingAction({ name: entry.name, action: 'delete' })}
                   >
                     Delete
                   </button>
                 </div>
+                {pendingAction?.name === entry.name ? <MutationConfirmation
+                  ariaLabel={`${pendingAction.action === 'restore' ? 'Restore' : 'Delete'} backup ${entry.name}`}
+                  message={pendingAction.action === 'restore'
+                    ? `Restore ${entry.name}? This replaces the current vault files with the saved copy.`
+                    : `Delete ${entry.name}? You will no longer be able to restore from this backup.`}
+                  confirmLabel={pendingAction.action === 'restore' ? 'Restore backup' : 'Delete backup'}
+                  onCancel={() => setPendingAction(null)}
+                  onConfirm={() => {
+                    const action = pendingAction.action
+                    setPendingAction(null)
+                    if (action === 'restore') void restoreBackup(entry.name)
+                    else void deleteBackup(entry.name)
+                  }}
+                  busy={isBusy}
+                /> : null}
               </li>
             ))}
           </ul>
