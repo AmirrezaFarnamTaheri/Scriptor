@@ -9,22 +9,23 @@ not start automatic synchronization of the whole vault.
 
 ## Set up and connect
 
-Open **Settings → Integrations** and enter the public Google OAuth desktop
-client ID. Save the configuration before opening an integration workspace.
-Calendar synchronization can remain disabled while you use Drive or Gmail.
+Open **Settings → Integrations** and choose **Connect Google** for the service
+you need. In releases configured by the Scriptor publisher, the sign-in opens
+in your system browser and asks you to choose your Google account and approve
+its requested permissions. **You do not need to create an OAuth client ID,
+paste a password into Scriptor, or configure Google Cloud yourself.**
 
-The Google project must enable the APIs used by the selected services and have
-an OAuth client suitable for an installed desktop application. Follow Google's
-[installed-app setup](https://developers.google.com/identity/protocols/oauth2/native-app)
-for the project, consent screen and client. Scriptor opens the system browser
-for consent. Enter the client ID in Scriptor; never enter a client secret or
-access token in a vault setting.
+The publisher must first register Scriptor's Google Desktop OAuth client and
+provide its public ID at build time. Unconfigured development builds expose an
+**Advanced: use your own Google OAuth client** option. Never enter a client
+secret or access token in vault settings. [Google's installed-app guide](https://developers.google.com/identity/protocols/oauth2/native-app)
+describes the developer-only registration.
 
-Connections are independent: Drive and Docs share one connection, Calendar and
-Tasks share another, and Gmail has its own. Connect each group you intend to use
-and check the displayed account identity. Gmail also requires its plugin to be
-enabled. Tokens are held in the operating system keychain, while the public
-client ID and resource selections belong to the vault configuration.
+Drive/Docs, Calendar/Tasks and Gmail have independent permissions and OS-keychain
+tokens. Connect only the services you want, check the displayed account, and
+enable the Gmail Manager plugin before using mail. Calendar sync can remain
+disabled if you only use Drive or Gmail. A connection does **not** automatically
+synchronize the entire vault.
 
 ## Share Markdown through Drive or Docs
 

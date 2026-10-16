@@ -6,11 +6,18 @@ Scriptor 的实验性桌面集成将 Drive、Docs、Calendar、Tasks 和 Gmail �
 
 ## 设置与连接
 
-打开 **Settings → Integrations**，填写 Google 桌面 OAuth 客户端的公开 ID，保存配置后再打开集成工作区。只使用 Drive 或 Gmail 时，可以保持 Calendar 同步关闭。
+打开 **Settings → Integrations**，针对需要的服务点击 **Connect Google**。
+在发布者正确配置的发行版中，Scriptor 将通过系统浏览器打开 Google
+登录页，供您选择账户并批准请求的权限。**普通用户不必创建 OAuth 客户端
+ID、设置 Google Cloud，也不应在 Scriptor 中输入 Google 密码。**
 
-Google 项目必须启用所选服务的 API，并配置适用于已安装桌面应用的 OAuth 客户端。按 [Google 官方说明](https://developers.google.com/identity/protocols/oauth2/native-app)设置项目、同意页面和客户端。Scriptor 会打开系统浏览器请求授权。笔记库设置中只填写客户端 ID，不要填写客户端密钥或访问令牌。
+发布者必须先注册 Scriptor 的桌面 OAuth 客户端，并在构建时提供公开 ID。
+未配置的开发版才会显示供开发者自行填写客户端的**高级**选项。不要把
+客户端密钥或访问令牌写入笔记库。参见 [Google 安装应用指南](https://developers.google.com/identity/protocols/oauth2/native-app)。
 
-连接相互独立：Drive 和 Docs 共用一个连接，Calendar 和 Tasks 共用另一个，Gmail 单独连接。连接需要使用的每一组服务，并核对显示的账户身份。Gmail 还需要启用其插件。令牌保存在操作系统钥匙串中；公开客户端 ID 和资源选择保存在笔记库配置中。
+Drive/Docs、Calendar/Tasks 和 Gmail 分别请求权限，并在操作系统钥匙串中
+独立保存令牌。使用邮件前须启用 Gmail Manager 插件。连接账户不会自动
+同步整个笔记库；仅使用 Drive 或 Gmail 时可关闭 Calendar 同步。
 
 ## 通过 Drive 或 Docs 共享 Markdown
 
