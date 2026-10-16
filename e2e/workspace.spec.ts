@@ -57,7 +57,12 @@ test.describe('workspace flows', () => {
 
   test('first-run tour yields to Escape and does not reopen after dismissal', async ({ page }) => {
     await page.addInitScript(() => {
-      window.localStorage.removeItem('scriptor:onboarding-complete')
+      // Init scripts run again on reload: clear completion only on first visit,
+      // otherwise the test would falsely re-trigger onboarding every time.
+      if (sessionStorage.getItem('e2e:onboarding-escape-cleared') !== '1') {
+        localStorage.removeItem('scriptor:onboarding-complete')
+        sessionStorage.setItem('e2e:onboarding-escape-cleared', '1')
+      }
     })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     const tour = page.getByRole('dialog', { name: 'Product tour' })
