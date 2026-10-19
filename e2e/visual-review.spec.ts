@@ -1635,9 +1635,11 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Quick capture (scratchpad & todos)')
     const capture = page.locator('.quick-capture-panel')
     await expect(capture).toBeVisible()
-    for (const name of ['New inbox note', 'Insert in active', 'Add']) {
+    for (const name of ['Save to inbox', 'Insert into open note', 'Add']) {
       await expect(capture.getByRole('button', { name, exact: true })).toHaveClass(/toolbar-button/)
     }
+    await expect(capture.getByRole('button', { name: 'Save to inbox' })).toBeDisabled()
+    await expect(capture.getByRole('button', { name: 'Insert into open note' })).toBeDisabled()
     await capture.getByRole('textbox', { name: 'Quick capture scratchpad', exact: true }).fill(
       'Capture the release-review follow-up and turn the strongest point into a note.',
     )
@@ -1652,10 +1654,14 @@ test.describe('visual review states', () => {
         && rect.width > 0
         && (!parent || rect.right <= parent.right + 1)
     })).toBe(true)
-    await capture.getByRole('button', { name: 'Add', exact: true }).click()
-    const todo = capture.getByRole('textbox', { name: /Todo text:/ }).first()
-    await expect(todo).toBeVisible()
-    await todo.fill('Review visual evidence before release')
+    await expect(capture.getByRole('button', { name: 'Add', exact: true })).toBeDisabled()
+    const entry = capture.getByRole('textbox', { name: 'New task', exact: true })
+    await entry.fill('Review visual evidence before release')
+    await entry.press('Enter')
+    const todo = capture.getByRole('textbox', { name: /Task text:/ }).first()
+    await expect(todo).toHaveValue('Review visual evidence before release')
+    await expect(entry).toHaveValue('')
+    await expect(entry).toBeFocused()
     await expect.poll(() => todo.evaluate((element) => {
       const style = getComputedStyle(element)
       return element.getBoundingClientRect().height >= 36
@@ -1687,10 +1693,10 @@ test.describe('visual review states', () => {
         && actionRect.top >= inputRect.bottom - 1
         && element.scrollWidth <= element.clientWidth + 1
     })).toBe(true)
-    await expect(capture).toContainText('Todos')
+    await expect(capture).toContainText('Tasks')
     await captureElement(page, capture, 'visual-quick-capture.png')
 
-    await todoRow.getByRole('button', { name: 'Mark todo complete', exact: true }).click()
+    await todoRow.getByRole('button', { name: 'Mark task complete', exact: true }).click()
     await expect(todoRow).toHaveClass(/done/)
     await expect.poll(() => todo.evaluate((element) => getComputedStyle(element).textDecorationLine)).toContain('line-through')
     await page.setViewportSize({ width: 320, height: 900 })

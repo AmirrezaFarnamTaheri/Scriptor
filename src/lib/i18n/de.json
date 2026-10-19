@@ -58,6 +58,26 @@
     "appearanceControlSystem": "{{action}} · Palette {{palette}} · folgt dem System",
     "plugins": "Plugins"
   },
+  "quickCapture": {
+    "title": "Schnellerfassung",
+    "subtitle": "Notizen, Aufgaben und Haftnotizen",
+    "scratchpad": "Notizblock",
+    "saveToInbox": "Im Posteingang speichern",
+    "insertIntoOpenNote": "In geöffnete Notiz einfügen",
+    "scratchpadAria": "Notizblock zur Schnellerfassung",
+    "scratchpadPlaceholder": "Idee notieren und anschließend speichern oder einfügen…",
+    "todos": "Aufgaben",
+    "newTodo": "Neue Aufgabe",
+    "todoPlaceholder": "Was ist zu erledigen?",
+    "add": "Hinzufügen",
+    "noTodos": "Noch keine Aufgaben.",
+    "markIncomplete": "Aufgabe als offen markieren",
+    "markComplete": "Aufgabe abschließen",
+    "todoText": "Aufgabentext: {{text}}",
+    "toNote": "Notiz erstellen",
+    "deleteTodo": "Aufgabe löschen",
+    "addSticky": "Haftnotiz hinzufügen"
+  },
   "commandPalette": {
     "placeholder": "Befehl oder Notiz eingeben...",
     "searchingNotes": "Notizen werden gesucht...",

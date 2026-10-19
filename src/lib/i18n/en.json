@@ -58,6 +58,26 @@
     "appearanceControlSystem": "{{action}} · {{palette}} palette · follows system",
     "plugins": "Plugins"
   },
+  "quickCapture": {
+    "title": "Quick capture",
+    "subtitle": "Notes, tasks, and sticky notes",
+    "scratchpad": "Scratchpad",
+    "saveToInbox": "Save to inbox",
+    "insertIntoOpenNote": "Insert into open note",
+    "scratchpadAria": "Quick capture scratchpad",
+    "scratchpadPlaceholder": "Write an idea to save or insert into a note…",
+    "todos": "Tasks",
+    "newTodo": "New task",
+    "todoPlaceholder": "What needs doing?",
+    "add": "Add",
+    "noTodos": "No tasks yet.",
+    "markIncomplete": "Mark task incomplete",
+    "markComplete": "Mark task complete",
+    "todoText": "Task text: {{text}}",
+    "toNote": "Create note",
+    "deleteTodo": "Delete task",
+    "addSticky": "Add sticky note"
+  },
   "commandPalette": {
     "placeholder": "Type a command or note...",
     "searchingNotes": "Searching notes...",

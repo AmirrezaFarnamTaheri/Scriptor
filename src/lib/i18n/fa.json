@@ -58,6 +58,26 @@
     "appearanceControlSystem": "{{action}} · پالت {{palette}} · پیروی از سیستم",
     "plugins": "افزونه‌ها"
   },
+  "quickCapture": {
+    "title": "ثبت سریع",
+    "subtitle": "یادداشت‌ها، کارها و یادداشت‌های چسبان",
+    "scratchpad": "یادداشت موقت",
+    "saveToInbox": "ذخیره در صندوق ورودی",
+    "insertIntoOpenNote": "افزودن به یادداشت باز",
+    "scratchpadAria": "یادداشت موقت ثبت سریع",
+    "scratchpadPlaceholder": "ایده‌تان را بنویسید تا ذخیره یا به یادداشت اضافه کنید…",
+    "todos": "کارها",
+    "newTodo": "کار جدید",
+    "todoPlaceholder": "چه کاری باید انجام شود؟",
+    "add": "افزودن",
+    "noTodos": "هنوز کاری ثبت نشده است.",
+    "markIncomplete": "ناتمام کردن کار",
+    "markComplete": "تکمیل کار",
+    "todoText": "متن کار: {{text}}",
+    "toNote": "ایجاد یادداشت",
+    "deleteTodo": "حذف کار",
+    "addSticky": "افزودن یادداشت چسبان"
+  },
   "commandPalette": {
     "placeholder": "دستور یا یادداشت تایپ کنید...",
     "searchingNotes": "جستجوی یادداشت‌ها...",
