@@ -222,9 +222,27 @@ test('Revision pagination rejects repeated tokens without duplicating entries or
   await expect(panel.getByRole('button', { name: 'Load next page', exact: true })).toBeEnabled()
 })
 
+test('Calendar sign-in is immediately available even when sync was switched off', async ({ page }) => {
+  await launchGoogle(page)
+  const { google } = await openGoogleSettings(page)
+  const group = google.getByRole('group', { name: 'Google Calendar & Tasks', exact: true })
+  const advanced = group.locator('details.google-calendar-options')
+  await expect(advanced).toBeVisible()
+  await expect(advanced).not.toHaveAttribute('open', '')
+  await expect(group.getByRole('button', { name: /^(Connect Google|Reconnect)$/ })).toBeVisible()
+  await advanced.locator('summary').click()
+  const enabled = group.getByRole('checkbox', { name: 'Enable Google Calendar & Tasks integration' })
+  await enabled.uncheck()
+  await expect(group.getByRole('button', { name: /^(Connect Google|Reconnect)$/ })).toBeVisible()
+  await group.getByRole('button', { name: /^(Connect Google|Reconnect)$/ }).click()
+  await expect(enabled).toBeChecked()
+  expect((await calls(page)).filter(call => call.cmd === 'google_calendar_start_auth')).toHaveLength(1)
+})
+
 test('Calendar and task-list discovery persists selections without authorizing other accounts', async ({ page }, testInfo) => {
   await launchGoogle(page)
   const { settings, google } = await openGoogleSettings(page)
+  await google.locator('details.google-calendar-options > summary').click()
   await expect(google.getByRole('combobox', { name: 'Calendar', exact: true }).locator('option', { hasText: 'Shared read-only calendar' })).toBeAttached()
   await expect(google.getByRole('combobox', { name: 'Calendar', exact: true }).locator('option', { hasText: 'Availability only' })).toHaveJSProperty('disabled', true)
   await google.getByRole('combobox', { name: 'Calendar', exact: true }).selectOption('reader@example.com')
@@ -244,6 +262,7 @@ test('Calendar and task-list discovery persists selections without authorizing o
   expect(history.filter(call => call.cmd === 'google_calendar_start_auth')).toHaveLength(0)
   await page.reload()
   const reopened = await openGoogleSettings(page)
+  await reopened.google.locator('details.google-calendar-options > summary').click()
   await expect(reopened.google.getByRole('combobox', { name: 'Calendar', exact: true })).toHaveValue('reader@example.com')
   await expect(reopened.google.getByRole('combobox', { name: 'Task list', exact: true })).toHaveValue('research-tasks')
   await attachVisualState(page, testInfo, 'google-settings-restored-resources', reopened.google, reopened.google.getByRole('combobox', { name: 'Task list', exact: true }))
@@ -268,6 +287,7 @@ test('Google setup save failures retain the connected account and allow an expli
 test('A read-only selected calendar permits reviewed imports while blocking event writes', async ({ page }, testInfo) => {
   await launchGoogle(page, false)
   const { settings, google } = await openGoogleSettings(page)
+  await google.locator('details.google-calendar-options > summary').click()
   await expect(google.getByRole('combobox', { name: 'Calendar', exact: true }).locator('option', { hasText: 'Shared read-only calendar' })).toBeAttached()
   await google.getByRole('combobox', { name: 'Calendar', exact: true }).selectOption('reader@example.com')
   await settings.getByRole('button', { name: 'Save vault settings', exact: true }).click()

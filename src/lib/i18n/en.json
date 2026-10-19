@@ -801,6 +801,7 @@
       "gmailDisabled": "Enable Gmail Manager in Plugins to connect or read Gmail. Other Google connections remain available.",
       "driveDocsHelp": "Compare and share Markdown revisions in Drive. Older Google Docs revisions are read-only.",
       "calendarTasks": "Google Calendar & Tasks",
+      "calendarOptions": "Calendar & Tasks options",
       "calendar": "Calendar",
       "taskList": "Task list",
       "calendarId": "Calendar ID",

@@ -324,3 +324,15 @@ test('workspace settings keep uncommon layout switches behind an accessible disc
   const css = read('src/styles/components/settings-panel.css')
   assert.match(css, /\.workspace-layout-advanced > summary:focus-visible/)
 })
+
+test('packaged Google sign-in never asks end users for a developer OAuth client ID', () => {
+  const settings = read('src/components/GoogleIntegrationSettingsSection.tsx')
+  const gmail = read('src/components/GmailManagerPanel.tsx')
+  assert.ok(settings.includes('import.meta.env.DEV ? <details className="google-developer-setup">'))
+  assert.ok(gmail.includes('!hasPackagedGoogleOAuthClient() && import.meta.env.DEV'))
+  assert.ok(gmail.includes('onClick={() => void handleStartAuth()}'))
+  assert.ok(!settings.includes('{sync.enabled ? <>'), 'Calendar connection should not require enabling a toggle')
+  assert.ok(settings.includes('<details className="google-calendar-options">'))
+  assert.ok(settings.includes('enabled: true, google_client_id:'))
+  for (const locale of ['en', 'de', 'fa']) assert.ok(get(locale, 'integrations.google.calendarOptions')?.trim())
+})

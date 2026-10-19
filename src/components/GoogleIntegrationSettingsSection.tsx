@@ -50,18 +50,23 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
     setConfig((current) => ({ ...current, calendar_sync: { ...DEFAULT_VAULT_CONFIG.calendar_sync!, ...current.calendar_sync, ...patch } }))
   }
   const connectCalendar = async () => {
-    if (!sync.enabled || !clientId.trim() || calendarBusy) return
+    if (calendarBusy) return
+    if (!clientId.trim()) {
+      setSetupError(t('integrations.google.notConfigured'))
+      return
+    }
     setSavingConnection(true)
     setSetupError(null)
     try {
       if (!await calendarSync.startAuth() || !mounted.current) return
       await mutateVaultConfig((current) => ({ ...current, calendar_sync: {
         ...DEFAULT_VAULT_CONFIG.calendar_sync!, ...current.calendar_sync,
-        enabled: sync.enabled, google_client_id: hasPackagedGoogleOAuthClient() ? (current.calendar_sync?.google_client_id ?? null) : clientId.trim(), google_calendar_id: sync.google_calendar_id,
+        enabled: true, google_client_id: hasPackagedGoogleOAuthClient() ? (current.calendar_sync?.google_client_id ?? null) : clientId.trim(), google_calendar_id: sync.google_calendar_id,
         google_task_list_id: sync.google_task_list_id, lookahead_days: sync.lookahead_days,
         show_events_in_tasks: sync.show_events_in_tasks, push_vault_tasks: sync.push_vault_tasks,
         capture_note_path: sync.capture_note_path,
       } }), vaultId)
+      if (mounted.current) patchSync({ enabled: true })
     } catch (caught) {
       if (mounted.current) setSetupError(t('integrations.google.saveConnectionFailed', { error: caught instanceof Error ? caught.message : String(caught) }))
     } finally {
@@ -74,11 +79,18 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
     return <>
       <div className="calendar-sync-actions google-connection-actions">
         <span role="status">{account.email || t(`integrations.google.status.${account.status}`)}</span>
-        <button type="button" className="primary-button" disabled={!clientId.trim() || account.busy} onClick={() => void accounts.connect(service)}>
+        <button type="button" className="primary-button" disabled={account.busy} onClick={() => {
+          if (!clientId.trim()) {
+            setSetupError(t('integrations.google.notConfigured'))
+            return
+          }
+          setSetupError(null)
+          void accounts.connect(service)
+        }}>
           <ExternalLink size={14} aria-hidden="true" />{t(account.email ? 'integrations.google.reconnect' : 'integrations.google.connect')}
         </button>
         {account.email ? <button type="button" className="toolbar-button" disabled={account.busy} onClick={() => void accounts.disconnect(service)}>{t('integrations.google.disconnect')}</button> : null}
-        <button type="button" className="toolbar-button" disabled={account.busy} onClick={() => void accounts.check(service)}>{t('integrations.google.checkConnection')}</button>
+        {account.email || account.status === 'error' ? <button type="button" className="toolbar-button" disabled={account.busy} onClick={() => void accounts.check(service)}>{t('integrations.google.checkConnection')}</button> : null}
       </div>
       {account.error ? <p className="publish-error" role="alert">{account.error}</p> : null}
     </>
@@ -97,15 +109,16 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
         ? <p className="health-subtitle" role="status">{t('integrations.google.appManaged')}</p>
         : <>
           {!clientId && <p className="publish-error" role="alert">{t('integrations.google.notConfigured')}</p>}
-          <details className="google-developer-setup">
+          {import.meta.env.DEV ? <details className="google-developer-setup">
             <summary>{t('integrations.google.developerSetup')}</summary>
             <label className="settings-field">{t('integrations.google.clientId')}
               <input value={sync.google_client_id ?? ''} placeholder="1234567890-abc.apps.googleusercontent.com" autoComplete="off" disabled={setupBusy} onChange={(event) => patchSync({ google_client_id: event.target.value.trim() || null })} />
             </label>
             <p className="health-subtitle">{t('integrations.google.clientHelp')}</p>
             <p className="health-subtitle">{t('integrations.google.clientLifecycle')}</p>
-          </details>
+          </details> : null}
         </>}
+      {setupError ? <p className="publish-error" role="alert">{setupError}</p> : null}
       <div className="settings-subgroup google-integration-fields" role="group" aria-labelledby="google-drive-heading">
         <h4 id="google-drive-heading">{t('integrations.google.driveDocs')}</h4>
         <p className="health-subtitle">{t('integrations.google.driveDocsHelp')}</p>
@@ -114,8 +127,18 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
       </div>
       <div className="settings-subgroup google-integration-fields" role="group" aria-labelledby="google-calendar-heading">
         <h4 id="google-calendar-heading">{t('integrations.google.calendarTasks')}</h4>
+          <div className="calendar-sync-actions google-connection-actions">
+            <span role="status">{t(`integrations.google.status.${calendarSync.status}`)}{calendarSync.authedEmail ? ` · ${calendarSync.authedEmail}` : ''}</span>
+            <button type="button" className="primary-button" disabled={calendarBusy} onClick={() => void connectCalendar()}>{t(calendarSync.authedEmail ? 'integrations.google.reconnect' : 'integrations.google.connect')}</button>
+            {calendarSync.authedEmail ? <>
+              <button type="button" className="toolbar-button" disabled={calendarBusy} onClick={() => void calendarSync.refresh()}>{t('integrations.google.syncNow')}</button>
+              <button type="button" className="toolbar-button" disabled={calendarBusy} onClick={() => void calendarSync.disconnect()}>{t('integrations.google.disconnect')}</button>
+            </> : null}
+          </div>
+          {calendarSync.error ? <p className="publish-error" role="alert">{calendarSync.error}</p> : null}
+        <details className="google-calendar-options">
+          <summary>{t('integrations.google.calendarOptions')}</summary>
         <label className="diagnostics-opt-in"><input type="checkbox" checked={sync.enabled} disabled={calendarBusy} onChange={(event) => patchSync({ enabled: event.target.checked })} /><span>{t('integrations.google.enableCalendarTasks')}</span></label>
-        {sync.enabled ? <>
           <div className="settings-grid google-integration-options">
             <label className="settings-field">{t('integrations.google.calendar')}<select value={calendarId} disabled={calendarBusy} onChange={(event) => patchSync({ google_calendar_id: event.target.value })}>
               {calendarOptions.map((entry) => <option key={entry.id} value={entry.id} disabled={calendarSync.calendars.some((resource) => resource.id === entry.id && resource.accessRole === 'freeBusyReader')}>{entry.label}</option>)}
@@ -138,17 +161,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
             <label className="diagnostics-opt-in"><input type="checkbox" checked={sync.show_events_in_tasks} onChange={(event) => patchSync({ show_events_in_tasks: event.target.checked })} /><span>{t('integrations.google.showEvents')}</span></label>
             <label className="diagnostics-opt-in"><input type="checkbox" checked={sync.push_vault_tasks} onChange={(event) => patchSync({ push_vault_tasks: event.target.checked })} /><span>{t('integrations.google.mirrorTasks')}</span></label>
           </div>
-          <div className="calendar-sync-actions google-connection-actions">
-            <span role="status">{t(`integrations.google.status.${calendarSync.status}`)}{calendarSync.authedEmail ? ` · ${calendarSync.authedEmail}` : ''}</span>
-            <button type="button" className="primary-button" disabled={!clientId.trim() || calendarBusy} onClick={() => void connectCalendar()}>{t(calendarSync.authedEmail ? 'integrations.google.reconnect' : 'integrations.google.connect')}</button>
-            {calendarSync.authedEmail ? <>
-              <button type="button" className="toolbar-button" disabled={calendarBusy} onClick={() => void calendarSync.refresh()}>{t('integrations.google.syncNow')}</button>
-              <button type="button" className="toolbar-button" disabled={calendarBusy} onClick={() => void calendarSync.disconnect()}>{t('integrations.google.disconnect')}</button>
-            </> : null}
-          </div>
-          {setupError ? <p className="publish-error" role="alert">{setupError}</p> : null}
-          {calendarSync.error ? <p className="publish-error" role="alert">{calendarSync.error}</p> : null}
-        </> : null}
+        </details>
         {workspaceButton('planner', 'integrations.google.openPlanner')}
       </div>
       <div className="settings-subgroup google-integration-fields" role="group" aria-labelledby="google-gmail-heading">

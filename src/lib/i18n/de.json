@@ -801,6 +801,7 @@
       "gmailDisabled": "Aktivieren Sie den Gmail-Manager unter Plugins, um Gmail zu verbinden oder zu lesen. Andere Google-Verbindungen bleiben verfügbar.",
       "driveDocsHelp": "Markdown-Versionen in Drive vergleichen und teilen. Ältere Google-Docs-Versionen sind schreibgeschützt.",
       "calendarTasks": "Google Kalender & Aufgaben",
+      "calendarOptions": "Kalender- und Aufgabenoptionen",
       "calendar": "Kalender",
       "taskList": "Aufgabenliste",
       "calendarId": "Kalender-ID",
