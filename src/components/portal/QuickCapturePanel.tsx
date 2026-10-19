@@ -114,7 +114,7 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
                   <button
                     type="button"
                     className={todo.done ? 'icon-button done' : 'icon-button'}
-                    aria-label={t(todo.done ? 'quickCapture.markIncomplete' : 'quickCapture.markComplete')}
+                    aria-label={`${t(todo.done ? 'quickCapture.markIncomplete' : 'quickCapture.markComplete')}: ${todo.text.slice(0, 80)}`}
                     onClick={() => onToggleTodo(todo.id)}
                   >
                     <Check size={14} />
@@ -126,11 +126,11 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
                   />
                   <div className="quick-todo-actions">
                     {onCreateNoteFromTodo ? (
-                      <button type="button" className="toolbar-button" onClick={() => onCreateNoteFromTodo(todo.id)}>
+                      <button type="button" className="toolbar-button" aria-label={`${t('quickCapture.toNote')}: ${todo.text.slice(0, 80)}`} onClick={() => onCreateNoteFromTodo(todo.id)}>
                         {t('quickCapture.toNote')}
                       </button>
                     ) : null}
-                    <button type="button" className="icon-button" onClick={() => onDeleteTodo(todo.id)} aria-label={t('quickCapture.deleteTodo')}>
+                    <button type="button" className="icon-button" onClick={() => onDeleteTodo(todo.id)} aria-label={`${t('quickCapture.deleteTodo')}: ${todo.text.slice(0, 80)}`}>
                       <Trash2 size={14} />
                     </button>
                   </div>

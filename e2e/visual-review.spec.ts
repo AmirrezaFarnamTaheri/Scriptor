@@ -1740,7 +1740,7 @@ test.describe('visual review states', () => {
     await expect(capture).toContainText('Tasks')
     await captureElement(page, capture, 'visual-quick-capture.png')
 
-    await todoRow.getByRole('button', { name: 'Mark task complete', exact: true }).click()
+    await todoRow.getByRole('button', { name: 'Mark task complete: Review visual evidence before release', exact: true }).click()
     await expect(todoRow).toHaveClass(/done/)
     await expect.poll(() => todo.evaluate((element) => getComputedStyle(element).textDecorationLine)).toContain('line-through')
     await page.setViewportSize({ width: 320, height: 900 })
