@@ -363,7 +363,13 @@ test.describe('visual review states', () => {
     // The table is the highest intrinsic-width region in this flow. Exercise it
     // directly so a future column/string change cannot widen the entire dock
     // while the top-of-panel screenshot still looks healthy.
-    const installedSection = sharing.locator('.resource-sync-section').filter({ hasText: 'Found on this device' }).first()
+    // Match the exact section heading. "Verified apps were found on this device"
+    // appears in the preceding section, so substring filtering selects the
+    // wrong section and times out when looking for its nonexistent table.
+    const installedSection = sharing.locator('.resource-sync-section').filter({
+      has: page.getByRole('heading', { name: 'Found on this device', exact: true }),
+    })
+    await expect(installedSection).toHaveCount(1)
     const tableWrap = installedSection.locator('.resource-table-wrap')
     await expect(installedSection).toBeVisible()
     await tableWrap.scrollIntoViewIfNeeded()
