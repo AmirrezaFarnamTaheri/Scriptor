@@ -2,7 +2,7 @@ name: Release Kickoff
 run-name: Create tag and publish VERSION from ${{ github.sha }}
 
 on:
-  # Release v1.3.1 only after exact-commit CI passes on the default branch.
+  # Release v1.3.2 only after exact-commit CI passes on the default branch.
   workflow_run:
     workflows: ["CI"]
     branches: [main]
@@ -46,7 +46,7 @@ jobs:
         with:
           node-version: 22.16.0
 
-      - name: Gate automated release to exact validated v1.3.1 head
+      - name: Gate automated release to exact validated v1.3.2 head
         id: eligibility
         shell: bash
         env:
@@ -58,12 +58,12 @@ jobs:
               echo "::notice::CI succeeded on another commit; skip stale release kickoff."
               exit 0
             fi
-            if [ "$(tr -d '[:space:]' < VERSION)" != "1.3.1" ]; then
-              echo "::notice::Automatic release is only enabled for v1.3.1."
+            if [ "$(tr -d '[:space:]' < VERSION)" != "1.3.2" ]; then
+              echo "::notice::Automatic release is only enabled for v1.3.2."
               exit 0
             fi
-            if git ls-remote origin refs/tags/v1.3.1 | grep -q .; then
-              echo "::notice::v1.3.1 already tagged; no repeat dispatch."
+            if git ls-remote origin refs/tags/v1.3.2 | grep -q .; then
+              echo "::notice::v1.3.2 already tagged; no repeat dispatch."
               exit 0
             fi
           fi
@@ -74,7 +74,7 @@ jobs:
         shell: bash
         env:
           EXPECTED_BRANCH: ${{ github.event.repository.default_branch }}
-          EXPECTED_VERSION: ${{ github.event_name == 'workflow_run' && '1.3.1' || inputs.version }}
+          EXPECTED_VERSION: ${{ github.event_name == 'workflow_run' && '1.3.2' || inputs.version }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail

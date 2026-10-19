@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.3.2 — 2026-10-20
+
 ### Added
 
 - Expose the existing permission-aware Plugins workspace directly from the desktop top bar and mobile navigation, without requiring command-palette discovery.

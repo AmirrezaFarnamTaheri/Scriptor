@@ -6479,7 +6479,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-annotations"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -6488,7 +6488,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-canvas-engine"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "chrono",
  "resvg 0.48.1",
@@ -6505,7 +6505,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-capture"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "ammonia",
  "htmd",
@@ -6521,7 +6521,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-citation-engine"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "biblatex",
  "hayagriva",
@@ -6533,7 +6533,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-cli"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "chrono",
  "clap",
@@ -6561,7 +6561,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-daemon"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "ammonia",
  "chrono",
@@ -6592,7 +6592,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-desktop"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "arboard",
  "base64 0.23.1",
@@ -6625,7 +6625,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-embeddings"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "reqwest",
  "rusqlite",
@@ -6638,7 +6638,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-export-runner"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "chrono",
  "hex",
@@ -6661,7 +6661,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-extractor"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "pulldown-cmark",
  "serde",
@@ -6671,7 +6671,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-indexer"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "chrono",
  "r2d2",
@@ -6691,7 +6691,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-ipc"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "postcard",
  "serde",
@@ -6701,7 +6701,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-mobile"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "scriptor-export-runner",
  "scriptor-mobile-runtime",
@@ -6715,7 +6715,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-mobile-runtime"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "chrono",
  "scriptor-export-runner",
@@ -6728,7 +6728,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-native-git"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "diffy",
  "scriptor-system-bridge",
@@ -6741,7 +6741,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-publish-runner"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "globset",
  "memchr",
@@ -6754,7 +6754,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-system-bridge"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "hex",
  "keyring",
@@ -6768,7 +6768,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-tantivy-indexer"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "tantivy",
  "tempfile",
@@ -6777,7 +6777,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-vault"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -6805,7 +6805,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-wasm-runtime"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "serde",
  "thiserror 2.0.21",
@@ -6815,7 +6815,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-xtask"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "anyhow",
  "clap",
