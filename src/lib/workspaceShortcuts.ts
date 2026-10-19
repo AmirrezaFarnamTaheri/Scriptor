@@ -24,6 +24,27 @@ export function defaultWorkspaceShortcutPreferences(): WorkspaceShortcutPreferen
   return { version: 1, visible: true, items: [...DEFAULT_IDS].map(defaultItem) }
 }
 
+/**
+ * The default quick-access row duplicates the Write navigation on small screens.
+ * Hide only the untouched default there: any custom order, label, pin, size or
+ * visibility remains a deliberate user choice and must never be overridden.
+ */
+export function isDefaultWorkspaceShortcutLayout(preferences: WorkspaceShortcutPreferences): boolean {
+  const defaults = defaultWorkspaceShortcutPreferences()
+  return preferences.visible === defaults.visible &&
+    preferences.version === defaults.version &&
+    preferences.items.length === defaults.items.length &&
+    defaults.items.every((item, index) => {
+      const current = preferences.items[index]
+      return current?.id === item.id &&
+        current.shown === item.shown &&
+        current.pinned === item.pinned &&
+        current.label === item.label &&
+        current.width === item.width &&
+        current.fontSize === item.fontSize
+    })
+}
+
 /** Stored UI labels are plain text; no command bodies, markup or CSS are accepted. */
 export function parseWorkspaceShortcutPreferences(raw: string | null): WorkspaceShortcutPreferences {
   if (!raw || raw.length > 65_536) return defaultWorkspaceShortcutPreferences()

@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, MoreHorizontal, Settings2, X } from 'lucide-react'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import type { AppLocale } from '../../lib/i18n'
-import { defaultWorkspaceShortcutPreferences, getWorkspaceShortcutItems, type WorkspaceShortcutItem, type WorkspaceShortcutPreferences } from '../../lib/workspaceShortcuts'
+import { defaultWorkspaceShortcutPreferences, getWorkspaceShortcutItems, isDefaultWorkspaceShortcutLayout, type WorkspaceShortcutItem, type WorkspaceShortcutPreferences } from '../../lib/workspaceShortcuts'
 import { ToolbarPopover } from '../ToolbarPopover'
 import './workspace-shortcuts.css'
 
@@ -142,7 +142,7 @@ export function WorkspaceShortcutBar({ catalog, preferences, open, onOpen, onClo
     return <button type="button" role={inMenu ? 'menuitem' : undefined} key={item.id} disabled={command.disabled} title={command.disabled ? `${label} (${copy.unavailable})` : label} aria-label={label} className="workspace-shortcut-button" style={shortcutStyle(item)} onClick={() => { setMoreOpen(false); command.run() }}><span>{label}</span></button>
   }
   return <>
-    {preferences.visible && <nav className="workspace-activity-bar workspace-shortcut-bar" aria-label={copy.navigation} dir={locale === 'fa' ? 'rtl' : 'ltr'}>
+    {preferences.visible && <nav className={`workspace-activity-bar workspace-shortcut-bar${isDefaultWorkspaceShortcutLayout(preferences) ? ' is-default-layout' : ''}`} aria-label={copy.navigation} dir={locale === 'fa' ? 'rtl' : 'ltr'}>
       {pinned.map(item => shortcut(item, false))}
       {overflow.length > 0 && <button ref={moreRef} id={triggerId} type="button" className="workspace-shortcut-more" aria-label={copy.more} title={copy.more} aria-haspopup="menu" aria-expanded={menuVisible} aria-controls={menuVisible ? menuId : undefined} onClick={() => setMoreOpen(!menuVisible)} onKeyDown={event => {
         if (event.key !== 'ArrowDown') return

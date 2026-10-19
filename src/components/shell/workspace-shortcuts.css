@@ -87,3 +87,11 @@
   .workspace-shortcut-bar .workspace-shortcut-icon,
   .workspace-shortcut-manager .workspace-shortcut-icon { min-width: 44px; }
 }
+
+/* The mobile Write destination and Command menu already expose the default
+   routes. Reclaim a full row of writing space, without hiding customized or
+   pinned shortcuts; magnified desktop reflow gets the same compact behavior. */
+@media (max-width: 820px) {
+  .workspace-activity-bar.workspace-shortcut-bar.is-default-layout { display: none; }
+}
+html[data-ui-reflow='mobile'] .workspace-activity-bar.workspace-shortcut-bar.is-default-layout { display: none; }

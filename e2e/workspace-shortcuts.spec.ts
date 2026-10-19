@@ -11,6 +11,27 @@ async function customize(page: import('@playwright/test').Page) {
   return dialog
 }
 
+test('mobile writing hides only the redundant default shortcut row', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await launchApp(page)
+  await waitForWorkspace(page, { allowHiddenVaultList: true })
+
+  const shortcuts = page.locator('.workspace-activity-bar.workspace-shortcut-bar')
+  await expect(shortcuts).toBeHidden()
+  await expect(page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+    .getByRole('button', { name: 'Write', exact: true })).toBeVisible()
+
+  // Personalizing a pin must restore the shortcut row even on a small screen.
+  const dialog = await customize(page)
+  await dialog.locator('[data-shortcut-id="source"]').getByLabel('Button name').fill('My code')
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(dialog).toBeHidden()
+  await expect(shortcuts).toBeVisible()
+  await expect(shortcuts.getByRole('button', { name: 'My code', exact: true })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth))
+    .toBeLessThanOrEqual(1)
+})
+
 test('workspace shortcuts keep compact defaults and persist custom names, dimensions, ordering and overflow placement', async ({ page }, testInfo) => {
   await launchApp(page)
   await waitForWorkspace(page)
