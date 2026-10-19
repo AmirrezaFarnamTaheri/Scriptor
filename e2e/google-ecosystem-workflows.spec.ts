@@ -231,7 +231,7 @@ test('Calendar sign-in is immediately available even when sync was switched off'
   await expect(advanced).toBeVisible()
   await expect(advanced).not.toHaveAttribute('open', '')
   await expect(group.getByRole('button', { name: /^(Connect Google|Reconnect)$/ })).toBeVisible()
-  await advanced.locator('summary').click()
+  await advanced.locator(':scope > summary').click()
   const enabled = group.getByRole('checkbox', { name: 'Enable Google Calendar & Tasks integration' })
   await enabled.uncheck()
   await expect(group.getByRole('button', { name: /^(Connect Google|Reconnect)$/ })).toBeVisible()

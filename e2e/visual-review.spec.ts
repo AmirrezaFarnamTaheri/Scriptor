@@ -1829,7 +1829,10 @@ test.describe('visual review states', () => {
     await expect(google.locator('h3')).toBeVisible()
     await expect(google).toContainText('Google')
     await expect(google).toContainText('Gmail')
-    await expect(google.getByRole('checkbox')).toBeVisible()
+    // First-use OAuth is accessible before expanding advanced sync options.
+    await expect(google.locator('details.google-calendar-options > summary')).toBeVisible()
+    await expect(google.getByRole('button', { name: /Connect Google|Reconnect/ }).first()).toBeVisible()
+    await expect(google.getByRole('checkbox')).toHaveCount(0)
     await settleLayout(page)
 
     await captureElement(page, settings, 'visual-settings-integrations-google.png')
@@ -2050,7 +2053,9 @@ test.describe('visual review states', () => {
     await expect(backup.getByText('Enable scheduled backups', { exact: true })).toBeVisible()
     await expect(backup.getByText(/Backup folder outside this vault/)).toBeVisible()
     await expect.poll(() => backup.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-    await captureElement(page, backup, 'visual-settings-backups.png')
+    // Schedule options may extend beyond the viewport. Capture the bounded,
+    // scrollable Settings dialog rather than requiring a long form to fully fit.
+    await captureElement(page, settings, 'visual-settings-backups.png')
   })
 
   test('Vault health dashboard evidence', async ({ page }) => {
