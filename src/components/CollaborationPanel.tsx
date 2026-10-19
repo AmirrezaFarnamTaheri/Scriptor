@@ -209,13 +209,18 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         <p>Revisions preserve local, base and remote text so overlapping changes can be resolved before applying them.</p>
       </details>
       <label>{t('collaborationUi.format')}<select aria-label={t('collaborationUi.format')} value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); setTransport(event.target.value as CollaborationTransport); setPollConsent(false); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">{t('collaborationUi.driveFiles')}</option><option value="google_docs">{t('collaborationUi.legacyDocs')}</option></select></label>
-      {!hasPackagedGoogleOAuthClient() && <details className="google-developer-setup">
+      {!hasPackagedGoogleOAuthClient() && import.meta.env.DEV && <details className="google-developer-setup">
         <summary>{t('integrations.google.developerSetup')}</summary>
         <label>Google OAuth desktop client ID<input value={clientIdOverride ?? googleConfig?.google_client_id ?? ''} onChange={event => setClientIdOverride(event.target.value)} disabled={busy} autoComplete="off" /></label>
       </details>}
       {!clientId && <p className="publish-error" role="alert">{t('integrations.google.notConfigured')}</p>}
       <div className="collaboration-actions">
-        <button disabled={busy || polling.active || polling.starting || !clientId.trim()} onClick={() => void run(async current => {
+        <button type="button" disabled={busy || polling.active || polling.starting} onClick={() => {
+          if (!clientId.trim()) {
+            setError(t('integrations.google.notConfigured'))
+            return
+          }
+          void run(async current => {
           const value = await collaborationConnect(clientId.trim())
           accountReadGeneration.current++
           window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', { detail: { service: 'drive', origin: current === epoch.current ? accountOrigin.current : {} } }))
@@ -228,7 +233,8 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           base.current = null; peer.current = crypto.randomUUID()
           await persistSetup()
           if (current === epoch.current) { setMessage(copy.saved); await onApplied() }
-        })}>Connect Google Drive</button>
+          })
+        }}>Connect Google Drive</button>
         {account ? <button disabled={busy || polling.starting} onClick={() => void run(async current => {
           polling.stop(); await collaborationDisconnect()
           accountReadGeneration.current++

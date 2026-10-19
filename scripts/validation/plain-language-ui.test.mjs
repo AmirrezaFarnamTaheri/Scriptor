@@ -336,3 +336,10 @@ test('packaged Google sign-in never asks end users for a developer OAuth client 
   assert.ok(settings.includes('enabled: true, google_client_id:'))
   for (const locale of ['en', 'de', 'fa']) assert.ok(get(locale, 'integrations.google.calendarOptions')?.trim())
 })
+
+test('Drive uses the app identity and does not ask production users for an OAuth ID', () => {
+  const panel = read('src/components/CollaborationPanel.tsx')
+  assert.ok(panel.includes('!hasPackagedGoogleOAuthClient() && import.meta.env.DEV'))
+  assert.ok(!panel.includes('polling.starting || !clientId.trim()'))
+  assert.ok(panel.includes("setError(t('integrations.google.notConfigured'))"))
+})
