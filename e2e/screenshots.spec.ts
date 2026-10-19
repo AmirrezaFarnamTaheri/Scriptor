@@ -244,6 +244,12 @@ test('main workspace — dark mode', async ({ page }) => {
 })
 
 test('editor with split preview', async ({ page }) => {
+  const highlighterCrashes: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error' && message.text().includes('CodeMirror plugin crashed')) {
+      highlighterCrashes.push(message.text())
+    }
+  })
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
   await ensureCleanStatusDock(page)
@@ -251,6 +257,9 @@ test('editor with split preview', async ({ page }) => {
   await waitForPreviewReady(page)
   await captureReadyScreenshot(page, shotPath('editor-preview'))
   await expect(page).toHaveScreenshot('editor-preview.png', { fullPage: false })
+  // A crash in syntax highlighting was previously only logged to the console:
+  // the editor still looked present while the highlighter stopped rendering.
+  expect(highlighterCrashes).toEqual([])
 })
 
 test('inspector preview', async ({ page }) => {
