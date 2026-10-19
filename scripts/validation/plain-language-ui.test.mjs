@@ -311,3 +311,16 @@ test('vault navigation offers contextual next steps without showing dead-end con
   assert.match(search, /setSearchResults\(\[\]\)\s+setIsSearching\(true\)/)
   assert.match(css, /\.vault-search-clear:focus-visible/)
 })
+
+test('workspace settings keep uncommon layout switches behind an accessible disclosure', () => {
+  const src = read('src/components/WorkspaceChromeSettingsSection.tsx')
+  assert.match(src, /<details className="workspace-layout-advanced">/)
+  for (const key of ['showTopBar', 'showFormatToolbar', 'showEditorStatus', 'showLineNumbers']) {
+    assert.match(src, new RegExp(`'\\b${key}\\b'`))
+  }
+  for (const locale of ['en', 'de', 'fa']) {
+    assert.ok(get(locale, 'settingsPanel.moreWorkspaceOptions')?.trim())
+  }
+  const css = read('src/styles/components/settings-panel.css')
+  assert.match(css, /\.workspace-layout-advanced > summary:focus-visible/)
+})

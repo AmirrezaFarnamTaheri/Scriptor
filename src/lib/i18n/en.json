@@ -1070,6 +1070,7 @@
     "workspaceLayout": "Workspace layout",
     "workspaceChrome": "Toolbar and panels",
     "workspaceChromeHelp": "Choose which structural controls and panels stay visible while you work.",
+    "moreWorkspaceOptions": "More layout options",
     "resetWorkspaceChrome": "Restore toolbar and panels",
     "panelPresentation": "Panel presentation",
     "modal": "Centered modal",

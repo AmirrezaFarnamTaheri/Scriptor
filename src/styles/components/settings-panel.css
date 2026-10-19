@@ -446,3 +446,15 @@
 .appearance-advanced-options[open] > .settings-field {
   margin-block: 12px;
 }
+
+/* The common writing controls are visible; other layout switches remain
+   keyboard-accessible on demand rather than filling the settings dialog. */
+.workspace-layout-advanced {
+  margin-block: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+.workspace-layout-advanced > summary { cursor: pointer; font-weight: 600; }
+.workspace-layout-advanced > summary:focus-visible { outline: var(--focus-outline); outline-offset: 3px; }
+.workspace-layout-advanced[open] > .settings-toggles { margin-block: 14px 0; }

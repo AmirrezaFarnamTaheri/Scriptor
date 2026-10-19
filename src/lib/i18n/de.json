@@ -1070,6 +1070,7 @@
     "workspaceLayout": "Arbeitsbereich-Layout",
     "workspaceChrome": "Symbolleiste und Bereiche",
     "workspaceChromeHelp": "Lege fest, welche strukturellen Bedienelemente und Panels beim Arbeiten sichtbar bleiben.",
+    "moreWorkspaceOptions": "Weitere Layoutoptionen",
     "resetWorkspaceChrome": "Symbolleiste und Bereiche zurücksetzen",
     "panelPresentation": "Panel-Darstellung",
     "modal": "Zentriertes Modal",
