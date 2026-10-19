@@ -103,6 +103,9 @@ export function useSearchStore({
         semanticSupportedRef.current = true
         return
       }
+      // A debounce is a pending search: never flash stale hits or "0 results".
+      setSearchResults([])
+      setIsSearching(true)
       searchTimer.current = window.setTimeout(() => {
         searchTimer.current = null
         void runSearch(query)

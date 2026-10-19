@@ -571,3 +571,19 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Search stays recoverable without clearing the text character by character. */
+.vault-search-feedback { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin: 0 14px 10px; }
+.vault-search-feedback .search-hint { margin: 0; }
+.vault-search-clear { border: 0; background: transparent; color: var(--primary-strong); padding: 4px 0; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.vault-search-clear:focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
+
+/* Keep rare creation paths close but off the everyday navigation path. */
+.vault-create-options { margin: 0 14px 8px; border: 1px solid var(--border); border-radius: 7px; min-width: 0; }
+.vault-create-options > summary { color: var(--ink); cursor: pointer; padding: 7px 10px; font-size: 12px; }
+.vault-create-options[open] { padding-bottom: 6px; }
+.vault-create-options .note-type-menu { margin: 4px 10px 8px; }
+.vault-create-options .filter-button { margin: 0 10px 6px; }
+.vault-empty-state { display: grid; gap: 10px; justify-items: start; padding: 14px 8px; }
+.vault-empty-state .empty-state { margin: 0; }
+.vault-empty-state .primary-button { max-width: 100%; }
