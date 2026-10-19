@@ -37,6 +37,18 @@ The current RustSec database, commit `db663534ae858abb3fbad408a041ce04209c377f`,
 | RUSTSEC-2026-0192 | `ttf-parser` 0.25.1 via Typst, `fontdb`, `usvg` and rustybuzz | Bundled TrueType parser in PDF generation; arbitrary source fonts denied | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0192.html | 2026-11-01 | Upgrade to Typst font stack using maintained skrifa and verify shaping/embedding |
 | RUSTSEC-2024-0320 | `yaml-rust` 0.4.5 via `syntect` / `two-face` / Typst | PDF syntax highlighting graph; distinct from user frontmatter | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0320.html | 2026-11-01 | Upgrade syntect parent to yaml-rust2 or saphyr, confirm syntax parity |
 
+## 2026-10-19 advisory refresh
+
+**Security fix:** `ammonia` was upgraded in `Cargo.lock` from 4.2.3 to 4.2.4 using the verified crates.io index checksum. Its four normal dependency constraints are unchanged. This fixes **RUSTSEC-2026-0373**; that vulnerability is *not* in `deny.toml`'s ignore list. Verification requires a fresh locked CI audit.
+
+**Temporary maintenance-only constraints:** RustSec newly marked the `zbus` 5 standalone name and wire-format crates unmaintained on October 17. `scriptor-system-bridge` uses `keyring` 4.2.0, which pulls `zbus-secret-service-keyring-store` 1.0.0 and `secret-service` 5.1.0. Both currently require `zbus` 5. The available 1.0.1 store and 5.2.0 secret-service releases still require `zbus` 5, while the maintained successor `zbus` 6 is a breaking major version. A direct lockfile update cannot safely perform this migration; changing keyring backends requires Linux runtime, D-Bus, packaging and credential-retention verification. The following strictly enumerated *informational* exceptions expire for review on 2026-11-01 and must be removed with the parent migration. They **do not cover vulnerabilities**.
+
+| Advisory | Dependency family | Reachability | Owner | Upstream | Review by | Exit condition |
+|---|---|---|---|---|---|---|
+| RUSTSEC-2026-0370 | `zvariant` 5.13.1 via `zbus` 5.18.0 and `zbus_names` 4.3.4 | Linux keyring: `scriptor-system-bridge` → `keyring` 4.2.0 → zbus-based Secret Service backend | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0370.html | 2026-11-01 | Switch the keyring backend to a maintained D-Bus implementation / zbus 6 and confirm Linux credentials and packaging |
+| RUSTSEC-2026-0371 | `zbus_names` 4.3.4 via `zbus` 5.18.0 | Linux keyring: `secret-service` 5.1.0 and `zbus-secret-service-keyring-store` 1.0.0 | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0371.html | 2026-11-01 | Migrate parents to `zbus::names` in zbus 6; verify D-Bus keyring integration |
+| RUSTSEC-2026-0372 | `zvariant_derive` 5.13.1 via `zvariant` 5.13.1 | Linux keyring via legacy zbus 5 wire-format dependencies | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0372.html | 2026-11-01 | Migrate parents to zbus 6 wire/derive implementation and drop standalone macros |
+
 ## Review procedure
 
 1. Fetch the current official RustSec database and run `cargo audit` and `cargo deny check` against the locked graph, including production targets and optional features.
