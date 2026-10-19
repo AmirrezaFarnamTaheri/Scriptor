@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { FileOutput, FolderOutput, Globe, History, Loader2 } from 'lucide-react'
 
 import type { ExportProfile } from '@scriptor/core/contracts/export'
@@ -76,6 +76,8 @@ export const PublishCenter = memo(function PublishCenter({
   const offlineRunning = isExporting && exportHistory.some(entry => entry.status === 'running' && entry.profile_label === 'PDF · Offline')
   const translationRunning = isExporting && exportHistory.some(entry => entry.status === 'running' && exportProfiles.some(profile => profile.id === 'pdf-translate' && profile.label === entry.profile_label))
   const isTexDocument = Boolean(activePath && /\.(tex|ltx)$/i.test(activePath))
+  const [latexOptionsOpen, setLatexOptionsOpen] = useState(isTexDocument)
+  useEffect(() => { setLatexOptionsOpen(isTexDocument) }, [isTexDocument])
   const handleReplanStarlight = onReplanStarlight ?? onPlanStarlight
   const handleApplyPlan = onApplyPlan ?? (() => {})
 
@@ -179,7 +181,7 @@ export const PublishCenter = memo(function PublishCenter({
             <FileOutput size={16} aria-hidden="true" />
             Compile with LaTeX (Tectonic)
           </h3>
-          <details className="publish-latex-options" key={isTexDocument ? 'latex' : 'other'} defaultOpen={isTexDocument}>
+          <details className="publish-latex-options" open={latexOptionsOpen} onToggle={(event) => setLatexOptionsOpen(event.currentTarget.open)}>
             <summary>{isTexDocument ? 'LaTeX compiler options' : 'Show LaTeX compiler options (.tex / .ltx)'}</summary>
             <div className="publish-latex-content">
           <p className="health-subtitle">

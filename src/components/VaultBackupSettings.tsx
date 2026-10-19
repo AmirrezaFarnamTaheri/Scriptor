@@ -32,6 +32,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
     backup
 
   const [pendingAction, setPendingAction] = useState<{ name: string; action: 'restore' | 'delete' } | null>(null)
+  const [backupOptionsOpen, setBackupOptionsOpen] = useState(settings.enabled || Boolean(settings.backupPath))
   return (
     <div className="settings-section" data-help-topic="backups">
       <h3>
@@ -45,7 +46,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
           {isBusy ? 'Backing up…' : 'Back up now'}
         </button>
       </div>
-      <details className="backup-options" defaultOpen={settings.enabled || Boolean(settings.backupPath)}>
+      <details className="backup-options" open={backupOptionsOpen} onToggle={(event) => setBackupOptionsOpen(event.currentTarget.open)}>
         <summary>Schedule and backup location{settings.enabled ? ' · automatic backups on' : ''}</summary>
         <div className="backup-options-fields">
         <label className="diagnostics-opt-in">
