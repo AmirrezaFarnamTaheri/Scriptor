@@ -21,6 +21,7 @@ import {
   type ResourceTarget,
 } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
+import { filterDiscoveredResources } from '../lib/filterDiscoveredResources'
 import '../styles/components/resource-sync.css'
 
 function targetStatusLabel(status: ResourceTarget['status']): string {
@@ -75,6 +76,7 @@ export function ResourceSyncPanel() {
   const nativeAvailable = isNativeBridgeAvailable()
   const [inventory, setInventory] = useState<ResourceInventory | null>(null)
   const [selectedSourceId, setSelectedSourceId] = useState('')
+  const [resourceSearch, setResourceSearch] = useState('')
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set())
   const [plan, setPlan] = useState<ResourceSyncPlan | null>(null)
   const [applyResult, setApplyResult] = useState<ResourceApplyResult | null>(null)
@@ -130,6 +132,13 @@ export function ResourceSyncPanel() {
   const source = useMemo<ResourceInstance | null>(
     () => inventory?.resources.find((resource) => resource.id === selectedSourceId) ?? null,
     [inventory, selectedSourceId],
+  )
+
+  const visibleResources = useMemo(
+    () => inventory
+      ? filterDiscoveredResources(inventory.resources, inventory.targets, inventory.resources.length > 1 ? resourceSearch : '')
+      : [],
+    [inventory, resourceSearch],
   )
 
   const buildPlan = async () => {
@@ -326,8 +335,27 @@ export function ResourceSyncPanel() {
                 <p>Choose the copy you want to share. Nothing is changed until you approve.</p>
               </div>
             </div>
+            {inventory.resources.length > 1 ? (
+              <div className="resource-copy-filter">
+                <label htmlFor="resource-copy-filter">Find shared items</label>
+                <input
+                  id="resource-copy-filter"
+                  type="search"
+                  value={resourceSearch}
+                  placeholder="Search items, apps, or file paths"
+                  onChange={(event) => setResourceSearch(event.target.value)}
+                />
+                {resourceSearch ? (
+                  <button type="button" className="toolbar-button" onClick={() => setResourceSearch('')}>
+                    Clear search
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             {inventory.resources.length === 0 ? (
               <p className="resource-sync-empty-row">No shared items found in the locations Scriptor checks.</p>
+            ) : visibleResources.length === 0 ? (
+              <p className="resource-sync-empty-row" role="status">No shared items match this search. Clear the search to see all items.</p>
             ) : (
               <div className="resource-table-wrap">
                 <table className="resource-table">
@@ -340,7 +368,7 @@ export function ResourceSyncPanel() {
                     </tr>
                   </thead>
                   <tbody>
-                    {inventory.resources.map((resource) => (
+                    {visibleResources.map((resource) => (
                       <tr key={resource.id}>
                         <td>
                           <strong>{resource.name}</strong>
@@ -387,6 +415,9 @@ export function ResourceSyncPanel() {
                 </table>
               </div>
             )}
+            {resourceSearch.trim() && selectedSourceId && !visibleResources.some((item) => item.id === selectedSourceId) ? (
+              <p className="resource-sync-empty-row" role="status">Your selected source is hidden by this search; clear it to change the source.</p>
+            ) : null}
           </section>
 
           {inventory.duplicates.length > 0 ? (

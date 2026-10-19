@@ -190,7 +190,7 @@ async function openMobileWorkspace(page: Page, width = 390, height = 844) {
   await expectFullyInViewport(page, 'nav.mobile-workspace-nav')
 }
 
-async function installResourceInventoryFixture(page: Page) {
+async function installResourceInventoryFixture(page: Page, fixture = RESOURCE_INVENTORY_FIXTURE) {
   await page.evaluate((inventory) => {
     const internals = (window as Window & {
       __TAURI_INTERNALS__?: {
@@ -204,7 +204,7 @@ async function installResourceInventoryFixture(page: Page) {
       if (command === 'resource_inventory') return inventory
       return originalInvoke(command, payload, options)
     }
-  }, RESOURCE_INVENTORY_FIXTURE)
+  }, fixture)
 }
 
 test.describe('visual review states', () => {
@@ -394,6 +394,42 @@ test.describe('visual review states', () => {
     await expect.poll(() => tableWrap.evaluate((element) => element.scrollWidth >= element.clientWidth)).toBe(true)
     await expectNoHorizontalOverflow(page)
     await captureElement(page, installedSection, 'visual-mcp-sharing-table.png')
+  })
+
+  test('shared-item search finds the correct source and can recover from zero results', async ({ page }) => {
+    await openVisualWorkspace(page)
+    const second = {
+      ...RESOURCE_INVENTORY_FIXTURE.resources[0],
+      id: 'skill-codex-readme',
+      logicalId: 'skill:readme',
+      name: 'readme-helper',
+      path: 'C:/Users/e2e/.codex/skills/readme-helper',
+    }
+    await installResourceInventoryFixture(page, {
+      ...RESOURCE_INVENTORY_FIXTURE,
+      resources: [...RESOURCE_INVENTORY_FIXTURE.resources, second],
+    })
+    await openCommandPalette(page)
+    await runCommand(page, 'Open MCP panel')
+    const panel = page.locator('.mcp-panel')
+    await panel.getByRole('tab', { name: 'Sharing & sync' }).click()
+    const sharing = panel.getByRole('region', { name: 'Sharing and sync' })
+    const section = sharing.locator('.resource-sync-section').filter({
+      has: page.getByRole('heading', { name: 'Found on this device', exact: true }),
+    })
+    const search = section.getByRole('searchbox', { name: 'Find shared items', exact: true })
+    await expect(search).toBeVisible()
+    const rows = section.locator('.resource-table tbody tr')
+    await expect(rows).toHaveCount(2)
+    await search.fill('README')
+    await expect(rows).toHaveCount(1)
+    await expect(rows.first()).toContainText('readme-helper')
+    await search.fill('missing-copy-123')
+    await expect(section.getByRole('status')).toContainText('No shared items match')
+    await expect(rows).toHaveCount(0)
+    await section.getByRole('button', { name: 'Clear search' }).click()
+    await expect(search).toHaveValue('')
+    await expect(rows).toHaveCount(2)
   })
 
   test('editor recovery fallback', async ({ page }) => {
