@@ -113,7 +113,7 @@ function ShortcutManager({ catalog, preferences, onClose, onSave, locale }: Omit
                 <div className="workspace-shortcut-fields">
                   <label className="workspace-shortcut-name">{copy.name}<input type="text" value={item.label} maxLength={80} placeholder={command.label} onChange={event => patch(item.id, { label: event.target.value })} /></label>
                 </div>
-                <details className="workspace-shortcut-styling" defaultOpen={item.width !== 0 || item.fontSize !== 12}>
+                <details className="workspace-shortcut-styling">
                   <summary>{copy.style}</summary>
                   <div className="workspace-shortcut-sizing">
                     <label>{copy.width}<input type="number" min={64} max={320} step={1} value={item.width || ''} placeholder={copy.auto} aria-describedby={boundsId} onChange={event => patch(item.id, { width: event.target.value === '' ? 0 : Number(event.target.value) })} /></label>
