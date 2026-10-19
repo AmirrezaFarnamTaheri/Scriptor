@@ -75,6 +75,17 @@ impl SensitiveOperation {
         )
     }
 
+    /// Starting a Google connection already requires explicit account and scope
+    /// consent in the system browser. Avoid a redundant native "Approve once"
+    /// modal before opening that browser, but still issue a one-time scoped grant.
+    /// Local writes, disconnects and all other sensitive actions retain approval.
+    pub fn uses_google_browser_consent(self) -> bool {
+        matches!(
+            self,
+            Self::GoogleCalendarAuth | Self::GoogleDriveAuth | Self::GoogleGmailAuth
+        )
+    }
+
     fn title(self) -> &'static str {
         match self {
             Self::GoogleDriveAuth => "Connect a Google Drive collaboration account",
@@ -390,6 +401,15 @@ pub async fn authorize_sensitive_operation(
     // Capture before displaying consent, then recheck after consent so a
     // reconnect/account change while the dialog is open fails closed.
     let account_scope = account_bound_scope(operation, scope.as_deref())?;
+    if operation.uses_google_browser_consent() {
+        // The Google consent page is the second factor in this single-click
+        // connection flow. The native OAuth command must still consume the
+        // short-lived, operation/scope/account-bound authorization grant.
+        return state
+            .authorization
+            .issue(operation, account_scope, bound_vault_id);
+    }
+
     let title = operation.title().to_string();
     let impact = operation.impact().to_string();
     let display_scope = scope
@@ -667,6 +687,31 @@ mod tests {
                     .is_ok(),
                 "pre-existing grant must survive an overflow issue attempt"
             );
+        }
+    }
+
+    #[test]
+    fn only_google_connection_intents_use_browser_consent_instead_of_a_native_prompt() {
+        for operation in [
+            SensitiveOperation::GoogleDriveAuth,
+            SensitiveOperation::GoogleCalendarAuth,
+            SensitiveOperation::GoogleGmailAuth,
+        ] {
+            assert!(operation.uses_google_browser_consent());
+        }
+        for operation in [
+            SensitiveOperation::GoogleDriveRead,
+            SensitiveOperation::GoogleDriveWrite,
+            SensitiveOperation::GoogleCalendarWrite,
+            SensitiveOperation::GoogleCalendarDisconnect,
+            SensitiveOperation::GoogleGmailSend,
+            SensitiveOperation::GoogleGmailWrite,
+            SensitiveOperation::GoogleGmailDisconnect,
+            SensitiveOperation::GoogleTaskWrite,
+            SensitiveOperation::KeychainDelete,
+            SensitiveOperation::RestoreBackup,
+        ] {
+            assert!(!operation.uses_google_browser_consent());
         }
     }
 

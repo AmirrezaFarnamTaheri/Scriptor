@@ -25,6 +25,11 @@ for (const scenario of [
         && box.right <= window.innerWidth + 1 && box.bottom <= window.innerHeight + 1
     })).toBe(true)
     await expect(panel.getByRole('heading', { name: 'Note history', exact: true })).toBeInViewport()
+    const activitySliderRatio = await panel.locator('.note-history-activity').evaluate(element => {
+      const slider = element.querySelector('input[type="range"]')!
+      return slider.getBoundingClientRect().width / element.getBoundingClientRect().width
+    })
+    expect(activitySliderRatio).toBeGreaterThanOrEqual(0.8)
     const geometry = await panel.evaluate(element => {
       const grid = element.querySelector<HTMLElement>('.note-history-layout')!
       const activity = element.querySelector('.note-history-activity')!.getBoundingClientRect()
@@ -72,7 +77,10 @@ for (const scenario of [
     await restore.scrollIntoViewIfNeeded()
     await expect(restore).toBeInViewport()
     await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click()
-    const analyze = panel.getByRole('button', { name: 'Analyze vocabulary evolution', exact: true })
+    const advanced = panel.locator('details.note-history-advanced-stats')
+    await advanced.locator('summary').click()
+    await expect(advanced).toHaveAttribute('open', '')
+    const analyze = advanced.getByRole('button', { name: 'Analyze vocabulary evolution', exact: true })
     await analyze.scrollIntoViewIfNeeded()
     await expect(analyze).toBeInViewport()
     const appearance = await analyze.evaluate(element => {
@@ -88,7 +96,7 @@ for (const scenario of [
     expect(appearance.radius).toBeGreaterThan(0)
     expect(appearance.background).not.toBe(appearance.color)
     expect(appearance.font).toBe(appearance.bodyFont)
-    await panel.locator('.note-history-vocabulary').getByText('Vocabulary comparison', { exact: true }).click()
+    await panel.locator('.note-history-vocabulary').getByText('Word comparison', { exact: true }).click()
     const table = panel.locator('.note-history-vocabulary table')
     await table.scrollIntoViewIfNeeded()
     await expect(table).toBeInViewport()

@@ -57,6 +57,7 @@ function harness() {
     module, exports: module.exports,
     window, CustomEvent, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
     require: (id) => id === 'react' ? react : id.includes('/google_calendar.ts') ? bridge
+      : id.endsWith('/googleOAuthClient.ts') ? { getGoogleOAuthClientId: (legacy) => legacy?.trim() ?? '' }
       : { googleAuthErrorMessage: String, isGoogleAuthRequiredError: (error) => String(error).startsWith('GOOGLE_AUTH_REQUIRED:') },
   })
   return {

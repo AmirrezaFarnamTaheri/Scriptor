@@ -69,7 +69,22 @@ test('Appearance settings owns the palette-management route', async ({ page }) =
   const palettes = page.getByRole('dialog', { name: 'Color palettes' })
   await expect(palettes).toBeVisible()
   await expect(palettes.getByRole('button', { name: 'Create Custom Palette' })).toBeVisible()
-  await expect(palettes.getByRole('button', { name: 'Open runtime plugin marketplace' })).toHaveCount(0)
+  await expect(palettes.getByRole('button', { name: 'Browse plugins' })).toHaveCount(0)
+})
+
+test('workspace settings keep everyday controls visible and optional controls discoverable', async ({ page }) => {
+  await launchApp(page)
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
+  await expect(settings.getByRole('checkbox', { name: 'Show top navigation header' })).toBeVisible()
+  await expect(settings.getByRole('checkbox', { name: 'Show format toolbar' })).toBeVisible()
+  const more = settings.locator('details.workspace-layout-advanced')
+  await expect(more).not.toHaveAttribute('open', '')
+  await expect(more.locator('input[type="checkbox"]')).toHaveCount(10)
+  await more.locator('summary').click()
+  await expect(more).toHaveAttribute('open', '')
+  await expect(settings.getByRole('checkbox', { name: 'Show topbar quick action buttons' })).toBeVisible()
 })
 
 test('appearance and workspace tabs keep separate ownership', async ({ page }) => {
@@ -82,7 +97,7 @@ test('appearance and workspace tabs keep separate ownership', async ({ page }) =
   await expect(settings.getByRole('checkbox', { name: 'Show top navigation header' })).toHaveCount(0)
 
   await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
-  await expect(settings.getByRole('heading', { name: 'Workspace chrome', exact: true })).toBeVisible()
+  await expect(settings.getByRole('heading', { name: 'Toolbar and panels', exact: true })).toBeVisible()
   await expect(settings.getByRole('checkbox', { name: 'Show top navigation header' })).toBeVisible()
 })
 
@@ -108,7 +123,7 @@ test('appearance and workspace resets do not cross ownership boundaries', async 
   await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
   await density.selectOption('spacious')
   await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
-  await settings.getByRole('button', { name: 'Reset workspace chrome', exact: true }).click()
+  await settings.getByRole('button', { name: 'Restore toolbar and panels', exact: true }).click()
   await expect(showTopBar).toBeChecked()
 
   await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()

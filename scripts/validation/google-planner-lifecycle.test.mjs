@@ -106,7 +106,7 @@ test('a completed event write from an unmounted account cannot replace another a
   const pending = deferred()
   h.bridge.googlePlannerWrite = () => pending.promise
   const old = h.mount()
-  old.button('Review bidirectional sync').props.onClick(); old.render()
+  old.button('Review changes before syncing').props.onClick(); old.render()
   old.button('Use vault → Google').props.onClick()
   await flush()
   old.unmount()
@@ -132,7 +132,7 @@ test('a delayed source-note read cannot write or index after the planner unmount
   const task = { id: 'task', title: 'Task', status: 'open', dueAt: null, line: 0, sourceNotePath: 'Task.md' }
   const remote = { id: 'remote-task', title: 'Updated task', status: 'completed', due: null, notes: 'Scriptor source: vault:vault:task', etag: 'etag' }
   const old = h.mount({ tasks: [task], remoteTasks: [remote] })
-  old.button('Review bidirectional sync').props.onClick(); old.render()
+  old.button('Review changes before syncing').props.onClick(); old.render()
   old.button('Use Google → vault').props.onClick()
   await flush()
   old.unmount()
@@ -150,7 +150,7 @@ test('a note save already submitted before unmount does not index the replacemen
   h.bridge.vaultSaveNote = (...args) => { h.calls.saves.push(args); return pending.promise }
   const task = { id: 'task', title: 'Task', status: 'open', dueAt: null, line: 0, sourceNotePath: 'Task.md' }
   const old = h.mount({ tasks: [task], remoteTasks: [{ id: 'remote', title: 'Updated task', status: 'completed', due: null, notes: 'Scriptor source: vault:vault:task' }] })
-  old.button('Review bidirectional sync').props.onClick(); old.render()
+  old.button('Review changes before syncing').props.onClick(); old.render()
   old.button('Use Google → vault').props.onClick()
   await flush()
   assert.equal(h.calls.saves.length, 1)

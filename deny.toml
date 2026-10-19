@@ -21,6 +21,13 @@ ignore = [
     "RUSTSEC-2025-0081",
     "RUSTSEC-2025-0098",
     "RUSTSEC-2025-0100",
+    # Linux desktop keyring's zbus 5 graph. Standalone name/wire-format crates
+    # were merged into zbus 6; current keyring store/secret-service require
+    # zbus 5. Maintenance-only, with time-limited reviews in the RustSec ledger.
+    # These do not exempt any security vulnerability.
+    "RUSTSEC-2026-0370",
+    "RUSTSEC-2026-0371",
+    "RUSTSEC-2026-0372",
     # Four information-only Typst 0.15.1 transitive maintenance advisories.
     # Narrow, expiring ownership records: docs/security/RUSTSEC-EXCEPTIONS.md.
     # This is temporary risk acceptance, not an upstream dependency upgrade.

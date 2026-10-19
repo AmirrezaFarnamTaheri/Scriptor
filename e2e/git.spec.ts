@@ -83,9 +83,9 @@ test.describe('Git panel', () => {
 
     const hunk = resolver.locator('.conflict-hunk-card')
     await expect(hunk).toHaveCount(1)
-    await expect(resolver.getByRole('button', { name: 'Apply resolved file' })).toBeDisabled()
+    await expect(resolver.getByRole('button', { name: 'Apply selected changes' })).toBeDisabled()
 
-    await hunk.getByRole('radio', { name: 'Keep theirs', exact: true }).check()
+    await hunk.getByRole('radio', { name: 'Keep incoming changes', exact: true }).check()
 
     const merged = resolver.locator('.conflict-merged-body')
     await expect(merged).toContainText('Updated field observations after second pass.')
@@ -93,7 +93,7 @@ test.describe('Git panel', () => {
     await expect(merged).not.toContainText('=======')
     await expect(merged).not.toContainText('>>>>>>>')
 
-    await resolver.getByRole('button', { name: 'Apply resolved file' }).click()
+    await resolver.getByRole('button', { name: 'Apply selected changes' }).click()
     await expect(resolver).toBeHidden({ timeout: 10_000 })
 
     const applied = await page.evaluate(() => window.__scriptorE2eMergedConflict)
@@ -121,8 +121,8 @@ test.describe('Git panel', () => {
     await expect(resolver).toBeVisible({ timeout: 15_000 })
     await expect(resolver.locator('.conflict-hunk-card')).toHaveCount(1)
 
-    await resolver.getByRole('radio', { name: 'Keep theirs', exact: true }).check()
-    await resolver.getByRole('button', { name: 'Apply resolved file' }).click()
+    await resolver.getByRole('radio', { name: 'Keep incoming changes', exact: true }).check()
+    await resolver.getByRole('button', { name: 'Apply selected changes' }).click()
     await expect(resolver).toBeHidden({ timeout: 10_000 })
 
     const applied = await page.evaluate(() => window.__scriptorE2eMergedConflict)

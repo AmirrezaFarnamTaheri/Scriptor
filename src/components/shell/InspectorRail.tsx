@@ -19,6 +19,7 @@ import { INSPECTOR_PRESETS, type InspectorPreset } from '../../lib/inspectorPres
 import type { BibliographyEntry, BacklinkHit, ExportJobOutput, VaultHealthDiagnostics, VaultHealthReport } from '../../types/vault'
 import { useTablistKeys } from '../../hooks/useTablistKeys'
 import { useI18n } from '../../lib/i18n'
+import { isVaultHealthClear } from '../../lib/vaultHealth'
 
 const StorePanel = lazy(() =>
   import('../StorePanel').then((module) => ({ default: module.StorePanel })),
@@ -159,6 +160,7 @@ function InspectorRailImpl({
     () => citationRows.filter((key) => !bibliographyKeys.has(key)).length,
     [citationRows, bibliographyKeys],
   )
+  const vaultChecksClear = isVaultHealthClear(health)
   const handleInspectorTabKeys = useTablistKeys(INSPECTOR_TABS, activeMode, (id) => onModeChange(id as 'inspector' | 'preview' | 'plugins'))
   const presetIds = useMemo(
     () => INSPECTOR_PRESETS.map((entry) => `inspector-preset-${entry.id}`),
@@ -374,14 +376,28 @@ function InspectorRailImpl({
 
             {showInspectorHealth ? (
               <WidgetCard title={t('inspector.noteHealth')} action={healthAction} onAction={onOpenHealthDashboard}>
-                <div className="metric-grid">
-                  {healthMetrics.map(([label, value]) => (
-                    <div className="metric" key={label}>
-                      <span>{label}</span>
-                      <strong>{value}</strong>
+                {inspectorPreset === 'balanced' && vaultChecksClear ? (
+                  <details className="inspector-health-breakdown">
+                    <summary>{t('inspector.health.showDetails')}</summary>
+                    <div className="metric-grid">
+                      {healthMetrics.map(([label, value]) => (
+                        <div className="metric" key={label}>
+                          <span>{label}</span>
+                          <strong>{value}</strong>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </details>
+                ) : (
+                  <div className="metric-grid">
+                    {healthMetrics.map(([label, value]) => (
+                      <div className="metric" key={label}>
+                        <span>{label}</span>
+                        <strong>{value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </WidgetCard>
             ) : null}
 

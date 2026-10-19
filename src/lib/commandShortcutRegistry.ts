@@ -16,7 +16,7 @@ export const COMMAND_SHORTCUT_REGISTRY: CommandShortcutEntry[] = [
   { id: 'open-reader', label: 'Open reader' },
   { id: 'open-tasks', label: 'Open tasks panel' },
   { id: 'open-kanban', label: 'Open kanban board' },
-  { id: 'open-knowledge-workbench', label: 'Open knowledge workbench', defaultShortcut: 'Alt+K' },
+  { id: 'open-knowledge-workbench', label: 'Explore notes', defaultShortcut: 'Alt+K' },
   { id: 'reopen-closed-tab', label: 'Reopen closed tab', defaultShortcut: 'Ctrl+Shift+T' },
   { id: 'open-note-history', label: 'Note history timeline', defaultShortcut: 'Ctrl+Alt+H' },
   { id: 'focus-search', label: 'Focus vault search', defaultShortcut: 'F' },

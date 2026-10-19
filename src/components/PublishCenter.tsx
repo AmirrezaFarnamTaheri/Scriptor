@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { FileOutput, FolderOutput, Globe, History, Loader2 } from 'lucide-react'
 
 import type { ExportProfile } from '@scriptor/core/contracts/export'
@@ -76,6 +76,8 @@ export const PublishCenter = memo(function PublishCenter({
   const offlineRunning = isExporting && exportHistory.some(entry => entry.status === 'running' && entry.profile_label === 'PDF · Offline')
   const translationRunning = isExporting && exportHistory.some(entry => entry.status === 'running' && exportProfiles.some(profile => profile.id === 'pdf-translate' && profile.label === entry.profile_label))
   const isTexDocument = Boolean(activePath && /\.(tex|ltx)$/i.test(activePath))
+  const [latexOptionsOpen, setLatexOptionsOpen] = useState(isTexDocument)
+  useEffect(() => { setLatexOptionsOpen(isTexDocument) }, [isTexDocument])
   const handleReplanStarlight = onReplanStarlight ?? onPlanStarlight
   const handleApplyPlan = onApplyPlan ?? (() => {})
 
@@ -126,7 +128,7 @@ export const PublishCenter = memo(function PublishCenter({
             Export this note
           </h3>
           <p className="health-subtitle">
-            Export with a configured profile, or use the bundled offline PDF compiler.
+            Choose a format. Save folders are configured per format; offline PDF needs no internet connection.
           </p>
           <ul className="publish-profile-list">
             {exportProfiles.map((profile) => {
@@ -138,22 +140,23 @@ export const PublishCenter = memo(function PublishCenter({
                     <strong>{profile.label}</strong>
                     {formatBadge ? <span className="publish-format-chip">{formatBadge}</span> : null}
                   </div>
-                  <div className="publish-profile-destination">
-                    <FolderOutput size={13} aria-hidden="true" />
-                    <span>Destination</span>
+                  <details className="publish-profile-destination">
+                    <summary><FolderOutput size={13} aria-hidden="true" /> Save location</summary>
                     <code>{profile.outputDirectory}</code>
-                  </div>
+                  </details>
                 </div>
                 <div className="publish-profile-actions">
-                  <button
-                    type="button"
-                    className="toolbar-button"
-                    disabled={!activePath || isExporting || profile.id === 'pdf-offline' || profile.id === 'pdf-translate'}
-                    title="Validate the export command and inputs without writing an artifact"
-                    onClick={() => onExport(profile.id, true)}
-                  >
-                    Preview export
-                  </button>
+                  {profile.id !== 'pdf-offline' && profile.id !== 'pdf-translate' ? (
+                    <button
+                      type="button"
+                      className="toolbar-button"
+                      disabled={!activePath || isExporting}
+                      title="Check export settings without creating a file"
+                      onClick={() => onExport(profile.id, true)}
+                    >
+                      Preview export
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="primary-button publish-export-action"
@@ -178,8 +181,11 @@ export const PublishCenter = memo(function PublishCenter({
             <FileOutput size={16} aria-hidden="true" />
             Compile with LaTeX (Tectonic)
           </h3>
+          <details className="publish-latex-options" open={latexOptionsOpen} onToggle={(event) => setLatexOptionsOpen(event.currentTarget.open)}>
+            <summary>{isTexDocument ? 'LaTeX compiler options' : 'Show LaTeX compiler options (.tex / .ltx)'}</summary>
+            <div className="publish-latex-content">
           <p className="health-subtitle">
-            Compile the active TeX file using the self-contained Tectonic TeX engine.
+            Turn the open LaTeX file into a PDF using the built-in compiler.
           </p>
           <div className="publish-profile-actions">
             <button
@@ -237,6 +243,8 @@ export const PublishCenter = memo(function PublishCenter({
               ) : null}
             </div>
           ) : null}
+            </div>
+          </details>
         </section>
 
         {exportResult?.dry_run && preflightProfileLabel ? (
@@ -283,14 +291,12 @@ export const PublishCenter = memo(function PublishCenter({
           )}
         </section>
 
-        <section className="publish-center-section publish-center-history">
-          <h3>
-            <History size={16} aria-hidden="true" />
-            Recent file exports
-          </h3>
-          {exportHistory.length === 0 ? (
-            <p className="empty-state">No file exports yet for this session.</p>
-          ) : (
+        {exportHistory.length > 0 ? (
+          <section className="publish-center-section publish-center-history">
+            <h3>
+              <History size={16} aria-hidden="true" />
+              Recent file exports
+            </h3>
             <ul className="publish-history-list">
               {exportHistory.map((entry) => (
                 <li key={entry.id}>
@@ -307,13 +313,13 @@ export const PublishCenter = memo(function PublishCenter({
                 </li>
               ))}
             </ul>
-          )}
-        </section>
+          </section>
+        ) : null}
 
         {exportResult && !exportResult.dry_run ? (
           <section className="publish-center-section">
             <h3>Latest file export</h3>
-            <p className="health-subtitle">Artifact written to disk.</p>
+            <p className="health-subtitle">Exported file saved.</p>
             <code className="publish-artifact">{exportResult.artifact_path}</code>
           </section>
         ) : null}

@@ -310,14 +310,9 @@ export async function waitForWorkspace(page: Page, options: { allowHiddenVaultLi
       throw firstBootError
     }
   }
-  // The top-bar vault badge yields (stays mounted, hidden) at tight widths by
-  // design — the workspace switcher and status footer repeat it — so "loaded"
-  // is asserted on attachment, and on visibility only when it is shown.
-  const vaultBadge = page.locator('small.vault-badge', { hasText: 'Research Vault' })
-  await expect(vaultBadge).toBeAttached({ timeout: 45_000 })
-  if (await vaultBadge.isVisible()) {
-    await expect(vaultBadge).toBeVisible()
-  }
+  // A compact workspace intentionally has no redundant top-bar vault badge.
+  // The populated vault list, selected note tab and editor model below are
+  // durable hydration signals across desktop, mobile and restored app zoom.
   const vaultList = page.locator('.virtual-note-list')
   // A large virtualized vault may legitimately place the active note outside
   // the mounted window. The selected tab and editor model below prove that the

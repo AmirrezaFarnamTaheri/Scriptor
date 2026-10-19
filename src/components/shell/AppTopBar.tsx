@@ -16,6 +16,7 @@ import {
   PanelLeft,
   PanelRight,
   Palette,
+  Puzzle,
   Search,
   Settings,
   SlidersHorizontal,
@@ -65,6 +66,8 @@ interface AppTopBarProps {
   onOpenSupport: () => void
   onOpenSettings: () => void
   onOpenPluginManager?: () => void
+  onOpenPlugins: () => void
+  pluginsActive: boolean
   theme: AppTheme
   appearance: AppearanceMode
   resolvedAppearance: ResolvedAppearance
@@ -114,6 +117,8 @@ function AppTopBarImpl({
   onOpenSupport,
   onOpenSettings,
   onOpenPluginManager,
+  onOpenPlugins,
+  pluginsActive,
   theme,
   appearance,
   resolvedAppearance,
@@ -168,6 +173,7 @@ function AppTopBarImpl({
   const statusActions = [
     { id: 'git', label: gitTitle, icon: <GitBranch />, onClick: onOpenGit },
     { id: 'mcp', label: mcpLabel, icon: <Lock />, onClick: onOpenMcp },
+    { id: 'plugins', label: t('topBar.plugins'), icon: <Puzzle />, onClick: onOpenPlugins },
     { id: 'support', label: t('topBar.supportScriptor'), icon: <Heart />, onClick: onOpenSupport },
     ...(onOpenPluginManager
       ? [{ id: 'paletteStore', label: t('topBar.paletteStore'), icon: <Palette />, onClick: onOpenPluginManager }]
@@ -273,29 +279,33 @@ function AppTopBarImpl({
           </IconButton>
           <BrandMark />
           <BrandWordmark />
-          {vault ? <small className="vault-badge">{vault.name}</small> : null}
+          {vault && recentVaults.length === 0 ? <small className="vault-badge">{vault.name}</small> : null}
         </div>
 
-        {showHistory ? (
-          <div className="history-controls" aria-label={t('topBar.historyControls')}>
-            <IconButton tooltip={false} label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
-              <ChevronRight className="flip" />
-            </IconButton>
-            <IconButton tooltip={false} label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
-              <ChevronRight />
-            </IconButton>
+        <div className="history-controls" aria-label={showHistory ? t('topBar.historyControls') : t('topBar.switchVault')}>
+          {showHistory ? (
+            <>
+              <IconButton tooltip={false} label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
+                <ChevronRight className="flip" />
+              </IconButton>
+              <IconButton tooltip={false} label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
+                <ChevronRight />
+              </IconButton>
+            </>
+          ) : null}
+          {recentVaults.length === 0 ? (
             <button type="button" className="action-button" onClick={onChooseVault}>
               <FolderOpen />
               <span className="action-button-label">{t('topBar.openVault')}</span>
             </button>
-            <WorkspaceSwitcher
-              recentVaults={recentVaults}
-              activeVaultPath={activeVaultPath}
-              onOpenVault={onOpenVault}
-              onChooseVault={onChooseVault}
-            />
-          </div>
-        ) : null}
+          ) : null}
+          <WorkspaceSwitcher
+            recentVaults={recentVaults}
+            activeVaultPath={activeVaultPath}
+            onOpenVault={onOpenVault}
+            onChooseVault={onChooseVault}
+          />
+        </div>
 
         {showModeStrip ? (
           <div className="workspace-mode-strip" aria-label={t('topBar.workspaceMode')}>
@@ -407,6 +417,14 @@ function AppTopBarImpl({
             <IconButton tooltip={false} className="palette-store-action" label={t('topBar.paletteStore')} onClick={onOpenPluginManager}>
               <Palette />
             </IconButton>
+          ) : null}
+          {!hiddenTopBarActions.has('plugins') ? (
+            <button type="button" className="action-button topbar-plugins-entry"
+              onClick={onOpenPlugins} aria-label={t('topBar.plugins')} title={t('topBar.plugins')}
+              aria-pressed={pluginsActive}>
+              <Puzzle aria-hidden="true" />
+              <span className="action-button-label">{t('topBar.plugins')}</span>
+            </button>
           ) : null}
           <IconButton tooltip={false} label={t('topBar.settings')} onClick={onOpenSettings}>
             <Settings />

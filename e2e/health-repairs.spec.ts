@@ -36,7 +36,7 @@ async function openRepairs(page: Page, theme: 'light' | 'dark' = 'light') {
   })
   await openCommandPalette(page); await runCommand(page, 'Open vault health')
   const panel = page.getByRole('dialog', { name: 'Vault health', exact: true })
-  await expect(panel.getByRole('heading', { name: 'Reviewed vault repairs' })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Fix note issues' })).toBeVisible()
   return panel
 }
 async function calls(page: Page, command: string) {
@@ -56,7 +56,7 @@ test('default health evidence does not mistake an invalid recovery response for 
 for (const theme of ['light', 'dark'] as const) {
   test(`repair paths retain readable themed controls and keyboard focus in ${theme} appearance`, async ({ page }, testInfo) => {
     const panel = await openRepairs(page, theme)
-    const path = panel.getByLabel('Vault-relative note path', { exact: true })
+    const path = panel.getByLabel('Note path in this vault', { exact: true })
     for (const width of [1440, 320]) {
       await page.setViewportSize({ width, height: 900 })
       await page.locator('html').evaluate((element, direction) => { element.dir = direction }, width === 320 ? 'rtl' : 'ltr')
@@ -91,11 +91,11 @@ for (const theme of ['light', 'dark'] as const) {
 
 test('repair and restore require explicit review and bind displayed source receipts', async ({ page }) => {
   const panel = await openRepairs(page)
-  await panel.getByLabel('Vault-relative note path').fill('New.md')
-  await panel.getByRole('button', { name: 'Review repair plan', exact: true }).click()
-  const apply = panel.getByRole('button', { name: 'Apply reviewed repair', exact: true })
+  await panel.getByLabel('Note path in this vault').fill('New.md')
+  await panel.getByRole('button', { name: 'Preview fix', exact: true }).click()
+  const apply = panel.getByRole('button', { name: 'Apply this fix', exact: true })
   await expect(apply).toBeDisabled()
-  await panel.getByLabel('I reviewed this repair and its recovery consequences.').check()
+  await panel.getByLabel('I checked the change and understand how recovery works.').check()
   await apply.click()
   await expect(panel.getByRole('status')).toContainText('Repair applied')
   const applied = await calls(page, 'health_repair_apply')
@@ -112,15 +112,15 @@ test('repair and restore require explicit review and bind displayed source recei
 
 test('cancelled review performs no mutation and source drift keeps the reviewed plan visible', async ({ page }) => {
   const panel = await openRepairs(page)
-  await panel.getByRole('button', { name: 'Normalize tag case', exact: true }).click()
-  await panel.getByLabel('Vault-relative note path').fill('Research Plan.md')
-  await panel.getByRole('button', { name: 'Review repair plan', exact: true }).click()
-  await panel.getByRole('button', { name: 'Cancel plan', exact: true }).click()
+  await panel.getByRole('button', { name: 'Make tags lowercase', exact: true }).click()
+  await panel.getByLabel('Note path in this vault').fill('Research Plan.md')
+  await panel.getByRole('button', { name: 'Preview fix', exact: true }).click()
+  await panel.getByRole('button', { name: 'Cancel fix', exact: true }).click()
   expect(await calls(page, 'health_repair_apply')).toHaveLength(0)
-  await panel.getByRole('button', { name: 'Review repair plan', exact: true }).click()
-  await panel.getByLabel('I reviewed this repair and its recovery consequences.').check()
+  await panel.getByRole('button', { name: 'Preview fix', exact: true }).click()
+  await panel.getByLabel('I checked the change and understand how recovery works.').check()
   await page.evaluate(() => sessionStorage.setItem('e2e:stale-health-plan', '1'))
-  await panel.getByRole('button', { name: 'Apply reviewed repair', exact: true }).click()
+  await panel.getByRole('button', { name: 'Apply this fix', exact: true }).click()
   await expect(panel.getByRole('alert')).toContainText('Repair sources changed')
   await expect(panel.getByRole('region', { name: 'Repair plan', exact: true })).toBeVisible()
   await expect(panel.getByText('Recovery copies (0)', { exact: true })).toBeVisible()
@@ -129,12 +129,12 @@ test('cancelled review performs no mutation and source drift keeps the reviewed 
 test('an incomplete asset reference scan blocks pruning before confirmation', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const panel = await openRepairs(page)
-  await panel.getByRole('button', { name: 'Recoverably prune asset', exact: true }).click()
-  await panel.getByLabel('Vault-relative asset path').fill('assets/image.png')
+  await panel.getByRole('button', { name: 'Move unused file to recovery', exact: true }).click()
+  await panel.getByLabel('File path in this vault').fill('assets/image.png')
   await page.evaluate(() => sessionStorage.setItem('e2e:incomplete-health-scan', '1'))
-  await panel.getByRole('button', { name: 'Review repair plan', exact: true }).click()
+  await panel.getByRole('button', { name: 'Preview fix', exact: true }).click()
   await expect(panel.getByRole('alert')).toContainText('complete reference scan')
-  await expect(panel.getByRole('button', { name: 'Apply reviewed repair', exact: true })).toHaveCount(0)
+  await expect(panel.getByRole('button', { name: 'Apply this fix', exact: true })).toHaveCount(0)
   expect(await calls(page, 'health_repair_apply')).toHaveLength(0)
   await expect.poll(() => panel.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
 })

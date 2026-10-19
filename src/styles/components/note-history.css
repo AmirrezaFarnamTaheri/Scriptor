@@ -12,6 +12,21 @@
   grid-row: 1 / span 2;
   min-width: 0;
 }
+.note-history-activity label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.note-history-activity input[type='range'] {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
 
 .note-history-timeline {
   grid-column: 2;
@@ -282,3 +297,8 @@
   .note-history-preview-pane { grid-column: 1; grid-row: auto; }
   .note-history-timeline { max-height: 180px; }
 }
+
+/* Word-frequency analysis is optional; restoring a saved version stays primary. */
+.note-history-advanced-stats { min-width: 0; }
+.note-history-advanced-stats > summary { cursor: pointer; min-height: 40px; padding-block: 9px; font-weight: 600; }
+.note-history-advanced-stats[open] > .vocabulary-evolution { margin-block: 12px; }

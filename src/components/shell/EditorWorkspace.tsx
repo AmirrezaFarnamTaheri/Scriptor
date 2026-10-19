@@ -9,7 +9,7 @@ import {
   type PointerEventHandler,
   type RefObject,
 } from 'react'
-import { CheckCircle2, FileText, FolderOpen } from 'lucide-react'
+import { CheckCircle2, FileText, FolderOpen, Search } from 'lucide-react'
 import type {
   EditorAutocompleteContext,
   EditorThemeId,
@@ -56,6 +56,7 @@ interface OpenTab {
 interface EditorWorkspaceProps {
   activePath: string | null
   onOpenVault: () => void
+  onFindNote: () => void
   hasOpenVault: boolean
   onCreateNote: () => void
   openTabs: OpenTab[]
@@ -157,6 +158,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
   const {
     activePath,
     onOpenVault,
+    onFindNote,
     hasOpenVault,
     onCreateNote,
     openTabs,
@@ -544,10 +546,10 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                   <button
                     type="button"
                     className={hasOpenVault ? 'action-button' : 'primary-button'}
-                    onClick={onOpenVault}
+                    onClick={hasOpenVault ? onFindNote : onOpenVault}
                   >
-                    <FolderOpen aria-hidden="true" />
-                    {hasOpenVault ? t('editor.empty.openAnother') : t('editor.empty.openVault')}
+                    {hasOpenVault ? <Search aria-hidden="true" /> : <FolderOpen aria-hidden="true" />}
+                    {hasOpenVault ? t('editor.empty.findNote') : t('editor.empty.openVault')}
                   </button>
                 </div>
                 <small>{t('editor.empty.tagline')}</small>

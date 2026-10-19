@@ -7,6 +7,9 @@ import ts from 'typescript'
 const source = ts.transpileModule(readFileSync(new URL('../../src/components/GmailManagerPanel.tsx', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
 }).outputText
+// node:vm executes CommonJS; Vite replaces this flag in a production bundle.
+// Keep the harness production-like instead of evaluating ESM-only import.meta.
+const productionSource = source.replaceAll('import.meta.env.DEV', 'false')
 
 function deferred() {
   let resolve
@@ -61,7 +64,7 @@ function harness(connected = true) {
   const translators = Object.fromEntries(['en', 'de', 'fa'].map(value => [value, key => `${value}:${key}`]))
   const props = { onClose() {}, defaultClientId: 'desktop.apps.googleusercontent.com', onImportNote: async () => {} }
   const module = { exports: {} }
-  vm.runInNewContext(source, {
+  vm.runInNewContext(productionSource, {
     module, exports: module.exports, window, CustomEvent,
     require: id => {
       if (id === 'react') return react
@@ -71,6 +74,7 @@ function harness(connected = true) {
       if (id.includes('/platform.ts')) return { isNativeBridgeAvailable: () => true }
       if (id.includes('gmailRfc5322')) return { buildRfc5322Message: () => 'encoded', buildGmailMarkdown: () => '# Research' }
       if (id.includes('googleAuthErrors')) return { googleAuthErrorMessage: String, isGoogleAuthRequiredError: error => String(error).includes('GOOGLE_AUTH_REQUIRED:') }
+      if (id.includes('googleOAuthClient')) return { getGoogleOAuthClientId: legacy => legacy?.trim() ?? '', hasPackagedGoogleOAuthClient: () => false }
       if (id.includes('/i18n/')) return { useI18n: () => ({ t: translators[locale] }) }
       return { UnifiedPanelShell: 'panel' }
     },
@@ -94,6 +98,10 @@ const form = (tree, className) => nodes(tree, node => node.type === 'form' && no
 const button = (tree, key) => nodes(tree, node => node.type === 'button' && JSON.stringify(node.props.children).includes(key))[0]
 const submit = tree => nodes(tree, node => node.type === 'button' && node.props.type === 'submit')[0]
 const event = { preventDefault() {} }
+
+test('CommonJS Gmail harness substitutes the production Vite build flag', () => {
+  assert.doesNotMatch(productionSource, /import\.meta\.env\.DEV/)
+})
 
 test('locale changes during Gmail authentication do not invalidate completion or leave controls busy', async () => {
   const h = harness(false), auth = deferred()

@@ -36,7 +36,7 @@ export const CheatsheetPanel = memo(function CheatsheetPanel({ onClose }: Cheats
               <BookOpen size={18} />
               Cheatsheet
             </h2>
-            <p className="health-subtitle">Markdown, wikilinks, DQL, and insert templates</p>
+            <p className="health-subtitle">Markdown, links between notes, search rules, and ready-to-use examples</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close cheatsheet">
             <X />
@@ -59,7 +59,7 @@ export const CheatsheetPanel = memo(function CheatsheetPanel({ onClose }: Cheats
           </section>
 
           <section>
-            <h3>Mermaid templates</h3>
+            <h3>Diagram examples</h3>
             <ul className="cheatsheet-snippet-list">
               {MERMAID_SNIPPETS.map((snippet) => (
                 <li key={snippet.name}>
@@ -71,7 +71,7 @@ export const CheatsheetPanel = memo(function CheatsheetPanel({ onClose }: Cheats
           </section>
 
           <section>
-            <h3>Math templates</h3>
+            <h3>Math examples</h3>
             <ul className="cheatsheet-snippet-list">
               {MATH_SNIPPETS.map((snippet) => (
                 <li key={snippet.name}>

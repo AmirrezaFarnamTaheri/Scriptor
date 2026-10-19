@@ -36,6 +36,21 @@ async function openGitPanel(page: Page) {
   return panel
 }
 
+test('a healthy vault keeps its metrics available without crowding the default inspector', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  const inspector = page.locator('#inspector-panel-inspector')
+  await expect(inspector.getByRole('heading', { name: 'Vault health', exact: true })).toBeVisible()
+  await expect(inspector.locator('.widget-action')).toHaveText('Good')
+  const details = inspector.locator('details.inspector-health-breakdown')
+  await expect(details).toBeVisible()
+  await expect(details).not.toHaveAttribute('open', '')
+  await expect(details.getByText('Broken links', { exact: true })).toBeHidden()
+  await details.locator('summary').click()
+  await expect(details.getByText('Broken links', { exact: true })).toBeVisible()
+  await expect(details.locator('.metric-grid .metric')).toHaveCount(8)
+})
+
 test.describe('Git panel state selector', () => {
   test('distinguishes loading, idle, error, non-repository, and ready states', () => {
     expect(selectGitPanelState(null, null, true)).toBe('loading')

@@ -1,8 +1,25 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { defaultWorkspaceShortcutPreferences, getWorkspaceShortcutItems, parseWorkspaceShortcutPreferences } from './workspaceShortcuts.ts'
+import { defaultWorkspaceShortcutPreferences, getWorkspaceShortcutItems, isDefaultWorkspaceShortcutLayout, parseWorkspaceShortcutPreferences } from './workspaceShortcuts.ts'
 
 describe('workspace shortcut preferences', () => {
+  it('suppresses only the untouched default mobile row, never a user-pinned shortcut', () => {
+    const defaults = defaultWorkspaceShortcutPreferences()
+    assert.equal(isDefaultWorkspaceShortcutLayout(defaults), true)
+    const changes = [
+      { visible: false },
+      { items: [...defaults.items].reverse() },
+      { items: defaults.items.map((item) => item.id === 'source' ? { ...item, label: 'My code' } : item) },
+      { items: defaults.items.map((item) => item.id === 'source' ? { ...item, pinned: false } : item) },
+      { items: defaults.items.map((item) => item.id === 'source' ? { ...item, width: 160 } : item) },
+      { items: [...defaults.items, { id: 'open-runtime-console', shown: true, pinned: true, label: '', width: 0, fontSize: 12 }] },
+    ] as const
+    for (const change of changes) {
+      assert.equal(isDefaultWorkspaceShortcutLayout({ ...defaults, ...change }), false)
+    }
+    assert.equal(isDefaultWorkspaceShortcutLayout(parseWorkspaceShortcutPreferences(JSON.stringify(defaults))), true)
+  })
+
   it('starts with only the three writing shortcuts and does not pin new integrations automatically', () => {
     const items = getWorkspaceShortcutItems(defaultWorkspaceShortcutPreferences(), ['writing', 'source', 'preview', 'open-runtime-console'])
     assert.deepEqual(items.filter(item => item.shown && item.pinned).map(item => item.id), ['writing', 'source', 'preview'])

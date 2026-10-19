@@ -431,3 +431,37 @@
   font-size: 12px;
   line-height: 1.45;
 }
+
+/* Keep common editor typography visible; reveal niche effects on demand. */
+.appearance-advanced-options {
+  margin-block: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.appearance-advanced-options > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.appearance-advanced-options[open] > .settings-field {
+  margin-block: 12px;
+}
+
+/* The common writing controls are visible; other layout switches remain
+   keyboard-accessible on demand rather than filling the settings dialog. */
+.workspace-layout-advanced {
+  margin-block: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+.workspace-layout-advanced > summary { cursor: pointer; font-weight: 600; }
+.workspace-layout-advanced > summary:focus-visible { outline: var(--focus-outline); outline-offset: 3px; }
+.workspace-layout-advanced[open] > .settings-toggles { margin-block: 14px 0; }
+
+/* Put the manual backup action first and tuck routine configuration below. */
+.backup-options { min-width: 0; margin: 10px 0 14px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 9px 12px; }
+.backup-options > summary { cursor: pointer; font-weight: 600; }
+.backup-options > summary:focus-visible { outline: 2px solid var(--primary-strong); outline-offset: 2px; }
+.backup-options-fields { display: grid; gap: 10px; padding-top: 12px; }
+.backup-options-fields .settings-field { min-width: 0; }

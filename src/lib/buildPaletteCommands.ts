@@ -259,7 +259,8 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
       : []),
     {
       id: 'open-knowledge-workbench',
-      label: 'Open knowledge workbench',
+      label: 'Explore notes',
+      keywords: ['knowledge workbench', 'organize notes', 'note links'],
       shortcut: 'Alt+K',
       run: () => openKnowledgeWorkbench?.('repair'),
     },
@@ -269,11 +270,12 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
       run: () => setPublishCenterOpen?.(true),
     },
     { id: 'open-tags', label: 'Browse tags', run: () => openKnowledgeWorkbench?.('tags') },
-    { id: 'open-filters', label: 'Knowledge repair queue', run: () => openKnowledgeWorkbench?.('repair') },
+    { id: 'open-filters', label: 'Review note links', run: () => openKnowledgeWorkbench?.('repair') },
     { id: 'open-saved-views', label: 'Saved views', run: () => openKnowledgeWorkbench?.('views') },
     {
       id: 'open-smart-collections',
-      label: 'Smart collections (DQL)',
+      label: 'Saved note collections',
+      keywords: ['DQL', 'smart collections'],
       run: () => openKnowledgeWorkbench?.('collections'),
     },
     {

@@ -8,7 +8,10 @@ interface OnboardingTourProps {
   onOpenCheatsheet?: () => void
 }
 
-const steps = getGuide('workspace').steps
+// First-run onboarding is a compact orientation, not the full seven-step guide.
+// Detailed features remain discoverable later through F1 / Help & guides.
+const guideSteps = getGuide('workspace').steps
+const steps = [guideSteps[0]!, guideSteps[4]!, guideSteps[2]!]
 
 /** One short first-run overview; detailed contextual tours remain user-invoked. */
 export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourProps) {
@@ -38,9 +41,9 @@ export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourP
       className="onboarding-tour"
       helpTopic="workspace"
       headerMeta={progress}
-      showClose={false}
-      closeOnBackdrop={false}
-      closeOnEscape={false}
+      showClose
+      closeOnBackdrop
+      closeOnEscape
       initialFocusRef={primaryActionRef}
       initialFocusKey={stepIndex}
     >

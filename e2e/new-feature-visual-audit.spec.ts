@@ -66,7 +66,7 @@ test('new review workspaces expose usable geometry, focus and cancellation contr
             expect(target?.width).toBeGreaterThanOrEqual(43.9)
             expect(target?.height).toBeGreaterThanOrEqual(43.9)
           }
-          const search = await panel.getByRole('searchbox', { name: 'Filter assets', exact: true }).boundingBox()
+          const search = await panel.getByRole('searchbox', { name: 'Find a file', exact: true }).boundingBox()
           expect(search?.height).toBeGreaterThanOrEqual(43.9)
           const checkboxLabel = panel.locator('label:has(input[type="checkbox"])')
           expect((await checkboxLabel.boundingBox())?.height).toBeGreaterThanOrEqual(43.9)

@@ -103,7 +103,7 @@ for (const surface of surfaces) test(`${surface[0]} captures fresh light, dark a
         if (surface[1] === 'Capture reviewer') {
           const url = panel.getByLabel('Article URL', { exact: true })
           expect(await url.evaluate(element => getComputedStyle(element).direction)).toBe('ltr')
-          const heading = (await panel.getByRole('heading', { name: 'Capture reviewer', exact: true }).boundingBox())!
+          const heading = (await panel.getByRole('heading', { name: 'Save a web article', exact: true }).boundingBox())!
           const form = (await panel.locator('form').boundingBox())!
           expect(form.y - heading.y - heading.height).toBeLessThanOrEqual(48)
           if (width === 320) {

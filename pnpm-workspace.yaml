@@ -14,6 +14,10 @@ overrides:
   # GHSA-238p-pmpm-9mq7: align vulnerable Mermaid/rehype transitive copies with
   # the already-locked direct renderer dependency; retain its integrity hash.
   "katex@<0.18.2": "0.18.7"
+  # A single Lezer NodeProp implementation is required for CodeMirror
+  # Markdown/highlighting (lang-markdown previously used 1.5.2 while
+  # the parser and highlighter used 1.5.3).
+  "@lezer/common": "1.5.3"
 
 packages:
   - "apps/*"

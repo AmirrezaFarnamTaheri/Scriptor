@@ -181,17 +181,17 @@ function DaemonOpsPanelImpl({
           void run('search', async () => {
             const hits = await daemonSearch(searchQuery.trim(), 12)
             setSearchHits(hits)
-            setStatus(`${hits.length} search hit(s)`)
+            setStatus(`Found ${hits.length} notes matching this search.`)
           })
         }}
       >
         <label className="settings-field">
-          Daemon search
+          Search indexed notes
           <div className="daemon-search-row">
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Query indexed notes…"
+              placeholder="Words to find in notes…"
             />
             <button type="submit" className="toolbar-button" disabled={Boolean(busy) || !searchQuery.trim()}>
               <Search size={14} />

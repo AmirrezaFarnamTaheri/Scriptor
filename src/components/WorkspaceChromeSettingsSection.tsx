@@ -19,6 +19,10 @@ type WorkspaceChromeBooleanKey =
   | 'inspectorCollapsed'
   | 'layoutLocked'
 
+const PRIMARY_CONTROLS = new Set<WorkspaceChromeBooleanKey>([
+  'showTopBar', 'showFormatToolbar', 'showEditorStatus', 'showLineNumbers',
+])
+
 interface WorkspaceChromeSettingsSectionProps {
   workspaceChrome: WorkspaceChromePrefs
   onPatchWorkspaceChrome: (patch: Partial<WorkspaceChromePrefs>) => void
@@ -53,22 +57,30 @@ export const WorkspaceChromeSettingsSection = memo(function WorkspaceChromeSetti
     ['layoutLocked', t('appearanceSettings.toggles.layoutLocked')],
   ]
 
+  const renderToggle = ([key, label]: readonly [WorkspaceChromeBooleanKey, string]) => (
+    <label className="diagnostics-opt-in" key={key}>
+      <input
+        type="checkbox"
+        checked={workspaceChrome[key]}
+        onChange={(event) => onPatchWorkspaceChrome({ [key]: event.target.checked })}
+      />
+      <span>{label}</span>
+    </label>
+  )
+
   return (
     <section className="settings-section" aria-labelledby="workspace-chrome-heading" data-help-topic="workspace-chrome">
       <h3 id="workspace-chrome-heading">{t('settingsPanel.workspaceChrome')}</h3>
       <p className="health-subtitle">{t('settingsPanel.workspaceChromeHelp')}</p>
       <div className="settings-grid settings-toggles">
-        {toggles.map(([key, label]) => (
-          <label className="diagnostics-opt-in" key={key}>
-            <input
-              type="checkbox"
-              checked={workspaceChrome[key]}
-              onChange={(event) => onPatchWorkspaceChrome({ [key]: event.target.checked })}
-            />
-            <span>{label}</span>
-          </label>
-        ))}
+        {toggles.filter(([key]) => PRIMARY_CONTROLS.has(key)).map(renderToggle)}
       </div>
+      <details className="workspace-layout-advanced">
+        <summary>{t('settingsPanel.moreWorkspaceOptions')}</summary>
+        <div className="settings-grid settings-toggles">
+          {toggles.filter(([key]) => !PRIMARY_CONTROLS.has(key)).map(renderToggle)}
+        </div>
+      </details>
       <button
         type="button"
         className="toolbar-button"

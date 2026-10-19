@@ -184,13 +184,13 @@ async function openMobileWorkspace(page: Page, width = 390, height = 844) {
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await waitForEditorReady(page)
   await waitForActiveSplitPreview(page)
-  const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+  const nav = page.locator('nav.mobile-workspace-nav')
   await expect(nav).toBeVisible()
   await expect(nav).toBeInViewport()
-  await expectFullyInViewport(page, 'nav[aria-label="Mobile workspace navigation"]')
+  await expectFullyInViewport(page, 'nav.mobile-workspace-nav')
 }
 
-async function installResourceInventoryFixture(page: Page) {
+async function installResourceInventoryFixture(page: Page, fixture = RESOURCE_INVENTORY_FIXTURE) {
   await page.evaluate((inventory) => {
     const internals = (window as Window & {
       __TAURI_INTERNALS__?: {
@@ -204,7 +204,7 @@ async function installResourceInventoryFixture(page: Page) {
       if (command === 'resource_inventory') return inventory
       return originalInvoke(command, payload, options)
     }
-  }, RESOURCE_INVENTORY_FIXTURE)
+  }, fixture)
 }
 
 test.describe('visual review states', () => {
@@ -351,6 +351,14 @@ test.describe('visual review states', () => {
     await expect(sharing.getByRole('heading', { name: 'Sharing and sync' })).toBeVisible()
     await expect(sharing).toContainText('Codex CLI')
     await expect(sharing).toContainText('visual-review')
+    await expect(sharing.getByRole('heading', { name: 'Compare duplicates' })).toHaveCount(0)
+    const destination = sharing.getByRole('checkbox', { name: 'Sync Codex CLI' })
+    await expect(destination).not.toBeChecked()
+    await sharing.getByRole('button', { name: 'Select compatible apps' }).click()
+    await expect(destination).toBeChecked()
+    await sharing.getByRole('button', { name: 'Clear selection' }).click()
+    await expect(destination).not.toBeChecked()
+    await expect(sharing.getByRole('region', { name: 'Synchronization plan' })).toHaveCount(0)
     await settleLayout(page)
     await expectFullyInViewport(page, '.mcp-panel')
     await expectDirectChildrenBounded(mcpPanel.locator('.unified-panel-body'))
@@ -363,7 +371,13 @@ test.describe('visual review states', () => {
     // The table is the highest intrinsic-width region in this flow. Exercise it
     // directly so a future column/string change cannot widen the entire dock
     // while the top-of-panel screenshot still looks healthy.
-    const installedSection = sharing.locator('.resource-sync-section').filter({ hasText: 'Already installed or contained' }).first()
+    // Match the exact section heading. "Verified apps were found on this device"
+    // appears in the preceding section, so substring filtering selects the
+    // wrong section and times out when looking for its nonexistent table.
+    const installedSection = sharing.locator('.resource-sync-section').filter({
+      has: page.getByRole('heading', { name: 'Found on this device', exact: true }),
+    })
+    await expect(installedSection).toHaveCount(1)
     const tableWrap = installedSection.locator('.resource-table-wrap')
     await expect(installedSection).toBeVisible()
     await tableWrap.scrollIntoViewIfNeeded()
@@ -380,6 +394,42 @@ test.describe('visual review states', () => {
     await expect.poll(() => tableWrap.evaluate((element) => element.scrollWidth >= element.clientWidth)).toBe(true)
     await expectNoHorizontalOverflow(page)
     await captureElement(page, installedSection, 'visual-mcp-sharing-table.png')
+  })
+
+  test('shared-item search finds the correct source and can recover from zero results', async ({ page }) => {
+    await openVisualWorkspace(page)
+    const second = {
+      ...RESOURCE_INVENTORY_FIXTURE.resources[0],
+      id: 'skill-codex-readme',
+      logicalId: 'skill:readme',
+      name: 'readme-helper',
+      path: 'C:/Users/e2e/.codex/skills/readme-helper',
+    }
+    await installResourceInventoryFixture(page, {
+      ...RESOURCE_INVENTORY_FIXTURE,
+      resources: [...RESOURCE_INVENTORY_FIXTURE.resources, second],
+    })
+    await openCommandPalette(page)
+    await runCommand(page, 'Open MCP panel')
+    const panel = page.locator('.mcp-panel')
+    await panel.getByRole('tab', { name: 'Sharing & sync' }).click()
+    const sharing = panel.getByRole('region', { name: 'Sharing and sync' })
+    const section = sharing.locator('.resource-sync-section').filter({
+      has: page.getByRole('heading', { name: 'Found on this device', exact: true }),
+    })
+    const search = section.getByRole('searchbox', { name: 'Find shared items', exact: true })
+    await expect(search).toBeVisible()
+    const rows = section.locator('.resource-table tbody tr')
+    await expect(rows).toHaveCount(2)
+    await search.fill('README')
+    await expect(rows).toHaveCount(1)
+    await expect(rows.first()).toContainText('readme-helper')
+    await search.fill('missing-copy-123')
+    await expect(section.getByRole('status')).toContainText('No shared items match')
+    await expect(rows).toHaveCount(0)
+    await section.getByRole('button', { name: 'Clear search' }).click()
+    await expect(search).toHaveValue('')
+    await expect(rows).toHaveCount(2)
   })
 
   test('editor recovery fallback', async ({ page }) => {
@@ -444,7 +494,7 @@ test.describe('visual review states', () => {
     const canvas = graph.locator('.graph-canvas-accessible-shell canvas')
     await expect(stage).toBeVisible()
     await expect(canvas).toBeVisible({ timeout: 15_000 })
-    await expect(canvas).toHaveAttribute('aria-label', /120 nodes and 160 directed edges/)
+    await expect(canvas).toHaveAttribute('aria-label', /120 notes and 160 links/)
     const geometry = await stage.evaluate((element) => {
       const canvas = element.querySelector('canvas')
       if (!canvas) return null
@@ -499,11 +549,11 @@ test.describe('visual review states', () => {
     })
     await openVisualWorkspace(page)
     await openCommandPalette(page)
-    await runCommand(page, 'Open knowledge workbench')
+    await runCommand(page, 'Explore notes')
 
-    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+    const workbench = page.getByRole('dialog', { name: 'Explore notes' })
     await expect(workbench).toBeVisible()
-    const orphanTab = workbench.getByRole('tab', { name: /Orphans \(3\)/ })
+    const orphanTab = workbench.getByRole('tab', { name: /No incoming links \(3\)/ })
     await orphanTab.click()
     const rows = workbench.locator('.virtual-knowledge-list > li')
     await expect(rows).toHaveCount(3)
@@ -511,8 +561,8 @@ test.describe('visual review states', () => {
       workbench.getByText('Field Notes with an intentionally long title for zoom coverage', { exact: true }),
     ).toBeVisible()
 
-    await workbench.getByRole('button', { name: /Start triage/ }).click()
-    await expect(workbench.getByText(/Triage 1 of 3/)).toBeVisible()
+    await workbench.getByRole('button', { name: /Review 3 notes/ }).click()
+    await expect(workbench.getByText(/Reviewing 1 of 3/)).toBeVisible()
     await settleLayout(page)
 
     await captureElement(page, workbench, 'visual-knowledge-triage-populated.png')
@@ -636,7 +686,8 @@ test.describe('visual review states', () => {
   test('minimum-width mobile workspace evidence', async ({ page }) => {
     await openMobileWorkspace(page, 320, 720)
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
-    await expect(nav.getByRole('button')).toHaveCount(4)
+    await expect(nav.getByRole('button')).toHaveCount(5)
+    await expect(nav.getByRole('button', { name: 'Plugins' })).toBeVisible()
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeVisible()
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
@@ -662,6 +713,7 @@ test.describe('visual review states', () => {
     await openMobileWorkspace(page)
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
+    await expect(page.locator('nav.mobile-workspace-nav')).toHaveAttribute('aria-label', 'پیمایش محیط کاری موبایل')
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-mobile-rtl-fa-390.png')
@@ -879,8 +931,8 @@ test.describe('visual review states', () => {
 
     const banner = page.getByRole('alert').filter({ hasText: 'This note changed on disk' })
     await expect(banner).toBeVisible({ timeout: 15_000 })
-    await expect(banner.getByRole('button', { name: 'Reload from disk', exact: true })).toBeVisible()
-    await expect(banner.getByRole('button', { name: 'Keep editing', exact: true })).toBeVisible()
+    await expect(banner.getByRole('button', { name: 'Use disk version', exact: true })).toBeVisible()
+    await expect(banner.getByRole('button', { name: 'Keep my changes', exact: true })).toBeVisible()
     await expect.poll(() => banner.evaluate((element) => {
       const rect = element.getBoundingClientRect()
       return rect.width > 240
@@ -962,7 +1014,13 @@ test.describe('visual review states', () => {
 
     const inspector = page.locator('.inspector-panel')
     await expect(inspector).toBeVisible()
-    const grid = inspector.locator('.metric-grid').first()
+    await inspector.getByRole('tab', { name: 'Inspector' }).click()
+    const breakdown = inspector.locator('#inspector-panel-inspector details.inspector-health-breakdown')
+    if (await breakdown.isVisible()) {
+      await breakdown.locator('summary').click()
+      await expect(breakdown).toHaveAttribute('open', '')
+    }
+    const grid = inspector.locator('#inspector-panel-inspector .metric-grid').first()
     await expect(grid).toBeVisible()
     const geometry = await grid.evaluate((element) => {
       const cards = Array.from(element.querySelectorAll<HTMLElement>('.metric'))
@@ -1113,7 +1171,7 @@ test.describe('visual review states', () => {
 
     const releaseQuality = settings.locator('.release-quality-panel')
     await expect(releaseQuality).toBeVisible()
-    const releaseQualityHeading = releaseQuality.getByRole('heading', { name: 'Release quality dashboard', exact: true })
+    const releaseQualityHeading = releaseQuality.getByRole('heading', { name: 'Performance checks', exact: true })
     await releaseQualityHeading.scrollIntoViewIfNeeded()
     await expect(releaseQualityHeading).toBeInViewport()
     // Capture the bounded Settings viewport, not the panel's full offscreen
@@ -1155,7 +1213,7 @@ test.describe('visual review states', () => {
     await git.getByRole('button', { name: 'Resolve' }).click()
     const resolver = page.getByRole('dialog', { name: 'Resolve merge conflicts' })
     await expect(resolver).toBeVisible()
-    await expect(resolver.getByRole('button', { name: 'Apply resolved file' })).toBeDisabled()
+    await expect(resolver.getByRole('button', { name: 'Apply selected changes' })).toBeDisabled()
     const unresolvedStatus = resolver.locator('.conflict-unresolved-status')
     await expect(unresolvedStatus).toBeVisible()
     await expect.poll(() => unresolvedStatus.evaluate((element) => {
@@ -1621,9 +1679,11 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Quick capture (scratchpad & todos)')
     const capture = page.locator('.quick-capture-panel')
     await expect(capture).toBeVisible()
-    for (const name of ['New inbox note', 'Insert in active', 'Add']) {
+    for (const name of ['Save to inbox', 'Insert into open note', 'Add']) {
       await expect(capture.getByRole('button', { name, exact: true })).toHaveClass(/toolbar-button/)
     }
+    await expect(capture.getByRole('button', { name: 'Save to inbox' })).toBeDisabled()
+    await expect(capture.getByRole('button', { name: 'Insert into open note' })).toBeDisabled()
     await capture.getByRole('textbox', { name: 'Quick capture scratchpad', exact: true }).fill(
       'Capture the release-review follow-up and turn the strongest point into a note.',
     )
@@ -1638,10 +1698,14 @@ test.describe('visual review states', () => {
         && rect.width > 0
         && (!parent || rect.right <= parent.right + 1)
     })).toBe(true)
-    await capture.getByRole('button', { name: 'Add', exact: true }).click()
-    const todo = capture.getByRole('textbox', { name: /Todo text:/ }).first()
-    await expect(todo).toBeVisible()
-    await todo.fill('Review visual evidence before release')
+    await expect(capture.getByRole('button', { name: 'Add', exact: true })).toBeDisabled()
+    const entry = capture.getByRole('textbox', { name: 'New task', exact: true })
+    await entry.fill('Review visual evidence before release')
+    await entry.press('Enter')
+    const todo = capture.getByRole('textbox', { name: /Task text:/ }).first()
+    await expect(todo).toHaveValue('Review visual evidence before release')
+    await expect(entry).toHaveValue('')
+    await expect(entry).toBeFocused()
     await expect.poll(() => todo.evaluate((element) => {
       const style = getComputedStyle(element)
       return element.getBoundingClientRect().height >= 36
@@ -1673,10 +1737,10 @@ test.describe('visual review states', () => {
         && actionRect.top >= inputRect.bottom - 1
         && element.scrollWidth <= element.clientWidth + 1
     })).toBe(true)
-    await expect(capture).toContainText('Todos')
+    await expect(capture).toContainText('Tasks')
     await captureElement(page, capture, 'visual-quick-capture.png')
 
-    await todoRow.getByRole('button', { name: 'Mark todo complete', exact: true }).click()
+    await todoRow.getByRole('button', { name: 'Mark task complete: Review visual evidence before release', exact: true }).click()
     await expect(todoRow).toHaveClass(/done/)
     await expect.poll(() => todo.evaluate((element) => getComputedStyle(element).textDecorationLine)).toContain('line-through')
     await page.setViewportSize({ width: 320, height: 900 })
@@ -1730,7 +1794,7 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Open built-in modules')
     const modules = page.getByRole('dialog', { name: 'Built-in modules', exact: true })
     await expect(modules).toBeVisible()
-    await expect(modules.getByText('Installer Profile Preset:')).toBeVisible()
+    await expect(modules.getByText('Feature set:')).toBeVisible()
     expect(await modules.evaluate(element =>
       element.querySelector('.plugin-marketplace-link')!.getBoundingClientRect().top
       - element.querySelector('.plugin-manager-header')!.getBoundingClientRect().bottom,
@@ -1765,7 +1829,10 @@ test.describe('visual review states', () => {
     await expect(google.locator('h3')).toBeVisible()
     await expect(google).toContainText('Google')
     await expect(google).toContainText('Gmail')
-    await expect(google.getByRole('checkbox')).toBeVisible()
+    // First-use OAuth is accessible before expanding advanced sync options.
+    await expect(google.locator('details.google-calendar-options > summary')).toBeVisible()
+    await expect(google.getByRole('button', { name: /Connect Google|Reconnect/ }).first()).toBeVisible()
+    await expect(google.getByRole('checkbox')).toHaveCount(0)
     await settleLayout(page)
 
     await captureElement(page, settings, 'visual-settings-integrations-google.png')
@@ -1810,11 +1877,11 @@ test.describe('visual review states', () => {
     await captureElement(page, rename, 'visual-rename-preview.png')
   })
 
-  test('Knowledge workbench tab evidence', async ({ page }) => {
+  test('Explore notes tab evidence', async ({ page }) => {
     await openVisualWorkspace(page)
     await openCommandPalette(page)
-    await runCommand(page, 'Open knowledge workbench')
-    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench', exact: true })
+    await runCommand(page, 'Explore notes')
+    const workbench = page.getByRole('dialog', { name: 'Explore notes', exact: true })
     await expect(workbench).toBeVisible()
 
     const states = [
@@ -1889,9 +1956,9 @@ test.describe('visual review states', () => {
     await captureElement(page, palettes, 'visual-color-palettes.png')
 
     await createPalette.click()
-    const themeCustomizer = page.getByRole('dialog', { name: 'Theme Customizer & Builder', exact: true })
+    const themeCustomizer = page.getByRole('dialog', { name: 'Color theme editor', exact: true })
     await expect(themeCustomizer).toBeVisible()
-    await expect(themeCustomizer.getByRole('heading', { name: 'Custom Theme Builder & Color Editor', exact: true })).toBeVisible()
+    await expect(themeCustomizer.getByRole('heading', { name: 'Create a color theme', exact: true })).toBeVisible()
     await expect(themeCustomizer.getByRole('button', { name: 'Create New Theme', exact: true })).toBeVisible()
     await captureElement(page, themeCustomizer, 'visual-theme-customizer.png')
   })
@@ -1980,10 +2047,15 @@ test.describe('visual review states', () => {
     const backup = settings.locator('[data-help-topic="backups"]')
     await backup.scrollIntoViewIfNeeded()
     await expect(backup.getByRole('heading', { name: 'Backup', exact: true })).toBeVisible()
+    await expect(backup.getByRole('button', { name: 'Back up now' })).toBeVisible()
+    const options = backup.locator('details.backup-options')
+    if (await options.getAttribute('open') === null) await options.locator('summary').click()
     await expect(backup.getByText('Enable scheduled backups', { exact: true })).toBeVisible()
-    await expect(backup.getByText(/Disaster-recovery backup path/)).toBeVisible()
+    await expect(backup.getByText(/Backup folder outside this vault/)).toBeVisible()
     await expect.poll(() => backup.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-    await captureElement(page, backup, 'visual-settings-backups.png')
+    // Schedule options may extend beyond the viewport. Capture the bounded,
+    // scrollable Settings dialog rather than requiring a long form to fully fit.
+    await captureElement(page, settings, 'visual-settings-backups.png')
   })
 
   test('Vault health dashboard evidence', async ({ page }) => {

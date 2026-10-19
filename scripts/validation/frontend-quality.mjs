@@ -2,7 +2,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { extname, join, relative } from 'node:path'
 
-import { importsTauriCore } from './frontend-quality-patterns.mjs'
+import { hasExplicitAnyType, importsTauriCore } from './frontend-quality-patterns.mjs'
 
 const root = process.cwd()
 const failures = []
@@ -47,7 +47,7 @@ for (const { absolute, rel } of productionFiles) {
   if (rel.startsWith('src/') && !rel.startsWith('src/bridge/') && importsTauriCore(text)) {
     failures.push(`${rel}: production renderer code must call native commands through src/bridge`)
   }
-  if (/\bas\s+any\b|:\s*any\b|<any>/.test(text)) {
+  if (extname(rel) !== '.css' && hasExplicitAnyType(text, rel)) {
     failures.push(`${rel}: explicit any is forbidden in production UI/type contracts`)
   }
   if (/[\u{1F300}-\u{1FAFF}]/u.test(text)) {

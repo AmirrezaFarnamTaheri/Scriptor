@@ -24,6 +24,18 @@ test('settings exposes and persists keyboard shortcut editing', async ({ page })
 
   const table = settings.getByRole('table', { name: 'Keyboard shortcuts' })
   await expect(table).toBeVisible()
+  // Keep developer-only command IDs and repetitive Default badges off the
+  // everyday settings table while preserving IDs in accessible tooltips.
+  await expect(table.locator('.shortcut-command-copy small')).toHaveCount(0)
+  await expect(table.locator('.shortcut-default-badge')).toHaveCount(0)
+  await expect(table.locator('.shortcut-command-copy').first().locator('strong')).toHaveAttribute('title', /^Command ID:/)
+  // An unmodified keymap should not show a pointless global reset button.
+  await expect(settings.getByRole('button', { name: 'Reset all' })).toHaveCount(0)
+  const shortcutSearch = settings.getByRole('searchbox', { name: 'Search commands' })
+  await shortcutSearch.fill('no-matching-commands-zzq')
+  await expect(settings.getByText('No commands match this search.')).toBeVisible()
+  await settings.getByRole('button', { name: 'Clear search' }).click()
+  await expect(shortcutSearch).toHaveValue('')
   const graphInput = settings.getByLabel('Shortcut for Open graph')
   await expect(graphInput).toHaveValue('Alt+G')
   await graphInput.fill('Alt+H')

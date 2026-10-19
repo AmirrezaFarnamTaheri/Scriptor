@@ -149,8 +149,8 @@ test('palette search focus ring has clearance on all sides', async ({ page }) =>
 
 test('collections keep compact rows and themed selection controls', async ({ page }) => {
   await prepare(page)
-  await openPanel(page, 'Open knowledge workbench')
-  const workbench = page.getByRole('dialog', { name: 'Knowledge workbench', exact: true })
+  await openPanel(page, 'Explore notes')
+  const workbench = page.getByRole('dialog', { name: 'Explore notes', exact: true })
   await workbench.getByRole('tab', { name: 'Collections', exact: true }).click()
   const rows = workbench.locator('.smart-collection')
   await expect(rows).toHaveCount(3)
@@ -163,10 +163,30 @@ test('collections keep compact rows and themed selection controls', async ({ pag
   expect(style.border).toBeGreaterThanOrEqual(1)
 })
 
+test('removing a saved note group requires confirmation and Cancel preserves it', async ({ page }) => {
+  await prepare(page)
+  await openPanel(page, 'Explore notes')
+  const workbench = page.getByRole('dialog', { name: 'Explore notes', exact: true })
+  await workbench.getByRole('tab', { name: 'Collections', exact: true }).click()
+  const groups = workbench.locator('.smart-collection')
+  await expect(groups).toHaveCount(3)
+  const remove = workbench.getByRole('button', { name: 'Remove Research notes', exact: true })
+  await remove.click()
+  const confirmation = workbench.getByRole('group', { name: 'Remove Research notes', exact: true })
+  await expect(confirmation).toContainText('Your notes will not be deleted')
+  await expect(confirmation.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+  await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(groups).toHaveCount(3)
+  await expect(confirmation).toHaveCount(0)
+  await remove.click()
+  await confirmation.getByRole('button', { name: 'Remove group', exact: true }).click()
+  await expect(groups).toHaveCount(2)
+})
+
 test('saved views actions have themed bounds and separated presets', async ({ page }) => {
   await prepare(page)
-  await openPanel(page, 'Open knowledge workbench')
-  const workbench = page.getByRole('dialog', { name: 'Knowledge workbench', exact: true })
+  await openPanel(page, 'Explore notes')
+  const workbench = page.getByRole('dialog', { name: 'Explore notes', exact: true })
   await workbench.getByRole('tab', { name: 'Views', exact: true }).click()
   const style = await controlStyle(workbench.getByRole('button', { name: 'Open Database Studio', exact: true }))
   expect(style.height).toBeGreaterThanOrEqual(36)
@@ -301,10 +321,11 @@ test('narrow German vault navigation keeps labels and calendar icon contained', 
     const buttons = [...nav.querySelectorAll('button')].map(button => button.getBoundingClientRect())
     const date = element.querySelector('.daily-note-button')!.getBoundingClientRect()
     const icon = element.querySelector('.daily-note-button > svg')!.getBoundingClientRect()
-    return { rowGap: buttons[1].top - buttons[0].bottom, iconWidth: icon.width, iconInset: icon.left - date.left, navColumns: getComputedStyle(nav).gridTemplateColumns.split(' ').length }
+    return { navGap: buttons[1].left - buttons[0].right, navOverflow: nav.scrollWidth - nav.clientWidth, iconWidth: icon.width, iconInset: icon.left - date.left, navColumns: getComputedStyle(nav).gridTemplateColumns.split(' ').length }
   })
-  expect(geometry.navColumns).toBe(1)
-  expect(geometry.rowGap).toBeGreaterThanOrEqual(6)
+  expect(geometry.navColumns).toBe(2)
+  expect(geometry.navGap).toBeGreaterThanOrEqual(0)
+  expect(geometry.navOverflow).toBeLessThanOrEqual(1)
   expect(geometry.iconWidth).toBeGreaterThanOrEqual(16)
   expect(geometry.iconInset).toBeGreaterThanOrEqual(4)
 })

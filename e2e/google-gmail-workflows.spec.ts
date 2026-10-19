@@ -148,11 +148,21 @@ for (const theme of ['light', 'dark'] as const) {
   })
 }
 
+test('Gmail first-use sign-in is one click from the inbox with no developer ID prompt', async ({ page }) => {
+  const panel = await openGmail(page, false)
+  await expect(panel.getByRole('button', { name: 'Connect with Google', exact: true })).toBeVisible()
+  await panel.getByRole('button', { name: 'Connect with Google', exact: true }).click()
+  await expect(panel.locator('.gmail-manager-message-row')).toHaveCount(2)
+  await panel.getByRole('tab', { name: 'Account', exact: true }).click()
+  await expect(panel.getByLabel('Google OAuth client ID')).toHaveCount(0)
+  expect((await calls(page)).filter(call => call.cmd === 'google_gmail_start_auth')).toHaveLength(1)
+})
+
 test('Gmail reconnects, disconnects and rejects late reads after external disconnect', async ({ page }, testInfo) => {
   const panel = await openGmail(page, false)
   await expect(panel).toContainText('Gmail is not connected')
   await panel.getByRole('tab', { name: 'Account', exact: true }).click()
-  await panel.getByLabel('Google OAuth client ID').fill('desktop.apps.googleusercontent.com')
+  await expect(panel.getByLabel('Google OAuth client ID')).toHaveCount(0)
   await page.evaluate(() => sessionStorage.setItem('e2e:gmail-auth-cancel', '1'))
   await panel.getByRole('button', { name: 'Connect with Google' }).click()
   await expect(panel.getByRole('alert')).toContainText('cancelled')

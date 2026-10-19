@@ -6,11 +6,21 @@ Las integraciones experimentales de escritorio conectan Drive, Docs, Calendar, T
 
 ## Configurar y conectar
 
-Abra **Settings → Integrations**, introduzca el ID público del cliente OAuth de Google para escritorio y guarde la configuración antes de abrir un espacio de integración. La sincronización de Calendar puede permanecer desactivada mientras utiliza Drive o Gmail.
+Abra **Settings → Integrations** y elija **Connect Google** para el servicio
+que necesite. En las versiones que el editor haya configurado correctamente,
+Scriptor abre el inicio de sesión de Google en el navegador del sistema. Allí
+elige su cuenta y autoriza los permisos solicitados. **No necesita crear un ID
+de cliente OAuth, configurar Google Cloud ni introducir su contraseña en Scriptor.**
 
-El proyecto de Google debe tener activadas las API de los servicios elegidos y un cliente OAuth adecuado para una aplicación de escritorio instalada. Siga la [guía de Google](https://developers.google.com/identity/protocols/oauth2/native-app) para configurar el proyecto, la pantalla de consentimiento y el cliente. Scriptor abre el navegador del sistema para solicitar consentimiento. Introduzca el ID del cliente; nunca guarde un secreto de cliente ni un token de acceso en la configuración del vault.
+El editor debe registrar el cliente OAuth de escritorio de Scriptor e incluir
+su ID público durante la compilación. Solo las versiones de desarrollo sin
+configurar muestran una opción **Avanzada** para usar un cliente propio.
+Nunca guarde secretos ni tokens en el vault. Consulte la [guía de Google](https://developers.google.com/identity/protocols/oauth2/native-app).
 
-Las conexiones son independientes: Drive y Docs comparten una, Calendar y Tasks otra, y Gmail tiene la suya. Conecte cada grupo que vaya a utilizar y compruebe la identidad de cuenta mostrada. Gmail también requiere activar su plugin. Los tokens se guardan en el llavero del sistema operativo; el ID público del cliente y los recursos seleccionados pertenecen a la configuración del vault.
+Drive/Docs, Calendar/Tasks y Gmail mantienen permisos y credenciales separados
+en el llavero del sistema. Para usar el correo, active el plugin Gmail Manager.
+La conexión no sincroniza automáticamente todo el vault y Calendar puede
+permanecer desactivado si solo utiliza Drive o Gmail.
 
 ## Compartir Markdown mediante Drive o Docs
 

@@ -40,6 +40,9 @@ async function open(page: Page) {
 }
 test('Overleaf reviews remote source, shares with remote CAS and applies with local CAS', async ({ page }, testInfo) => {
   const { editor, dialog } = await open(page)
+  const requirements = dialog.locator('details.overleaf-requirements')
+  await expect(requirements).not.toHaveAttribute('open', '')
+  await expect(dialog.getByText('1. Choose the remote file')).toBeVisible()
   await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
   const share = dialog.getByRole('button', { name: 'Share reviewed source with Overleaf', exact: true })
   await expect(share).toBeDisabled()

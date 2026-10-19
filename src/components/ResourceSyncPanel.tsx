@@ -21,11 +21,31 @@ import {
   type ResourceTarget,
 } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
+import { filterDiscoveredResources } from '../lib/filterDiscoveredResources'
 import '../styles/components/resource-sync.css'
+
+function targetStatusLabel(status: ResourceTarget['status']): string {
+  switch (status) {
+    case 'confirmed': return 'Installed'
+    case 'configured': return 'Found in settings'
+    case 'partial': return 'Partly installed'
+    case 'available': return 'Available'
+    case 'conflicted': return 'Needs attention'
+  }
+}
 
 function targetCanReceiveResources(target: ResourceTarget): boolean {
   if (target.supportLevel === 'inventory_only' || target.resourceRoots.length === 0) return false
   return target.id === 'universal' || target.status === 'confirmed'
+}
+
+function changeLabel(kind: ResourceSyncPlan['operations'][number]['kind']): string {
+  switch (kind) {
+    case 'install': return 'Add copy'
+    case 'update': return 'Update copy'
+    case 'noop': return 'Already up to date'
+    case 'quarantine_duplicate': return 'Move extra copy aside'
+  }
 }
 
 function shortHash(value: string): string {
@@ -56,6 +76,7 @@ export function ResourceSyncPanel() {
   const nativeAvailable = isNativeBridgeAvailable()
   const [inventory, setInventory] = useState<ResourceInventory | null>(null)
   const [selectedSourceId, setSelectedSourceId] = useState('')
+  const [resourceSearch, setResourceSearch] = useState('')
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set())
   const [plan, setPlan] = useState<ResourceSyncPlan | null>(null)
   const [applyResult, setApplyResult] = useState<ResourceApplyResult | null>(null)
@@ -91,7 +112,7 @@ export function ResourceSyncPanel() {
         return preserved
       })
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not inventory agent resources')
+      setError(cause instanceof Error ? cause.message : 'Could not check connected apps and files.')
       setInventory(null)
     } finally {
       setLoading(false)
@@ -113,6 +134,13 @@ export function ResourceSyncPanel() {
     [inventory, selectedSourceId],
   )
 
+  const visibleResources = useMemo(
+    () => inventory
+      ? filterDiscoveredResources(inventory.resources, inventory.targets, inventory.resources.length > 1 ? resourceSearch : '')
+      : [],
+    [inventory, resourceSearch],
+  )
+
   const buildPlan = async () => {
     if (!source || selectedTargetIds.size === 0) return
     setPlanning(true)
@@ -122,7 +150,7 @@ export function ResourceSyncPanel() {
     try {
       setPlan(await resourceCreatePlan(source.id, [...selectedTargetIds]))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create a reviewed sync plan')
+      setError(cause instanceof Error ? cause.message : 'Could not preview these changes. Try again.')
     } finally {
       setPlanning(false)
     }
@@ -137,7 +165,7 @@ export function ResourceSyncPanel() {
     try {
       setPlan(await resourceCreateDedupPlan(canonicalInstanceId))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create a reviewed deduplication plan')
+      setError(cause instanceof Error ? cause.message : 'Could not prepare the duplicate cleanup. Try again.')
     } finally {
       setPlanning(false)
     }
@@ -155,10 +183,20 @@ export function ResourceSyncPanel() {
       }
       setApplyResult(result)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not apply the approved sync plan')
+      setError(cause instanceof Error ? cause.message : 'Sync could not finish. Check which changes completed.')
     } finally {
       setApplying(false)
     }
+  }
+
+  // Batch selection only edits the draft; applying still needs a native
+  // preview and an explicit approved apply action.
+  const selectTargets = (selectAll: boolean) => {
+    setPlan(null)
+    setApplyResult(null)
+    setSelectedTargetIds(new Set(
+      selectAll ? inventory?.targets.filter(targetCanReceiveResources).map((target) => target.id) ?? [] : [],
+    ))
   }
 
   const toggleTarget = (targetId: string) => {
@@ -178,12 +216,13 @@ export function ResourceSyncPanel() {
         <Boxes size={30} aria-hidden="true" />
         <h3>Sharing and sync requires the desktop app</h3>
         <p>
-          Browser preview cannot inspect local applications or modify agent resources. Open the unified Scriptor desktop app to continue.
+          Open Scriptor for desktop to check installed apps and share files. This browser preview cannot access files on your computer.
         </p>
       </section>
     )
   }
 
+  const eligibleTargets = inventory?.targets.filter(targetCanReceiveResources).length ?? 0
   const confirmedTargets = inventory?.targets.filter((target) => target.status === 'confirmed').length ?? 0
   const managedResources = inventory?.resources.filter((resource) => resource.managed).length ?? 0
   const redundantDuplicates = inventory?.duplicates.filter((group) => group.kind === 'redundant').length ?? 0
@@ -192,13 +231,13 @@ export function ResourceSyncPanel() {
     <section className="resource-sync-panel" data-help-topic="resource-sync" aria-label="Sharing and sync">
       <header className="resource-sync-heading">
         <div>
-          <p className="resource-sync-eyebrow">AgentStack-managed resources</p>
+          <p className="resource-sync-eyebrow">Installed tools and shared files</p>
           <h3>Sharing and sync</h3>
           <p>
-            Inventory what is contained and installed, compare canonical identities, and review every connection or synchronization change before it runs.
+            See what's installed and where. Compare copies and review changes before syncing.
           </p>
         </div>
-        <button type="button" className="toolbar-button" onClick={() => void refresh()} disabled={loading}>
+        <button type="button" className="toolbar-button" onClick={() => void refresh()} disabled={loading || planning || applying}>
           {loading ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
           Rescan
         </button>
@@ -212,16 +251,18 @@ export function ResourceSyncPanel() {
       ) : null}
 
       <div className="resource-sync-stats" aria-label="Resource inventory summary">
-        <div><strong>{confirmedTargets}</strong><span>confirmed apps and CLIs</span></div>
-        <div><strong>{inventory?.resources.length ?? 0}</strong><span>installed resources</span></div>
-        <div><strong>{managedResources}</strong><span>AgentStack-managed</span></div>
-        <div><strong>{redundantDuplicates}</strong><span>redundant duplicate groups</span></div>
+        <div><strong>{confirmedTargets}</strong><span>apps found</span></div>
+        <div><strong>{inventory?.resources.length ?? 0}</strong><span>items found</span></div>
       </div>
+      <details className="resource-sync-inventory-details">
+        <summary>More inventory details</summary>
+        <p>{managedResources} managed items · {redundantDuplicates} extra copy groups</p>
+      </details>
 
       {loading && !inventory ? (
         <div className="resource-sync-loading" role="status">
           <LoaderCircle className="spin" size={20} />
-          Identifying executables, configuration roots, scopes, and resource fingerprints…
+          Checking installed apps and shared files…
         </div>
       ) : null}
 
@@ -231,8 +272,19 @@ export function ResourceSyncPanel() {
             <div className="resource-sync-section-heading">
               <div>
                 <h4>Applications, IDEs, and CLIs</h4>
-                <p>“Confirmed” requires executable, application, or installed-extension identity. Configuration-only evidence remains explicitly labeled.</p>
+                <p>Verified apps were found on this device. Entries found only in settings are marked separately.</p>
               </div>
+            </div>
+            <div className="resource-target-selection" role="group" aria-label="Sync destinations">
+              <span role="status">{selectedTargetIds.size} of {eligibleTargets} compatible apps selected</span>
+              <button type="button" className="toolbar-button"
+                disabled={eligibleTargets === 0 || loading || planning || applying}
+                onClick={() => selectTargets(true)}
+              >Select compatible apps</button>
+              <button type="button" className="toolbar-button"
+                disabled={selectedTargetIds.size === 0 || loading || planning || applying}
+                onClick={() => selectTargets(false)}
+              >Clear selection</button>
             </div>
             <div className="resource-target-grid">
               {inventory.targets.map((target) => {
@@ -243,26 +295,26 @@ export function ResourceSyncPanel() {
                     <div className="resource-target-title">
                       <div>
                         <strong>{target.label}</strong>
-                        <span className={`resource-badge ${target.status}`}>{target.status}</span>
+                        <span className={`resource-badge ${target.status}`}>{targetStatusLabel(target.status)}</span>
                       </div>
                       <label>
                         <input
                           type="checkbox"
                           aria-label={`Sync ${target.label}`}
                           checked={selected}
-                          disabled={!canReceive}
+                          disabled={!canReceive || loading || planning || applying}
                           onChange={() => toggleTarget(target.id)}
                         />
                         <span aria-hidden="true">Sync</span>
                       </label>
                     </div>
                     <p className="resource-target-support">
-                      <span>{target.installations.length} confirmed installation{target.installations.length === 1 ? '' : 's'}</span>
+                      <span>{target.installations.length} installation{target.installations.length === 1 ? '' : 's'}</span>
                       {target.supportLevel === 'native'
-                        ? 'Native resource target'
+                        ? 'Can receive shared files'
                         : target.supportLevel === 'compatible'
-                          ? 'Reviewed compatibility adapter'
-                          : 'Inventory only'}
+                          ? 'Can receive shared files (compatible)'
+                          : 'View only — cannot sync'}
                     </p>
                     <details>
                       <summary>Detection evidence</summary>
@@ -279,53 +331,77 @@ export function ResourceSyncPanel() {
           <section className="resource-sync-section">
             <div className="resource-sync-section-heading">
               <div>
-                <h4>Already installed or contained</h4>
-                <p>Each physical instance keeps its target, scope, path, ownership, and normalized content hash.</p>
+                <h4>Found on this device</h4>
+                <p>Choose the copy you want to share. Nothing is changed until you approve.</p>
               </div>
             </div>
+            {inventory.resources.length > 1 ? (
+              <div className="resource-copy-filter">
+                <label htmlFor="resource-copy-filter">Find shared items</label>
+                <input
+                  id="resource-copy-filter"
+                  type="search"
+                  value={resourceSearch}
+                  placeholder="Search items, apps, or file paths"
+                  onChange={(event) => setResourceSearch(event.target.value)}
+                />
+                {resourceSearch ? (
+                  <button type="button" className="toolbar-button" onClick={() => setResourceSearch('')}>
+                    Clear search
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             {inventory.resources.length === 0 ? (
-              <p className="resource-sync-empty-row">No validated skills were found in the known resource roots.</p>
+              <p className="resource-sync-empty-row">No shared items found in the locations Scriptor checks.</p>
+            ) : visibleResources.length === 0 ? (
+              <p className="resource-sync-empty-row" role="status">No shared items match this search. Clear the search to see all items.</p>
             ) : (
               <div className="resource-table-wrap">
                 <table className="resource-table">
                   <thead>
                     <tr>
-                      <th>Canonical resource</th>
-                      <th>Target</th>
-                      <th>State</th>
-                      <th>Fingerprint</th>
-                      <th>Select source</th>
+                      <th>Item</th>
+                      <th>App</th>
+                      <th>Status</th>
+                      <th>Share this copy</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {inventory.resources.map((resource) => (
+                    {visibleResources.map((resource) => (
                       <tr key={resource.id}>
                         <td>
                           <strong>{resource.name}</strong>
                           <span>{resource.logicalId}</span>
                         </td>
                         <td>
-                          <span>{resource.targetId}</span>
+                          <span>{inventory.targets.find(target => target.id === resource.targetId)?.label ?? resource.targetId}</span>
                           <small>{resource.scope}</small>
                         </td>
                         <td>
                           <span className={`resource-badge ${resource.managed ? 'managed' : 'unmanaged'}`}>
-                            {resource.managed ? 'managed' : 'unmanaged'}
+                            {resource.managed ? 'Managed by Scriptor' : 'Found locally'}
                           </span>
                           <span className={`resource-badge ${resource.valid ? 'valid' : 'invalid'}`}>
-                            {resource.valid ? 'valid' : 'invalid'}
+                            {resource.valid ? 'Ready' : 'Needs attention'}
                           </span>
-                          {resource.symlinked ? <small>linked</small> : <small>contained copy</small>}
+                          {resource.symlinked ? <small>Linked from another location</small> : null}
                           {resource.issues.map((issue) => <small key={issue}>{issue}</small>)}
+                          <details className="resource-copy-details">
+                            <summary>Content details</summary>
+                            <dl>
+                              <dt>Content check</dt><dd><code>{shortHash(resource.contentHash)}</code></dd>
+                              <dt>File path</dt><dd><code>{resource.path}</code></dd>
+                            </dl>
+                          </details>
                         </td>
-                        <td><code>{shortHash(resource.contentHash)}</code></td>
                         <td>
                           <input
                             type="radio"
                             name="resource-sync-source"
                             aria-label={`Use ${resource.name} from ${resource.targetId} as source`}
                             checked={selectedSourceId === resource.id}
-                            disabled={resource.kind !== 'skill' || !resource.valid}
+                            disabled={resource.kind !== 'skill' || !resource.valid || loading || planning || applying}
                             onChange={() => {
                               setSelectedSourceId(resource.id)
                               setPlan(null)
@@ -339,26 +415,30 @@ export function ResourceSyncPanel() {
                 </table>
               </div>
             )}
+            {resourceSearch.trim() && selectedSourceId && !visibleResources.some((item) => item.id === selectedSourceId) ? (
+              <p className="resource-sync-empty-row">Your selected source is hidden by this search; clear it to change the source.</p>
+            ) : null}
           </section>
 
+          {inventory.duplicates.length > 0 ? (
           <section className="resource-sync-section">
             <div className="resource-sync-section-heading">
               <div>
-                <h4>Duplicate analysis</h4>
-                <p>Exact and diverged resources are separated. Nothing is deleted automatically.</p>
+                <h4>Compare duplicates</h4>
+                <p>Compare identical and changed copies. Nothing is deleted automatically.</p>
               </div>
             </div>
             {inventory.duplicates.length === 0 ? (
-              <p className="resource-sync-empty-row">No duplicate logical identities were found.</p>
+              <p className="resource-sync-empty-row">No duplicate copies found.</p>
             ) : (
               <ul className="resource-duplicate-list">
                 {inventory.duplicates.map((group) => {
                   const canonicalId = group.instanceIds[0]
                   const description = group.kind === 'exact_mirror'
-                    ? 'Verified mirror across targets; keep it installed where each target needs it'
+                    ? 'These copies match across apps. Keep each one if the app needs it.'
                     : group.kind === 'redundant'
-                      ? 'Redundant exact copy inside the same target and scope'
-                      : 'Same logical identity with divergent content; manual merge required'
+                      ? 'This app has two identical copies.'
+                      : 'Copies with the same name contain different text. Compare them before replacing either.'
                   return (
                     <li key={`${group.logicalId}-${group.kind}-${group.instanceIds.join('-')}`}>
                       {group.kind === 'diverged' ? <AlertTriangle size={16} /> : <CopyCheck size={16} />}
@@ -374,11 +454,11 @@ export function ResourceSyncPanel() {
                           disabled={planning || applying}
                           onClick={() => void buildDedupPlan(canonicalId)}
                         >
-                          Review dedup plan
+                          Review extra copies
                         </button>
                       ) : (
                         <span className="resource-badge protected">
-                          {group.kind === 'exact_mirror' ? 'synced mirror' : 'review required'}
+                          {group.kind === 'exact_mirror' ? 'same content' : 'copies differ'}
                         </span>
                       )}
                     </li>
@@ -387,12 +467,13 @@ export function ResourceSyncPanel() {
               </ul>
             )}
           </section>
+          ) : null}
 
           <section className="resource-sync-section resource-plan-builder">
             <div>
-              <h4>Reviewed synchronization plan</h4>
+              <h4>Review changes before syncing</h4>
               <p>
-                Plans are bound to the current inventory fingerprint. If any source or destination changes, application stops and requires a new review.
+                If a source or destination changes after review, syncing stops until you review again.
               </p>
             </div>
             <button
@@ -402,22 +483,25 @@ export function ResourceSyncPanel() {
               onClick={() => void buildPlan()}
             >
               {planning ? <LoaderCircle className="spin" size={15} /> : <ShieldCheck size={15} />}
-              Build reviewed plan
+              Preview changes
             </button>
           </section>
 
           {plan ? (
             <section className="resource-sync-section resource-plan" aria-label="Synchronization plan">
-              <div className="resource-plan-meta">
-                <div><span>Plan</span><code>{plan.id}</code></div>
-                <div><span>Inventory</span><code>{shortHash(plan.inventoryFingerprint)}</code></div>
-                <div><span>Plan fingerprint</span><code>{shortHash(plan.planFingerprint)}</code></div>
-                <div><span>Expires</span><time>{new Date(plan.expiresAtMs).toLocaleTimeString()}</time></div>
-              </div>
+              <p className="resource-plan-expiry">Review before <time>{new Date(plan.expiresAtMs).toLocaleTimeString()}</time>.</p>
+              <details className="resource-plan-technical">
+                <summary>Technical details</summary>
+                <div className="resource-plan-meta">
+                  <div><span>Plan ID</span><code>{plan.id}</code></div>
+                  <div><span>Inventory check</span><code>{shortHash(plan.inventoryFingerprint)}</code></div>
+                  <div><span>Plan check</span><code>{shortHash(plan.planFingerprint)}</code></div>
+                </div>
+              </details>
               <ol>
                 {plan.operations.map((operation) => (
                   <li key={operation.id}>
-                    <span className={`resource-badge ${operation.kind}`}>{operation.kind}</span>
+                    <span className={`resource-badge ${operation.kind}`}>{changeLabel(operation.kind)}</span>
                     <div>
                       <strong>{operation.summary}</strong>
                       <small>{operation.destinationPath}</small>
@@ -432,7 +516,7 @@ export function ResourceSyncPanel() {
               ) : null}
               <button type="button" className="primary-button" disabled={applying} onClick={() => void applyPlan()}>
                 {applying ? <LoaderCircle className="spin" size={15} /> : <CheckCircle2 size={15} />}
-                Approve and apply once
+                Apply these changes
               </button>
             </section>
           ) : null}
@@ -441,8 +525,8 @@ export function ResourceSyncPanel() {
             <section className={`resource-sync-message ${applyResult.status}`} role="status">
               <CheckCircle2 size={17} aria-hidden="true" />
               <div>
-                <strong>Plan {applyResult.status}</strong>
-                <span>{applyResult.receipts.length} operation(s) verified; {applyResult.failures.length} failure(s).</span>
+                <strong>{applyResult.status === 'completed' ? 'Sync finished' : applyResult.status === 'partial' ? 'Sync partly finished' : 'Sync could not finish'}</strong>
+                <span>{applyResult.receipts.length} steps confirmed · {applyResult.failures.length} failed</span>
                 {applyResult.failures.map((failure) => (
                   <small key={failure.operationId}>{failure.targetId}: {failure.message}</small>
                 ))}

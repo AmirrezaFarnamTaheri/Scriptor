@@ -206,43 +206,55 @@ function VaultSidebarImpl({
       </label>
 
       {searchQuery.trim() ? (
-        <p className="search-hint" role="status">
-          {isSearching
-            ? t('vaultSidebar.searchingIndex')
-            : t('vaultSidebar.searchResults', { count: searchResultsCount })}
-        </p>
+        <div className="vault-search-feedback">
+          <p className="search-hint" role="status">
+            {isSearching
+              ? t('vaultSidebar.searchingIndex')
+              : searchResultsCount === 0
+                ? t('vaultSidebar.noSearchResults')
+                : t('vaultSidebar.searchResults', { count: searchResultsCount })}
+          </p>
+          <button type="button" className="vault-search-clear" onClick={() => onSearchQueryChange('')}>
+            {t('vaultSidebar.clearSearch')}
+          </button>
+        </div>
       ) : null}
 
-      <button type="button" className="filter-button" onClick={onOpenFilters}>
+      <button type="button" className="filter-button" onClick={onOpenFilters} title={t('vaultSidebar.knowledgeFilters')}>
         <Filter />
         {t('vaultSidebar.knowledgeFilters')}
       </button>
 
-      {noteTypes.length > 0 ? (
-        <div className="note-type-menu">
-          <span className="note-type-label">{t('vaultSidebar.newByType')}</span>
-          <div className="note-type-buttons">
-            {noteTypes.map((type) => (
-              <button
-                key={type.path}
-                type="button"
-                className="toolbar-button"
-                onClick={() => onCreateNoteOfType(type.name)}
-              >
-                {type.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {onOpenTemplatePicker ? (
-        <button type="button" className="filter-button" onClick={onOpenTemplatePicker}>
-          <LayoutTemplate aria-hidden />
-          {templatePaths.length > 0
-            ? t('vaultSidebar.newFromTemplateCount', { count: templatePaths.length })
-            : t('vaultSidebar.newFromTemplate')}
-        </button>
+      {vault && (noteTypes.length > 0 || Boolean(onOpenTemplatePicker)) ? (
+        <details className="vault-create-options">
+          <summary>{t('vaultSidebar.moreCreateOptions')}</summary>
+          {noteTypes.length > 0 ? (
+            <div className="note-type-menu">
+              <span className="note-type-label">{t('vaultSidebar.newByType')}</span>
+              <div className="note-type-buttons">
+                {noteTypes.map((type) => (
+                  <button
+                    key={type.path}
+                    type="button"
+                    className="toolbar-button"
+                    onClick={() => onCreateNoteOfType(type.name)}
+                  >
+                    {type.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+    
+          {onOpenTemplatePicker ? (
+            <button type="button" className="filter-button" onClick={onOpenTemplatePicker} title={t('vaultSidebar.newFromTemplate')}>
+              <LayoutTemplate aria-hidden />
+              {templatePaths.length > 0
+                ? t('vaultSidebar.newFromTemplateCount', { count: templatePaths.length })
+                : t('vaultSidebar.newFromTemplate')}
+            </button>
+          ) : null}
+        </details>
       ) : null}
 
       <div className="daily-note-nav">
@@ -270,7 +282,24 @@ function VaultSidebarImpl({
         ) : vaultStatus === 'opening' || (vaultStatus === 'indexing' && sections.length === 0) ? (
           <VaultTreeSkeleton />
         ) : sections.length === 0 ? (
-          <p className="empty-state">{t('vaultSidebar.openVaultToBrowse')}</p>
+          <div className="vault-empty-state">
+            {!vault ? (
+              <>
+                <p className="empty-state">{t('vaultSidebar.openVaultToBrowse')}</p>
+                <button type="button" className="primary-button" onClick={onChooseVault}>{t('vaultSidebar.openVaultFolder')}</button>
+              </>
+            ) : vaultStatus === 'error' ? (
+              <>
+                <p className="empty-state">{t('vaultSidebar.vaultLoadFailed')}</p>
+                <button type="button" className="primary-button" onClick={onChooseVault}>{t('vaultSidebar.openVaultFolder')}</button>
+              </>
+            ) : (
+              <>
+                <p className="empty-state">{t('vaultSidebar.emptyVault')}</p>
+                <button type="button" className="primary-button" onClick={onCreateNote}>{t('vaultSidebar.newNote')}</button>
+              </>
+            )}
+          </div>
         ) : (
           sections.map((section) => {
             const collapsed = collapsedFolders[section.name] ?? false

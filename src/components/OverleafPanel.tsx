@@ -36,9 +36,14 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
   return <div className="modal-backdrop"><section className="modal-card overleaf-panel" ref={dialog} role="dialog" aria-modal="true" aria-label="Overleaf source sync" data-help-topic="git">
     <header><h2>Overleaf source sync</h2><button type="button" onClick={onClose}>Close Overleaf sync</button></header>
     <div className="overleaf-panel-body">
-    <p>Sync this saved source file through the official Overleaf Cloud Git bridge. Git access requires eligible premium access and a token saved in your operating-system Git credential manager using username “git”. No browser session is imported.</p>
-    <p>Only the selected UTF-8 .tex, .ltx or .bib file is synchronized. Figures, included files and compiler settings stay in their respective projects. Set the main document in Overleaf if needed. Review each action; existing remote edits are never force-pushed.</p>
-    <p>Local source: <bdi>{document.path}</bdi></p>
+    <p>Compare this saved source file with Overleaf before applying or sharing changes. Only this file is synchronized; the rest of the project stays untouched.</p>
+    <details className="overleaf-requirements">
+      <summary>Connection requirements and limits</summary>
+      <p>Overleaf Cloud Git access requires an eligible paid plan and a Git token stored in your operating-system credential manager with username “git”. Scriptor does not import browser sessions or passwords.</p>
+      <p>Only the selected UTF-8 .tex, .ltx or .bib file is exchanged. Figures, included files, and compiler settings remain in their projects. Existing remote edits are never force-pushed.</p>
+    </details>
+    <h3 className="overleaf-step-heading">1. Choose the remote file</h3>
+    <p>Saved local source: <bdi>{document.path}</bdi></p>
     <label>Overleaf project ID or official URL<input value={project} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setProject(event.target.value) }}/></label>
     <label>Remote project source path<input value={remotePath} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setRemotePath(event.target.value) }}/></label>
     <button type="button" disabled={busy || !project.trim() || !remotePath.trim()} onClick={() => void run(async () => {
@@ -48,6 +53,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     })}>Fetch remote source preview</button>
     <p role="status">{status}</p>{error && <p role="alert">{error}</p>}
     {snapshot && <>
+      <h3 className="overleaf-step-heading">2. Compare and review changes</h3>
       <div className="overleaf-comparison"><section aria-label="Saved local source"><h3>Saved local source</h3><pre>{document.content}</pre></section><section aria-label="Reviewed remote source"><h3>Remote source</h3><pre>{snapshot.content ?? 'File absent from remote project.'}</pre></section></div>
       <label>Reviewed source to apply locally or share<textarea aria-label="Reviewed source to apply locally or share" value={reviewed} disabled={busy} spellCheck={false} onChange={event => { setReviewed(event.target.value); setAccepted(false) }}/></label>
       <label className="overleaf-consent"><input type="checkbox" checked={accepted} disabled={busy} onChange={event => setAccepted(event.target.checked)}/><span>I compared both copies and reviewed this source for the selected action</span></label>

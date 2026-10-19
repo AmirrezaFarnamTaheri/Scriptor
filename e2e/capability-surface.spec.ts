@@ -54,8 +54,8 @@ test.describe('capability surfaces', () => {
     })
 
     await openCommandPalette(page)
-    await runCommand(page, 'Open knowledge workbench')
-    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+    await runCommand(page, 'Explore notes')
+    const workbench = page.getByRole('dialog', { name: 'Explore notes' })
     const rows = workbench.locator('.virtual-knowledge-list > li')
     await expect(rows).toHaveCount(3)
     await expect.poll(async () => rows.first().evaluate((row) => row.getBoundingClientRect().height)).toBeGreaterThanOrEqual(140)

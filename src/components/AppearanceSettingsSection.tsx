@@ -104,51 +104,6 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
         </select>
       </label>
       <label className="settings-field">
-        <span>{t('appearanceSettings.radius')}</span>
-        <select
-          value={workspaceChrome.uiBorderRadius}
-          onChange={(event) => onPatchWorkspaceChrome({ uiBorderRadius: event.target.value as UiBorderRadius })}
-        >
-          <option value="sharp">{t('appearanceSettings.radiusSharp')}</option>
-          <option value="rounded">{t('appearanceSettings.radiusRounded')}</option>
-          <option value="curved">{t('appearanceSettings.radiusCurved')}</option>
-          <option value="pill">{t('appearanceSettings.radiusPill')}</option>
-        </select>
-      </label>
-      <label className="settings-field">
-        <span>{t('appearanceSettings.blur')}</span>
-        <select
-          value={workspaceChrome.glassBlur}
-          onChange={(event) => onPatchWorkspaceChrome({ glassBlur: event.target.value as GlassBlurIntensity })}
-        >
-          <option value="none">{t('appearanceSettings.blurNone')}</option>
-          <option value="subtle">{t('appearanceSettings.blurSubtle')}</option>
-          <option value="glass">{t('appearanceSettings.blurGlass')}</option>
-          <option value="heavy">{t('appearanceSettings.blurHeavy')}</option>
-        </select>
-      </label>
-      <button
-        type="button"
-        className="toolbar-button"
-        onClick={() => {
-          onThemeChange?.('dark')
-          onAppearanceChange?.('system')
-          onPatchWorkspaceChrome({
-            uiFontFamily: DEFAULT_WORKSPACE_CHROME.uiFontFamily,
-            uiDensity: DEFAULT_WORKSPACE_CHROME.uiDensity,
-            uiBorderRadius: DEFAULT_WORKSPACE_CHROME.uiBorderRadius,
-            glassBlur: DEFAULT_WORKSPACE_CHROME.glassBlur,
-            editorFontSize: DEFAULT_WORKSPACE_CHROME.editorFontSize,
-            editorFontFamily: DEFAULT_WORKSPACE_CHROME.editorFontFamily,
-            editorLineHeight: DEFAULT_WORKSPACE_CHROME.editorLineHeight,
-            editorPaddingPx: DEFAULT_WORKSPACE_CHROME.editorPaddingPx,
-            previewMaxWidthCh: DEFAULT_WORKSPACE_CHROME.previewMaxWidthCh,
-          })
-        }}
-      >
-        {t('appearanceSettings.reset')}
-      </button>
-      <label className="settings-field">
         {t('appearanceSettings.editorFontSize')}
         <input
           type="number"
@@ -186,6 +141,32 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
           onChange={(event) => onPatchWorkspaceChrome({ editorLineHeight: Number(event.target.value) })}
         />
       </label>
+      <details className="appearance-advanced-options">
+        <summary>{t('appearanceSettings.advanced')}</summary>
+      <label className="settings-field">
+        <span>{t('appearanceSettings.radius')}</span>
+        <select
+          value={workspaceChrome.uiBorderRadius}
+          onChange={(event) => onPatchWorkspaceChrome({ uiBorderRadius: event.target.value as UiBorderRadius })}
+        >
+          <option value="sharp">{t('appearanceSettings.radiusSharp')}</option>
+          <option value="rounded">{t('appearanceSettings.radiusRounded')}</option>
+          <option value="curved">{t('appearanceSettings.radiusCurved')}</option>
+          <option value="pill">{t('appearanceSettings.radiusPill')}</option>
+        </select>
+      </label>
+      <label className="settings-field">
+        <span>{t('appearanceSettings.blur')}</span>
+        <select
+          value={workspaceChrome.glassBlur}
+          onChange={(event) => onPatchWorkspaceChrome({ glassBlur: event.target.value as GlassBlurIntensity })}
+        >
+          <option value="none">{t('appearanceSettings.blurNone')}</option>
+          <option value="subtle">{t('appearanceSettings.blurSubtle')}</option>
+          <option value="glass">{t('appearanceSettings.blurGlass')}</option>
+          <option value="heavy">{t('appearanceSettings.blurHeavy')}</option>
+        </select>
+      </label>
       <label className="settings-field">
         {t('appearanceSettings.editorPadding')}
         <input
@@ -206,6 +187,28 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
           onChange={(event) => onPatchWorkspaceChrome({ previewMaxWidthCh: Number(event.target.value) })}
         />
       </label>
+      </details>
+      <button
+        type="button"
+        className="toolbar-button"
+        onClick={() => {
+          onThemeChange?.('dark')
+          onAppearanceChange?.('system')
+          onPatchWorkspaceChrome({
+            uiFontFamily: DEFAULT_WORKSPACE_CHROME.uiFontFamily,
+            uiDensity: DEFAULT_WORKSPACE_CHROME.uiDensity,
+            uiBorderRadius: DEFAULT_WORKSPACE_CHROME.uiBorderRadius,
+            glassBlur: DEFAULT_WORKSPACE_CHROME.glassBlur,
+            editorFontSize: DEFAULT_WORKSPACE_CHROME.editorFontSize,
+            editorFontFamily: DEFAULT_WORKSPACE_CHROME.editorFontFamily,
+            editorLineHeight: DEFAULT_WORKSPACE_CHROME.editorLineHeight,
+            editorPaddingPx: DEFAULT_WORKSPACE_CHROME.editorPaddingPx,
+            previewMaxWidthCh: DEFAULT_WORKSPACE_CHROME.previewMaxWidthCh,
+          })
+        }}
+      >
+        {t('appearanceSettings.reset')}
+      </button>
     </div>
   )
 })

@@ -86,7 +86,7 @@ test('conflict close button stays beside the heading', async ({ page }) => {
   await page.locator('.git-panel').getByRole('button', { name: /resolve/i }).first().click()
   const dialog = page.getByRole('dialog', { name: 'Resolve merge conflicts' })
   await expect(dialog).toBeVisible()
-  const heading = await dialog.getByRole('heading', { name: 'Resolve merge conflicts' }).boundingBox()
+  const heading = await dialog.getByRole('heading', { name: 'Choose which changes to keep' }).boundingBox()
   const close = await dialog.getByRole('button', { name: 'Close', exact: true }).boundingBox()
   expect(heading).not.toBeNull()
   expect(close).not.toBeNull()

@@ -11,6 +11,27 @@ async function customize(page: import('@playwright/test').Page) {
   return dialog
 }
 
+test('mobile writing hides only the redundant default shortcut row', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await launchApp(page)
+  await waitForWorkspace(page, { allowHiddenVaultList: true })
+
+  const shortcuts = page.locator('.workspace-activity-bar.workspace-shortcut-bar')
+  await expect(shortcuts).toBeHidden()
+  await expect(page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+    .getByRole('button', { name: 'Write', exact: true })).toBeVisible()
+
+  // Personalizing a pin must restore the shortcut row even on a small screen.
+  const dialog = await customize(page)
+  await dialog.locator('[data-shortcut-id="source"]').getByLabel('Button name').fill('My code')
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(dialog).toBeHidden()
+  await expect(shortcuts).toBeVisible()
+  await expect(shortcuts.getByRole('button', { name: 'My code', exact: true })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth))
+    .toBeLessThanOrEqual(1)
+})
+
 test('workspace shortcuts keep compact defaults and persist custom names, dimensions, ordering and overflow placement', async ({ page }, testInfo) => {
   await launchApp(page)
   await waitForWorkspace(page)
@@ -22,7 +43,11 @@ test('workspace shortcuts keep compact defaults and persist custom names, dimens
 
   const dialog = await customize(page)
   const source = dialog.locator('[data-shortcut-id="source"]')
+  await expect(source.getByLabel('Button name', { exact: true })).toBeVisible()
+  await expect(source.getByLabel('Width', { exact: true })).toBeHidden()
   await source.getByLabel('Button name', { exact: true }).fill('Code')
+  await source.locator('details.workspace-shortcut-styling > summary').click()
+  await expect(source.getByLabel('Width', { exact: true })).toBeVisible()
   await source.getByLabel('Width', { exact: true }).fill('160')
   await source.getByLabel('Text size', { exact: true }).fill('14')
   await source.getByRole('button', { name: 'Move up', exact: true }).click()
@@ -96,6 +121,7 @@ test('workspace shortcut customization cancels drafts and keeps fields reachable
   await lastEntry.getByRole('button', { name: 'Move up', exact: true }).click()
   await lastEntry.getByRole('button', { name: 'Move down', exact: true }).click()
   await expect(lastEntry.getByLabel('Button name', { exact: true })).toBeFocused()
+  await lastEntry.locator('details.workspace-shortcut-styling > summary').click()
   const last = dialog.locator('[data-shortcut-id]').last().getByLabel('Text size', { exact: true })
   await last.scrollIntoViewIfNeeded()
   await expect(last).toBeInViewport({ ratio: 1 })
@@ -134,4 +160,20 @@ test('workspace shortcut customization reports failed storage without silently c
   await attachVisualState(page, testInfo, 'shortcuts-storage-failure', dialog, dialog.getByRole('alert'))
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(page.locator('.workspace-activity-bar')).toBeVisible()
+})
+
+test('optional shortcut sizing never blocks Save after closing a cleared field', async ({ page }) => {
+  await launchApp(page)
+  const dialog = await customize(page)
+  const source = dialog.locator('[data-shortcut-id="source"]')
+  const styling = source.locator('details.workspace-shortcut-styling')
+  await styling.locator('summary').click()
+  await source.getByLabel('Text size', { exact: true }).fill('')
+  await styling.locator('summary').click()
+  await expect(source.getByLabel('Text size', { exact: true })).toBeHidden()
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(dialog).toBeHidden()
+  const reopened = await customize(page)
+  await expect(reopened.locator('[data-shortcut-id="source"]').getByLabel('Text size', { exact: true })).toHaveValue('12')
+  await reopened.getByRole('button', { name: 'Cancel', exact: true }).click()
 })

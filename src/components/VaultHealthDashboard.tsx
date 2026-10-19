@@ -76,7 +76,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
     <div className="health-repair-actions">
       {onOpenWorkbench ? (
         <button type="button" className="toolbar-button" onClick={onOpenWorkbench}>
-          Open knowledge workbench
+          Explore notes
         </button>
       ) : null}
       {onGenerateLinkReferences ? (
@@ -100,7 +100,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
   return (
     <UnifiedPanelShell
       title="Vault health"
-      subtitle="Index, link, metadata, citation, export, and cache diagnostics for the open vault."
+      subtitle="Find broken links, missing assets, and other problems in this vault."
       icon={<Activity size={18} />}
       ariaLabel="Vault health dashboard"
       helpTopic="diagnostics"
@@ -128,7 +128,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
                 </>
               )}
             </strong>
-            {!hasIssues ? <p>No broken health checks were found in the current diagnostic snapshot.</p> : null}
+            {!hasIssues ? <p>No problems found in the latest check.</p> : null}
             {hasIssues && diagnostics ? (
               <ul>
                 {diagnostics.issues.map((issue) => (
@@ -177,7 +177,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
 
           {vaultHealthChecks.length > 0 && lintSummary ? (
             <section className="health-checklist" aria-label="Plugin health checks">
-              <strong>Contributed health checks</strong>
+              <strong>Extra plugin checks</strong>
               <ul>
                 {vaultHealthChecks.map((check) => {
                   const count =

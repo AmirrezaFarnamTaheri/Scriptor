@@ -92,11 +92,13 @@ for responsiveness. See [`docs/architecture/IPC_DAEMON.md`](../architecture/IPC_
 ## Optional: Google integrations
 
 The experimental desktop integrations support reviewed Markdown collaboration
-through Drive or Docs, Calendar and Tasks planning, and a Gmail plugin. Configure
-the public desktop OAuth client in **Settings → Integrations**, then connect each
-service group you need. Local notes remain authoritative and provider writes
-require approval. Follow the [Google integration guide](GOOGLE_INTEGRATIONS.md)
-for resource selection, workflows and recovery.
+through Drive or Docs, Calendar and Tasks planning, and a Gmail plugin. In a
+release configured with Scriptor's Google Desktop OAuth client, open
+**Settings → Integrations** and select **Connect Google** for the services you
+need. No per-user client ID or password is collected by Scriptor. Google opens
+in the system browser and asks for consent. Local notes remain authoritative;
+provider writes require approval. See the [Google integration guide](GOOGLE_INTEGRATIONS.md)
+for resource selection, workflows and developer-build setup.
 
 ## Further reading
 

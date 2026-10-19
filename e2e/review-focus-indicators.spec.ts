@@ -4,7 +4,7 @@ import { launchApp, openCommandPalette, runCommand } from './helpers'
 for (const theme of ['light','dark']) for (const surface of [
   {command:'Database studio',region:'Database Studio',role:'combobox' as const,name:'Saved view'},
   {command:'Capture reviewer',region:'Capture reviewer',role:'textbox' as const,name:'Article URL'},
-  {command:'Drive collaboration',region:'Drive collaboration',role:'combobox' as const,name:'Revision transport'},
+  {command:'Drive collaboration',region:'Drive collaboration',role:'combobox' as const,name:'Where shared versions are saved'},
   {command:'Publishing studio',region:'Publishing studio',role:'textbox' as const,name:'Local site folder'},
   {command:'Runtime console',region:'Runtime console',role:'combobox' as const,name:'Execution mode'},
 ]) test(`${surface.command} ${theme} shows a visible accent outline on its named keyboard control`,async ({page},testInfo) => {

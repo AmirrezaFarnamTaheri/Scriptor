@@ -55,11 +55,8 @@ async function waitForInspectorReady(page: Page) {
 
 async function waitForFullWorkspace(page: Page) {
   await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible()
-  // The redundant badge yields to primary controls at compact desktop widths.
-  // Its resolved value plus the visible sidebar proves vault hydration.
-  await expect(page.locator('small.vault-badge')).toHaveText('Research Vault', {
-    timeout: 45_000,
-  })
+  // The top bar uses one vault switcher, not a duplicate vault badge.
+  // File-list, editor and index checks below establish the actual ready state.
   await waitForVaultSidebarReady(page)
   await waitForEditorReady(page)
   await waitForInspectorReady(page)
@@ -247,6 +244,12 @@ test('main workspace — dark mode', async ({ page }) => {
 })
 
 test('editor with split preview', async ({ page }) => {
+  const highlighterCrashes: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error' && message.text().includes('CodeMirror plugin crashed')) {
+      highlighterCrashes.push(message.text())
+    }
+  })
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
   await ensureCleanStatusDock(page)
@@ -254,6 +257,9 @@ test('editor with split preview', async ({ page }) => {
   await waitForPreviewReady(page)
   await captureReadyScreenshot(page, shotPath('editor-preview'))
   await expect(page).toHaveScreenshot('editor-preview.png', { fullPage: false })
+  // A crash in syntax highlighting was previously only logged to the console:
+  // the editor still looked present while the highlighter stopped rendering.
+  expect(highlighterCrashes).toEqual([])
 })
 
 test('inspector preview', async ({ page }) => {
@@ -396,8 +402,47 @@ test('publish center', async ({ page }) => {
   await runCommand(page, 'Open publish center')
   await expect(page.getByRole('dialog', { name: 'Export & publish' })).toBeVisible()
   await page.waitForTimeout(800)
+  const publish = page.getByRole('dialog', { name: 'Export & publish' })
+  const profiles = publish.locator('.publish-profile-list > li')
+  await expect(profiles.first()).toBeVisible()
+  await expect(profiles.first().getByRole('button', { name: 'Export HTML', exact: true })).toBeVisible()
+
+  // The refreshed Publish Center collapses save destinations on purpose.
+  // Exercise that disclosure instead of requiring the old, expanded bitmap:
+  // the screenshot remains a per-run visual artifact for human review.
+  const destination = profiles.first().locator('details.publish-profile-destination')
+  await expect(destination).not.toHaveAttribute('open', '')
+  await expect(destination.locator('code')).toBeHidden()
+  await destination.locator(':scope > summary').click()
+  await expect(destination.locator('code')).toBeVisible()
+  await destination.locator(':scope > summary').click()
+  await expect(destination).not.toHaveAttribute('open', '')
+
+  const geometry = await publish.evaluate((panel) => {
+    const panelRect = panel.getBoundingClientRect()
+    const cards = Array.from(panel.querySelectorAll<HTMLElement>('.publish-profile-list > li'))
+    // LaTeX has another action row outside any profile card. Check only
+    // per-card actions against the card bounds; do not treat LaTeX as overflow.
+    const actions = cards.flatMap((card) => Array.from(card.querySelectorAll<HTMLElement>('.publish-profile-actions')))
+    return {
+      panelInViewport: panelRect.left >= -1 && panelRect.right <= window.innerWidth + 1
+        && panelRect.top >= -1 && panelRect.bottom <= window.innerHeight + 1,
+      panelOverflow: panel.scrollWidth - panel.clientWidth,
+      cardOverflow: cards.some((card) => card.scrollWidth > card.clientWidth + 1),
+      checkedActionRows: actions.length,
+      actionOverflow: actions.some((action) => {
+        const rect = action.getBoundingClientRect()
+        const card = action.closest('li')?.getBoundingClientRect()
+        return !card || rect.left < card.left - 1 || rect.right > card.right + 1
+      }),
+    }
+  })
+  expect(geometry.panelInViewport).toBe(true)
+  expect(geometry.panelOverflow).toBeLessThanOrEqual(1)
+  expect(geometry.cardOverflow).toBe(false)
+  expect(geometry.checkedActionRows).toBeGreaterThan(0)
+  expect(geometry.actionOverflow).toBe(false)
   await captureReadyScreenshot(page, shotPath('publish-center'))
-  await expect(page).toHaveScreenshot('publish-center.png', { fullPage: false })
 })
 
 test('vault health dashboard', async ({ page }) => {
@@ -423,18 +468,18 @@ test('knowledge workbench', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
   await openCommandPalette(page)
-  await runCommand(page, 'Open knowledge workbench')
-  const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+  await runCommand(page, 'Explore notes')
+  const workbench = page.getByRole('dialog', { name: 'Explore notes' })
   await expect(workbench).toBeVisible()
-  const orphanTab = workbench.getByRole('tab', { name: 'Orphans (0)' })
-  const deadEndTab = workbench.getByRole('tab', { name: 'Dead ends (0)' })
+  const orphanTab = workbench.getByRole('tab', { name: 'No incoming links (0)' })
+  const deadEndTab = workbench.getByRole('tab', { name: 'No outgoing links (0)' })
   await orphanTab.focus()
   await orphanTab.press('ArrowRight')
   await expect(deadEndTab).toBeFocused()
   await expect(deadEndTab).toHaveAttribute('aria-selected', 'true')
   await deadEndTab.press('ArrowLeft')
   await expect(orphanTab).toHaveAttribute('aria-selected', 'true')
-  await expect(workbench.getByText('No orphan notes')).toBeVisible()
+  await expect(workbench.getByText('All notes have incoming links')).toBeVisible()
   await page.waitForTimeout(800)
   await captureReadyScreenshot(page, shotPath('knowledge-workbench'))
   await expect(page).toHaveScreenshot('knowledge-workbench.png', { fullPage: false })
@@ -480,7 +525,7 @@ test('conflict resolver modal', async ({ page }) => {
 
   const mergedHeading = resolver.locator('.conflict-merged-preview-heading')
   await expect(mergedHeading.getByRole('status')).toContainText('1 unresolved')
-  await expect(resolver.getByRole('button', { name: 'Apply resolved file', exact: true })).toBeDisabled()
+  await expect(resolver.getByRole('button', { name: 'Apply selected changes', exact: true })).toBeDisabled()
   await expect.poll(() => resolver.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
 
   // This dynamic conflict state remains part of the per-run visual artifact,
@@ -593,7 +638,7 @@ test('plugins panel', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
   await page.getByRole('tab', { name: 'Tools' }).click()
-  await expect(page.getByRole('heading', { name: 'Plugin management' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Find and manage plugins' })).toBeVisible()
   const storeTabs = page.locator('.store-tablist .store-tab')
   await expect(storeTabs).toHaveCount(4)
   const storeTabRows = await storeTabs.evaluateAll((elements) =>
@@ -653,14 +698,14 @@ test('workspace selector and active vault identity', async ({ page }) => {
   const topbar = page.locator('header.topbar')
   await expect(topbar).toBeVisible()
 
-  const switcher = topbar.getByRole('combobox', { name: 'Recent vault', exact: true })
+  const switcher = topbar.getByRole('combobox', { name: 'Switch vault', exact: true })
   await expect(switcher).toBeVisible()
   await expect(switcher.locator('option:checked')).toHaveAttribute('value', 'C:/Scriptor/fixtures/minimal')
   await expect(switcher.locator('option:checked')).toHaveText('minimal')
   expect(await switcher.locator('option').count()).toBeGreaterThanOrEqual(2)
   await switcher.focus()
   await expect(switcher).toBeFocused()
-  await expect(topbar.locator('small.vault-badge')).toHaveText('Research Vault')
+  await expect(topbar.locator('small.vault-badge')).toHaveCount(0)
   await settleLayout(page)
 
   // Capture the owning chrome while the selector has keyboard focus. The native

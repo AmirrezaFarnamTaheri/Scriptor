@@ -14,6 +14,7 @@ import { useI18n } from '../lib/i18n'
 import { expectArray, expectBoolean, expectNumber, expectRecord, expectString } from '../lib/runtimeSchema'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 import { seedGraphLayout } from '../lib/graphLayout'
+import { frameGraph } from '../lib/graphViewport'
 
 interface GraphPreset {
   id: string
@@ -261,6 +262,7 @@ export const GraphPanel = memo(function GraphPanel({
   }, [graph, viewport.height, viewport.width, workerLayout])
 
   const nodeById = useMemo(() => new Map(layout.map((node) => [node.id, node])), [layout])
+  const graphFrame = useMemo(() => frameGraph(layout, viewport.width, viewport.height), [layout, viewport.width, viewport.height])
 
   const adjacency = useMemo(() => {
     const map = new Map<string, string[]>()
@@ -533,7 +535,7 @@ export const GraphPanel = memo(function GraphPanel({
           <svg
             ref={svgRef}
             className="graph-canvas force"
-            viewBox={`0 0 ${viewport.width} ${viewport.height}`}
+            viewBox={`${graphFrame.x} ${graphFrame.y} ${graphFrame.width} ${graphFrame.height}`}
           role="application"
           tabIndex={0}
           aria-label={t('graph.ariaLabel')}

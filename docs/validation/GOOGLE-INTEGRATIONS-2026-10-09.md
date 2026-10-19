@@ -6,10 +6,25 @@ experimental until the separate live-account and packaged-client gates pass.
 
 ## Configuration and account ownership
 
-Settings → Integrations exposes the public OAuth desktop client ID even when
-Calendar syncing is disabled. The canonical existing field remains
-`calendar_sync.google_client_id`, so existing vaults need no migration. This
-value is public configuration, never a client secret or token.
+In release builds, Settings → Integrations uses Scriptor's application-owned
+public Desktop OAuth client ID, injected at build time through
+`VITE_GOOGLE_OAUTH_CLIENT_ID`. End users do not register credentials or paste a
+client ID. Each Connect action opens Google's own sign-in/consent flow in the
+system browser. The native PKCE loopback callback receives the authorization
+code; credentials remain in the OS keychain. Scriptor never asks users for
+Google passwords.
+
+The release workflow reads the **public** GitHub Actions repository variable
+`SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID`. Production installer packaging fails
+explicitly if it is missing. The publisher must register a genuine Desktop
+OAuth client in Google Cloud, configure its consent screen and scopes, and
+complete any Google approval requirements. A placeholder value in
+`.env.e2e` is only for mocked browser tests; it cannot authorize real users.
+
+Legacy `calendar_sync.google_client_id` values remain supported in development
+builds and can be entered in the collapsed developer setup. The public client
+ID is not a client secret, but it must identify the publisher's registered
+application. A client ID alone cannot certify live OAuth or grant permissions.
 
 Drive/Docs, Calendar/Tasks and Gmail each have independent connection status,
 connect/reconnect and local disconnect controls. Credentials remain in three

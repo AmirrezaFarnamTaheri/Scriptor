@@ -6,11 +6,23 @@ Die experimentellen Desktop-Integrationen verbinden Drive, Docs, Calendar, Tasks
 
 ## Einrichten und verbinden
 
-Öffnen Sie **Settings → Integrations**, tragen Sie die öffentliche Google-OAuth-Client-ID für eine Desktop-Anwendung ein und speichern Sie die Konfiguration, bevor Sie einen Integrationsarbeitsbereich öffnen. Die Kalender-Synchronisierung darf deaktiviert bleiben, wenn Sie nur Drive oder Gmail verwenden.
+Öffnen Sie **Settings → Integrations** und wählen Sie **Mit Google verbinden**
+für den gewünschten Dienst. Wenn der Herausgeber die veröffentlichte Version
+korrekt eingerichtet hat, öffnet Scriptor die Google-Anmeldung im Systembrowser.
+Dort wählen Sie Ihr Konto und bestätigen die erforderlichen Berechtigungen.
+**Es ist keine eigene OAuth-Client-ID, kein Google-Cloud-Projekt und keine
+Passworteingabe in Scriptor erforderlich.**
 
-Aktivieren Sie im Google-Projekt die APIs der gewünschten Dienste und richten Sie einen OAuth-Client für eine installierte Desktop-Anwendung ein. Die [Google-Anleitung](https://developers.google.com/identity/protocols/oauth2/native-app) erläutert Projekt, Zustimmungsbildschirm und Client. Scriptor öffnet den Systembrowser für die Zustimmung. Tragen Sie ausschließlich die Client-ID ein; Client-Secrets und Zugriffstoken gehören nicht in die Vault-Einstellungen.
+Der Herausgeber muss zunächst einen Desktop-OAuth-Client für Scriptor
+registrieren und dessen öffentliche ID beim Erstellen bereitstellen. Nur für
+nicht konfigurierte Entwickler-Builds gibt es unter **Erweitert** eine Option
+für einen eigenen OAuth-Client. Legen Sie niemals Client-Secrets oder Tokens
+in Vault-Einstellungen ab. Siehe [Google-Anleitung](https://developers.google.com/identity/protocols/oauth2/native-app).
 
-Die Verbindungen sind unabhängig: Drive und Docs teilen eine Verbindung, Calendar und Tasks eine zweite; Gmail hat eine eigene. Verbinden Sie jede benötigte Gruppe und prüfen Sie die angezeigte Kontoidentität. Für Gmail muss außerdem das Gmail-Plugin aktiviert sein. Token liegen im Schlüsselbund des Betriebssystems; die öffentliche Client-ID und die Ressourcenauswahl gehören zur Vault-Konfiguration.
+Drive/Docs, Calendar/Tasks und Gmail nutzen getrennte Berechtigungen und
+OS-Schlüsselbund-Tokens. Aktivieren Sie für E-Mails das Gmail-Manager-Plugin.
+Die Verbindung allein synchronisiert nicht den gesamten Vault; Calendar kann
+deaktiviert bleiben, wenn Sie nur Drive oder Gmail verwenden.
 
 ## Markdown über Drive oder Docs teilen
 
