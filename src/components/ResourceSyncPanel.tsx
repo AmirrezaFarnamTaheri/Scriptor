@@ -416,7 +416,7 @@ export function ResourceSyncPanel() {
               </div>
             )}
             {resourceSearch.trim() && selectedSourceId && !visibleResources.some((item) => item.id === selectedSourceId) ? (
-              <p className="resource-sync-empty-row" role="status">Your selected source is hidden by this search; clear it to change the source.</p>
+              <p className="resource-sync-empty-row">Your selected source is hidden by this search; clear it to change the source.</p>
             ) : null}
           </section>
 
