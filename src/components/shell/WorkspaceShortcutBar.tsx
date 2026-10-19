@@ -77,9 +77,15 @@ function ShortcutManager({ catalog, preferences, onClose, onSave, locale }: Omit
   }
   return createPortal(
     <div className="modal-backdrop workspace-shortcut-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
-      <form ref={dialogRef} className="unified-panel-shell workspace-shortcut-manager" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} data-help-topic="workspace" dir={locale === 'fa' ? 'rtl' : 'ltr'} onSubmit={event => {
+      <form ref={dialogRef} noValidate className="unified-panel-shell workspace-shortcut-manager" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} data-help-topic="workspace" dir={locale === 'fa' ? 'rtl' : 'ltr'} onSubmit={event => {
         event.preventDefault()
-        if (onSave(draft)) onClose()
+        // Closed optional sizing panels must never hide native validation errors.
+        // A cleared font size means use the readable 12px default; all other
+        // bounds are enforced by the existing persisted-preferences parser.
+        const normalized = { ...draft, items: draft.items.map(item => ({
+          ...item, fontSize: item.fontSize === 0 ? 12 : item.fontSize,
+        })) }
+        if (onSave(normalized)) onClose()
         else setError(true)
       }}>
         <header className="unified-panel-header">
