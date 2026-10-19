@@ -140,7 +140,11 @@ test('real vault switching reveals two dirty source leaves sequentially and refu
   await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('@article{reviewed, title={Reviewed source}}\n')
   await editor.getByLabel('Source file content', { exact: true }).fill('Second retained draft')
   await page.evaluate(() => sessionStorage.setItem('e2e:source-picked-vault', '/e2e/next-source-vault'))
-  await page.getByRole('button', { name: 'Open Vault', exact: true }).click()
+  // Opening another folder is part of the single vault switcher now; exercise
+  // that user-facing path instead of requiring the removed duplicate button.
+  const vaultSwitcher = page.getByRole('combobox', { name: 'Switch vault', exact: true })
+  await expect(vaultSwitcher).toBeVisible()
+  await vaultSwitcher.selectOption('__choose__')
   const decision = page.getByRole('alertdialog', { name: 'Unsaved source changes', exact: true })
   await expect(decision).toHaveCount(1)
   await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('print("first draft")\n')

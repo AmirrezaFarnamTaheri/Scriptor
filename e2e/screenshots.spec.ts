@@ -55,11 +55,8 @@ async function waitForInspectorReady(page: Page) {
 
 async function waitForFullWorkspace(page: Page) {
   await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible()
-  // The redundant badge yields to primary controls at compact desktop widths.
-  // Its resolved value plus the visible sidebar proves vault hydration.
-  await expect(page.locator('small.vault-badge')).toHaveText('Research Vault', {
-    timeout: 45_000,
-  })
+  // The top bar uses one vault switcher, not a duplicate vault badge.
+  // File-list, editor and index checks below establish the actual ready state.
   await waitForVaultSidebarReady(page)
   await waitForEditorReady(page)
   await waitForInspectorReady(page)
