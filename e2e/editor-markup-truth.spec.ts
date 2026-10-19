@@ -33,6 +33,14 @@ test.describe('Editor markup fidelity', () => {
     await expect(line).toContainText('[[Field Notes]]')
   })
 
+  test('mixed wikilinks and embeds retain both decorations in document order', async ({ page }) => {
+    const preview = await openSplitPreview(page)
+    await preview.locator('.cm-content').fill('[[Before]] then ![[Image]] and [[After]]')
+    await expect(preview.locator('.cm-wikilink')).toHaveCount(2)
+    await expect(preview.locator('.cm-wikilink-embed')).toHaveCount(1)
+    await expect(preview.locator('.cm-content')).toContainText('[[Before]] then ![[Image]] and [[After]]')
+  })
+
   test('split preview keeps Scriptor task markers intact', async ({ page }) => {
     const preview = await openSplitPreview(page)
     const taskLine = preview.locator('.cm-line', { hasText: 'Draft methodology' })

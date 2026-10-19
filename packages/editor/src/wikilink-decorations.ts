@@ -4,8 +4,10 @@ import { Decoration, EditorView, ViewPlugin } from '@codemirror/view'
 const wikilinkMark = Decoration.mark({ class: 'cm-wikilink' })
 const wikilinkEmbedMark = Decoration.mark({ class: 'cm-wikilink-embed' })
 
-const WIKILINK = /\[\[[^\]|]+\]\]/g
-const WIKILINK_EMBED = /!\[\[[^\]|]+\]\]/g
+// Emit both link types in a single document-order pass. RangeSetBuilder
+// requires monotonically increasing offsets; two separate regex scans pushed
+// all embeds before ordinary wikilinks and crashed on mixed documents.
+const WIKILINK_TOKEN = /!?\[\[[^\]|]+\]\]/g
 
 /** Highlight `[[wikilinks]]` and `![[embeds]]` in the editor surface. */
 export function wikilinkDecorationExtension(): Extension {
@@ -31,17 +33,10 @@ function buildWikilinkDecorations(view: EditorView) {
   const builder = new RangeSetBuilder<Decoration>()
   const doc = view.state.doc.toString()
 
-  for (const match of doc.matchAll(WIKILINK_EMBED)) {
+  for (const match of doc.matchAll(WIKILINK_TOKEN)) {
     const from = match.index ?? 0
     const to = from + match[0].length
-    builder.add(from, to, wikilinkEmbedMark)
-  }
-
-  for (const match of doc.matchAll(WIKILINK)) {
-    const from = match.index ?? 0
-    const to = from + match[0].length
-    if (doc.slice(Math.max(0, from - 1), from) === '!') continue
-    builder.add(from, to, wikilinkMark)
+    builder.add(from, to, match[0].startsWith('!') ? wikilinkEmbedMark : wikilinkMark)
   }
 
   return builder.finish()
