@@ -282,28 +282,30 @@ function AppTopBarImpl({
           {vault && recentVaults.length === 0 ? <small className="vault-badge">{vault.name}</small> : null}
         </div>
 
-        {showHistory ? (
-          <div className="history-controls" aria-label={t('topBar.historyControls')}>
-            <IconButton tooltip={false} label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
-              <ChevronRight className="flip" />
-            </IconButton>
-            <IconButton tooltip={false} label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
-              <ChevronRight />
-            </IconButton>
-            {recentVaults.length === 0 ? (
-              <button type="button" className="action-button" onClick={onChooseVault}>
-                <FolderOpen />
-                <span className="action-button-label">{t('topBar.openVault')}</span>
-              </button>
-            ) : null}
-            <WorkspaceSwitcher
-              recentVaults={recentVaults}
-              activeVaultPath={activeVaultPath}
-              onOpenVault={onOpenVault}
-              onChooseVault={onChooseVault}
-            />
-          </div>
-        ) : null}
+        <div className="history-controls" aria-label={showHistory ? t('topBar.historyControls') : t('topBar.switchVault')}>
+          {showHistory ? (
+            <>
+              <IconButton tooltip={false} label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
+                <ChevronRight className="flip" />
+              </IconButton>
+              <IconButton tooltip={false} label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
+                <ChevronRight />
+              </IconButton>
+            </>
+          ) : null}
+          {recentVaults.length === 0 ? (
+            <button type="button" className="action-button" onClick={onChooseVault}>
+              <FolderOpen />
+              <span className="action-button-label">{t('topBar.openVault')}</span>
+            </button>
+          ) : null}
+          <WorkspaceSwitcher
+            recentVaults={recentVaults}
+            activeVaultPath={activeVaultPath}
+            onOpenVault={onOpenVault}
+            onChooseVault={onChooseVault}
+          />
+        </div>
 
         {showModeStrip ? (
           <div className="workspace-mode-strip" aria-label={t('topBar.workspaceMode')}>

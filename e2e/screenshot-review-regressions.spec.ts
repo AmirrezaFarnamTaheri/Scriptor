@@ -128,6 +128,18 @@ test('workspace switcher option labels display cleanly without premature path cl
   }
 })
 
+test('hiding history arrows does not hide the vault picker', async ({ page }) => {
+  await page.addInitScript((prefs) => {
+    const data = { ...prefs.data, showHistoryControls: false }
+    localStorage.setItem('scriptor:workspace-chrome', JSON.stringify({ ...prefs, data }))
+  }, WORKSPACE_CHROME_PREFS)
+  await launchApp(page)
+  const topbar = page.locator('header.topbar')
+  await expect(topbar.getByRole('combobox', { name: 'Switch vault', exact: true })).toBeVisible()
+  await expect(topbar.getByRole('button', { name: 'Back', exact: true })).toHaveCount(0)
+  await expect(topbar.getByRole('button', { name: 'Forward', exact: true })).toHaveCount(0)
+})
+
 for (const theme of ['light', 'dark'] as const) {
   test(`${theme} Monaco line numbers meet AA text contrast`, async ({ page }) => {
     await page.addInitScript(() => {
