@@ -123,6 +123,7 @@ test('workspace switcher option labels display cleanly without premature path cl
     expect(options).toContain('notes')
     await expect(switcher).toHaveAttribute('aria-label', 'Switch vault')
     await expect(switcher.locator('option[value="__choose__"]')).toHaveText('Open another vault…')
+    await expect(page.locator('header.topbar .vault-badge')).toHaveCount(0)
     await expect(page.locator('header.topbar').getByRole('button', { name: 'Open Vault', exact: true })).toHaveCount(0)
   }
 })

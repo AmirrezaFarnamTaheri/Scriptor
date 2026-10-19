@@ -28,6 +28,9 @@ export function WorkspaceSwitcher({
         onChange={(event) => {
           const value = event.target.value
           if (value === '__choose__') {
+            // The OS picker may be cancelled. Keep the previously selected
+            // vault visible until an actual folder has been opened.
+            event.currentTarget.value = activeVaultPath ?? ''
             onChooseVault()
             return
           }

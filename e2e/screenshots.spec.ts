@@ -650,14 +650,14 @@ test('workspace selector and active vault identity', async ({ page }) => {
   const topbar = page.locator('header.topbar')
   await expect(topbar).toBeVisible()
 
-  const switcher = topbar.getByRole('combobox', { name: 'Recent vault', exact: true })
+  const switcher = topbar.getByRole('combobox', { name: 'Switch vault', exact: true })
   await expect(switcher).toBeVisible()
   await expect(switcher.locator('option:checked')).toHaveAttribute('value', 'C:/Scriptor/fixtures/minimal')
   await expect(switcher.locator('option:checked')).toHaveText('minimal')
   expect(await switcher.locator('option').count()).toBeGreaterThanOrEqual(2)
   await switcher.focus()
   await expect(switcher).toBeFocused()
-  await expect(topbar.locator('small.vault-badge')).toHaveText('Research Vault')
+  await expect(topbar.locator('small.vault-badge')).toHaveCount(0)
   await settleLayout(page)
 
   // Capture the owning chrome while the selector has keyboard focus. The native

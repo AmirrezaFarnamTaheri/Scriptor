@@ -53,6 +53,15 @@ async function installExportFixture(page: Page) {
   })
 }
 
+async function chooseAnotherVault(page: Page) {
+  const switcher = page.getByRole('combobox', { name: 'Switch vault', exact: true })
+  if (await switcher.isVisible()) {
+    await switcher.selectOption('__choose__')
+  } else {
+    await page.getByRole('button', { name: 'Open Vault', exact: true }).click()
+  }
+}
+
 async function command(page: Page, label: string) { await openCommandPalette(page); await runCommand(page, label) }
 async function publishCenter(page: Page) {
   await command(page, 'Open publish center')
@@ -76,7 +85,7 @@ test('a pending offline export blocks a competing palette profile and vault repl
   await expect.poll(async () => (await calls(page, 'vault_append_activity_log')).some(row =>
     row.args.message === 'An export is already running. Wait for it to finish before starting another export.',
   )).toBe(true)
-  await page.getByRole('button', { name: 'Open Vault', exact: true }).click()
+  await chooseAnotherVault(page)
   await expect(page.getByText('An export is still running. Wait for it to finish, or cancel it in Export & publish before changing vaults.', { exact: true })).toBeVisible()
   expect(await calls(page, 'vault_open')).toHaveLength(0)
   await page.evaluate(() => (window as Window & { finishExportFixture: () => void }).finishExportFixture())
@@ -101,7 +110,7 @@ test('a delayed publication plan cannot reopen or populate the publish center af
   await expect(page.getByText('A publication operation is already running. Wait for it to finish before reviewing another plan.', { exact: true })).toBeVisible()
   expect(await calls(page, 'vault_publish_plan_starlight')).toHaveLength(1)
   await expect(prompt).toHaveCount(0)
-  await page.getByRole('button', { name: 'Open Vault', exact: true }).click()
+  await chooseAnotherVault(page)
   await expect.poll(async () => (await calls(page, 'vault_open')).length).toBe(1)
   await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible()
   await expect(page.getByRole('complementary', { name: 'Vault', exact: true }).getByText('Next vault', { exact: true })).toBeVisible()
