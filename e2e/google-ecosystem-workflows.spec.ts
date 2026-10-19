@@ -58,7 +58,7 @@ test('Persian Drive resource setup uses real RTL localization at restored 200 pe
 test('Drive keeps important account and cache privacy details available without blocking the first action', async ({ page }) => {
   await launchGoogle(page)
   const panel = await openDrive(page)
-  const details = panel.locator('details.collaboration-guidance')
+  const details = panel.locator('details.collaboration-guidance').filter({ has: panel.getByText('How sharing works and where data is stored', { exact: true }) })
   await expect(details).toBeVisible()
   await expect(details).not.toHaveAttribute('open', '')
   await expect(panel.getByRole('button', { name: 'Connect Google Drive', exact: true })).toBeVisible()
@@ -373,5 +373,5 @@ test('A late initial Drive credential read cannot erase a newly completed connec
   await panel.getByRole('button', { name: 'Connect Google Drive', exact: true }).click()
   await expect(panel.getByRole('status').filter({ hasText: 'Google setup saved' })).toContainText('Google setup saved')
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('e2e:google-late-account'))).toBe('1')
-  await expect(panel).toContainText('Connected: drive@example.com')
+  await expect(panel).toContainText('Connected as drive@example.com')
 })
