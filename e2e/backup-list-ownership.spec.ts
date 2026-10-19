@@ -43,7 +43,7 @@ test('backup inventory and errors follow the selected directory, never a stale l
 
   await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
   const settings = page.getByRole('dialog', { name: 'Settings' })
-  const pathInput = settings.getByRole('textbox', { name: /Disaster-recovery backup path/ })
+  const pathInput = settings.getByRole('textbox', { name: /Backup folder outside this vault/ })
   const backupPanel = settings.locator('[data-help-topic="backups"]')
   await expect(pathInput).toBeVisible()
 

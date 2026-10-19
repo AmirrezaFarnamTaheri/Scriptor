@@ -480,7 +480,7 @@ test('conflict resolver modal', async ({ page }) => {
 
   const mergedHeading = resolver.locator('.conflict-merged-preview-heading')
   await expect(mergedHeading.getByRole('status')).toContainText('1 unresolved')
-  await expect(resolver.getByRole('button', { name: 'Apply resolved file', exact: true })).toBeDisabled()
+  await expect(resolver.getByRole('button', { name: 'Apply selected changes', exact: true })).toBeDisabled()
   await expect.poll(() => resolver.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
 
   // This dynamic conflict state remains part of the per-run visual artifact,

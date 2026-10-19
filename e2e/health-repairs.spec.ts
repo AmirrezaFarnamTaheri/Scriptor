@@ -129,8 +129,8 @@ test('cancelled review performs no mutation and source drift keeps the reviewed 
 test('an incomplete asset reference scan blocks pruning before confirmation', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const panel = await openRepairs(page)
-  await panel.getByRole('button', { name: 'Recoverably prune asset', exact: true }).click()
-  await panel.getByLabel('Vault-relative asset path').fill('assets/image.png')
+  await panel.getByRole('button', { name: 'Move unused file to recovery', exact: true }).click()
+  await panel.getByLabel('File path in this vault').fill('assets/image.png')
   await page.evaluate(() => sessionStorage.setItem('e2e:incomplete-health-scan', '1'))
   await panel.getByRole('button', { name: 'Preview fix', exact: true }).click()
   await expect(panel.getByRole('alert')).toContainText('complete reference scan')

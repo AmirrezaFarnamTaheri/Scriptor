@@ -184,10 +184,10 @@ async function openMobileWorkspace(page: Page, width = 390, height = 844) {
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await waitForEditorReady(page)
   await waitForActiveSplitPreview(page)
-  const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+  const nav = page.locator('nav.mobile-workspace-nav')
   await expect(nav).toBeVisible()
   await expect(nav).toBeInViewport()
-  await expectFullyInViewport(page, 'nav[aria-label="Mobile workspace navigation"]')
+  await expectFullyInViewport(page, 'nav.mobile-workspace-nav')
 }
 
 async function installResourceInventoryFixture(page: Page) {
@@ -636,7 +636,8 @@ test.describe('visual review states', () => {
   test('minimum-width mobile workspace evidence', async ({ page }) => {
     await openMobileWorkspace(page, 320, 720)
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
-    await expect(nav.getByRole('button')).toHaveCount(4)
+    await expect(nav.getByRole('button')).toHaveCount(5)
+    await expect(nav.getByRole('button', { name: 'Plugins' })).toBeVisible()
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeVisible()
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
@@ -662,6 +663,7 @@ test.describe('visual review states', () => {
     await openMobileWorkspace(page)
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
+    await expect(page.locator('nav.mobile-workspace-nav')).toHaveAttribute('aria-label', 'پیمایش محیط کاری موبایل')
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-mobile-rtl-fa-390.png')
@@ -962,7 +964,13 @@ test.describe('visual review states', () => {
 
     const inspector = page.locator('.inspector-panel')
     await expect(inspector).toBeVisible()
-    const grid = inspector.locator('.metric-grid').first()
+    await inspector.getByRole('tab', { name: 'Inspector' }).click()
+    const breakdown = inspector.locator('#inspector-panel-inspector details.inspector-health-breakdown')
+    if (await breakdown.isVisible()) {
+      await breakdown.locator('summary').click()
+      await expect(breakdown).toHaveAttribute('open', '')
+    }
+    const grid = inspector.locator('#inspector-panel-inspector .metric-grid').first()
     await expect(grid).toBeVisible()
     const geometry = await grid.evaluate((element) => {
       const cards = Array.from(element.querySelectorAll<HTMLElement>('.metric'))
@@ -1155,7 +1163,7 @@ test.describe('visual review states', () => {
     await git.getByRole('button', { name: 'Resolve' }).click()
     const resolver = page.getByRole('dialog', { name: 'Resolve merge conflicts' })
     await expect(resolver).toBeVisible()
-    await expect(resolver.getByRole('button', { name: 'Apply resolved file' })).toBeDisabled()
+    await expect(resolver.getByRole('button', { name: 'Apply selected changes' })).toBeDisabled()
     const unresolvedStatus = resolver.locator('.conflict-unresolved-status')
     await expect(unresolvedStatus).toBeVisible()
     await expect.poll(() => unresolvedStatus.evaluate((element) => {
@@ -1981,7 +1989,7 @@ test.describe('visual review states', () => {
     await backup.scrollIntoViewIfNeeded()
     await expect(backup.getByRole('heading', { name: 'Backup', exact: true })).toBeVisible()
     await expect(backup.getByText('Enable scheduled backups', { exact: true })).toBeVisible()
-    await expect(backup.getByText(/Disaster-recovery backup path/)).toBeVisible()
+    await expect(backup.getByText(/Backup folder outside this vault/)).toBeVisible()
     await expect.poll(() => backup.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await captureElement(page, backup, 'visual-settings-backups.png')
   })
