@@ -75,7 +75,15 @@ test('the non-applicable LaTeX engine does not displace the profile list', async
   })
   expect(listBeforeLatex, 'export profiles must precede the LaTeX engine section').toBe(true)
 
-  // The disabled primary action must not be the only thing in that section: the
-  // discoverability control stays reachable.
+  // Ordinary Markdown exports shouldn't be crowded by disabled compiler actions.
+  // They remain one keyboard-accessible disclosure away for users who need them.
+  const compiler = dialog.locator('details.publish-latex-options')
+  await expect(compiler).not.toHaveAttribute('open', '')
+  await compiler.locator('summary').click()
+  await expect(compiler).toHaveAttribute('open', '')
   await expect(dialog.getByRole('button', { name: /Detect Tectonic|Tectonic (detected|not found)/ })).toBeVisible()
+  const location = dialog.locator('.publish-profile-list li').first().locator('details.publish-profile-destination')
+  await expect(location).not.toHaveAttribute('open', '')
+  await location.locator('summary').click()
+  await expect(location.locator('code')).toBeVisible()
 })

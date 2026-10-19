@@ -126,7 +126,7 @@ export const PublishCenter = memo(function PublishCenter({
             Export this note
           </h3>
           <p className="health-subtitle">
-            Choose a file format and save location. PDF export can work without an internet connection.
+            Choose a format. Save folders are configured per format; offline PDF needs no internet connection.
           </p>
           <ul className="publish-profile-list">
             {exportProfiles.map((profile) => {
@@ -138,22 +138,23 @@ export const PublishCenter = memo(function PublishCenter({
                     <strong>{profile.label}</strong>
                     {formatBadge ? <span className="publish-format-chip">{formatBadge}</span> : null}
                   </div>
-                  <div className="publish-profile-destination">
-                    <FolderOutput size={13} aria-hidden="true" />
-                    <span>Destination</span>
+                  <details className="publish-profile-destination">
+                    <summary><FolderOutput size={13} aria-hidden="true" /> Save location</summary>
                     <code>{profile.outputDirectory}</code>
-                  </div>
+                  </details>
                 </div>
                 <div className="publish-profile-actions">
-                  <button
-                    type="button"
-                    className="toolbar-button"
-                    disabled={!activePath || isExporting || profile.id === 'pdf-offline' || profile.id === 'pdf-translate'}
-                    title="Check export settings without creating a file"
-                    onClick={() => onExport(profile.id, true)}
-                  >
-                    Preview export
-                  </button>
+                  {profile.id !== 'pdf-offline' && profile.id !== 'pdf-translate' ? (
+                    <button
+                      type="button"
+                      className="toolbar-button"
+                      disabled={!activePath || isExporting}
+                      title="Check export settings without creating a file"
+                      onClick={() => onExport(profile.id, true)}
+                    >
+                      Preview export
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="primary-button publish-export-action"
@@ -178,6 +179,9 @@ export const PublishCenter = memo(function PublishCenter({
             <FileOutput size={16} aria-hidden="true" />
             Compile with LaTeX (Tectonic)
           </h3>
+          <details className="publish-latex-options" key={isTexDocument ? 'latex' : 'other'} defaultOpen={isTexDocument}>
+            <summary>{isTexDocument ? 'LaTeX compiler options' : 'Show LaTeX compiler options (.tex / .ltx)'}</summary>
+            <div className="publish-latex-content">
           <p className="health-subtitle">
             Turn the open LaTeX file into a PDF using the built-in compiler.
           </p>
@@ -237,6 +241,8 @@ export const PublishCenter = memo(function PublishCenter({
               ) : null}
             </div>
           ) : null}
+            </div>
+          </details>
         </section>
 
         {exportResult?.dry_run && preflightProfileLabel ? (

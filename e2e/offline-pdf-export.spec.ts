@@ -20,7 +20,7 @@ test('offline export uses a vault-bound editor snapshot and exposes bundled redi
   await runCommand(page, 'Open publish center')
   const panel = page.getByRole('dialog', { name: 'Export & publish', exact: true })
   const row = panel.locator('.publish-profile-list > li').filter({ hasText: 'PDF · Offline' })
-  await expect(row.getByRole('button', { name: 'Preview export', exact: true })).toBeDisabled()
+  await expect(row.getByRole('button', { name: 'Preview export', exact: true })).toHaveCount(0)
   await row.getByRole('button', { name: 'Export PDF', exact: true }).click()
   await expect(panel.getByRole('status')).toContainText('Typesetting offline PDF')
   await expect(panel.getByRole('button', { name: 'Cancel export', exact: true })).toHaveCount(0)

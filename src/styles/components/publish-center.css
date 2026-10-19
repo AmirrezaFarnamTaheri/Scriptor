@@ -440,3 +440,14 @@
   padding-top: 8px;
   border-top: 1px solid var(--border);
 }
+
+/* Most readers do not need to inspect eight repeated output paths or disabled
+   LaTeX controls while exporting an ordinary Markdown note. */
+.publish-profile-destination { display: block; font-size: 12px; }
+.publish-profile-destination > summary { cursor: pointer; width: fit-content; min-height: 28px; padding: 4px 0; }
+.publish-profile-destination > summary svg { vertical-align: -2px; margin-inline-end: 4px; }
+.publish-profile-destination[open] code { display: block; margin-top: 4px; white-space: normal; overflow-wrap: anywhere; }
+.publish-profile-destination > summary:focus-visible,
+.publish-latex-options > summary:focus-visible { outline: 2px solid var(--primary-strong); outline-offset: 2px; }
+.publish-latex-options > summary { cursor: pointer; padding: 8px 0; color: var(--ink); }
+.publish-latex-content { display: grid; gap: 10px; padding-top: 8px; }
