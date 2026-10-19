@@ -412,12 +412,15 @@ test('publish center', async ({ page }) => {
   const geometry = await publish.evaluate((panel) => {
     const panelRect = panel.getBoundingClientRect()
     const cards = Array.from(panel.querySelectorAll<HTMLElement>('.publish-profile-list > li'))
-    const actions = Array.from(panel.querySelectorAll<HTMLElement>('.publish-profile-actions'))
+    // LaTeX has another action row outside any profile card. Check only
+    // per-card actions against the card bounds; do not treat LaTeX as overflow.
+    const actions = cards.flatMap((card) => Array.from(card.querySelectorAll<HTMLElement>('.publish-profile-actions')))
     return {
       panelInViewport: panelRect.left >= -1 && panelRect.right <= window.innerWidth + 1
         && panelRect.top >= -1 && panelRect.bottom <= window.innerHeight + 1,
       panelOverflow: panel.scrollWidth - panel.clientWidth,
       cardOverflow: cards.some((card) => card.scrollWidth > card.clientWidth + 1),
+      checkedActionRows: actions.length,
       actionOverflow: actions.some((action) => {
         const rect = action.getBoundingClientRect()
         const card = action.closest('li')?.getBoundingClientRect()
@@ -428,6 +431,7 @@ test('publish center', async ({ page }) => {
   expect(geometry.panelInViewport).toBe(true)
   expect(geometry.panelOverflow).toBeLessThanOrEqual(1)
   expect(geometry.cardOverflow).toBe(false)
+  expect(geometry.checkedActionRows).toBeGreaterThan(0)
   expect(geometry.actionOverflow).toBe(false)
   await captureReadyScreenshot(page, shotPath('publish-center'))
 })
