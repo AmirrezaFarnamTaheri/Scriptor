@@ -292,3 +292,22 @@ test('unsaved snippet confirmation replaces the bounded modal footer instead of 
   assert.match(css, /\.snippets-footer\.is-confirming \{ display: block; \}/)
   assert.doesNotMatch(source, /<\/footer>\s*\{confirmDiscard/)
 })
+
+test('vault navigation offers contextual next steps without showing dead-end controls', () => {
+  const sidebar = read('src/components/app/VaultSidebar.tsx')
+  const search = read('src/hooks/useSearchStore.ts')
+  const css = read('src/styles/app/workspace.css')
+  for (const key of ['emptyVault', 'vaultLoadFailed', 'noSearchResults', 'clearSearch', 'moreCreateOptions']) {
+    for (const locale of ['en', 'de', 'fa']) {
+      assert.equal(typeof get(locale, `vaultSidebar.${key}`), 'string', `${locale} missing ${key}`)
+      assert.ok(get(locale, `vaultSidebar.${key}`).trim(), `${locale} empty ${key}`)
+    }
+  }
+  assert.match(sidebar, /!vault \? \(/)
+  assert.match(sidebar, /onClick=\{onChooseVault\}/)
+  assert.match(sidebar, /onClick=\{onCreateNote\}/)
+  assert.match(sidebar, /onSearchQueryChange\(''\)/)
+  assert.match(sidebar, /<details className="vault-create-options">/)
+  assert.match(search, /setSearchResults\(\[\]\)\s+setIsSearching\(true\)/)
+  assert.match(css, /\.vault-search-clear:focus-visible/)
+})

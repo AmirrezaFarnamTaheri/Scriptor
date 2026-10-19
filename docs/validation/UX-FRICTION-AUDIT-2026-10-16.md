@@ -340,3 +340,11 @@ linking a Google account is not permission to change local notes automatically.
 - Keep feature-specific advanced concepts such as DQL, Git conflict markers,
   OAuth scopes and synchronization receipts in context-sensitive Help/Details,
   but do not rewrite or hide the actual legal/security consequences of actions.
+
+## October 19 — search and first-note friction removal
+
+- Opening an empty vault no longer tells the user to open another vault. It offers **New note**. A missing vault shows **Open vault folder**; a failed load shows a retry route.
+- Search has a direct **Clear search** action. A pending debounced query immediately reports *Searching*, rather than temporarily claiming zero results; previous hits are discarded while the new search is pending.
+- Uncommon note types and templates are grouped under **More ways to create**. The existing one-click New note action and daily navigation remain visible.
+- English/German/Persian copy, a browser recovery test and source contracts cover the new states.
+- Corrected the Drive privacy-help selector: the first nested locator was improperly scoped. Current-head browser, visual and native checks remain release gates.

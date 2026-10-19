@@ -58,7 +58,7 @@ test('Persian Drive resource setup uses real RTL localization at restored 200 pe
 test('Drive keeps important account and cache privacy details available without blocking the first action', async ({ page }) => {
   await launchGoogle(page)
   const panel = await openDrive(page)
-  const details = panel.locator('details.collaboration-guidance').filter({ has: panel.getByText('How sharing works and where data is stored', { exact: true }) })
+  const details = panel.locator('details.collaboration-guidance').filter({ hasText: 'How sharing works and where data is stored' })
   await expect(details).toBeVisible()
   await expect(details).not.toHaveAttribute('open', '')
   await expect(panel.getByRole('button', { name: 'Connect Google Drive', exact: true })).toBeVisible()

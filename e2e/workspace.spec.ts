@@ -27,6 +27,18 @@ test.describe('workspace flows', () => {
     }, WORKSPACE_CHROME_PREFS)
   })
 
+  test('a note search with no matches can be cleared in one step', async ({ page }) => {
+    await launchApp(page)
+    const sidebar = page.locator('.vault-panel')
+    const input = sidebar.getByRole('searchbox', { name: 'Search notes' })
+    await input.fill('scriptor_nonexistent_note_query_8d68e493')
+    await expect(sidebar.getByRole('button', { name: 'Clear search' })).toBeVisible()
+    await expect(sidebar.locator('.vault-search-feedback .search-hint')).toContainText('No matching notes', { timeout: 15_000 })
+    await sidebar.getByRole('button', { name: 'Clear search' }).click()
+    await expect(input).toHaveValue('')
+    await expect(sidebar.locator('.vault-search-feedback')).toHaveCount(0)
+  })
+
   test('vault open shows skeleton rows while indexing', async ({ page }) => {
     await page.addInitScript(() => {
       window.sessionStorage.setItem('e2e:slow-vault', '1')
