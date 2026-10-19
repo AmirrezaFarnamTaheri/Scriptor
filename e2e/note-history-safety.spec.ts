@@ -22,8 +22,8 @@ test('note history compares current content before restore', async ({ page }) =>
   const activity = panel.getByRole('list', { name: 'Saved revisions per UTC day' })
   await expect(activity).toBeVisible()
   await expect(activity.locator('li')).not.toHaveCount(0)
-  await expect(panel.getByText('Empty cells mean no retained revision;', { exact: false })).toBeVisible()
-  await panel.getByText('Vocabulary comparison', { exact: true }).click()
+  await expect(panel.getByText("An empty day doesn't mean the note wasn't edited.", { exact: false })).toBeVisible()
+  await panel.getByText('Word comparison', { exact: true }).click()
   await expect(panel.getByRole('row', { name: /Distinct words/ })).toBeVisible()
   await expect(panel.getByText('it is not a readability or quality score.', { exact: false })).toBeVisible()
 

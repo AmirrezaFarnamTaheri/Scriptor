@@ -33,8 +33,8 @@ test('offline weekly planner maps tasks to time blocks, retains them after resta
 })
 
 for (const scenario of [
-  { locale: 'de', dir: 'ltr', title: 'Wochenplaner', search: 'Aufgaben im Tresor suchen', review: 'Bidirektionalen Abgleich prüfen' },
-  { locale: 'fa', dir: 'rtl', title: 'برنامه‌ریز هفتگی', search: 'جست‌وجوی وظایف مخزن', review: 'بازبینی همگام‌سازی دوسویه' },
+  { locale: 'de', dir: 'ltr', title: 'Wochenplaner', search: 'Aufgaben im Tresor suchen', review: 'Änderungen vor dem Abgleich prüfen' },
+  { locale: 'fa', dir: 'rtl', title: 'برنامه‌ریز هفتگی', search: 'جست‌وجوی وظایف مخزن', review: 'بازبینی تغییرات پیش از همگام‌سازی' },
 ] as const) {
   test(`localized ${scenario.locale} planner exposes keyboard-operable labels in the correct direction`, async ({ page }) => {
     await launchApp(page)

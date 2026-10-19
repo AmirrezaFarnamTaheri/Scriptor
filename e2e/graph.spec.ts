@@ -117,7 +117,7 @@ test.describe('Graph panel', () => {
     const controls = panel.locator('.graph-controls')
     const view = controls.getByRole('combobox', { name: 'View' })
     await expect(view).toBeVisible()
-    await expect(view.getByRole('option', { name: 'Neighborhood' })).toHaveCount(1)
+    await expect(view.getByRole('option', { name: /^Nearby notes/ })).toHaveCount(1)
     await expect(view.getByRole('option', { name: 'Full vault' })).toHaveCount(1)
     await expect(panel.getByRole('button', { name: 'Close graph' })).toBeVisible()
 

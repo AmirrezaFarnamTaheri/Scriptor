@@ -687,7 +687,9 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header h2 { fo
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header h2 svg { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header .health-subtitle { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .asset-deck-split:not(.has-reader) .embedded-panel-shell > header { display:none; }
-@container mobile-chrome (max-width: 141px) {
+/* Five 32px grid targets plus gutters need at least 176 CSS pixels. Fall back
+   to two columns before high-zoom narrow screens overflow in LTR or RTL. */
+@container mobile-chrome (max-width: 200px) {
   html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(2,minmax(32px,1fr)); }
 }
 

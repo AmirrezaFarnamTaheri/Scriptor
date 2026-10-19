@@ -321,10 +321,11 @@ test('narrow German vault navigation keeps labels and calendar icon contained', 
     const buttons = [...nav.querySelectorAll('button')].map(button => button.getBoundingClientRect())
     const date = element.querySelector('.daily-note-button')!.getBoundingClientRect()
     const icon = element.querySelector('.daily-note-button > svg')!.getBoundingClientRect()
-    return { rowGap: buttons[1].top - buttons[0].bottom, iconWidth: icon.width, iconInset: icon.left - date.left, navColumns: getComputedStyle(nav).gridTemplateColumns.split(' ').length }
+    return { navGap: buttons[1].left - buttons[0].right, navOverflow: nav.scrollWidth - nav.clientWidth, iconWidth: icon.width, iconInset: icon.left - date.left, navColumns: getComputedStyle(nav).gridTemplateColumns.split(' ').length }
   })
-  expect(geometry.navColumns).toBe(1)
-  expect(geometry.rowGap).toBeGreaterThanOrEqual(6)
+  expect(geometry.navColumns).toBe(2)
+  expect(geometry.navGap).toBeGreaterThanOrEqual(0)
+  expect(geometry.navOverflow).toBeLessThanOrEqual(1)
   expect(geometry.iconWidth).toBeGreaterThanOrEqual(16)
   expect(geometry.iconInset).toBeGreaterThanOrEqual(4)
 })
