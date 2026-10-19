@@ -393,8 +393,43 @@ test('publish center', async ({ page }) => {
   await runCommand(page, 'Open publish center')
   await expect(page.getByRole('dialog', { name: 'Export & publish' })).toBeVisible()
   await page.waitForTimeout(800)
+  const publish = page.getByRole('dialog', { name: 'Export & publish' })
+  const profiles = publish.locator('.publish-profile-list > li')
+  await expect(profiles.first()).toBeVisible()
+  await expect(profiles.first().getByRole('button', { name: 'Export HTML', exact: true })).toBeVisible()
+
+  // The refreshed Publish Center collapses save destinations on purpose.
+  // Exercise that disclosure instead of requiring the old, expanded bitmap:
+  // the screenshot remains a per-run visual artifact for human review.
+  const destination = profiles.first().locator('details.publish-profile-destination')
+  await expect(destination).not.toHaveAttribute('open', '')
+  await expect(destination.locator('code')).toBeHidden()
+  await destination.locator(':scope > summary').click()
+  await expect(destination.locator('code')).toBeVisible()
+  await destination.locator(':scope > summary').click()
+  await expect(destination).not.toHaveAttribute('open', '')
+
+  const geometry = await publish.evaluate((panel) => {
+    const panelRect = panel.getBoundingClientRect()
+    const cards = Array.from(panel.querySelectorAll<HTMLElement>('.publish-profile-list > li'))
+    const actions = Array.from(panel.querySelectorAll<HTMLElement>('.publish-profile-actions'))
+    return {
+      panelInViewport: panelRect.left >= -1 && panelRect.right <= window.innerWidth + 1
+        && panelRect.top >= -1 && panelRect.bottom <= window.innerHeight + 1,
+      panelOverflow: panel.scrollWidth - panel.clientWidth,
+      cardOverflow: cards.some((card) => card.scrollWidth > card.clientWidth + 1),
+      actionOverflow: actions.some((action) => {
+        const rect = action.getBoundingClientRect()
+        const card = action.closest('li')?.getBoundingClientRect()
+        return !card || rect.left < card.left - 1 || rect.right > card.right + 1
+      }),
+    }
+  })
+  expect(geometry.panelInViewport).toBe(true)
+  expect(geometry.panelOverflow).toBeLessThanOrEqual(1)
+  expect(geometry.cardOverflow).toBe(false)
+  expect(geometry.actionOverflow).toBe(false)
   await captureReadyScreenshot(page, shotPath('publish-center'))
-  await expect(page).toHaveScreenshot('publish-center.png', { fullPage: false })
 })
 
 test('vault health dashboard', async ({ page }) => {

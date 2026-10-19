@@ -361,3 +361,21 @@ dialog is omitted **only** for the three Google connect operations; reading,
 writing, sending, disconnecting, backup and destructive actions continue using
 their previous native approval requirements. The release still needs the
 publisher-owned public Google Desktop OAuth client identity.
+
+## October 19 — Publish Center visual gate reconciliation
+
+The original Windows `publish-center-win32.png` bitmap described the always-expanded
+save-location rows. The redesigned UI intentionally hides those path details
+behind a native Save location disclosure, reducing repeated text on each export
+format. The latest compare-only run reported approximately 4% different pixels;
+inspection of the actual, expected and diff images showed the changed rows rather
+than a missing export interface.
+
+Instead of raising global pixel tolerances or silently regenerating screenshots,
+the Publish Center test now checks the active HTML export action, expandable and
+collapsible folder disclosure, modal viewport containment, horizontal overflow and
+button-row containment. It continues to capture the full updated Publish Center
+image as a run artifact for visual review. Other existing screenshot comparisons
+and the broad visual suite remain unchanged. This trades one stale global pixel
+baseline for explicit interaction and geometry contracts and does not certify
+the entire UI visually.
