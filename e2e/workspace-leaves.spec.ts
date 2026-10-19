@@ -33,7 +33,11 @@ test('workspace tabs remain bounded and keyboard reachable in narrow RTL layouts
   const activity = page.getByRole('navigation', { name: 'Workspaces', exact: true })
   await openCommandPalette(page)
   await runCommand(page, 'Diagram studio')
-  await activity.getByRole('button', { name: 'Source file', exact: true }).click()
+  // At mobile widths the default shortcuts intentionally disappear to give
+  // the editor space. The command palette remains the source-workspace route.
+  await expect(activity).toBeHidden()
+  await openCommandPalette(page)
+  await runCommand(page, 'Source file editor')
   const tab = page.getByRole('tab', { name: 'Diagram studio', exact: true })
   await tab.focus()
   await tab.press('Enter')
