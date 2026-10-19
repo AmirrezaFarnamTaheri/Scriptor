@@ -23,6 +23,7 @@ async function openPublishCenter(page: Page) {
 
 test('every export profile sits in the panel scroll, not a nested one', async ({ page }) => {
   const dialog = await openPublishCenter(page)
+  await expect(dialog.locator('.publish-center-history')).toHaveCount(0)
   const list = page.locator('.publish-profile-list')
 
   // The seed includes the original six profiles and both reviewed PDF compilers.

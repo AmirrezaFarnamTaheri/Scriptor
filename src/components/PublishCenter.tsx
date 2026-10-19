@@ -291,14 +291,12 @@ export const PublishCenter = memo(function PublishCenter({
           )}
         </section>
 
-        <section className="publish-center-section publish-center-history">
-          <h3>
-            <History size={16} aria-hidden="true" />
-            Recent file exports
-          </h3>
-          {exportHistory.length === 0 ? (
-            <p className="empty-state">No file exports yet for this session.</p>
-          ) : (
+        {exportHistory.length > 0 ? (
+          <section className="publish-center-section publish-center-history">
+            <h3>
+              <History size={16} aria-hidden="true" />
+              Recent file exports
+            </h3>
             <ul className="publish-history-list">
               {exportHistory.map((entry) => (
                 <li key={entry.id}>
@@ -315,8 +313,8 @@ export const PublishCenter = memo(function PublishCenter({
                 </li>
               ))}
             </ul>
-          )}
-        </section>
+          </section>
+        ) : null}
 
         {exportResult && !exportResult.dry_run ? (
           <section className="publish-center-section">

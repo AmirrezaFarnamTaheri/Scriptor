@@ -351,6 +351,7 @@ test.describe('visual review states', () => {
     await expect(sharing.getByRole('heading', { name: 'Sharing and sync' })).toBeVisible()
     await expect(sharing).toContainText('Codex CLI')
     await expect(sharing).toContainText('visual-review')
+    await expect(sharing.getByRole('heading', { name: 'Compare duplicates' })).toHaveCount(0)
     const destination = sharing.getByRole('checkbox', { name: 'Sync Codex CLI' })
     await expect(destination).not.toBeChecked()
     await sharing.getByRole('button', { name: 'Select compatible apps' }).click()

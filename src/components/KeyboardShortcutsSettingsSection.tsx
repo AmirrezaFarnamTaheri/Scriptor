@@ -59,6 +59,8 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
     setDrafts((current) => ({ ...current, [commandId]: { value: raw, error: null } }))
   }
 
+  const hasAnyOverride = COMMAND_SHORTCUT_REGISTRY.some((entry) => shortcuts.hasOverride(entry.id))
+
   const resetAll = () => {
     shortcuts.resetAllShortcuts()
     setDrafts({})
@@ -73,9 +75,11 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
             Customize command shortcuts. Leave a field empty to disable that shortcut; reset restores the built-in value.
           </p>
         </div>
-        <button type="button" className="toolbar-button" onClick={resetAll}>
-          Reset all
-        </button>
+        {hasAnyOverride ? (
+          <button type="button" className="toolbar-button" onClick={resetAll}>
+            Reset all
+          </button>
+        ) : null}
       </div>
 
       <label className="settings-field">
@@ -162,7 +166,12 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
           )
         })}
       </div>
-      {visibleEntries.length === 0 ? <p className="empty-state">No commands match this search.</p> : null}
+      {visibleEntries.length === 0 ? (
+        <div className="shortcut-no-results">
+          <p className="empty-state">No commands match this search.</p>
+          <button type="button" className="toolbar-button" onClick={() => setQuery('')}>Clear search</button>
+        </div>
+      ) : null}
     </section>
   )
 })

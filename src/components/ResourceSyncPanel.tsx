@@ -228,7 +228,7 @@ export function ResourceSyncPanel() {
             See what's installed and where. Compare copies and review changes before syncing.
           </p>
         </div>
-        <button type="button" className="toolbar-button" onClick={() => void refresh()} disabled={loading}>
+        <button type="button" className="toolbar-button" onClick={() => void refresh()} disabled={loading || planning || applying}>
           {loading ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
           Rescan
         </button>
@@ -389,6 +389,7 @@ export function ResourceSyncPanel() {
             )}
           </section>
 
+          {inventory.duplicates.length > 0 ? (
           <section className="resource-sync-section">
             <div className="resource-sync-section-heading">
               <div>
@@ -435,6 +436,7 @@ export function ResourceSyncPanel() {
               </ul>
             )}
           </section>
+          ) : null}
 
           <section className="resource-sync-section resource-plan-builder">
             <div>
