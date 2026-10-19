@@ -24,6 +24,10 @@
     "next": "Next"
   },
   "topBar": {
+    "recentVaults": "Recent vaults",
+    "switchVault": "Switch vault",
+    "chooseVault": "Choose a vault",
+    "openAnotherVault": "Open another vault…",
     "openVault": "Open Vault",
     "workbench": "Explore notes",
     "publish": "Publish",

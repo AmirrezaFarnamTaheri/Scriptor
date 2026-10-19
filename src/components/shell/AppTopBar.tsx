@@ -279,7 +279,7 @@ function AppTopBarImpl({
           </IconButton>
           <BrandMark />
           <BrandWordmark />
-          {vault ? <small className="vault-badge">{vault.name}</small> : null}
+          {vault && recentVaults.length === 0 ? <small className="vault-badge">{vault.name}</small> : null}
         </div>
 
         {showHistory ? (
@@ -290,10 +290,12 @@ function AppTopBarImpl({
             <IconButton tooltip={false} label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
               <ChevronRight />
             </IconButton>
-            <button type="button" className="action-button" onClick={onChooseVault}>
-              <FolderOpen />
-              <span className="action-button-label">{t('topBar.openVault')}</span>
-            </button>
+            {recentVaults.length === 0 ? (
+              <button type="button" className="action-button" onClick={onChooseVault}>
+                <FolderOpen />
+                <span className="action-button-label">{t('topBar.openVault')}</span>
+              </button>
+            ) : null}
             <WorkspaceSwitcher
               recentVaults={recentVaults}
               activeVaultPath={activeVaultPath}

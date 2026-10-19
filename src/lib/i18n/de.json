@@ -24,6 +24,10 @@
     "next": "Weiter"
   },
   "topBar": {
+    "recentVaults": "Zuletzt geöffnete Vaults",
+    "switchVault": "Vault wechseln",
+    "chooseVault": "Vault auswählen",
+    "openAnotherVault": "Anderen Vault öffnen…",
     "openVault": "Tresor öffnen",
     "workbench": "Notizen entdecken",
     "publish": "Veröffentlichen",

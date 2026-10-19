@@ -24,6 +24,10 @@
     "next": "بعدی"
   },
   "topBar": {
+    "recentVaults": "مخزن‌های اخیر",
+    "switchVault": "تغییر مخزن",
+    "chooseVault": "انتخاب مخزن",
+    "openAnotherVault": "باز کردن مخزن دیگر…",
     "openVault": "باز کردن خزانه",
     "workbench": "کاوش یادداشت‌ها",
     "publish": "انتشار",
