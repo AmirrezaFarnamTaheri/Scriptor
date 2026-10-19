@@ -348,3 +348,16 @@ linking a Google account is not permission to change local notes automatically.
 - Uncommon note types and templates are grouped under **More ways to create**. The existing one-click New note action and daily navigation remain visible.
 - English/German/Persian copy, a browser recovery test and source contracts cover the new states.
 - Corrected the Drive privacy-help selector: the first nested locator was improperly scoped. Current-head browser, visual and native checks remain release gates.
+
+## October 19 — remove duplicate Google consent interruptions
+
+The "Connect with Google" action now opens the Google sign-in browser directly
+for Gmail, Calendar/Tasks, and Drive. Previously, a separate native "Approve
+once" dialog appeared before Google's own consent screen, turning one explicit
+connection action into two approvals. Native OAuth still uses PKCE, a localhost
+callback, service-isolated operating-system keychain credentials, and a
+short-lived scoped grant bound to the operation and account. The redundant
+dialog is omitted **only** for the three Google connect operations; reading,
+writing, sending, disconnecting, backup and destructive actions continue using
+their previous native approval requirements. The release still needs the
+publisher-owned public Google Desktop OAuth client identity.

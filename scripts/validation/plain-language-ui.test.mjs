@@ -343,3 +343,15 @@ test('Drive uses the app identity and does not ask production users for an OAuth
   assert.ok(!panel.includes('polling.starting || !clientId.trim()'))
   assert.ok(panel.includes("setError(t('integrations.google.notConfigured'))"))
 })
+
+test('one-click Google uses system-browser consent while preserving local write approvals', () => {
+  const rust = read('apps/desktop/src-tauri/src/authorization.rs')
+  assert.ok(rust.includes('if operation.uses_google_browser_consent()'))
+  assert.ok(rust.includes('.issue(operation, account_scope, bound_vault_id)'))
+  for (const operation of ['GoogleDriveAuth', 'GoogleCalendarAuth', 'GoogleGmailAuth']) {
+    assert.ok(rust.includes('Self::' + operation), operation)
+  }
+  assert.ok(rust.includes('if !approved {'))
+  assert.ok(rust.includes('GoogleGmailWrite'))
+  assert.ok(rust.includes('GoogleDriveWrite'))
+})
