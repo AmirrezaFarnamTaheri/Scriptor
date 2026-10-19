@@ -56,7 +56,7 @@
 
 .resource-sync-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.65rem;
 }
 
@@ -337,3 +337,12 @@
 .resource-copy-details dt { font-weight: 600; color: var(--text-muted); }
 .resource-copy-details dd { margin: 0; overflow-wrap: anywhere; }
 .resource-copy-details code { white-space: normal; overflow-wrap: anywhere; }
+
+/* Optional inventory metadata shouldn't crowd source and destination choices. */
+.resource-sync-inventory-details { margin-top: -0.35rem; min-width: 0; color: var(--text-muted); font-size: 0.8rem; }
+.resource-sync-inventory-details summary { cursor: pointer; width: fit-content; padding: 0.3rem 0; }
+.resource-sync-inventory-details summary:focus-visible,
+.resource-target-selection button:focus-visible { outline: 2px solid var(--primary-strong); outline-offset: 2px; }
+.resource-sync-inventory-details p { margin: 0.35rem 0 0; }
+.resource-target-selection { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.resource-target-selection > span { color: var(--text-muted); margin-inline-end: auto; font-size: 0.8rem; }

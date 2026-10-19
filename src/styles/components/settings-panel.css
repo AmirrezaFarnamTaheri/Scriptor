@@ -458,3 +458,10 @@
 .workspace-layout-advanced > summary { cursor: pointer; font-weight: 600; }
 .workspace-layout-advanced > summary:focus-visible { outline: var(--focus-outline); outline-offset: 3px; }
 .workspace-layout-advanced[open] > .settings-toggles { margin-block: 14px 0; }
+
+/* Put the manual backup action first and tuck routine configuration below. */
+.backup-options { min-width: 0; margin: 10px 0 14px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 9px 12px; }
+.backup-options > summary { cursor: pointer; font-weight: 600; }
+.backup-options > summary:focus-visible { outline: 2px solid var(--primary-strong); outline-offset: 2px; }
+.backup-options-fields { display: grid; gap: 10px; padding-top: 12px; }
+.backup-options-fields .settings-field { min-width: 0; }

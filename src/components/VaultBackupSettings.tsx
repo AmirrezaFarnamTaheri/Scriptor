@@ -40,53 +40,57 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
       </h3>
       <p className="health-subtitle">A recovery copy inside the vault cannot protect you if that folder is lost. Save important backups on another drive or backup location.</p>
 
-      <label className="diagnostics-opt-in">
-        <input
-          type="checkbox"
-          checked={settings.enabled}
-          onChange={(event) => setSettings({ enabled: event.target.checked })}
-        />
-        <span>Enable scheduled backups</span>
-      </label>
-
-      <label className="settings-field">
-        Backup interval (minutes)
-        <input
-          type="number"
-          min={5}
-          max={10080}
-          disabled={!settings.enabled}
-          value={settings.intervalMinutes}
-          onChange={(event) => setSettings({ intervalMinutes: Math.max(5, Number(event.target.value) || 60) })}
-        />
-      </label>
-
-      <label className="settings-field">
-        Recovery copies to keep
-        <input
-          type="number"
-          min={1}
-          max={100}
-          value={settings.maxSnapshots}
-          onChange={(event) => setSettings({ maxSnapshots: Math.max(1, Number(event.target.value) || 10) })}
-        />
-      </label>
-
-      <label className="settings-field">
-        Backup folder outside this vault
-        <input
-          value={settings.backupPath}
-          disabled={isBusy}
-          placeholder="Leave empty to keep recovery copies in this vault"
-          onChange={(event) => setSettings({ backupPath: event.target.value })}
-        />
-      </label>
-
       <div className="settings-actions">
-        <button type="button" className="toolbar-button" disabled={isBusy} onClick={() => void triggerBackup()}>
+        <button type="button" className="primary-button" disabled={isBusy} onClick={() => void triggerBackup()}>
           {isBusy ? 'Backing up…' : 'Back up now'}
         </button>
       </div>
+      <details className="backup-options" defaultOpen={settings.enabled || Boolean(settings.backupPath)}>
+        <summary>Schedule and backup location{settings.enabled ? ' · automatic backups on' : ''}</summary>
+        <div className="backup-options-fields">
+        <label className="diagnostics-opt-in">
+          <input
+            type="checkbox"
+            checked={settings.enabled}
+            onChange={(event) => setSettings({ enabled: event.target.checked })}
+          />
+          <span>Enable scheduled backups</span>
+        </label>
+  
+        <label className="settings-field">
+          Backup interval (minutes)
+          <input
+            type="number"
+            min={5}
+            max={10080}
+            disabled={!settings.enabled}
+            value={settings.intervalMinutes}
+            onChange={(event) => setSettings({ intervalMinutes: Math.max(5, Number(event.target.value) || 60) })}
+          />
+        </label>
+  
+        <label className="settings-field">
+          Recovery copies to keep
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={settings.maxSnapshots}
+            onChange={(event) => setSettings({ maxSnapshots: Math.max(1, Number(event.target.value) || 10) })}
+          />
+        </label>
+  
+        <label className="settings-field">
+          Backup folder outside this vault
+          <input
+            value={settings.backupPath}
+            disabled={isBusy}
+            placeholder="Leave empty to keep recovery copies in this vault"
+            onChange={(event) => setSettings({ backupPath: event.target.value })}
+          />
+        </label>
+        </div>
+      </details>
 
       {lastMessage ? <p className="settings-status ok">{lastMessage}</p> : null}
       {lastError ? <p className="settings-status warn">{lastError}</p> : null}

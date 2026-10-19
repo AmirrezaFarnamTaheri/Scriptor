@@ -180,6 +180,16 @@ export function ResourceSyncPanel() {
     }
   }
 
+  // Batch selection only edits the draft; applying still needs a native
+  // preview and an explicit approved apply action.
+  const selectTargets = (selectAll: boolean) => {
+    setPlan(null)
+    setApplyResult(null)
+    setSelectedTargetIds(new Set(
+      selectAll ? inventory?.targets.filter(targetCanReceiveResources).map((target) => target.id) ?? [] : [],
+    ))
+  }
+
   const toggleTarget = (targetId: string) => {
     setPlan(null)
     setApplyResult(null)
@@ -203,6 +213,7 @@ export function ResourceSyncPanel() {
     )
   }
 
+  const eligibleTargets = inventory?.targets.filter(targetCanReceiveResources).length ?? 0
   const confirmedTargets = inventory?.targets.filter((target) => target.status === 'confirmed').length ?? 0
   const managedResources = inventory?.resources.filter((resource) => resource.managed).length ?? 0
   const redundantDuplicates = inventory?.duplicates.filter((group) => group.kind === 'redundant').length ?? 0
@@ -233,9 +244,11 @@ export function ResourceSyncPanel() {
       <div className="resource-sync-stats" aria-label="Resource inventory summary">
         <div><strong>{confirmedTargets}</strong><span>apps found</span></div>
         <div><strong>{inventory?.resources.length ?? 0}</strong><span>items found</span></div>
-        <div><strong>{managedResources}</strong><span>managed items</span></div>
-        <div><strong>{redundantDuplicates}</strong><span>extra copy groups</span></div>
       </div>
+      <details className="resource-sync-inventory-details">
+        <summary>More inventory details</summary>
+        <p>{managedResources} managed items · {redundantDuplicates} extra copy groups</p>
+      </details>
 
       {loading && !inventory ? (
         <div className="resource-sync-loading" role="status">
@@ -253,6 +266,17 @@ export function ResourceSyncPanel() {
                 <p>Verified apps were found on this device. Entries found only in settings are marked separately.</p>
               </div>
             </div>
+            <div className="resource-target-selection" role="group" aria-label="Sync destinations">
+              <span role="status">{selectedTargetIds.size} of {eligibleTargets} compatible apps selected</span>
+              <button type="button" className="toolbar-button"
+                disabled={eligibleTargets === 0 || loading || planning || applying}
+                onClick={() => selectTargets(true)}
+              >Select compatible apps</button>
+              <button type="button" className="toolbar-button"
+                disabled={selectedTargetIds.size === 0 || loading || planning || applying}
+                onClick={() => selectTargets(false)}
+              >Clear selection</button>
+            </div>
             <div className="resource-target-grid">
               {inventory.targets.map((target) => {
                 const canReceive = targetCanReceiveResources(target)
@@ -269,7 +293,7 @@ export function ResourceSyncPanel() {
                           type="checkbox"
                           aria-label={`Sync ${target.label}`}
                           checked={selected}
-                          disabled={!canReceive}
+                          disabled={!canReceive || loading || planning || applying}
                           onChange={() => toggleTarget(target.id)}
                         />
                         <span aria-hidden="true">Sync</span>
@@ -349,7 +373,7 @@ export function ResourceSyncPanel() {
                             name="resource-sync-source"
                             aria-label={`Use ${resource.name} from ${resource.targetId} as source`}
                             checked={selectedSourceId === resource.id}
-                            disabled={resource.kind !== 'skill' || !resource.valid}
+                            disabled={resource.kind !== 'skill' || !resource.valid || loading || planning || applying}
                             onChange={() => {
                               setSelectedSourceId(resource.id)
                               setPlan(null)
