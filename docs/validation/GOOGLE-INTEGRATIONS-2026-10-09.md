@@ -14,12 +14,15 @@ system browser. The native PKCE loopback callback receives the authorization
 code; credentials remain in the OS keychain. Scriptor never asks users for
 Google passwords.
 
-The release workflow reads the **public** GitHub Actions repository variable
-`SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID`. Production installer packaging fails
-explicitly if it is missing. The publisher must register a genuine Desktop
-OAuth client in Google Cloud, configure its consent screen and scopes, and
-complete any Google approval requirements. A placeholder value in
-`.env.e2e` is only for mocked browser tests; it cannot authorize real users.
+The release workflow optionally reads the **public** GitHub Actions repository
+variable `SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID`. Installer packaging and release
+quality remain available when it is absent; the packaged application reports
+Google sign-in as unavailable until a genuine client is configured. The
+publisher must register a genuine Desktop OAuth client in Google Cloud,
+configure its consent screen and scopes, and complete any Google approval
+requirements before promising one-click Google account connection. A
+placeholder value in `.env.e2e` is only for mocked browser tests; it cannot
+authorize real users and must never be shipped as a real client ID.
 
 Legacy `calendar_sync.google_client_id` values remain supported in development
 builds and can be entered in the collapsed developer setup. The public client

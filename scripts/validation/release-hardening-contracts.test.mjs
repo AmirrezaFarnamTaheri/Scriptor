@@ -61,7 +61,7 @@ test('release quality keeps E2E Google OAuth separate while production permits m
   assert.doesNotMatch(globalSetup, /VITE_GOOGLE_OAUTH_CLIENT_ID:/)
   assert.doesNotMatch(quality, /VITE_GOOGLE_OAUTH_CLIENT_ID:/)
   assert.ok(build.includes('VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID }}'))
-  assert.doesNotMatch(build, /SCRIPTOR_RELEASE_CHANNEL -eq 'production' -and -not \\$env:VITE_GOOGLE_OAUTH_CLIENT_ID/)
+  assert.ok(!build.includes("SCRIPTOR_RELEASE_CHANNEL -eq 'production' -and -not $env:VITE_GOOGLE_OAUTH_CLIENT_ID"))
   assert.match(build, /Google connection unavailable in this build/)
   assert.doesNotMatch(build, /throw "Configure repository variable SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID/)
   assert.match(read('.env.e2e'), /^VITE_GOOGLE_OAUTH_CLIENT_ID=desktop\.apps\.googleusercontent\.com$/m)

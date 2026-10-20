@@ -11,7 +11,7 @@
 
 ### Improved
 
-- Start Gmail's native Google sign-in directly from the disconnected inbox, without an ordinary user's OAuth-client-ID field; require a registered publisher client before production installers are packaged.
+- Start Gmail's native Google sign-in directly from the disconnected inbox when configured, without asking ordinary users for OAuth client IDs; keep installers publishable without publisher Google OAuth registration, while clearly marking Google connection unavailable in such builds.
 - Keep tablet vault destinations on compact rows, prioritize editor typography above advanced appearance effects, and clarify Overleaf's individual-file review workflow and legacy read-only Google Docs revision records.
 - Document Google provider setup and limitations, screenshots reviewed and follow-up UX priorities, with regression coverage for the revised entry points.
 - Simplify first-use copy across settings, recovery, history, sync, exports, task planning, note repair, boards, collections and saved searches; keep advanced diagnostics available behind disclosure and update related tests.

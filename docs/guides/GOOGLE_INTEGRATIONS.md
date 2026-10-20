@@ -15,8 +15,11 @@ in your system browser and asks you to choose your Google account and approve
 its requested permissions. **You do not need to create an OAuth client ID,
 paste a password into Scriptor, or configure Google Cloud yourself.**
 
-The publisher must first register Scriptor's Google Desktop OAuth client and
-provide its public ID at build time. Unconfigured development builds expose an
+Scriptor installs and runs without a publisher Google Desktop OAuth client ID;
+its local writing and organization features remain available. **Google account
+connection is unavailable in unconfigured release builds.** To enable one-click
+Google connection, the publisher registers an OAuth Desktop client and supplies
+its public ID at build time. Unconfigured development builds expose an
 **Advanced: use your own Google OAuth client** option. Never enter a client
 secret or access token in vault settings. [Google's installed-app guide](https://developers.google.com/identity/protocols/oauth2/native-app)
 describes the developer-only registration.

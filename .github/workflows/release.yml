@@ -180,9 +180,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     env:
-      # The release's registered public Desktop OAuth client belongs only in
-      # distributable installer builds. A missing repo variable must still
-      # block production packaging, but must not shadow .env.e2e in quality.
+      # Optional publisher-owned Google Desktop OAuth identity is only used in
+      # installer builds, never the release-quality E2E fixture. Without an ID,
+      # installers remain publishable, but one-click Google sign-in is unavailable.
       VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID }}
       CI_LOG_DIR: artifacts/ci-logs/release-${{ matrix.platform }}-${{ matrix.architecture }}
       SCRIPTOR_PLATFORM: ${{ matrix.platform }}
@@ -313,8 +313,8 @@ jobs:
           APPLE_PASSWORD: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_TEAM_ID || '' }}
         run: |
-          if ($env:SCRIPTOR_RELEASE_CHANNEL -eq 'production' -and -not $env:VITE_GOOGLE_OAUTH_CLIENT_ID) {
-            throw "Configure repository variable SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID with Scriptor's registered Google Desktop OAuth client ID before publishing installers."
+          if (-not $env:VITE_GOOGLE_OAUTH_CLIENT_ID) {
+            Write-Host "Google connection unavailable in this build: no publisher OAuth client ID was configured. Installer packaging continues."
           }
           if ($env:SCRIPTOR_TAURI_SIGNING_CONFIG) {
             $arguments = @("--dir", "apps/desktop", "exec", "tauri", "build", "--config", $env:SCRIPTOR_TAURI_SIGNING_CONFIG)
