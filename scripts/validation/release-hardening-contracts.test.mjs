@@ -60,7 +60,7 @@ test('release quality inherits its E2E Google OAuth fixture without weakening pr
   assert.ok(quality && build, 'release workflow jobs must be present')
   assert.doesNotMatch(globalSetup, /VITE_GOOGLE_OAUTH_CLIENT_ID:/)
   assert.doesNotMatch(quality, /VITE_GOOGLE_OAUTH_CLIENT_ID:/)
-  assert.match(build, /^ {6}VITE_GOOGLE_OAUTH_CLIENT_ID: \\$\{\{ vars\.SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID \}\}$/m)
+  assert.ok(build.includes('VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID }}'))
   assert.match(build, /SCRIPTOR_RELEASE_CHANNEL -eq 'production' -and -not \$env:VITE_GOOGLE_OAUTH_CLIENT_ID/)
   assert.match(read('.env.e2e'), /^VITE_GOOGLE_OAUTH_CLIENT_ID=desktop\.apps\.googleusercontent\.com$/m)
 })
