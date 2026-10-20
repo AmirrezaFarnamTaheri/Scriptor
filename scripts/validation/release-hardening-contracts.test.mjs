@@ -349,13 +349,24 @@ test('automatic kickoff tracks canonical VERSION and only follows successful pus
   assert.match(kickoff, /github\.event\.workflow_run\.conclusion == 'success'/)
   assert.match(kickoff, /github\.event\.workflow_run\.event == 'push'/)
   assert.match(kickoff, /\$GITHUB_SHA" != "\$SOURCE_SHA/)
+  assert.match(version, /^\\d+\\.\\d+\\.\\d+$/)
+  // An immutable tag is checked against the current VERSION at runtime,
+  // not a version literal embedded in the workflow source.
   assert.ok(
-    kickoff.includes(`git ls-remote origin refs/tags/v${version}`),
-    `automatic kickoff must check the canonical v${version} tag`,
+    kickoff.includes('version=$(tr -d \'[:space:]\' < VERSION)'),
+    'automatic kickoff must read the canonical VERSION',
   )
   assert.ok(
-    kickoff.includes(`if [ "$(tr -d '[:space:]' < VERSION)" != "${version}" ]; then`),
-    `automatic kickoff must be gated on VERSION=${version}`,
+    kickoff.includes('git ls-remote origin "refs/tags/v$version"'),
+    'automatic kickoff must avoid reusing the existing canonical version tag',
+  )
+  assert.ok(
+    kickoff.includes('SCRIPTOR_RELEASE_VERSION="v$version" node scripts/release/version.mjs check'),
+    'automatic kickoff must validate the exact version before tagging',
+  )
+  assert.ok(
+    kickoff.includes('if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && ! test "$version" = "$EXPECTED_VERSION"; then'),
+    'manual dispatch must reject a version different from VERSION',
   )
   assert.match(kickoff, /needs\.validate-release\.outputs\.eligible == 'true'/)
 })
