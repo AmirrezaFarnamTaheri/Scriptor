@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.3.3 — 2026-10-20
+
+### Fixed
+
+- Release the previously merged Scriptor fixes under a new immutable version, instead of reusing the existing v1.3.2 tag that references an older commit.
+- Include the publisher-configured Google Desktop OAuth client in distributable builds without requiring users to enter a client ID; preserve release-quality test isolation and clear behavior for builds without a registered client.
+- Correct collaboration error assertions, command replay after document reload, and narrow German vault navigation overflow.
+- Let the release kickoff follow canonical VERSION and exact-commit CI rather than requiring a hard-coded version.
+
 ## 1.3.2 — 2026-10-20
 
 ### Added

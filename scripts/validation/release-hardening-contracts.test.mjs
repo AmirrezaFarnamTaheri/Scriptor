@@ -129,6 +129,15 @@ test('release kickoff keeps write permissions out of validation', () => {
   assert.match(publish, /permissions:\n {6}contents: write\n {6}actions: write/)
 })
 
+test('automatic release follows canonical VERSION while preserving immutable tags', () => {
+  const kickoff = read('.github/workflows/release-kickoff.yml')
+  assert.ok(kickoff.includes("version=$(tr -d '[:space:]' < VERSION)"))
+  assert.ok(kickoff.includes('git ls-remote origin "refs/tags/v$version"'))
+  assert.ok(kickoff.includes('if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && ! test "$version" = "$EXPECTED_VERSION"; then'))
+  assert.doesNotMatch(kickoff, /Automatic release is only enabled for v\d+/)
+  assert.doesNotMatch(kickoff, /EXPECTED_VERSION:.*'1\.3\.2'/)
+})
+
 test('release kickoff only tags the default-branch commit after CI succeeds for that exact SHA', () => {
   const kickoff = read('.github/workflows/release-kickoff.yml')
 
