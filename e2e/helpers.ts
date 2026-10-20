@@ -181,7 +181,11 @@ export async function runCommand(page: Page, commandLabel: string) {
     // but the command's in-memory panel state is lost with it. Detect the same
     // document replacement on the successful-click path and replay once.
     await page
-      .evaluate(() => new Promise<void>((resolve) => window.setTimeout(resolve, 0)))
+      .evaluate(() => new Promise<void>((resolve) => {
+        // An option's click handler can schedule a zero-delay document reload.
+        // Observe two macrotasks before deciding the command survived it.
+        window.setTimeout(() => window.setTimeout(resolve, 0), 0)
+      }))
       .catch(() => undefined)
     await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => undefined)
     const currentTimeOrigin = await page

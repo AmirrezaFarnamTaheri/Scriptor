@@ -52,6 +52,19 @@ test('unsigned release remains the secret-free default while native signing is e
   assert.equal(fs.existsSync(path.join(root, 'scripts/release/sign-installers.ps1')), false)
 })
 
+test('release quality inherits its E2E Google OAuth fixture without weakening production packaging', () => {
+  const workflow = read('.github/workflows/release.yml')
+  const globalSetup = workflow.split('\n jobs:')[0]?.split('\njobs:')[0] ?? workflow.split('\njobs:')[0]
+  const quality = workflow.split('\n  quality:\n')[1]?.split('\n  build:\n')[0]
+  const build = workflow.split('\n  build:\n')[1]?.split('\n  publish:\n')[0]
+  assert.ok(quality && build, 'release workflow jobs must be present')
+  assert.doesNotMatch(globalSetup, /VITE_GOOGLE_OAUTH_CLIENT_ID:/)
+  assert.doesNotMatch(quality, /VITE_GOOGLE_OAUTH_CLIENT_ID:/)
+  assert.match(build, /^ {6}VITE_GOOGLE_OAUTH_CLIENT_ID: \\$\{\{ vars\.SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID \}\}$/m)
+  assert.match(build, /SCRIPTOR_RELEASE_CHANNEL -eq 'production' -and -not \$env:VITE_GOOGLE_OAUTH_CLIENT_ID/)
+  assert.match(read('.env.e2e'), /^VITE_GOOGLE_OAUTH_CLIENT_ID=desktop\.apps\.googleusercontent\.com$/m)
+})
+
 test('release workflow artifacts use explicit bounded retention', () => {
   for (const relative of ['.github/workflows/release.yml', '.github/workflows/release-review.yml']) {
     const workflow = read(relative)

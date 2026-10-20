@@ -47,8 +47,6 @@ defaults:
     working-directory: .
 
 env:
-  # Public OAuth Desktop application identity; configured once per Scriptor release, not per user.
-  VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID }}
   SCRIPTOR_RELEASE_VERSION: >-
     ${{
       (inputs.publish && startsWith(github.ref, 'refs/tags/v'))
@@ -182,6 +180,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     env:
+      # The release's registered public Desktop OAuth client belongs only in
+      # distributable installer builds. A missing repo variable must still
+      # block production packaging, but must not shadow .env.e2e in quality.
+      VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID }}
       CI_LOG_DIR: artifacts/ci-logs/release-${{ matrix.platform }}-${{ matrix.architecture }}
       SCRIPTOR_PLATFORM: ${{ matrix.platform }}
       SCRIPTOR_ARCHITECTURE: ${{ matrix.architecture }}
