@@ -52,7 +52,7 @@ test('unsigned release remains the secret-free default while native signing is e
   assert.equal(fs.existsSync(path.join(root, 'scripts/release/sign-installers.ps1')), false)
 })
 
-test('release quality inherits its E2E Google OAuth fixture without weakening production packaging', () => {
+test('release quality keeps E2E Google OAuth separate while production permits missing publisher identity', () => {
   const workflow = read('.github/workflows/release.yml')
   const globalSetup = workflow.split('\n jobs:')[0]?.split('\njobs:')[0] ?? workflow.split('\njobs:')[0]
   const quality = workflow.split('\n  quality:\n')[1]?.split('\n  build:\n')[0]
@@ -61,7 +61,9 @@ test('release quality inherits its E2E Google OAuth fixture without weakening pr
   assert.doesNotMatch(globalSetup, /VITE_GOOGLE_OAUTH_CLIENT_ID:/)
   assert.doesNotMatch(quality, /VITE_GOOGLE_OAUTH_CLIENT_ID:/)
   assert.ok(build.includes('VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID }}'))
-  assert.match(build, /SCRIPTOR_RELEASE_CHANNEL -eq 'production' -and -not \$env:VITE_GOOGLE_OAUTH_CLIENT_ID/)
+  assert.doesNotMatch(build, /SCRIPTOR_RELEASE_CHANNEL -eq 'production' -and -not \\$env:VITE_GOOGLE_OAUTH_CLIENT_ID/)
+  assert.match(build, /Google connection unavailable in this build/)
+  assert.doesNotMatch(build, /throw "Configure repository variable SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID/)
   assert.match(read('.env.e2e'), /^VITE_GOOGLE_OAUTH_CLIENT_ID=desktop\.apps\.googleusercontent\.com$/m)
 })
 
