@@ -117,7 +117,7 @@ test('a deferred collaboration authorization keeps its originating vault in the 
   await panel.getByRole('button', { name: 'Share saved version', exact: true }).click()
   await page.evaluate(() => sessionStorage.setItem('e2e:active-vault', 'new-vault'))
   await page.clock.fastForward(5100)
-  await expect(panel.getByRole('alert')).toContainText('Vault changed since collaboration started')
+  await expect(panel.getByRole('alert').filter({ hasText: 'Vault changed since collaboration started' })).toContainText('Vault changed since collaboration started')
   const request = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:stale-origin-request') ?? '{}'))
   expect(request.expectedVaultId).toBe('screenshot-vault')
   expect(await calls(page, 'collaboration_write')).toHaveLength(0)

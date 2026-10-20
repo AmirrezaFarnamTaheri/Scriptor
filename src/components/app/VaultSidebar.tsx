@@ -163,7 +163,7 @@ function VaultSidebarImpl({
           onClick={() => onSidebarViewChange('vault')}
         >
           <Folder size={14} />
-          {t('vaultSidebar.allNotes')}
+          <span className="vault-nav-label">{t('vaultSidebar.allNotes')}</span>
         </button>
         <button
           type="button"
@@ -171,7 +171,7 @@ function VaultSidebarImpl({
           onClick={() => onSidebarViewChange('inbox')}
         >
           <Inbox size={14} />
-          {t('vaultSidebar.inbox')}
+          <span className="vault-nav-label">{t('vaultSidebar.inbox')}</span>
           {inboxNotes.length > 0 ? <span className="inbox-badge">{inboxNotes.length}</span> : null}
         </button>
       </div>
