@@ -317,13 +317,21 @@ test('hash mismatch fixture fails only the first qualifying save', () => {
 })
 
 
-test('v1.3.1 automatic kickoff only follows successful push CI for the same default-branch commit', () => {
+test('automatic kickoff tracks canonical VERSION and only follows successful push CI on the same default-branch commit', () => {
   const kickoff = read('.github/workflows/release-kickoff.yml')
+  const version = read('VERSION').trim()
   assert.match(kickoff, /workflow_run:/)
   assert.match(kickoff, /workflows: \["CI"\]/)
   assert.match(kickoff, /github\.event\.workflow_run\.conclusion == 'success'/)
   assert.match(kickoff, /github\.event\.workflow_run\.event == 'push'/)
   assert.match(kickoff, /\$GITHUB_SHA" != "\$SOURCE_SHA/)
-  assert.match(kickoff, /refs\/tags\/v1\.3\.1/)
+  assert.ok(
+    kickoff.includes(`git ls-remote origin refs/tags/v${version}`),
+    `automatic kickoff must check the canonical v${version} tag`,
+  )
+  assert.ok(
+    kickoff.includes(`if [ "$(tr -d '[:space:]' < VERSION)" != "${version}" ]; then`),
+    `automatic kickoff must be gated on VERSION=${version}`,
+  )
   assert.match(kickoff, /needs\.validate-release\.outputs\.eligible == 'true'/)
 })
