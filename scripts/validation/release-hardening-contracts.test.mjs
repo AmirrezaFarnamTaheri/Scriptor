@@ -349,7 +349,7 @@ test('automatic kickoff tracks canonical VERSION and only follows successful pus
   assert.match(kickoff, /github\.event\.workflow_run\.conclusion == 'success'/)
   assert.match(kickoff, /github\.event\.workflow_run\.event == 'push'/)
   assert.match(kickoff, /\$GITHUB_SHA" != "\$SOURCE_SHA/)
-  assert.match(version, /^\\d+\\.\\d+\\.\\d+$/)
+  assert.match(version, /^\d+\.\d+\.\d+$/)
   // An immutable tag is checked against the current VERSION at runtime,
   // not a version literal embedded in the workflow source.
   assert.ok(
