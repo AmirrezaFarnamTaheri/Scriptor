@@ -49,6 +49,12 @@ The current RustSec database, commit `db663534ae858abb3fbad408a041ce04209c377f`,
 | RUSTSEC-2026-0371 | `zbus_names` 4.3.4 via `zbus` 5.18.0 | Linux keyring: `secret-service` 5.1.0 and `zbus-secret-service-keyring-store` 1.0.0 | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0371.html | 2026-11-01 | Migrate parents to `zbus::names` in zbus 6; verify D-Bus keyring integration |
 | RUSTSEC-2026-0372 | `zvariant_derive` 5.13.1 via `zvariant` 5.13.1 | Linux keyring via legacy zbus 5 wire-format dependencies | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0372.html | 2026-11-01 | Migrate parents to zbus 6 wire/derive implementation and drop standalone macros |
 
+## 2026-10-21 advisory refresh
+
+**Security fix:** the bundled root certificates and the certificate verification crate were upgraded in `Cargo.lock` using the verified crates.io index checksums. `webpki-roots` and `webpki-root-certs` moved from 1.0.9 to 1.0.10, and `rustls-webpki` moved from 0.103.15 to 0.103.16. This fixes **RUSTSEC-2026-0381**, **RUSTSEC-2026-0382** and **RUSTSEC-2026-0383**: the affected versions included the distrusted `emSign ECC Root CA - G3` intermediate, and the certificate verification could accept certificate paths through distrusted intermediates. These three advisories are *not* in `deny.toml`'s ignore list, so no ledger row is created for them; the ledger owns only ignored advisories. Verification requires a fresh locked CI audit.
+
+The affected graph was `webpki-roots` 1.0.9, `webpki-root-certs` 1.0.9 and `rustls-webpki` 0.103.15 through `rustls` 0.23.46 and `rustls-platform-verifier` 0.7.0, reaching the capture, vault and CLI crates that make outbound HTTPS requests. The locked graph now resolves 1.0.10, 1.0.10 and 0.103.16 for those three crates.
+
 ## Review procedure
 
 1. Fetch the current official RustSec database and run `cargo audit` and `cargo deny check` against the locked graph, including production targets and optional features.

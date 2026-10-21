@@ -52,14 +52,383 @@ export function defaultDatabaseView(): DatabaseView {
 }
 export function databaseFilterJson(view: DatabaseView): string {
   const operators = {title:'title contains',tag:'tag has',path:'path matches',days:'modified within days'}
-  const conditions = view.combine==='any'&&view.filters.some(filter=>filter.field==='metadata')?[]:view.filters.filter(filter=>filter.field!=='metadata').map((filter) => ({ op: operators[filter.field as keyof typeof operators], value: filter.field === 'path' ? filter.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : filter.value }))
+  // `path matches` is a regular expression at the native boundary
+  // (`crates/vault/src/views.rs`): existing saved views rely on that
+  // (`^projects/`, `daily/.*`). The pattern is therefore passed through
+  // unchanged. Escaping it here made a regex filter match its own literal
+  // text, so a view using `^projects/` silently returned no rows while the
+  // same filter in Saved Views worked. A pattern that is not a valid regular
+  // expression falls back to glob and then substring semantics natively, so
+  // no escaping is required for safety.
+  const conditions = view.combine==='any'&&view.filters.some(filter=>filter.field==='metadata')?[]:view.filters.filter(filter=>filter.field!=='metadata').map((filter) => ({ op: operators[filter.field as keyof typeof operators], value: filter.value }))
   return JSON.stringify(conditions.length ? { [view.combine]: conditions } : {all:[{op:'title contains',value:''}]})
 }
 export function isMissingDatabasePreset(error: unknown): boolean { return (error instanceof Error?error.message:String(error))==='note not found: .scriptor/presets/database-studio.md' }
+
+/**
+ * Fold ASCII `A-Z` only.
+ *
+ * The native evaluator compares tags with `str::eq_ignore_ascii_case`, and
+ * the SQL prefilter uses SQLite's `COLLATE NOCASE`. Both fold ASCII only, so
+ * a Unicode-aware fold here would keep notes the native query had already
+ * dropped.
+ */
+function asciiLower(value: string): string {
+  let result = ''
+  for (const character of value) {
+    const code = character.codePointAt(0) ?? 0
+    result += code >= 0x41 && code <= 0x5a ? String.fromCharCode(code + 0x20) : character
+  }
+  return result
+}
+
+/**
+ * Mirror the native `tag has` operator exactly: a leading `#` is optional and
+ * the comparison is case-insensitive.
+ *
+ * The native evaluator (`crates/vault/src/views.rs`) and its SQL prefilter
+ * both compare tags case-insensitively. A case-sensitive comparison here
+ * silently dropped notes the native query had already accepted, so a view that
+ * combined a metadata filter with a tag filter returned fewer rows than the
+ * same tag filter reported on its own.
+ */
+export function matchesTag(tags: string[], value: string): boolean {
+  const expected = asciiLower(value.replace(/^#+/, ''))
+  return tags.some((tag) => asciiLower(tag) === expected)
+}
+
+/**
+ * Upper bound on a compiled view pattern, in bytes.
+ *
+ * The native evaluator applies the same bound (`VIEW_REGEX_SIZE_LIMIT` in
+ * `crates/vault/src/views.rs`) because view filters come from vault JSON that
+ * a shared or cloned vault controls.
+ */
+const VIEW_REGEX_SIZE_LIMIT = 1 << 20
+
+/**
+ * Constructs the native regex engine rejects but JavaScript compiles.
+ *
+ * The native evaluator falls back to glob and then substring semantics for a
+ * pattern that does not compile. JavaScript compiles look-around, atomic
+ * groups, possessive quantifiers and backreferences, so a pattern using one
+ * of them would match here and never match natively. Treating them as
+ * non-compiling keeps the client mirror on the native result.
+ *
+ * A quantifier only counts when it is not escaped, so `a\*+` stays an
+ * ordinary repetition while `a++` is a possessive quantifier.
+ */
+const NATIVE_REJECTED_PATTERN = /\(\?(?:[=!]|<[=!]|>)|(?:^|[^\\])(?:[*+?}]|\{\d+(?:,\d*)?\})\+|\(\?P=|\\[1-9]|\\k</
+
+/**
+ * Regex escapes that are not literal letters.
+ *
+ * An escaped letter is either a character class shorthand (`\d`, `\w`, `\s`)
+ * or a zero-width assertion (`\b`), so it is copied verbatim rather than
+ * being treated as a literal that folds.
+ */
+const REGEX_ESCAPE_LETTERS = 'dDwWsSbBnrtfvVpPk'
+
+/**
+ * The case-folded form of one character, as an explicit character class.
+ *
+ * The native engine folds Unicode case, so the mirror folds the same
+ * characters. A character whose case mapping is not a single character (for
+ * example the German sharp s) has no single-character folding, so it is
+ * left as written.
+ */
+function caseFoldedClass(character: string): string | null {
+  const lower = character.toLowerCase()
+  const upper = character.toUpperCase()
+  if (lower.length !== 1 || upper.length !== 1) return null
+  if (lower === upper) return null
+  return `[${lower}${upper}]`
+}
+
+/**
+ * Expand a character class so it also matches the opposite case.
+ *
+ * A range of letters gains the matching range of the other case, so
+ * `[a-z]` also matches `A-Z`, which is what the native engine does under
+ * the inline case-insensitive flag.
+ */
+function expandCharacterClass(source: string, caseInsensitive: boolean): string | null {
+  let body = source.slice(1, -1)
+  // The native engine accepts the flag inside a class, and it makes that
+  // class case-insensitive regardless of the enclosing scope.
+  if (body.includes('(?i)')) {
+    body = body.replaceAll('(?i)', '')
+    caseInsensitive = true
+  }
+  let result = ''
+  let index = 0
+  if (body[0] === '^') {
+    result += '^'
+    index = 1
+  }
+  while (index < body.length) {
+    const character = body[index]
+    if (character === '\\') {
+      const next = body[index + 1] ?? ''
+      const folded = caseInsensitive && next && !REGEX_ESCAPE_LETTERS.includes(next) ? caseFoldedClass(next) : null
+      result += folded ? folded.slice(1, -1) : body.slice(index, index + 2)
+      index += 2
+      continue
+    }
+    if (index + 2 < body.length && body[index + 1] === '-' && body[index + 2] !== ']') {
+      const start = character
+      const end = body[index + 2]
+      const startLower = start.toLowerCase()
+      const endLower = end.toLowerCase()
+      const startUpper = start.toUpperCase()
+      const endUpper = end.toUpperCase()
+      if (caseInsensitive && startLower.length === 1 && endLower.length === 1 && startLower !== startUpper) {
+        // Both the lower-case and the upper-case range are emitted, so the
+        // expanded class covers the whole range whichever case the
+        // original range was written in.
+        result += `${startLower}-${endLower}`
+        result += `${startUpper}-${endUpper}`
+        index += 3
+        continue
+      }
+      result += body.slice(index, index + 3)
+      index += 3
+      continue
+    }
+    const folded = caseInsensitive ? caseFoldedClass(character) : null
+    result += folded ? folded.slice(1, -1) : character
+    index += 1
+  }
+  return `[${result}]`
+}
+
+/**
+ * Index just past the character class that starts at `open`.
+ *
+ * A `]` immediately after `[` or `[^` is a literal, not the end of the
+ * class.
+ */
+function findCharacterClassEnd(source: string, open: number): number {
+  let index = open + 1
+  if (source[index] === '^') index += 1
+  if (source[index] === ']') index += 1
+  while (index < source.length && source[index] !== ']') {
+    if (source[index] === '\\') index += 1
+    index += 1
+  }
+  return Math.min(index + 1, source.length)
+}
+
+/**
+ * Index of the `)` that closes the group that starts at `open`.
+ */
+function findGroupEnd(source: string, open: number): number {
+  let depth = 0
+  for (let index = open; index < source.length; index += 1) {
+    const character = source[index]
+    if (character === '\\') { index += 1; continue }
+    if (character === '[') { index = findCharacterClassEnd(source, index) - 1; continue }
+    if (character === '(') { depth += 1; continue }
+    if (character === ')') {
+      depth -= 1
+      if (depth === 0) return index
+    }
+  }
+  return -1
+}
+
+/**
+ * Rewrite the native `(?i)` directive into explicit character classes.
+ *
+ * The native engine applies `(?i)` to the remainder of the enclosing group.
+ * JavaScript has no unscoped inline flag, and the scoped form `(?i:...)` is
+ * not available in every runtime this application supports, so relying on it
+ * made the same pattern behave differently on different runtimes: where the
+ * scoped form was unavailable the pattern stopped matching, and the view
+ * silently dropped notes the native query had accepted. The directive is
+ * therefore expanded into explicit case classes, which produces the same
+ * result on every supported runtime.
+ *
+ * A directive found while the scope is already case-insensitive is
+ * redundant and is removed.
+ */
+function rewriteInlineCaseInsensitive(body: string, caseInsensitive: boolean): string | null {
+  let result = ''
+  let index = 0
+  while (index < body.length) {
+    const character = body[index]
+    if (character === '\\') {
+      const next = body[index + 1] ?? ''
+      const folded = caseInsensitive && next && !REGEX_ESCAPE_LETTERS.includes(next) ? caseFoldedClass(next) : null
+      result += folded ?? body.slice(index, index + 2)
+      index += 2
+      continue
+    }
+    if (character === '[') {
+      const end = findCharacterClassEnd(body, index)
+      const expanded = expandCharacterClass(body.slice(index, end), caseInsensitive)
+      if (expanded === null) return null
+      result += expanded
+      index = end
+      continue
+    }
+    if (character === '(') {
+      if (body.startsWith('(?i)', index)) {
+        if (caseInsensitive) {
+          index += 4
+          continue
+        }
+        const rest = rewriteInlineCaseInsensitive(body.slice(index + 4), true)
+        if (rest === null) return null
+        return `${result}${rest}`
+      }
+      const named = /^\(\?P?<[A-Za-z_][A-Za-z0-9_]*>/.exec(body.slice(index))
+      const jsNamed = /^\(\?<[A-Za-z_][A-Za-z0-9_]*>/.exec(body.slice(index))
+      const prefix = named?.[0] ?? jsNamed?.[0] ?? (body.startsWith('(?:', index) ? '?:' : '')
+      const end = findGroupEnd(body, index)
+      if (end < 0) return null
+      const inner = rewriteInlineCaseInsensitive(body.slice(index + 1 + prefix.length, end), caseInsensitive)
+      if (inner === null) return null
+      result += `(${prefix}${inner})`
+      index = end + 1
+      continue
+    }
+    const folded = caseInsensitive ? caseFoldedClass(character) : null
+    result += folded ?? character
+    index += 1
+  }
+  return result
+}
+
+/**
+ * Compile a pattern the way the native evaluator does, or return `null` when
+ * the pattern does not compile.
+ */
+function compileViewPattern(pattern: string): RegExp | null {
+  if (pattern.length > VIEW_REGEX_SIZE_LIMIT) return null
+  if (NATIVE_REJECTED_PATTERN.test(pattern)) return null
+  // The native engine spells a named group `(?P<name>...)`; JavaScript
+  // spells the same group `(?<name>...)`.
+  const source = pattern.replaceAll('(?P<', '(?<')
+  try {
+    if (!source.includes('(?i)')) return new RegExp(source)
+    const rewritten = rewriteInlineCaseInsensitive(source, false)
+    if (rewritten === null) return null
+    return new RegExp(rewritten)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Mirror the native `path matches` operator: the pattern is a regular
+ * expression, a pattern that is not a valid regular expression falls back to
+ * glob semantics, and a pattern without wildcards falls back to a substring
+ * test.
+ *
+ * The native evaluator remains authoritative for the indexed query. This
+ * mirror keeps the client-side check that runs alongside a metadata filter
+ * from dropping notes the native query had already accepted.
+ */
+export function pathMatches(path: string, pattern: string): boolean {
+  const expression = compileViewPattern(pattern)
+  if (expression) return expression.test(path)
+  if (pattern.includes('*') || pattern.includes('?')) {
+    const glob = `^${pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`
+    try {
+      return new RegExp(glob).test(path)
+    } catch {
+      return false
+    }
+  }
+  return path.includes(pattern)
+}
+
+/** One metadata condition: the field must be present and hold the exact text. */
+function matchesMetadataCondition(filter: DatabaseView['filters'][number], values: Record<string, CellValue>): boolean {
+  const value = values[filter.key ?? '']
+  return value !== undefined && String(value) === filter.value
+}
+
+/**
+ * Apply the conditions the native evaluator cannot express on its own.
+ *
+ * The native query evaluates every condition except `metadata`. Re-checking
+ * those conditions here could only ever drop notes the native query had
+ * already accepted, which is why a pattern that is valid natively but not in
+ * the browser used to shrink the result set. The native conditions are
+ * therefore only re-checked where the client is the sole evaluator.
+ *
+ * An `any` group that contains a metadata condition is the one case the
+ * native query cannot express: `databaseFilterJson` drops the whole
+ * disjunction, so the native query returns every note and the client
+ * evaluates the complete group here.
+ */
 export function matchesMetadataFilters(view:DatabaseView,values:Record<string,CellValue>,note:{title:string;tags:string[];path:string;modifiedDays:number}):boolean {
-  if(!view.filters.some(filter=>filter.field==='metadata'))return true
-  const matches=view.filters.map(filter=>filter.field==='metadata'?values[filter.key??'']!==undefined&&String(values[filter.key??''])===filter.value:filter.field==='title'?note.title.toLowerCase().includes(filter.value.toLowerCase()):filter.field==='tag'?note.tags.includes(filter.value):filter.field==='path'?note.path.includes(filter.value):note.modifiedDays<=Number(filter.value))
-  return view.combine==='all'?matches.every(Boolean):matches.some(Boolean)
+  const metadataFilters=view.filters.filter(filter=>filter.field==='metadata')
+  if(!metadataFilters.length)return true
+  if(view.combine==='any'){
+    // The native query returned every note, so the whole disjunction is
+    // evaluated here against the native semantics of each operator.
+    const matches=view.filters.map(filter=>filter.field==='metadata'?matchesMetadataCondition(filter,values):filter.field==='title'?note.title.toLowerCase().includes(filter.value.toLowerCase()):filter.field==='tag'?matchesTag(note.tags,filter.value):filter.field==='path'?pathMatches(note.path,filter.value):note.modifiedDays<=Number(filter.value))
+    return matches.some(Boolean)
+  }
+  // In an `all` group the native query applied every non-metadata condition
+  // already, so only the metadata conditions remain.
+  return metadataFilters.every(filter=>matchesMetadataCondition(filter,values))
+}
+
+/**
+ * Match a YAML number, including the exponent form.
+ *
+ * YAML 1.2 accepts `1e3`, `1E3` and `1.0e+3` as numbers, so the reader
+ * accepts them too. A reader that rejected the exponent form would read a
+ * written number back as text and change the type of the cell.
+ */
+const YAML_NUMBER = /^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/
+
+/**
+ * Read one YAML scalar exactly the way the table reads it, so an edited cell
+ * and a displayed cell mean the same thing.
+ */
+export function parseScalarCell(raw: string): CellValue {
+  const value = raw.trim()
+  if (!value) return ''
+  if (value.startsWith('"')) {
+    try {
+      const parsed: unknown = JSON.parse(value)
+      if (typeof parsed === 'string') return parsed
+    } catch {
+      // A malformed quoted value stays plain text rather than silently
+      // becoming a different type.
+      return value
+    }
+  }
+  if (/^'.*'$/.test(value)) return value.slice(1,-1).replace(/''/g, "'")
+  if (/^(true|false)$/i.test(value)) return value.toLowerCase() === 'true'
+  if (/^(null|~)$/i.test(value)) return null
+  if (YAML_NUMBER.test(value) && Number.isFinite(Number(value))) return Number(value)
+  return value.replace(/\s+#.*$/, '')
+}
+
+/**
+ * Render a cell as the YAML text that reads back as the same value.
+ *
+ * Text that would otherwise be re-read as a number, boolean or null is
+ * quoted, so a cell holding the string `2026` keeps its type when the user
+ * saves it instead of turning into the number 2026.
+ */
+export function formatScalarCell(value: CellValue): string {
+  if (value === null) return 'null'
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'null'
+  // Plain text is only safe when it cannot be re-read as another type and
+  // cannot be truncated by the reader (trailing `#` comments, edge spaces).
+  if (value.length === 0) return '""'
+  if (value !== value.trim()) return JSON.stringify(value)
+  if (/^(?:true|false|null|~)$/i.test(value)) return JSON.stringify(value)
+  if (!/^[A-Za-z][A-Za-z0-9 _./-]*$/.test(value)) return JSON.stringify(value)
+  return value
 }
 
 /** Read-only scalar projection; ambiguous or complex YAML stays in the source editor. */
@@ -78,7 +447,7 @@ export function scalarFields(markdown: string): Record<string, CellValue> {
     else if (/^'.*'$/.test(raw)) result[key] = raw.slice(1,-1).replace(/''/g, "'")
     else if (/^(true|false)$/i.test(raw)) result[key] = raw.toLowerCase() === 'true'
     else if (/^(null|~)$/i.test(raw)) result[key] = null
-    else if (/^-?(?:\d+\.?\d*|\.\d+)$/.test(raw) && Number.isFinite(Number(raw))) result[key] = Number(raw)
+    else if (YAML_NUMBER.test(raw) && Number.isFinite(Number(raw))) result[key] = Number(raw)
     else result[key] = raw.replace(/\s+#.*$/, '')
   }
   return result

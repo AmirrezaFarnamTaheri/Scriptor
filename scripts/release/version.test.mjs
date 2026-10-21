@@ -11,8 +11,22 @@ const sources = {
   'scripts/lib/workspace-files.mjs': fs.readFileSync(path.join(project, 'scripts/lib/workspace-files.mjs'), 'utf8'),
 }
 
+/**
+ * `os.tmpdir()` can be a Windows device path (`\\?\C:\...`). Node's ESM
+ * main-module resolver cannot handle that prefix: it strips the drive letter
+ * and then fails with `EISDIR: illegal operation on a directory`. The version
+ * script is spawned as a child entry point, so the fixture root must live
+ * under a plain path.
+ */
+function plainTempDir() {
+  const base = os.tmpdir()
+  const plain = base.startsWith('\\\\?\\') ? base.slice(4) : base
+  fs.mkdirSync(plain, { recursive: true })
+  return plain
+}
+
 function fixture({ desktop = '1.3.1', mobile = '1.3.0' } = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-version-'))
+  const root = fs.mkdtempSync(path.join(plainTempDir(), 'scriptor-version-'))
   const files = {
     ...sources,
     VERSION: '1.3.1\n',

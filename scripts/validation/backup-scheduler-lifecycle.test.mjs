@@ -10,7 +10,9 @@ test('scheduled vault backups have an always-mounted owner rather than a modal l
   const app = load('src/App.tsx')
   const hook = load('src/hooks/useVaultBackup.ts')
   assert.match(vault, /const backup = useVaultBackup\(/)
-  assert.match(vault, /\n\s*backup,\n\s*status,/)
+  // Repository sources use CRLF on Windows checkouts, so the source-shape
+  // assertions must accept either line ending.
+  assert.match(vault, /\r?\n\s*backup,\r?\n\s*status,/)
   assert.match(app, /vaultId=\{workspace\.vault\?\.id \?\? null\} backup=\{workspace\.backup\}/)
   assert.match(settings, /backup: ReturnType<typeof useVaultBackup>/)
   assert.doesNotMatch(settings, /const backup = useVaultBackup\(/, 'Settings must not start or stop scheduled work')
