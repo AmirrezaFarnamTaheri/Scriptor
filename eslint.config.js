@@ -20,6 +20,13 @@ export default defineConfig([
     'playwright-report',
     'coverage',
     'public/reader/vendor',
+    // Review scratch space: downloaded reference implementations, browser
+    // traces and captured evidence. These are gitignored build inputs, not
+    // first-party sources, and they carry their own toolchain configuration
+    // (for example a Next.js `eslint.config.mjs`) that ESLint would otherwise
+    // pick up and fail to load.
+    'artifacts',
+    '**/artifacts/**',
   ]),
   {
     files: ['**/*.{js,mjs,cjs}'],

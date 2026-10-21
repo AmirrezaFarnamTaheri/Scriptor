@@ -5,7 +5,7 @@ import type { NoteDocument } from '../types/vault'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useWorkspaceEmbeddedPanel } from '../context/WorkspacePanelContext'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { defaultDatabaseView, validateDatabaseView, databaseFilterJson, scalarFields, calculateValue, aggregateColumn, DATABASE_ROW_LIMIT, isMissingDatabasePreset, matchesMetadataFilters } from '../lib/databaseStudio'
+import { defaultDatabaseView, validateDatabaseView, databaseFilterJson, scalarFields, calculateValue, aggregateColumn, formatScalarCell, DATABASE_ROW_LIMIT, isMissingDatabasePreset, matchesMetadataFilters } from '../lib/databaseStudio'
 import type { DatabaseView, DatabaseColumn, CellValue } from '../lib/databaseStudio'
 import { DatabaseStudioBuilder } from './database/DatabaseStudioBuilder'
 import { DatabaseStudioResults } from './database/DatabaseStudioResults'
@@ -122,8 +122,8 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
     const request = generation.current
     setBusy(true); setError(null)
     try {
-      const mutation=async()=>{const fresh=await vaultReadNote(row.note.metadata.path);if(request!==generation.current||fresh.metadata.vault_id!==vaultId)throw new Error('Vault changed before editing.');if(fresh.metadata.content_hash!==row.note.metadata.content_hash)throw new Error('Source note changed since this view was loaded. Reload the notes and review the cell before saving.');await vaultFrontmatterSet(row.note.metadata.path,key,JSON.stringify(value),row.note.metadata.content_hash,vaultId)}
-      if(runSourceNoteMutation){if(!await runSourceNoteMutation(row.note.metadata.path,mutation))throw new Error('The source editor could not save its draft.')}else await vaultFrontmatterSet(row.note.metadata.path, key, JSON.stringify(value), row.note.metadata.content_hash, vaultId)
+      const mutation=async()=>{const fresh=await vaultReadNote(row.note.metadata.path);if(request!==generation.current||fresh.metadata.vault_id!==vaultId)throw new Error('Vault changed before editing.');if(fresh.metadata.content_hash!==row.note.metadata.content_hash)throw new Error('Source note changed since this view was loaded. Reload the notes and review the cell before saving.');await vaultFrontmatterSet(row.note.metadata.path,key,formatScalarCell(value),row.note.metadata.content_hash,vaultId)}
+      if(runSourceNoteMutation){if(!await runSourceNoteMutation(row.note.metadata.path,mutation))throw new Error('The source editor could not save its draft.')}else await vaultFrontmatterSet(row.note.metadata.path, key, formatScalarCell(value), row.note.metadata.content_hash, vaultId)
       const note = await vaultReadNote(row.note.metadata.path)
       if (request !== generation.current || note.metadata.vault_id !== vaultId) return
       setRows((current) => current.map((item) => item.note.metadata.path === note.metadata.path ? { note, values: scalarFields(note.markdown) } : item))

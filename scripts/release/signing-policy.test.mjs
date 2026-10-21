@@ -14,6 +14,20 @@ import {
   writeSigningEvidence,
 } from './signing-evidence.mjs'
 
+/**
+ * `os.tmpdir()` can be a Windows device path (`\\?\C:\...`). Node's ESM
+ * main-module resolver cannot handle that prefix: it strips the drive letter
+ * and then fails with `EISDIR: illegal operation on a directory`. The fixture
+ * scripts are spawned as child entry points, so the fixture root must live
+ * under a plain path.
+ */
+function plainTempDir() {
+  const base = os.tmpdir()
+  const plain = base.startsWith('\\\\?\\') ? base.slice(4) : base
+  fs.mkdirSync(plain, { recursive: true })
+  return plain
+}
+
 test('preview and production releases have no signing-secret dependency', () => {
   for (const channel of ['preview', 'production']) {
     for (const target of DEFAULT_RELEASE_TARGETS) {
@@ -68,7 +82,7 @@ test('official production evidence rejects signed artifacts', () => {
 })
 
 test('signing evidence collection rejects duplicate targets', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-signing-evidence-'))
+  const root = fs.mkdtempSync(path.join(plainTempDir(), 'scriptor-signing-evidence-'))
   const target = { platform: 'windows', architecture: 'x86_64' }
   writeSigningEvidence(path.join(root, 'a'), {
     ...target,
@@ -90,7 +104,7 @@ test('signing evidence collection rejects duplicate targets', () => {
 })
 
 function stagingFixture(platform, architecture, files) {
-  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-stage-'))
+  const fixtureRoot = fs.mkdtempSync(path.join(plainTempDir(), 'scriptor-stage-'))
   fs.writeFileSync(path.join(fixtureRoot, 'VERSION'), '1.0.0\n')
   const scripts = path.join(fixtureRoot, 'scripts/release')
   fs.mkdirSync(scripts, { recursive: true })

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixed
+
+- Keep the release version and scheduled-backup contract tests usable on Windows checkouts: spawn fixture entry points from a plain temporary path so a device-path `TEMP` cannot break them, and accept either line ending in the source-shape assertions.
+
+- Keep Database Studio filter and cell editing consistent with the native view evaluator: pass `path matches` patterns through as regular expressions, compare tags case-insensitively with an optional leading `#`, and write edited cells as YAML scalars so text such as `2026` keeps its type instead of becoming a number. Read YAML numbers in the exponent form so a written number does not come back as text, mirror the native regular-expression dialect so a pattern the native engine rejects falls back the same way, and leave the conditions the native query already applied to the native query.
+- Ignore the gitignored `artifacts/` scratch tree in ESLint, keep the release signing fixtures usable under a Windows device-path `TEMP`, and let the plugin Rust gate resolve its references from the workspace manifests when the Rust toolchain is absent instead of failing with a spawn error.
+
 ## 1.3.3 — 2026-10-20
 
 ### Fixed
