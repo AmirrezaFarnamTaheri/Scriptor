@@ -51,9 +51,9 @@ The current RustSec database, commit `db663534ae858abb3fbad408a041ce04209c377f`,
 
 ## 2026-10-21 advisory refresh
 
-**Security fix:** `webpki-roots` and `webpki-root-certs` were upgraded in `Cargo.lock` from 1.0.9 to 1.0.10 using the verified crates.io index checksums. This fixes **RUSTSEC-2026-0381**, **RUSTSEC-2026-0382** and **RUSTSEC-2026-0383**, which affected the bundled root certificates: the affected versions included the distrusted `emSign ECC Root CA - G3` intermediate and could accept certificate paths through distrusted intermediates. These three advisories are *not* in `deny.toml`'s ignore list, so no ledger row is created for them; the ledger owns only ignored advisories. Verification requires a fresh locked CI audit.
+**Security fix:** the bundled root certificates and the certificate verification crate were upgraded in `Cargo.lock` using the verified crates.io index checksums. `webpki-roots` and `webpki-root-certs` moved from 1.0.9 to 1.0.10, and `rustls-webpki` moved from 0.103.15 to 0.103.16. This fixes **RUSTSEC-2026-0381**, **RUSTSEC-2026-0382** and **RUSTSEC-2026-0383**: the affected versions included the distrusted `emSign ECC Root CA - G3` intermediate, and the certificate verification could accept certificate paths through distrusted intermediates. These three advisories are *not* in `deny.toml`'s ignore list, so no ledger row is created for them; the ledger owns only ignored advisories. Verification requires a fresh locked CI audit.
 
-The affected graph was `webpki-roots` 1.0.9 and `webpki-root-certs` 1.0.9 through `rustls` 0.23.46 and `rustls-platform-verifier` 0.7.0, reaching the capture, vault and CLI crates that make outbound HTTPS requests. The locked graph now resolves 1.0.10 for both crates.
+The affected graph was `webpki-roots` 1.0.9, `webpki-root-certs` 1.0.9 and `rustls-webpki` 0.103.15 through `rustls` 0.23.46 and `rustls-platform-verifier` 0.7.0, reaching the capture, vault and CLI crates that make outbound HTTPS requests. The locked graph now resolves 1.0.10, 1.0.10 and 0.103.16 for those three crates.
 
 ## Review procedure
 
