@@ -121,19 +121,86 @@ const VIEW_REGEX_SIZE_LIMIT = 1 << 20
 const NATIVE_REJECTED_PATTERN = /\(\?(?:[=!]|<[=!]|>)|(?:^|[^\\])(?:[*+?}]|\{\d+(?:,\d*)?\})\+|\(\?P=|\\[1-9]|\\k</
 
 /**
- * Whether the runtime supports scoped inline flags (`(?i:...)`).
+ * Regex escapes that are not literal letters.
  *
- * The native engine applies `(?i)` to the remainder of the enclosing group.
- * A scoped flag reproduces that exactly; the global `i` flag would make the
- * whole pattern case-insensitive instead.
+ * An escaped letter is either a character class shorthand (`\d`, `\w`, `\s`)
+ * or a zero-width assertion (`\b`), so it is copied verbatim rather than
+ * being treated as a literal that folds.
  */
-const SCOPED_FLAGS_SUPPORTED = (() => {
-  try {
-    return new RegExp('(?i:a)').test('A')
-  } catch {
-    return false
+const REGEX_ESCAPE_LETTERS = 'dDwWsSbBnrtfvVpPk'
+
+/**
+ * The case-folded form of one character, as an explicit character class.
+ *
+ * The native engine folds Unicode case, so the mirror folds the same
+ * characters. A character whose case mapping is not a single character (for
+ * example the German sharp s) has no single-character folding, so it is
+ * left as written.
+ */
+function caseFoldedClass(character: string): string | null {
+  const lower = character.toLowerCase()
+  const upper = character.toUpperCase()
+  if (lower.length !== 1 || upper.length !== 1) return null
+  if (lower === upper) return null
+  return `[${lower}${upper}]`
+}
+
+/**
+ * Expand a character class so it also matches the opposite case.
+ *
+ * A range of letters gains the matching range of the other case, so
+ * `[a-z]` also matches `A-Z`, which is what the native engine does under
+ * the inline case-insensitive flag.
+ */
+function expandCharacterClass(source: string, caseInsensitive: boolean): string | null {
+  let body = source.slice(1, -1)
+  // The native engine accepts the flag inside a class, and it makes that
+  // class case-insensitive regardless of the enclosing scope.
+  if (body.includes('(?i)')) {
+    body = body.replaceAll('(?i)', '')
+    caseInsensitive = true
   }
-})()
+  let result = ''
+  let index = 0
+  if (body[0] === '^') {
+    result += '^'
+    index = 1
+  }
+  while (index < body.length) {
+    const character = body[index]
+    if (character === '\\') {
+      const next = body[index + 1] ?? ''
+      const folded = caseInsensitive && next && !REGEX_ESCAPE_LETTERS.includes(next) ? caseFoldedClass(next) : null
+      result += folded ? folded.slice(1, -1) : body.slice(index, index + 2)
+      index += 2
+      continue
+    }
+    if (index + 2 < body.length && body[index + 1] === '-' && body[index + 2] !== ']') {
+      const start = character
+      const end = body[index + 2]
+      const startLower = start.toLowerCase()
+      const endLower = end.toLowerCase()
+      const startUpper = start.toUpperCase()
+      const endUpper = end.toUpperCase()
+      if (caseInsensitive && startLower.length === 1 && endLower.length === 1 && startLower !== startUpper) {
+        // Both the lower-case and the upper-case range are emitted, so the
+        // expanded class covers the whole range whichever case the
+        // original range was written in.
+        result += `${startLower}-${endLower}`
+        result += `${startUpper}-${endUpper}`
+        index += 3
+        continue
+      }
+      result += body.slice(index, index + 3)
+      index += 3
+      continue
+    }
+    const folded = caseInsensitive ? caseFoldedClass(character) : null
+    result += folded ? folded.slice(1, -1) : character
+    index += 1
+  }
+  return `[${result}]`
+}
 
 /**
  * Index just past the character class that starts at `open`.
@@ -171,57 +238,67 @@ function findGroupEnd(source: string, open: number): number {
 }
 
 /**
- * Rewrite the native `(?i)` directive into a scoped JavaScript group.
+ * Rewrite the native `(?i)` directive into explicit character classes.
  *
  * The native engine applies `(?i)` to the remainder of the enclosing group.
- * JavaScript has no unscoped inline flag, so the directive is rewritten to
- * `(?i:...)` covering exactly that remainder. A directive inside a nested
- * group is handled by the recursion, because each group body is the scope
- * of the directive it contains.
+ * JavaScript has no unscoped inline flag, and the scoped form `(?i:...)` is
+ * not available in every runtime this application supports, so relying on it
+ * made the same pattern behave differently on different runtimes: where the
+ * scoped form was unavailable the pattern stopped matching, and the view
+ * silently dropped notes the native query had accepted. The directive is
+ * therefore expanded into explicit case classes, which produces the same
+ * result on every supported runtime.
+ *
+ * A directive found while the scope is already case-insensitive is
+ * redundant and is removed.
  */
-function applyInlineCaseInsensitive(body: string): string {
+function rewriteInlineCaseInsensitive(body: string, caseInsensitive: boolean): string | null {
   let result = ''
   let index = 0
   while (index < body.length) {
     const character = body[index]
-    if (character === '\\') { result += body.slice(index, index + 2); index += 2; continue }
+    if (character === '\\') {
+      const next = body[index + 1] ?? ''
+      const folded = caseInsensitive && next && !REGEX_ESCAPE_LETTERS.includes(next) ? caseFoldedClass(next) : null
+      result += folded ?? body.slice(index, index + 2)
+      index += 2
+      continue
+    }
     if (character === '[') {
       const end = findCharacterClassEnd(body, index)
-      result += body.slice(index, end)
+      const expanded = expandCharacterClass(body.slice(index, end), caseInsensitive)
+      if (expanded === null) return null
+      result += expanded
       index = end
       continue
     }
     if (character === '(') {
       if (body.startsWith('(?i)', index)) {
-        // The directive covers the rest of this scope.
-        return `${result}(?i:${applyInlineCaseInsensitive(body.slice(index + 4))})`
-      }
-      if (body.startsWith('(?:', index)) {
-        const end = findGroupEnd(body, index)
-        if (end < 0) break
-        result += `(?:${applyInlineCaseInsensitive(body.slice(index + 3, end))})`
-        index = end + 1
-        continue
+        if (caseInsensitive) {
+          index += 4
+          continue
+        }
+        const rest = rewriteInlineCaseInsensitive(body.slice(index + 4), true)
+        if (rest === null) return null
+        return `${result}${rest}`
       }
       const named = /^\(\?P?<[A-Za-z_][A-Za-z0-9_]*>/.exec(body.slice(index))
-      if (named) {
-        const end = findGroupEnd(body, index)
-        if (end < 0) break
-        result += `${named[0]}${applyInlineCaseInsensitive(body.slice(index + named[0].length, end))})`
-        index = end + 1
-        continue
-      }
+      const jsNamed = /^\(\?<[A-Za-z_][A-Za-z0-9_]*>/.exec(body.slice(index))
+      const prefix = named?.[0] ?? jsNamed?.[0] ?? (body.startsWith('(?:', index) ? '?:' : '')
       const end = findGroupEnd(body, index)
-      if (end < 0) break
-      result += `(${applyInlineCaseInsensitive(body.slice(index + 1, end))})`
+      if (end < 0) return null
+      const inner = rewriteInlineCaseInsensitive(body.slice(index + 1 + prefix.length, end), caseInsensitive)
+      if (inner === null) return null
+      result += `(${prefix}${inner})`
       index = end + 1
       continue
     }
-    result += character
+    const folded = caseInsensitive ? caseFoldedClass(character) : null
+    result += folded ?? character
     index += 1
   }
   return result
-}
+}
 
 /**
  * Compile a pattern the way the native evaluator does, or return `null` when
@@ -235,8 +312,9 @@ function compileViewPattern(pattern: string): RegExp | null {
   const source = pattern.replaceAll('(?P<', '(?<')
   try {
     if (!source.includes('(?i)')) return new RegExp(source)
-    if (!SCOPED_FLAGS_SUPPORTED) return null
-    return new RegExp(applyInlineCaseInsensitive(source))
+    const rewritten = rewriteInlineCaseInsensitive(source, false)
+    if (rewritten === null) return null
+    return new RegExp(rewritten)
   } catch {
     return null
   }

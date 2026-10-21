@@ -50,6 +50,18 @@ test('path filters match the native regular-expression semantics', () => {
   // The native engine supports the inline case-insensitive flag and the
   // Python-style named group that JavaScript spells differently.
   assert.equal(pathMatches('Notes/a.md', '(?i)^notes/'), true)
+  // The inline flag must work on every supported runtime. The scoped flag
+  // form `(?i:...)` is not available in every runtime, so a mirror that
+  // relied on it silently stopped matching where the runtime lacked it and
+  // the view dropped notes the native query had accepted.
+  assert.equal(pathMatches('NOTES/a.md', '(?i)notes'), true)
+  assert.equal(pathMatches('notes/a.md', '(?i)NOTES'), true)
+  assert.equal(pathMatches('A.md', '(?i)[a-z]+'), true)
+  assert.equal(pathMatches('a.md', '(?i)[A-Z]+'), true)
+  // A class that carries the flag is case-insensitive on its own.
+  assert.equal(pathMatches('A.md', '(?i)[(?i)a-z]'), true)
+  // A shorthand escape is not a literal, so it is not folded.
+  assert.equal(pathMatches('notes/1.md', '(?i)note\\w'), true)
   assert.equal(pathMatches('notes/a.md', '(?P<name>notes)'), true)
   // The flag applies to the remainder of the enclosing group, so the part
   // before it keeps its own case sensitivity.
