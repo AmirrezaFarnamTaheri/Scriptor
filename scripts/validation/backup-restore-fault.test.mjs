@@ -14,6 +14,10 @@ const useVaultBackup = readFileSync(
   new URL('../../src/hooks/useVaultBackup.ts', import.meta.url),
   'utf8',
 )
+const vaultBridge = readFileSync(
+  new URL('../../src/bridge/commands/vault.ts', import.meta.url),
+  'utf8',
+)
 const useVaultWorkspace = readFileSync(
   new URL('../../src/hooks/useVaultWorkspace.ts', import.meta.url),
   'utf8',
@@ -80,4 +84,14 @@ test('restore lifecycle freezes persistence before replacement and refreshes der
   assert.ok(useVaultWorkspace.includes('setNoteSummaries([])'))
   assert.ok(useVaultWorkspace.includes('refreshVaultConfig()'))
   assert.ok(useVaultWorkspace.includes('refreshVaultSnippets()'))
+})
+
+test('a rejected native restore reply keeps the editor frozen until reopen', () => {
+  assert.match(vaultBridge, /return runVaultRestoreWithOutcomeBoundary\(/)
+  assert.match(useVaultBackup, /classifyVaultRestoreFailure\(caught, restoreApplied\)/)
+  const freeze = useVaultBackup.indexOf("if (failure === 'freeze-and-reopen')")
+  const resume = useVaultBackup.indexOf("if (failure === 'safe-to-resume')", freeze)
+  assert.ok(freeze > 0 && resume > freeze)
+  assert.match(useVaultBackup.slice(freeze, resume), /editing remains paused/)
+  assert.doesNotMatch(useVaultBackup.slice(freeze, resume), /scriptor:vault-restore-aborted/)
 })
