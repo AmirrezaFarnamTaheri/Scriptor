@@ -110,6 +110,28 @@ describe('workspace git status slots', () => {
     assert.equal(controller.getStatus('vault-a'), null)
   })
 
+  it('binds a pending status fetch to its initiating vault, even after navigation', async () => {
+    const gate = deferred<GitStatus>()
+    const requestedVaults: string[] = []
+    const controller = new WorkspaceGitStatusController((...vaultIds: string[]) => {
+      requestedVaults.push(vaultIds[0] ?? '<missing>')
+      return gate.promise
+    })
+
+    controller.setActiveVault('vault-a')
+    const pending = controller.refresh()
+    controller.setActiveVault('vault-b')
+
+    assert.deepEqual(
+      requestedVaults,
+      ['vault-a'],
+      'native must be told which vault originated this fetch, not only where to store the result',
+    )
+    gate.resolve(statusFor('feature-a'))
+    await pending
+    assert.equal(controller.getStatus('vault-b'), null)
+  })
+
   it('maps a null active vault to the sentinel slot key', () => {
     assert.notEqual(vaultStatusKey(null), '')
     assert.equal(vaultStatusKey(null), vaultStatusKey(null))
