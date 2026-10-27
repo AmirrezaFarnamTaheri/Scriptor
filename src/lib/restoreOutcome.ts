@@ -3,11 +3,7 @@
  * A committed tree must never be overwritten by a pre-restore editor draft.
  * Keep the handling policy independent of component/UI lifetime.
  */
-export type VaultRestoreStatus =
-  | 'rolled-back'
-  | 'committed-ready'
-  | 'committed-needs-reopen'
-  | 'recovery-required'
+import type { VaultRestoreStatus } from '../bridge/commands/vault'
 
 export interface VaultRestoreDisposition {
   readonly filesChanged: boolean
