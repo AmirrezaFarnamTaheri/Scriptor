@@ -209,7 +209,9 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
                     : BACKUP_PAGE_SIZE)
                 }}>
                 {backups.length > visibleBackupCount
-                  ? `Show ${Math.min(BACKUP_PAGE_SIZE, backups.length - visibleBackupCount)} older backups`
+                  ? (backups.length - visibleBackupCount === 1
+                    ? 'Show 1 older backup'
+                    : `Show ${Math.min(BACKUP_PAGE_SIZE, backups.length - visibleBackupCount)} older backups`)
                   : 'Show fewer backups'}
               </button>
             </div>
