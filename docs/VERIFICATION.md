@@ -49,6 +49,8 @@ documents remain exempt; active user guides do not.
 |---|---|---|
 | Test-only `b3ebaeb` · [CI #40556426344](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40556426344) | Real-hook tests 182 and 183 both failed, expecting `New board ready.` but receiving `Canvas saved.` for old-vault and newer-edit cases | **Two observed behavioral red assertions** |
 | Implementation after `b3ebaeb` | Explicit flush checks origin lifecycle, same document object and mount status before accepting any UI completion; keeps native serialized saves and successful durability results | **Implemented; exact-head hosted green and packaged acceptance pending** |
+| `c2acae9` · [CI #40558029426](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40558029426) | 684/685 source tests passed; regression 183 failed because the originating explicit flush also submitted a subsequent pending `New unsaved revision`. Other CI lanes passed, including Browser E2E, Rust, frontend, Windows, supply-chain and container smoke | **Observed post-implementation behavioral failure; not a green MAT-005 gate** |
+| `1aa05b2` | Explicit flush now bounds its submitted payload/retry to the request's captured sequence and observes only the in-flight save present at invocation. New edits remain independently debounced or explicitly flushable | **Source fix pushed; exact-head GREEN and installed-client acceptance pending** |
 
 Mocks do not certify an installed client's crash/restart recovery. No new native command, permission scope, or file format was introduced.
 
