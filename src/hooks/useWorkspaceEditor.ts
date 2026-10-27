@@ -18,6 +18,7 @@ import { isDesktopWindowRuntime, isNativeBridgeAvailable } from '../bridge/platf
 import { importVaultFiles } from '../lib/importVaultFiles'
 import { isContentHashMismatchError } from '../lib/vaultErrors'
 import { coordinateNoteMutation } from '../lib/workspace/coordinateNoteMutation'
+import { evaluateFrozenDraftExit } from '../lib/frozenDraftExit'
 import type {
   ExternalChangeConflict,
   NoteDocument,
@@ -140,7 +141,36 @@ export function useWorkspaceEditor({
     }
   }, [activeNoteRef, activePathRef])
 
+  const isEditorPersistenceSuspended = useCallback(() => persistenceSuspendedRef.current, [])
+  const requestFrozenDraftExit = useCallback(async (): Promise<boolean> => {
+    const revisionAtPrompt = draftRevisionRef.current
+    const hasUnsavedChanges = Boolean(
+      activeNoteRef.current && draftMarkdownRef.current !== activeNoteRef.current.markdown,
+    ) || pendingSaveCountRef.current > 0 || pendingRequestsByDocRef.current.size > 0 ||
+      inFlightSavesByDocRef.current.size > 0
+    const allowed = await evaluateFrozenDraftExit({
+      hasUnsavedChanges,
+      revisionAtPrompt,
+      currentRevision: () => draftRevisionRef.current,
+      confirmDiscard: async () => {
+        const message = 'A backup restore could not be confirmed. Scriptor has paused saving to protect your files. Any edits made after this pause have not been saved. Copy the draft outside this vault before proceeding. Discard these unsaved edits and close Scriptor?'
+        if (isDesktopWindowRuntime()) {
+          const { ask } = await import('@tauri-apps/plugin-dialog')
+          return ask(message, { title: 'Unconfirmed restore', kind: 'warning', okLabel: 'Discard and close', cancelLabel: 'Keep editing' })
+        }
+        return window.confirm(message)
+      },
+    })
+    if (!allowed) setError('Close cancelled. The paused draft remains in this window; copy it outside this vault before restarting.')
+    return allowed
+  }, [activeNoteRef, draftMarkdownRef, setError])
+
   const resetNoteNavigation = useCallback(async (): Promise<boolean> => {
+    if (persistenceSuspendedRef.current) {
+      // Never destroy the quarantined vault's paused editor on navigation.
+      setError('Vault switching is blocked while a restore outcome is unknown. Copy unsaved draft text outside Scriptor, then close and restart the application before opening a vault.')
+      return false
+    }
     const failuresBefore = saveFailureCountRef.current
     let saved = true
     if (activePathRef.current) {
@@ -772,7 +802,7 @@ export function useWorkspaceEditor({
     const activeDirty = Boolean(
       activeNoteRef.current && draftMarkdownRef.current !== activeNoteRef.current.markdown,
     )
-    return activeDirty ||
+    return persistenceSuspendedRef.current || activeDirty ||
       pendingSaveCountRef.current > 0 ||
       pendingRequestsByDocRef.current.size > 0 ||
       saveTimersByDocRef.current.size > 0 ||
@@ -780,6 +810,8 @@ export function useWorkspaceEditor({
   }, [activeNoteRef, draftMarkdownRef])
 
   const flushAllPendingSaves = useCallback(async (): Promise<boolean> => {
+    // Never flush a paused draft to a vault with an unknown restore result.
+    if (persistenceSuspendedRef.current) return requestFrozenDraftExit()
     const failuresBefore = saveFailureCountRef.current
     let ok = true
     if (activePathRef.current && activeNoteRef.current) {
@@ -798,7 +830,7 @@ export function useWorkspaceEditor({
     // A new edit can arrive while the final captured write is in flight. Do not
     // authorize closing or replacing the vault until that newer work is saved.
     return ok && saveFailureCountRef.current === failuresBefore && !hasPendingPersistence()
-  }, [activeNoteRef, activePathRef, flushPendingDocumentSave, hasPendingPersistence, performSave])
+  }, [activeNoteRef, activePathRef, flushPendingDocumentSave, hasPendingPersistence, performSave, requestFrozenDraftExit])
 
   const scheduleSave = useCallback(
     (markdown: string) => {
@@ -994,7 +1026,9 @@ export function useWorkspaceEditor({
             const flushed = await flushAllPendingSavesRef.current()
             if (!flushed) {
               setCloseState('failed')
-              setError('Could not save all pending note changes. Scriptor kept the window open so your draft is not lost.')
+              setError(persistenceSuspendedRef.current
+                ? 'Close cancelled. The restore result is unknown and the paused draft was retained. Copy unsaved edits outside this vault before closing.'
+                : 'Could not save all pending note changes. Scriptor kept the window open so your draft is not lost.')
               return
             }
             await appWindow.destroy()
@@ -1116,6 +1150,7 @@ export function useWorkspaceEditor({
     syncActiveNoteContent,
     jumpToOutlineHeading,
     resetNoteNavigation,
+    isEditorPersistenceSuspended,
     restoreEditorSession,
     flushPendingDocumentSave,
     flushAllPendingSaves,

@@ -8,6 +8,8 @@
 
 ### Fixed
 
+- Keep paused drafts safe when a backup restore outcome is unknown: closing requires explicit discard approval for unsaved edits, never flushes those edits over restored files, and blocks vault switching with restart instructions until recovery.
+
 - Reject malformed or unrecognized native restore results as indeterminate, keeping the previous editor draft frozen until the vault can be reopened. Typed Tauri invocation responses are now validated after submission, with failing-first regression coverage.
 
 - Keep editor drafts paused if a native backup-restore reply is lost after submission. Distinguish pre-submission authorization rejection from an indeterminate transaction outcome, preserve native terminal statuses, and quarantine repeated backup/restore/delete actions for every affected vault until Scriptor is restarted and the vault reopened.

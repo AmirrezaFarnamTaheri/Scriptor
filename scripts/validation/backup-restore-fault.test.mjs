@@ -97,6 +97,14 @@ test('a rejected native restore reply keeps the editor frozen until reopen', () 
   assert.doesNotMatch(useVaultBackup.slice(freeze, resume), /scriptor:vault-restore-aborted/)
 })
 
+test('unconfirmed restore never silently closes a suspended draft or switches vaults', () => {
+  assert.match(workspaceEditor, /if \(persistenceSuspendedRef\.current\) return requestFrozenDraftExit\(\)/)
+  assert.match(workspaceEditor, /return persistenceSuspendedRef\.current \|\| activeDirty/)
+  assert.match(workspaceEditor, /Vault switching is blocked while a restore outcome is unknown/)
+  assert.match(useVaultWorkspace, /if \(isEditorPersistenceSuspended\(\)\) \{/)
+  assert.match(workspaceEditor, /Discard and close/)
+})
+
 test('indeterminate restore blocks repeated backup mutations in affected vault', () => {
   assert.match(useVaultBackup, /isVaultRestoreQuarantined\(recoveryHoldRef\.current, ownedVaultId\)/)
   assert.match(useVaultBackup, /recoveryHoldRef\.current\.add\(id\)/)
