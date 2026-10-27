@@ -90,3 +90,7 @@ The summary is temporary and per vault/backup destination, is intentionally abse
 - [x] Observed red on `c89698d`: the React build reported TS18047 on the nullable pending action; the old plain-language source contract asserted the now unsafe name-only state shape (734/735 tests passed).
 - [x] Fix the JSX render guard to narrow `pendingAction` before reading its properties; update the source contract to assert scoped approvals and the guard rather than reinstating the unsafe state shape.
 - [ ] Recheck current commit's source suite, TypeScript frontend build, browser E2E, Rust/desktop and visual gates. Prior green runs cannot certify a newer head.
+
+### Browser regression: same-named backups in different folders
+- [x] Authored Playwright fixture that returns the *same* backup name for three destinations, opens Restore/Delete confirmation, changes destination each time, and asserts both stale approvals disappear without native mutation. A new explicit Delete confirmation must target only the final folder.
+- [ ] This authored browser test requires execution on hosted Browser E2E; local Node helper tests are not a substitute. No installed-client claim until the native backup-path and vault-switch cases are exercised on real packages.
