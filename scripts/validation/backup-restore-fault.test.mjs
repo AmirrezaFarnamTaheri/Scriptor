@@ -141,3 +141,14 @@ test('recovery hold warning does not falsely assert a lost native reply', () => 
   assert.match(backupSettings, /This vault needs recovery before backup operations can continue/)
   assert.doesNotMatch(backupSettings, /An earlier restore did not return a confirmed result/)
 })
+
+test('backup Restore and Delete confirmations cannot transfer between vaults or folders', () => {
+  const settings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  const parent = readFileSync(new URL('../../src/components/SettingsPanel.tsx', import.meta.url), 'utf8')
+  assert.match(settings, /matchesBackupActionScope\(pendingAction, backupScope, entry\.name\)/)
+  assert.match(settings, /setPendingAction\(createPendingBackupAction\(backupScope, entry\.name, 'restore'\)\)/)
+  assert.match(settings, /setPendingAction\(createPendingBackupAction\(backupScope, entry\.name, 'delete'\)\)/)
+  assert.match(settings, /if \(!matchesBackupActionScope\(selected, backupScope, entry\.name\)/)
+  assert.match(settings, /setPendingAction\(null\)[\s\S]*setSettings\(\{ backupPath: event\.target\.value \}\)/)
+  assert.match(parent, /<VaultBackupSettings key=\{vaultId \?\? 'closed'\}/)
+})

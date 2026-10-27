@@ -354,7 +354,7 @@ function SettingsPanelImpl({
             )
           ) : null}
 
-          {vaultOpen && nativeReady ? <VaultBackupSettings backup={backup} vaultId={vaultId} activePath={activePath} settingsDirty={configDirty} onOpenNoteHistory={onOpenNoteHistory} /> : null}
+          {vaultOpen && nativeReady ? <VaultBackupSettings key={vaultId ?? 'closed'} backup={backup} vaultId={vaultId} activePath={activePath} settingsDirty={configDirty} onOpenNoteHistory={onOpenNoteHistory} /> : null}
 
           <div className="settings-section">
             <h3>{t('settingsPanel.spellcheckGrammar')}</h3>

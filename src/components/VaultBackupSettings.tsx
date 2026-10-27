@@ -1,6 +1,7 @@
 import { memo, useState } from 'react'
 import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { HardDrive } from 'lucide-react'
+import { createPendingBackupAction, matchesBackupActionScope, type PendingBackupAction } from '../lib/workspace/backupActionScope'
 import { recoveryHistoryAvailability, type RecoveryHistoryReason } from '../lib/workspace/recoveryHistoryAvailability'
 import { describeRestoreReceipt } from '../lib/workspace/restoreReceiptPresentation'
 
@@ -38,7 +39,8 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
     backup
 
   const receiptView = lastRestoreReceipt ? describeRestoreReceipt(lastRestoreReceipt) : null
-  const [pendingAction, setPendingAction] = useState<{ name: string; action: 'restore' | 'delete' } | null>(null)
+  const [pendingAction, setPendingAction] = useState<PendingBackupAction | null>(null)
+  const backupScope = { vaultId, backupPath: settings.backupPath }
   const [backupOptionsOpen, setBackupOptionsOpen] = useState(settings.enabled || Boolean(settings.backupPath))
   const historyAccess = recoveryHistoryAvailability({ vaultId, activePath, recoveryRequired, settingsDirty })
   const reasons: Record<Exclude<RecoveryHistoryReason, null>, string> = {
@@ -101,7 +103,10 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
             value={settings.backupPath}
             disabled={isBusy || recoveryRequired}
             placeholder="Leave empty to keep recovery copies in this vault"
-            onChange={(event) => setSettings({ backupPath: event.target.value })}
+            onChange={(event) => {
+              setPendingAction(null)
+              setSettings({ backupPath: event.target.value })
+            }}
           />
         </label>
         </div>
@@ -148,7 +153,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
                     className="toolbar-button"
                     disabled={isBusy || recoveryRequired}
                     aria-label={`Restore backup ${entry.name}`}
-                    onClick={() => setPendingAction({ name: entry.name, action: 'restore' })}
+                    onClick={() => setPendingAction(createPendingBackupAction(backupScope, entry.name, 'restore'))}
                   >
                     Restore
                   </button>
@@ -157,12 +162,12 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
                     className="toolbar-button danger"
                     disabled={isBusy || recoveryRequired}
                     aria-label={`Delete backup ${entry.name}`}
-                    onClick={() => setPendingAction({ name: entry.name, action: 'delete' })}
+                    onClick={() => setPendingAction(createPendingBackupAction(backupScope, entry.name, 'delete'))}
                   >
                     Delete
                   </button>
                 </div>
-                {pendingAction?.name === entry.name ? <MutationConfirmation
+                {matchesBackupActionScope(pendingAction, backupScope, entry.name) ? <MutationConfirmation
                   ariaLabel={`${pendingAction.action === 'restore' ? 'Restore' : 'Delete'} backup ${entry.name}`}
                   message={pendingAction.action === 'restore'
                     ? `Restore ${entry.name}? This replaces the current vault files with the saved copy.`
@@ -170,10 +175,12 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
                   confirmLabel={pendingAction.action === 'restore' ? 'Restore backup' : 'Delete backup'}
                   onCancel={() => setPendingAction(null)}
                   onConfirm={() => {
-                    const action = pendingAction.action
+                    const selected = pendingAction
                     setPendingAction(null)
-                    if (action === 'restore') void restoreBackup(entry.name)
-                    else void deleteBackup(entry.name)
+                    // Never transfer an approval to a different vault or backup location.
+                    if (!matchesBackupActionScope(selected, backupScope, entry.name) || isBusy || recoveryRequired) return
+                    if (selected?.action === 'restore') void restoreBackup(selected.name)
+                    else if (selected?.action === 'delete') void deleteBackup(selected.name)
                   }}
                   busy={isBusy || recoveryRequired}
                 /> : null}

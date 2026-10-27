@@ -14,6 +14,8 @@
 
 ### Fixed
 
+- Require pending Restore/Delete confirmations to match the current vault, backup destination and backup name; clear outdated approvals rather than applying them to an identically named backup elsewhere.
+
 - Keep paused drafts safe when a backup restore outcome is unknown: closing requires explicit discard approval for unsaved edits, never flushes those edits over restored files, and blocks vault switching with restart instructions until recovery.
 
 - Reject malformed or unrecognized native restore results as indeterminate, keeping the previous editor draft frozen until the vault can be reopened. Typed Tauri invocation responses are now validated after submission, with failing-first regression coverage.

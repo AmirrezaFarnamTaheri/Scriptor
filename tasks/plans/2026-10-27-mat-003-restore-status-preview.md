@@ -75,3 +75,13 @@ This is one more read-only entrypoint, not the complete MAT-003 inventory of Can
 ## Product behavior and limitations
 
 The summary is temporary and per vault/backup destination, is intentionally absent before any restore attempt, and is not stored on disk. Other recovery sources remain in their existing owning surfaces. No new `Recovery Center` navigation route or authorization model is introduced in this slice.
+
+### Task 4: Scope destructive backup confirmations (MAT-005 audit finding)
+
+**Files:** `src/lib/workspace/backupActionScope.ts`, `backupActionScope.test.ts`, `VaultBackupSettings.tsx`, `SettingsPanel.tsx`, and the backup source-contract tests.
+
+- [x] Confirmed that pending Restore/Delete approvals were keyed only by name, whereas backup listings and invocation are scoped by vault and destination.
+- [x] Reproduced red: the isolated test runner failed because the scope guard did not exist.
+- [x] Added vault/folder/name/action identity. A stale approval is hidden and checked again before invoking. Editing the backup location clears pending approval; vault changes remount Backup settings.
+- [x] Local Node 22.16.0 isolated helper test passed 6/6; regression source assertions added.
+- [ ] Required hosted exact-head CI, browser scope-switch testing, and installed-client evidence. This is a bounded MAT-005 lifecycle hardening slice, not MAT-005 completion.
