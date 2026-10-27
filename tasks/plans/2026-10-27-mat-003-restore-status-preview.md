@@ -30,9 +30,9 @@
 - Produces: `describeRestoreReceipt(receipt): {heading, explanation, tone}`
 
 - [x] **Step 1: Add failing behavioral tests.** Check not submitted, rolled-back, committed-ready, committed-needs-reopen, recovery-required, lost reply and committed files with failed workspace refresh.
-- [x] **Step 2: Verify red.** An isolated Node 22 harness based on the exact receipt module reported 7 assertion failures against a blank presenter, expected because no outcome text existed.
+- [x] **Step 2: Verify red.** An isolated harness demonstrated the absent-presenter failures; counts and environment are recorded in [the verification ledger](../../../docs/VERIFICATION.md#mat-001mat-003-recovery-work--october-27-2026).
 - [x] **Step 3: Implement minimum mapping.** Return plain-language status and recovery guidance, with no extra transaction policy.
-- [x] **Step 4: Verify focused green.** `node --experimental-strip-types --test src/lib/workspace/restoreReceiptPresentation.test.ts` in the isolated harness: 7 passed, 0 failed. Full repository execution is a separate gate.
+- [x] **Step 4: Verify focused green.** The isolated presenter tests passed; the command, outcome and full-checkout limitation are in [the verification ledger](../../../docs/VERIFICATION.md#mat-001mat-003-recovery-work--october-27-2026).
 - [ ] **Step 5: Run integrated source / type checks.** On exact PR head: `pnpm test:source`, `pnpm check:contracts`, `pnpm lint`.
 - [ ] **Step 6: Commit passing implementation.** The commit is reviewable, but full tests remain pending until hosted results are recorded.
 
@@ -65,7 +65,7 @@
 - Produces: a navigation-only entry to existing `NoteHistoryPanel`, not a restore command
 
 - [x] **Behavioral red:** six targeted Node tests against the absent navigation availability policy; five expected assertions failed, one passed.
-- [x] **Behavioral green:** implemented vault/recovery/unsaved-settings/current-note guard; six of six isolated Node 22 tests passed.
+- [x] **Behavioral green:** implemented vault/recovery/unsaved-settings/current-note guard; see the [isolated-run evidence](../../../docs/VERIFICATION.md#mat-001mat-003-recovery-work--october-27-2026).
 - [x] **UI wiring:** Backup Settings button opens the existing note history panel and closes Settings only when the guard allows it.
 - [ ] **Current-head acceptance:** run `node --experimental-strip-types --test src/lib/workspace/recoveryHistoryAvailability.test.ts`, `pnpm test:source`, `pnpm check:contracts`, `pnpm lint`, and `pnpm exec playwright test e2e/backup-history-navigation.spec.ts`; inspect browser screenshot/RTL/zoom behavior.
 - [ ] **Installed-client acceptance:** verify safe history navigation and return focus in Windows/macOS/Linux packages.
@@ -83,11 +83,11 @@ The summary is temporary and per vault/backup destination, is intentionally abse
 - [x] Confirmed that pending Restore/Delete approvals were keyed only by name, whereas backup listings and invocation are scoped by vault and destination.
 - [x] Reproduced red: the isolated test runner failed because the scope guard did not exist.
 - [x] Added vault/folder/name/action identity. A stale approval is hidden and checked again before invoking. Editing the backup location clears pending approval; vault changes remount Backup settings.
-- [x] Local Node 22.16.0 isolated helper test passed 6/6; regression source assertions added.
+- [x] Focused isolated scope tests passed and source assertions were added; see [the verification ledger](../../../docs/VERIFICATION.md#mat-001mat-003-recovery-work--october-27-2026).
 - [ ] Required hosted exact-head CI, browser scope-switch testing, and installed-client evidence. This is a bounded MAT-005 lifecycle hardening slice, not MAT-005 completion.
 
 ### Hosted CI correction for scoped confirmations
-- [x] Observed red on `c89698d`: the React build reported TS18047 on the nullable pending action; the old plain-language source contract asserted the now unsafe name-only state shape (734/735 tests passed).
+- [x] Observed failed hosted source and TypeScript gates on `c89698d`; diagnostic details and counts are recorded in [the verification ledger](../../../docs/VERIFICATION.md#mat-001mat-003-recovery-work--october-27-2026).
 - [x] Fix the JSX render guard to narrow `pendingAction` before reading its properties; update the source contract to assert scoped approvals and the guard rather than reinstating the unsafe state shape.
 - [ ] Recheck current commit's source suite, TypeScript frontend build, browser E2E, Rust/desktop and visual gates. Prior green runs cannot certify a newer head.
 
@@ -115,3 +115,9 @@ The summary is temporary and per vault/backup destination, is intentionally abse
 - [x] Add Playwright assertions to the existing twelve-backup fixture: keyboard focus must remain on the disclosure control after both expansion and collapse. With two mutually exclusive buttons, changing the label previously unmounted the focused button.
 - [x] Use one stable button with a changing accessible label, bounded ten-at-a-time count, `aria-controls` and `aria-expanded`. Continue clearing destructive confirmation when visibility changes.
 - [ ] Failing-first browser execution was not observed (authored test precedes this implementation in Git history); verify exact head via hosted Browser E2E, visual/RTL checks and keyboard interaction in installed client.
+
+### CodeRabbit follow-up — disclosure labels and central evidence
+- [x] Added a singular accessible label for one hidden backup, retaining the plural label for multiple copies and the stable focusable control.
+- [x] Added an eleven-backup Playwright fixture checking singular label, expansion and keyboard focus. The test requires hosted execution on this new head.
+- [x] Moved specific historical test/run results into [the central verification record](../../../docs/VERIFICATION.md#mat-001mat-003-recovery-work--october-27-2026); the plan retains checklist status and execution gates.
+- [ ] Verify the new head and installed-client behavior. MAT-003 is not completed by these changes.

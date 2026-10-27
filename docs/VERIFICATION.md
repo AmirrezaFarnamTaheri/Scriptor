@@ -41,6 +41,22 @@ enforcement applies to maintained product and contributor documentation.
 Provenance-sensitive audit records under `docs/validation/` and archived
 documents remain exempt; active user guides do not.
 
+
+## MAT-001–MAT-003 recovery work — October 27, 2026
+
+The parent-to-child review stack is [PR #180](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/180) → [PR #186](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/186) → [PR #205](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/205). This section records **execution evidence**, distinct from the implementation checklist in [the MAT-003 plan](../tasks/plans/2026-10-27-mat-003-restore-status-preview.md). A pass at an older source commit does not certify a newer head.
+
+| Source / environment | Observed result | Evidence classification and limits |
+|---|---|---|
+| Initial MAT-003 presenter; isolated Node 22 harness | Seven expected assertion failures with an absent presenter, then 7 passed / 0 failed after mapping seven restore outcomes | Focused red/green **isolated harness** only; not a full checkout, native restore or installed desktop |
+| MAT-003 note-history availability; isolated Node 22 harness | Six behavior assertions: five expected failures and one pass before the guard, then 6/6 passed after it | **Isolated harness**; not evidence of native note-history navigation, focus restoration, or installed-client behavior |
+| MAT-005 backup confirmation scope; isolated Node 22.16.0 harness | Missing-scope-guard red followed by 6/6 passing tests for vault/folder/name scope | **Isolated harness**; source contract authored separately, no installed-client restore |
+| [`c89698d`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/c89698d00dba00ffc879e8757440b32530e45157) · GitHub CI | Source regression suite **734/735 passed**, with the old name-only expectation failing; frontend build failed with TypeScript **TS18047** for nullable `pendingAction` | **Failed**; both regressions subsequently corrected in [`fac0faa`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/fac0faad76cb91fd75163f4c845132846ee3401a) |
+| [`a1f3761`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/a1f37616f0d5c102475fbf5a5d5eff1bf2d2dbbe) · GitHub-hosted | [Browser E2E](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40514532907), frontend, source contracts, container and Windows smoke jobs passed; [Visual review](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40514532797) and [workflow screenshots](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40514533136) passed. Rust dependency installation initially exceeded its 900-second runner deadline; a reattempt was requested, but the later parent-branch update superseded current-head certification. | **Mixed historical evidence**; runner `apt-get` timeout was not a Rust assertion failure, and no packaged-client acceptance is shown |
+| Latest stacked branches, including PR #205 at the time of this evidence record | New exact-head CI and visuals are linked from the pull requests, and must be checked independently | **Pending** for subsequent source heads; actual lost-reply, restart, journal, recovery, keyboard, RTL and screen-reader acceptance remains unverified |
+
+The source regression and TypeScript correction preserve the stronger scoped confirmation, rather than restoring the unsafe name-only approval. Browser fixtures simulate native responses and therefore cannot establish installed Windows/macOS/Linux restore or journal-recovery behavior. The MAT-003 checkbox remains unchecked pending the broader Recovery Center inventory and platform acceptance.
+
 ## PR #160 remediation evidence — October 11, 2026
 
 This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.

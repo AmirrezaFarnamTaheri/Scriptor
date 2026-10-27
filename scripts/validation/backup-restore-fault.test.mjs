@@ -169,6 +169,7 @@ test('older retained backups have an explicit bounded disclosure and cannot reus
   const source = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
   assert.match(source, /backups\.slice\(0, visibleBackupCount\)/)
   assert.match(source, /Show .*older backups/)
+  assert.match(source, /'Show 1 older backup'/)
   assert.match(source, /aria-expanded=\{visibleBackupCount > BACKUP_PAGE_SIZE\}/)
   assert.match(source, /Show fewer backups/)
   assert.match(source, /setPendingAction\(null\)[\s\S]*setVisibleBackupCount\(BACKUP_PAGE_SIZE\)/)
