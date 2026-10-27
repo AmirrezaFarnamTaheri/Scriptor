@@ -88,8 +88,17 @@ test('valid native reply is unchanged after runtime validation', () => {
 })
 
 test('unconfirmed restore quarantine blocks only the originating vault until restart', () => {
-  assert.equal(isVaultRestoreQuarantined('vault-A', 'vault-A'), true)
-  assert.equal(isVaultRestoreQuarantined('vault-A', 'vault-B'), false)
-  assert.equal(isVaultRestoreQuarantined('vault-A', null), false)
-  assert.equal(isVaultRestoreQuarantined(null, 'vault-A'), false)
+  assert.equal(isVaultRestoreQuarantined(new Set(['vault-A']), 'vault-A'), true)
+  assert.equal(isVaultRestoreQuarantined(new Set(['vault-A']), 'vault-B'), false)
+  assert.equal(isVaultRestoreQuarantined(new Set(['vault-A']), null), false)
+  assert.equal(isVaultRestoreQuarantined(new Set(), 'vault-A'), false)
+})
+
+
+test('multiple indeterminate restore vaults retain separate holds', () => {
+  const quarantined = new Set(['vault-one', 'vault-two'])
+  assert.equal(isVaultRestoreQuarantined(quarantined, 'vault-one'), true)
+  assert.equal(isVaultRestoreQuarantined(quarantined, 'vault-two'), true)
+  assert.equal(isVaultRestoreQuarantined(quarantined, 'unaffected'), false)
+  assert.equal(isVaultRestoreQuarantined(quarantined, null), false)
 })

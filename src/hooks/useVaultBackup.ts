@@ -58,10 +58,10 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const [messageView, setMessageView] = useState<{vaultId: string | null; path: string; value: string | null}>({vaultId: ownedVaultId, path: settings.backupPath, value: null})
   const [isBusy, setIsBusy] = useState(false)
   // A lost native restore reply can hide already-promoted files. Keep this
-  // vault quarantined for the remainder of this app session, even if the
-  // backup destination or active vault changes. A full restart clears it.
-  const [recoveryHoldVaultId, setRecoveryHoldVaultId] = useState<string | null>(null)
-  const recoveryRequired = isVaultRestoreQuarantined(recoveryHoldVaultId, ownedVaultId)
+  // affected vaults quarantined for the remainder of this app session, even if
+  // several vaults encounter uncertain results. A full restart clears them.
+  const [recoveryHoldVaultIds, setRecoveryHoldVaultIds] = useState<ReadonlySet<string>>(() => new Set())
+  const recoveryRequired = isVaultRestoreQuarantined(recoveryHoldVaultIds, ownedVaultId)
   // Hide a previous vault's data on the very first render after switching.
   // React forbids synchronous setState in effects; owner-keyed state needs no reset effect.
   // Backups are identified by both vault and destination directory. Never
@@ -78,10 +78,10 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const setLastMessage = useCallback((value: string | null) => setMessageView({vaultId: ownedVaultId, path: settings.backupPath, value}), [ownedVaultId, settings.backupPath])
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const operationBusyRef = useRef(false)
-  const recoveryHoldRef = useRef<string | null>(null)
+  const recoveryHoldRef = useRef<Set<string>>(new Set())
   const quarantineRestore = useCallback((id: string) => {
-    recoveryHoldRef.current = id
-    setRecoveryHoldVaultId(id)
+    recoveryHoldRef.current.add(id)
+    setRecoveryHoldVaultIds(new Set(recoveryHoldRef.current))
   }, [])
   const currentVaultRef = useRef<string | null>(ownedVaultId)
   const currentBackupPathRef = useRef(settings.backupPath)
