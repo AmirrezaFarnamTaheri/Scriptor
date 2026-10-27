@@ -230,6 +230,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
           // index rebuild must not run against that session. The native
           // message already tells the user to reopen the vault, which
           // reconciles the journal and reloads everything.
+          quarantineRestore(requestedVault)
           setLastError(result.message)
           return
         }
@@ -282,7 +283,9 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
           if (lastNativeStatus) setRestoreReceipt(buildRestoreOperationReceipt({ operationId, vaultId: requestedVault, backupName, backupPath: requestedPath, outcome: { kind: 'post-commit-refresh-failed', status: lastNativeStatus } }))
           // The filesystem restore is already authoritative. Never label that
           // durable operation as failed merely because UI/index resynchronizing
-          // encountered an error afterward.
+          // encountered an error afterward. Do not allow another backup mutation
+          // until the committed tree has been reconciled by an app restart.
+          quarantineRestore(requestedVault)
           setLastError(`Vault files were restored, but workspace resynchronization failed: ${message}`)
         }
       } finally {

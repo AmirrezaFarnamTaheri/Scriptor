@@ -124,3 +124,14 @@ test('backup restore exposes vault-scoped receipts without replacing native outc
   assert.match(useVaultBackup, /outcome: \{ kind: 'not-submitted' \}/)
   assert.match(useVaultBackup, /outcome: \{ kind: 'post-commit-refresh-failed'/)
 })
+test('confirmed native reopen-required status and post-commit refresh failure quarantine the vault', () => {
+  const nativeBranch = useVaultBackup.indexOf('if (!disposition.refreshWorkspace)')
+  const refreshBranch = useVaultBackup.indexOf('// Reload authoritative', nativeBranch)
+  assert.ok(nativeBranch >= 0 && refreshBranch > nativeBranch)
+  assert.match(useVaultBackup.slice(nativeBranch, refreshBranch), /quarantineRestore\(requestedVault\)/)
+
+  const postCommitComment = useVaultBackup.indexOf('durable operation as failed')
+  const postCommitError = useVaultBackup.indexOf('Vault files were restored, but workspace resynchronization failed', postCommitComment)
+  assert.ok(postCommitComment > 0 && postCommitError > postCommitComment)
+  assert.match(useVaultBackup.slice(postCommitComment, postCommitError), /quarantineRestore\(requestedVault\)/)
+})
