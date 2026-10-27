@@ -29,3 +29,8 @@ The request token is renderer-only; native vault selection, backup scope and per
 - [x] The failing-first source assertion and exact test-only CI run are recorded in [the verification ledger](../../docs/VERIFICATION.md#mat-005-backup-inventory-request-ordering--october-27-2026).
 - [x] A second browser fixture now covers a late same-scope **error** after a successful post-create listing, complementing the stale-success case.
 - [ ] Both browser paths and full current-head CI must pass; no installed or native acceptance claim is made from these mocks.
+
+## Browser E2E selector correction
+- [x] Observed failed exact-head Browser E2E on [CI #40528678913](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40528678913): both new race fixtures failed with a **Playwright strict-mode selector collision**, not an observed stale-inventory overwrite. The broad name query matched both `Backup created: …` and the real `.backup-entry` row.
+- [x] Scope all current/old assertions to `.backup-entry` and preserve both post-mutation stale-success/error requirements. This checks inventory state rather than a success toast, with no production behavior changes.
+- [ ] Run current-head full browser suite to confirm the selectors and actual race behavior; then reclassify evidence in `docs/VERIFICATION.md`.

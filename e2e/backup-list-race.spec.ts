@@ -64,7 +64,7 @@ test('pending same-scope backup list cannot resurrect stale entries after a comp
   await expect.poll(() => page.evaluate(() =>
     (window as Window & { __mat005ListRace?: { requests: number } }).__mat005ListRace?.requests ?? 0,
   )).toBe(2)
-  await expect(backup.getByText('vault-backup-abcdef123456-20261027-143000-9999', { exact: false })).toBeVisible()
+  await expect(backup.locator('.backup-entry').filter({ hasText: 'vault-backup-abcdef123456-20261027-143000-9999' })).toBeVisible()
 
   await page.evaluate(() => {
     const host = window as Window & {
@@ -79,8 +79,8 @@ test('pending same-scope backup list cannot resurrect stale entries after a comp
   })
   // Original code accepted the older effect response because its vault/path
   // still matched. The mutation's newer inventory must remain authoritative.
-  await expect(backup.getByText('vault-backup-abcdef123456-20261027-143000-9999', { exact: false })).toBeVisible()
-  await expect(backup.getByText('vault-backup-abcdef123456-20261027-142000-9999', { exact: false })).toHaveCount(0)
+  await expect(backup.locator('.backup-entry').filter({ hasText: 'vault-backup-abcdef123456-20261027-143000-9999' })).toBeVisible()
+  await expect(backup.locator('.backup-entry').filter({ hasText: 'vault-backup-abcdef123456-20261027-142000-9999' })).toHaveCount(0)
 })
 
 test('late same-scope list error cannot replace a successful post-create inventory', async ({ page }) => {
@@ -135,13 +135,13 @@ test('late same-scope list error cannot replace a successful post-create invento
   await expect.poll(() => page.evaluate(() =>
     (window as Window & { __mat005ErrorRace?: { requests: number } }).__mat005ErrorRace?.requests ?? 0,
   )).toBe(2)
-  await expect(backup.getByText('vault-backup-abcdef123456-20261027-151500-9999')).toBeVisible()
+  await expect(backup.locator('.backup-entry').filter({ hasText: 'vault-backup-abcdef123456-20261027-151500-9999' })).toBeVisible()
   await page.evaluate(() => {
     (window as Window & { __mat005ErrorRace?: { rejectOld?: (error: Error) => void } })
       .__mat005ErrorRace?.rejectOld?.(new Error('Outdated access denied'))
   })
   // Give React the opportunity to process the deliberately late rejection.
   await page.waitForTimeout(100)
-  await expect(backup.getByText('vault-backup-abcdef123456-20261027-151500-9999')).toBeVisible()
+  await expect(backup.locator('.backup-entry').filter({ hasText: 'vault-backup-abcdef123456-20261027-151500-9999' })).toBeVisible()
   await expect(backup.getByRole('alert')).toHaveCount(0)
 })
