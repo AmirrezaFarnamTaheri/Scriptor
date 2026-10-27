@@ -121,3 +121,39 @@ test('restore and delete confirmations do not transfer to another backup folder'
     { command: 'vault_delete_backup', backupPath: 'C:/Backup-C' },
   ])
 })
+
+test('older retained backups remain selectable instead of disappearing after the first ten', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.evaluate(() => {
+    const host = window as Window & { __TAURI_INTERNALS__?: NativeBridge }
+    const native = host.__TAURI_INTERNALS__
+    if (!native) throw new Error('Native fixture bridge unavailable')
+    const invoke = native.invoke.bind(native)
+    native.invoke = (command, args) => command === 'vault_list_backups'
+      ? Promise.resolve(Array.from({ length: 12 }, (_, index) => ({
+          name: `retained-snapshot-${String(index + 1).padStart(2, '0')}`,
+          path: `retained-snapshot-${String(index + 1).padStart(2, '0')}`,
+          created_at: '2026-10-27T00:00:00Z',
+          size_bytes: 256,
+          storage_kind: 'external_backup',
+          verified: true,
+        })))
+      : invoke(command, args)
+  })
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  const backup = settings.locator('[data-help-topic="backups"]')
+  const options = settings.locator('details.backup-options')
+  if (await options.getAttribute('open') === null) await options.locator('summary').click()
+  await settings.getByRole('textbox', { name: /Backup folder outside this vault/ }).fill('C:/OlderSnapshots')
+  await expect(backup.locator('.backup-entry')).toHaveCount(10)
+  await expect(backup.getByRole('button', { name: 'Restore backup retained-snapshot-11' })).toHaveCount(0)
+  const older = backup.getByRole('button', { name: 'Show 2 older backups' })
+  await expect(older).toBeVisible()
+  await older.click()
+  await expect(backup.locator('.backup-entry')).toHaveCount(12)
+  await expect(backup.getByRole('button', { name: 'Restore backup retained-snapshot-12' })).toBeVisible()
+  await backup.getByRole('button', { name: 'Show fewer backups' }).click()
+  await expect(backup.locator('.backup-entry')).toHaveCount(10)
+})

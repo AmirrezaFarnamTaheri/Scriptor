@@ -94,3 +94,8 @@ The summary is temporary and per vault/backup destination, is intentionally abse
 ### Browser regression: same-named backups in different folders
 - [x] Authored Playwright fixture that returns the *same* backup name for three destinations, opens Restore/Delete confirmation, changes destination each time, and asserts both stale approvals disappear without native mutation. A new explicit Delete confirmation must target only the final folder.
 - [ ] This authored browser test requires execution on hosted Browser E2E; local Node helper tests are not a substitute. No installed-client claim until the native backup-path and vault-switch cases are exercised on real packages.
+
+### Task 5: Discover older retained backups instead of silently truncating restore choices
+- [ ] RED: The current Backup settings renders `backups.slice(0, 10)` without any means of accessing entries 11+. A browser fixture was added that lists twelve valid retained backups and requires a keyboard-accessible, bounded Show Older control. Run it against the pre-fix head and record the decisive failure.
+- [ ] GREEN: Reveal additional results ten at a time, offer a collapse action, and clear pending destructive confirmation when a page or destination changes. Keep the existing native sorted listing and restore authority.
+- [ ] Hosted current-head browser execution, source tests, TypeScript and visual/RTL review; installed-client validation still required.
