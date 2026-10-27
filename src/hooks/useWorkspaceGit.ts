@@ -11,11 +11,6 @@ interface UseWorkspaceGitOptions {
   setError: (message: string | null) => void
 }
 
-interface GitMutationBusyState {
-  vaultId: string | null
-  active: boolean
-}
-
 /**
  * Owns Git status refresh state separately from user-triggered mutations. Status
  * freshness lives in a framework-free per-vault controller (see
@@ -49,7 +44,20 @@ export function useWorkspaceGit({
 
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot)
 
-  const [gitMutationBusy, setGitMutationBusy] = useState<GitMutationBusyState | null>(null)
+  // React state controls presentation, but only a ref can reject concurrent
+  // native mutations before React has committed the next render.
+  const mutationInFlightRef = useRef(false)
+  const [gitMutationBusy, setGitMutationBusy] = useState(false)
+  const beginMutation = useCallback(() => {
+    if (mutationInFlightRef.current) return false
+    mutationInFlightRef.current = true
+    setGitMutationBusy(true)
+    return true
+  }, [])
+  const finishMutation = useCallback(() => {
+    mutationInFlightRef.current = false
+    setGitMutationBusy(false)
+  }, [])
 
   const refreshGit = useCallback(
     (explicitVaultId?: string | null) => controller.refresh(explicitVaultId),
@@ -63,7 +71,7 @@ export function useWorkspaceGit({
         setError('This vault is not a Git repository.')
         return
       }
-      setGitMutationBusy({ vaultId: targetVaultId, active: true })
+      if (!beginMutation()) return
       setError(null)
       try {
         await gitCommit(files, message)
@@ -74,15 +82,15 @@ export function useWorkspaceGit({
         setError(detail)
         logActivity('error', 'Git commit failed', detail)
       } finally {
-        setGitMutationBusy({ vaultId: targetVaultId, active: false })
+        finishMutation()
       }
     },
-    [controller, logActivity, setError, vaultId],
+    [beginMutation, controller, finishMutation, logActivity, setError, vaultId],
   )
 
   const pullRemote = useCallback(async (strategy: GitPullStrategy) => {
     const targetVaultId = vaultId
-    setGitMutationBusy({ vaultId: targetVaultId, active: true })
+    if (!beginMutation()) return
     setError(null)
     try {
       if (!targetVaultId) throw new Error('No active vault is open.')
@@ -95,13 +103,13 @@ export function useWorkspaceGit({
       setError(detail)
       logActivity('error', `Git pull failed (${strategy})`, detail)
     } finally {
-      setGitMutationBusy({ vaultId: targetVaultId, active: false })
+      finishMutation()
     }
-  }, [controller, logActivity, refreshVault, setError, vaultId])
+  }, [beginMutation, controller, finishMutation, logActivity, refreshVault, setError, vaultId])
 
   const pushRemote = useCallback(async () => {
     const targetVaultId = vaultId
-    setGitMutationBusy({ vaultId: targetVaultId, active: true })
+    if (!beginMutation()) return
     setError(null)
     try {
       if (!targetVaultId) throw new Error('No active vault is open.')
@@ -113,9 +121,9 @@ export function useWorkspaceGit({
       setError(detail)
       logActivity('error', 'Git push failed', detail)
     } finally {
-      setGitMutationBusy({ vaultId: targetVaultId, active: false })
+      finishMutation()
     }
-  }, [controller, logActivity, setError, vaultId])
+  }, [beginMutation, controller, finishMutation, logActivity, setError, vaultId])
 
   const scopedSlot = vaultId === null ? undefined : snapshot.slots[vaultStatusKey(vaultId)]
 
@@ -125,7 +133,7 @@ export function useWorkspaceGit({
     // Until this vault's own slot exists, the panel cannot truthfully claim
     // "not a repository" — it is still waiting for its first status read.
     isGitStatusLoading: snapshot.isLoading || (vaultId !== null && scopedSlot === undefined),
-    isGitBusy: gitMutationBusy?.vaultId === vaultId && gitMutationBusy.active,
+    isGitBusy: gitMutationBusy,
     refreshGit,
     commitFiles,
     pullRemote,

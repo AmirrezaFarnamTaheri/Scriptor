@@ -185,6 +185,12 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - The release upload boundary excludes unpacked bundle internals and CI evidence.
 - Checksums and attestations cover installers, while target trust records remain separately verified release metadata.
 
+## MAT-005 — Git mutation single-flight (draft PR #210)
+
+- **Observed RED:** test-only head `6182df80b78b81c8043f3c5364735db3f741839b`, [CI #40585634586](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40585634586), `Run source regression suite`. A repeat commit reached native Git twice (expected one, observed two); a pending pull ceased showing busy after switching vaults (expected true, observed false).
+- The initial error-path test failed on a VM cross-realm `Error` prefix, not production behavior. The harness supplies the host `Error` constructor in the implementation commit; this is a test-fixture correction, not a changed product expectation.
+- **Implementation:** a synchronous, shared in-flight ref gates all three Git mutation entry points; React state remains the busy indicator and is no longer hidden on vault navigation. Native GitQueue, authorization, command signatures and per-vault status slots remain unchanged.
+- **Pending:** exact-head hosted source, TypeScript, browser, Rust, Windows, and visual acceptance; installed-client duplicate-submit, vault switch, crash/restart and native failure acceptance. This is one MAT-005 slice, not checklist completion.
 ## Canonical history gate
 
 Run from a full canonical clone:

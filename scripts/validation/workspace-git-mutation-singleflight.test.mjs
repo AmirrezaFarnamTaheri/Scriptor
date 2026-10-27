@@ -52,6 +52,7 @@ function harness() {
   }
   const module = { exports: {} }
   vm.runInNewContext(source, {
+    Error,
     module,
     exports: module.exports,
     require: (id) => id === 'react' ? react
