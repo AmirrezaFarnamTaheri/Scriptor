@@ -11,8 +11,8 @@
 - [x] Read the originating hook, native bridge authorization, existing MAT-005 ordering guard, and Backup settings loading/alert rendering.
 - [x] Author a Playwright test holding the original list for a new directory, rejecting `authorize_sensitive_operation('create_backup')`, requiring a second read, and verifying loading settles while the denial remains visible. Release the old list last and ensure it cannot override the newer inventory. The fixture must prove no `vault_create_backup` submission or automatic retry.
 - [x] Add a narrowly scoped source regression requiring read-only list reconciliation in `triggerBackup`'s failure branch and no duplicate create invocation.
-- [ ] **RED:** observe the expected source/functional failure at the test-only head; record exact run link in `docs/VERIFICATION.md`. A test-only push is not proof of red without actual execution.
-- [ ] **GREEN:** on a failed create, refresh only the same vault and backup directory via the existing guarded `listBackups()` reader. Preserve the original mutation error. Do not repeat the failed write, bypass the request epoch, accept stale responses, or cross vaults.
+- [x] **RED observed:** on test-only commit `1dcc6f3`, CI #40560278013 ran 741 source tests: 740 passed, and the new MAT-005 read-only reconciliation assertion failed exactly because no replacement read was scheduled. Browser red is not claimed.
+- [x] **GREEN implementation authored:** after a failed create, the error remains visible and the existing guarded `listBackups()` reader reconciles the same vault/directory. No native write is retried. Exact-head verification remains pending.
 - [ ] Run focused source and browser tests, then exact-head CI/visual/Windows/Rust lanes. Keep the PR draft and stacked until checks are green.
 - [ ] Accept packaged-client testing separately. Other MAT-005 mutation owners remain open.
 

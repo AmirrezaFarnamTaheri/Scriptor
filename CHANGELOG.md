@@ -16,6 +16,8 @@
 
 ### Fixed
 
+- Reconcile backup listings with a read-only scoped refresh after denied/failed backup creation, keeping the original error visible without automatically retrying the write.
+
 - Prevent stale same-vault backup-list results or errors from replacing newer inventory after manual backup, deletion or restore; responses now honor request ordering as well as vault/destination identity.
 
 - Disable Restore for backup copies that fail native integrity verification, with a clear explanation; reviewed Delete remains available for cleanup.

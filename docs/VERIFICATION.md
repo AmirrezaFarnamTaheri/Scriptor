@@ -57,6 +57,16 @@ The parent-to-child review stack is [PR #180](https://github.com/AmirrezaFarnamT
 
 The source regression and TypeScript correction preserve the stronger scoped confirmation, rather than restoring the unsafe name-only approval. Browser fixtures simulate native responses and therefore cannot establish installed Windows/macOS/Linux restore or journal-recovery behavior. The MAT-003 checkbox remains unchecked pending the broader Recovery Center inventory and platform acceptance.
 
+## MAT-005 failed-create backup inventory settlement — October 27, 2026
+
+Draft [PR #208](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/208) is stacked on #206. This is a renderer-only listing reconciliation, not a new permission or backup-write authority.
+
+| Source/environment | Result | Evidence classification |
+|---|---|---|
+| Test-only commit `1dcc6f3`, [CI #40560278013](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40560278013) | **740 passed, 1 failed** in the source suite. The only failure was `MAT-005 denied backup creation schedules a read-only list reconciliation`: no replacement read in the failed-create branch | **Observed source-contract red**; browser red and actual native-disk fault were not observed |
+| Fix commit `c9c5069` | After a backup create failure, check current vault/folder, preserve error and await an existing read-only `listBackups()` call; no repeat `vaultCreateBackup` call | Implemented, **exact-head green pending** |
+
+The original pending list was invalidated at mutation start. The new read must settle the loading state without accepting the stale response or hiding the authorization failure. Packaged-client acceptance and other MAT-005 owners remain open.
 ## MAT-005 backup inventory request ordering — October 27, 2026
 
 PR [#206](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/206) is a bounded mutation-lifecycle slice stacked on #205. Its request-epoch guard is renderer-only; it neither overrides native vault ownership nor replaces backup authorization.
