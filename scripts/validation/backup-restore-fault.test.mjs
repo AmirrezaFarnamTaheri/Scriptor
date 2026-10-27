@@ -182,3 +182,12 @@ test('a backup with failed native integrity verification cannot enter the Restor
   assert.match(settings, /This backup could not be verified, so it cannot be restored/)
   assert.match(settings, /Delete backup/)
 })
+
+
+test('MAT-005 backup listing rejects stale same-vault, same-folder completions', () => {
+  // A current vault + directory check alone cannot distinguish two overlapping
+  // requests for the same location. A monotonic request epoch is also required.
+  assert.match(useVaultBackup, /const backupListRequestEpochRef = useRef\(0\)/)
+  const acceptChecks = [...useVaultBackup.matchAll(/requestEpoch === backupListRequestEpochRef\.current/g)]
+  assert.ok(acceptChecks.length >= 2, 'both refresh and effect requests must reject stale completions')
+})
