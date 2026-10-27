@@ -198,9 +198,16 @@ mod tests {
                 attempted_writes.set(attempted_writes.get() + 1);
                 Ok(1_u8)
             });
-            assert!(result.is_err(), "an incorrect vault must reject the mutation");
+            assert!(
+                result.is_err(),
+                "an incorrect vault must reject the mutation"
+            );
         }
-        assert_eq!(attempted_writes.get(), 0, "no Git write may start on a mismatched vault");
+        assert_eq!(
+            attempted_writes.get(),
+            0,
+            "no Git write may start on a mismatched vault"
+        );
     }
 
     #[test]
