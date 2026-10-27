@@ -8,7 +8,7 @@ The effect-driven `vaultListBackups` and the explicit `listBackups` callback can
 
 ## Steps and evidence
 - [x] Inspect current hook and existing native-owned backup listing contract.
-- [x] Add an E2E fixture that holds the first list request for directory A, navigates A→B→A, returns a newer list for A, then releases the old A response.
+- [x] Add an E2E fixture that holds the initial effect list for directory A, creates a manual backup while that read is pending, returns the newer post-create inventory, then releases the old list response. This reproduces overlapping requests in an **unchanged** vault/path; switching folders alone does not reproduce it because effect cleanup already cancels stale requests.
 - [x] Add a focused source-contract test requiring ordering for both effect and explicit refresh paths.
 - [ ] **RED:** execute `pnpm test:source` and focused `pnpm exec playwright test e2e/backup-list-race.spec.ts` against test-only head; capture decisive failure. Hosted check is not yet observed.
 - [ ] **GREEN:** add a monotonic request-epoch guard to both list sites, invalidating older results on manual backup/list mutation; preserve existing native access checks, authorization, quarantine, and error states.
