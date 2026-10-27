@@ -51,6 +51,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const documentRef = useRef(document)
   const lifecycleGuardRef = useRef(new OperationGuard())
   const loadGuardRef = useRef(new OperationGuard())
+  const boardListGuardRef = useRef(new OperationGuard())
   const saveGuardRef = useRef(new OperationGuard())
   const templateGuardRef = useRef(new OperationGuard())
   const saveTailRef = useRef<Promise<boolean>>(Promise.resolve(true))
@@ -65,6 +66,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   useEffect(() => {
     lifecycleGuardRef.current.invalidate()
     loadGuardRef.current.invalidate()
+    boardListGuardRef.current.invalidate()
     saveGuardRef.current.invalidate()
     templateGuardRef.current.invalidate()
     if (saveTimer.current) {
@@ -114,12 +116,15 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     !vaultOpen || !vaultId ? 'Open a vault to edit canvas boards.' : status
 
   const refreshBoardList = useCallback(async (isCurrent: () => boolean = () => true) => {
+    // Request ordering is separate from the vault lifecycle. Two reads in the
+    // same vault can resolve in reverse order after a completed Canvas save.
+    const request = boardListGuardRef.current.issue()
     if (!isNativeBridgeAvailable() || !vaultOpen) {
-      if (isCurrent()) setBoards([])
+      if (isCurrent() && boardListGuardRef.current.isCurrent(request)) setBoards([])
       return []
     }
     const summaries = await canvasListDocuments()
-    if (isCurrent()) setBoards(summaries)
+    if (isCurrent() && boardListGuardRef.current.isCurrent(request)) setBoards(summaries)
     return summaries
   }, [vaultOpen])
 
