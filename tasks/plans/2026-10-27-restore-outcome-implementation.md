@@ -12,7 +12,7 @@
 - Only rolled-back safely resumes old draft persistence.
 - committed-ready is the only status allowed to refresh the restored workspace.
 - committed-needs-reopen and recovery-required leave the old draft frozen and demand vault reopening.
-- A thrown transport error alone proves no native commit state; this slice does not change transport interpretation or native transactions.
+- Authorization rejection before invoking native restore is a known safe abort. Any rejected native invocation has unknown commit state even if the transaction actually committed; the old editor draft stays frozen until real vault reopen. The native transaction remains unchanged.
 
 ---
 
@@ -49,6 +49,25 @@
 - [ ] **Step 4: Rerun focused tests.** All status and integration tests pass.
 - [ ] **Step 5: Run CI.** Type check, source tests, browser restore cases, native desktop compile.
 - [ ] **Step 6: Commit.** Preserve immutable source history and PR review.
+
+### Task 3: Prevent a rejected native invocation from being mistaken for rollback
+
+**Files:**
+- Modify: `src/lib/restoreOutcome.ts`, `src/lib/restoreOutcome.test.ts`.
+- Modify: `src/bridge/commands/vault.ts`, `src/hooks/useVaultBackup.ts`.
+- Test: `scripts/validation/backup-restore-fault.test.mjs`.
+- Modify: `src/components/VaultBackupSettings.tsx`, `CHANGELOG.md`.
+
+**Interfaces:**
+- Consumes: `authorizeSensitiveOperation('restore_backup', backupName)`, `invoke<VaultRestoreResult>('vault_restore_backup', args)`, `dispatchVaultLifecycleEvent`.
+- Produces: `runVaultRestoreWithOutcomeBoundary`, `VaultRestoreOutcomeUnknownError`, `classifyVaultRestoreFailure`.
+
+- [x] **Step 1: Add focused failing behavioral tests.** Authorization-denied invocation, rejected submitted invoke, synchronous invoke failure, retained terminal reply and post-commit UI failure.
+- [x] **Step 2: Observe relevant red.** A pass-through stub returned 3 expected failing assertions: unwrapped submitted rejections and misclassified already committed UI failures.
+- [x] **Step 3: Implement minimal native-invoke boundary and freeze behavior.** Only known pre-submission failures can emit safe abort; unknown outcomes leave persistence frozen and announce the need to reopen.
+- [x] **Step 4: Run focused green locally.** `node --experimental-strip-types --test src/lib/restoreOutcome.test.ts`: seven tests passed on Node 22.16.0.
+- [ ] **Step 5: Run hosted exact-head integration.** Check `pnpm test:source`, frontend type/lint, Rust desktop compilation, backup restore fault contracts and browser recovery.
+- [ ] **Step 6: Test installed-client response loss/reopen.** Source or mocked test results cannot prove real process recovery.
 
 ## External decisions
 None for this bounded slice. Subsequent generalized operation receipts require per-operation policy review, captured in MAT-002.
