@@ -219,10 +219,15 @@ test('failed backup creation settles an invalidated inventory without retrying t
   await expect(backup.locator('.backup-entry').filter({ hasText: 'previous-recovery-copy' })).toBeVisible()
   await expect(backup.getByRole('status').filter({ hasText: 'Loading backups' })).toHaveCount(0)
 
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     (window as Window & {
       __mat005FailedCreate?: { resolveOld?: (entries: unknown[]) => void }
     }).__mat005FailedCreate?.resolveOld?.([])
+    // Let the rejected epoch's promise continuation AND a React render frame
+    // finish before checking that the older [] reply did not clear inventory.
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    })
   })
   await expect(backup.locator('.backup-entry').filter({ hasText: 'previous-recovery-copy' })).toBeVisible()
   await expect(backup.getByRole('alert')).toContainText('Backup permission cancelled')
