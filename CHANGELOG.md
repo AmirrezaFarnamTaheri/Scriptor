@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Prevent an older Canvas explicit save-flush result from reporting a different vault or newer unsaved document as saved; native save outcomes remain authoritative and serialized.
+
 - Upgrade `webpki-roots` and `webpki-root-certs` to 1.0.10 and `rustls-webpki` to 0.103.16 to fix RUSTSEC-2026-0381, RUSTSEC-2026-0382 and RUSTSEC-2026-0383, which affected the bundled root certificates by trusting distrusted emSign intermediates and by accepting certificate paths through distrusted intermediates.
 
 - Apply the native `(?i)` case-insensitive directive without depending on runtime-specific regular-expression features, so a path filter using the directive matches the same notes on every supported runtime instead of silently dropping them on the ones that lack the scoped flag form.

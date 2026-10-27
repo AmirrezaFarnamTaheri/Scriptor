@@ -323,6 +323,13 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   )
 
   const flushPendingSave = useCallback(async (): Promise<boolean> => {
+    // A successful old native write must never claim that another vault or
+    // a newer local document is already saved.
+    const originLifecycle = lifecycleGuardRef.current.snapshot()
+    const originDocument = documentRef.current
+    const isCurrent = () => mountedRef.current &&
+      lifecycleGuardRef.current.isCurrent(originLifecycle) &&
+      documentRef.current === originDocument
     if (saveTimer.current) {
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
@@ -331,7 +338,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     const pending = pendingSavePayloadRef.current
     if (pending && isNativeBridgeAvailable() && vaultOpen) {
       pendingSavePayloadRef.current = null
-      const ok = await enqueueSave(pending, () => true)
+      const ok = await enqueueSave(pending, isCurrent)
       if (!ok) return false
     } else {
       const inFlightOk = await saveTailRef.current
@@ -342,14 +349,14 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         const retry = pendingSavePayloadRef.current
         if (!retry || !isNativeBridgeAvailable() || !vaultOpen) return false
         pendingSavePayloadRef.current = null
-        return enqueueSave(retry, () => true)
+        return enqueueSave(retry, isCurrent)
       }
     }
 
     const retry = pendingSavePayloadRef.current
     if (retry && isNativeBridgeAvailable() && vaultOpen) {
       pendingSavePayloadRef.current = null
-      return enqueueSave(retry, () => true)
+      return enqueueSave(retry, isCurrent)
     }
     return saveTailRef.current
   }, [enqueueSave, vaultOpen])

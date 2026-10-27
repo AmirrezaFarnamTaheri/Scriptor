@@ -41,6 +41,17 @@ enforcement applies to maintained product and contributor documentation.
 Provenance-sensitive audit records under `docs/validation/` and archived
 documents remain exempt; active user guides do not.
 
+## MAT-005 Canvas explicit-flush ownership — October 27, 2026
+
+[PR #207](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/207) is an independent Canvas lifecycle slice, not a completion of MAT-005 or the backup PR #206.
+
+| Source | Observed result | Classification |
+|---|---|---|
+| Test-only `b3ebaeb` · [CI #40556426344](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40556426344) | Real-hook tests 182 and 183 both failed, expecting `New board ready.` but receiving `Canvas saved.` for old-vault and newer-edit cases | **Two observed behavioral red assertions** |
+| Implementation after `b3ebaeb` | Explicit flush checks origin lifecycle, same document object and mount status before accepting any UI completion; keeps native serialized saves and successful durability results | **Implemented; exact-head hosted green and packaged acceptance pending** |
+
+Mocks do not certify an installed client's crash/restart recovery. No new native command, permission scope, or file format was introduced.
+
 ## PR #160 remediation evidence — October 11, 2026
 
 This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.
