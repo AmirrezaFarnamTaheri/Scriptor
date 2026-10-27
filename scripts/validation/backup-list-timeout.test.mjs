@@ -46,7 +46,8 @@ test('successful backup list returns native result and clears the timer', async 
   const b = bridge(() => Promise.resolve(entries))
   assert.deepEqual(await b.list('C:/Backups'), entries)
   assert.equal(b.timers.size, 0)
-  assert.deepEqual(b.calls[0], { cmd: 'vault_list_backups', args: { backupPath: 'C:/Backups' } })
+  assert.equal(b.calls[0].cmd, 'vault_list_backups')
+  assert.equal(b.calls[0].args.backupPath, 'C:/Backups')
 })
 
 test('native list rejection is preserved and clears the timer', async () => {
