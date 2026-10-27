@@ -1,6 +1,7 @@
 import { memo, useState } from 'react'
 import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { HardDrive } from 'lucide-react'
+import { describeRestoreReceipt } from '../lib/workspace/restoreReceiptPresentation'
 
 import type { useVaultBackup } from '../hooks/useVaultBackup'
 
@@ -28,9 +29,10 @@ function formatDate(iso: string): string {
 }
 
 export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }: VaultBackupSettingsProps) {
-  const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup } =
+  const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, lastRestoreReceipt, triggerBackup, restoreBackup, deleteBackup } =
     backup
 
+  const receiptView = lastRestoreReceipt ? describeRestoreReceipt(lastRestoreReceipt) : null
   const [pendingAction, setPendingAction] = useState<{ name: string; action: 'restore' | 'delete' } | null>(null)
   const [backupOptionsOpen, setBackupOptionsOpen] = useState(settings.enabled || Boolean(settings.backupPath))
   return (
@@ -97,6 +99,15 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
       {lastMessage ? <p className="settings-status ok">{lastMessage}</p> : null}
       {lastError ? <p className="settings-status warn" role="alert">{lastError}</p> : null}
       {backupListError ? <p className="settings-status warn" role="alert">{backupListError}</p> : null}
+      {receiptView ? (
+        <section aria-labelledby="backup-last-restore-title">
+          <h4 id="backup-last-restore-title" className="settings-subheading">Last restore attempt (this session)</h4>
+          <p className="backup-name">Backup: {lastRestoreReceipt?.target}</p>
+          <p role="status" className={['settings-status', receiptView.tone === 'success' ? 'ok' : receiptView.tone === 'warning' ? 'warn' : ''].join(' ')}>
+            <strong>{receiptView.heading}.</strong> {receiptView.explanation}
+          </p>
+        </section>
+      ) : null}
 
       {backups.length > 0 ? (
         <>
