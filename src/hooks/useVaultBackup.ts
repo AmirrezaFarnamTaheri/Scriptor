@@ -8,6 +8,7 @@ import {
   vaultRestoreBackup,
 } from '../bridge/commands'
 import type { VaultBackupEntry } from '../bridge/commands'
+import { classifyVaultRestoreStatus } from '../lib/restoreOutcome'
 import { backupRetentionCandidates, DEFAULT_VAULT_BACKUP_SETTINGS, validateVaultBackupSettings, type VaultBackupSettings } from '../lib/vaultBackupPolicy'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
@@ -183,10 +184,11 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         // Only an explicitly rolled-back restore is safe to resume editor
         // persistence over. Every other status means vault files were already
         // replaced, so resuming the superseded draft would overwrite them.
-        restoreApplied = result.status !== 'rolled-back'
+        const disposition = classifyVaultRestoreStatus(result.status)
+        restoreApplied = disposition.filesChanged
         if (!ownsVault(requestedVault)) return
 
-        if (result.status === 'rolled-back') {
+        if (disposition.resumeOldDraft) {
           // Native replacement never mutated vault files, or promoted nothing
           // and rolled back cleanly. Resume the original editor persistence
           // generation and re-arm any still-dirty in-memory draft.
@@ -200,7 +202,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
           return
         }
 
-        if (result.status !== 'committed-ready') {
+        if (!disposition.refreshWorkspace) {
           // `committed-needs-reopen` and `recovery-required` both leave the
           // pre-restore session in place: it never ran rename-transaction
           // recovery on the restored tree. The replacement is authoritative,
