@@ -98,7 +98,20 @@ test('a rejected native restore reply keeps the editor frozen until reopen', () 
 })
 
 test('unconfirmed restore never silently closes a suspended draft or switches vaults', () => {
-  assert.match(workspaceEditor, /if \(persistenceSuspendedRef\.current\) return requestFrozenDraftExit\(\)/)
+  // MAT-001 CodeRabbit: suspended flush must fail closed for rename and
+  // every other mutation caller. Explicit discard is allowed for close only.
+  const flushStart = workspaceEditor.indexOf('const flushAllPendingSaves = useCallback')
+  const flushEnd = workspaceEditor.indexOf('const scheduleSave = useCallback', flushStart)
+  assert.ok(flushStart > 0 && flushEnd > flushStart)
+  const flush = workspaceEditor.slice(flushStart, flushEnd)
+  assert.match(flush, /if \(persistenceSuspendedRef\.current\) return false/)
+  assert.doesNotMatch(flush, /requestFrozenDraftExit\(/)
+  const closeStart = workspaceEditor.indexOf('appWindow.onCloseRequested(')
+  const closeEnd = workspaceEditor.indexOf('await appWindow.destroy()', closeStart)
+  assert.ok(closeStart > 0 && closeEnd > closeStart)
+  const close = workspaceEditor.slice(closeStart, closeEnd)
+  assert.match(close, /persistenceSuspendedRef\.current\s*\?\s*await requestFrozenDraftExitRef\.current\(\)\s*:\s*await flushAllPendingSavesRef\.current\(\)/)
+  assert.match(workspaceEditor, /const requestFrozenDraftExitRef = useRef\(requestFrozenDraftExit\)/)
   assert.match(workspaceEditor, /return persistenceSuspendedRef\.current \|\| activeDirty/)
   assert.match(workspaceEditor, /Vault switching is blocked while a restore outcome is unknown/)
   assert.match(useVaultWorkspace, /if \(isEditorPersistenceSuspended\(\)\) \{/)
