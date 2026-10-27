@@ -94,7 +94,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
       </details>
 
       {lastMessage ? <p className="settings-status ok">{lastMessage}</p> : null}
-      {lastError ? <p className="settings-status warn">{lastError}</p> : null}
+      {lastError ? <p className="settings-status warn" role="alert">{lastError}</p> : null}
       {backupListError ? <p className="settings-status warn" role="alert">{backupListError}</p> : null}
 
       {backups.length > 0 ? (

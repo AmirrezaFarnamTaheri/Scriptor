@@ -14,6 +14,10 @@ const useVaultBackup = readFileSync(
   new URL('../../src/hooks/useVaultBackup.ts', import.meta.url),
   'utf8',
 )
+const vaultBridge = readFileSync(
+  new URL('../../src/bridge/commands/vault.ts', import.meta.url),
+  'utf8',
+)
 const useVaultWorkspace = readFileSync(
   new URL('../../src/hooks/useVaultWorkspace.ts', import.meta.url),
   'utf8',
@@ -80,4 +84,14 @@ test('restore lifecycle freezes persistence before replacement and refreshes der
   assert.ok(useVaultWorkspace.includes('setNoteSummaries([])'))
   assert.ok(useVaultWorkspace.includes('refreshVaultConfig()'))
   assert.ok(useVaultWorkspace.includes('refreshVaultSnippets()'))
+})
+
+test('an unconfirmed native restore reply does not release the original editor draft', () => {
+  assert.match(vaultBridge, /return runVaultRestoreWithOutcomeBoundary\(/)
+  assert.match(useVaultBackup, /classifyVaultRestoreFailure\(caught, restoreApplied\)/)
+  const unknown = useVaultBackup.indexOf("if (disposition === 'freeze-and-reopen')")
+  const safe = useVaultBackup.indexOf("if (disposition === 'safe-to-resume')", unknown)
+  assert.ok(unknown > 0 && safe > unknown, 'unknown restores are evaluated before safe aborts')
+  assert.match(useVaultBackup.slice(unknown, safe), /editing remains paused/)
+  assert.doesNotMatch(useVaultBackup.slice(unknown, safe), /scriptor:vault-restore-aborted/)
 })

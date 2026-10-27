@@ -10,6 +10,7 @@ import {
 import type { VaultBackupEntry } from '../bridge/commands'
 import { backupRetentionCandidates, DEFAULT_VAULT_BACKUP_SETTINGS, validateVaultBackupSettings, type VaultBackupSettings } from '../lib/vaultBackupPolicy'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
+import { classifyVaultRestoreFailure } from '../lib/vaultRestoreOutcome.ts'
 
 const STORAGE_KEY = 'scriptor:vault-backup-settings'
 // Reuse one empty snapshot across renders when the current vault has no loaded backups.
@@ -236,11 +237,17 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       } catch (caught) {
         if (!ownsVault(requestedVault)) return
         const message = caught instanceof Error ? caught.message : 'Restore failed'
-        if (!restoreApplied) {
-          // The invoke rejected before a committed outcome was returned: a
-          // transport error, or a pre-transaction failure such as authorization
-          // or manifest verification. Nothing on disk was replaced, so it is
-          // safe to resume the original editor persistence generation.
+        const disposition = classifyVaultRestoreFailure(caught, restoreApplied)
+        if (disposition === 'freeze-and-reopen') {
+          // The native call may have committed even though its reply was lost.
+          // Releasing the old draft can silently overwrite restored files.
+          // Keep persistence frozen until vault_open reconciles the journal.
+          setLastError('The restore result could not be confirmed. Vault files may have changed, so editing remains paused. Close and reopen this vault before saving or retrying the restore.')
+          return
+        }
+        if (disposition === 'safe-to-resume') {
+          // Authorization and native-availability failures occurred before
+          // the restore command was submitted. These are safe to abort.
           try {
             await dispatchVaultLifecycleEvent('scriptor:vault-restore-aborted', { backupName })
           } catch (resumeError) {
