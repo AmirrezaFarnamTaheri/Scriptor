@@ -18,7 +18,7 @@ export interface OperationReceipt {
   readonly actualRevision: string | null
   readonly nativeStatus: VaultRestoreStatus | null
   readonly proof: 'native-status' | 'before-native-submission' | 'no-native-result'
-  readonly effect: 'none' | 'committed' | 'unknown'
+  readonly effect: 'none' | 'committed' | 'unreconciled' | 'unknown'
   readonly retry: 'review-and-reauthorize' | 'do-not-retry' | 'blocked-until-reopen'
   readonly recovery: 'none' | 'reopen-vault'
 }
@@ -55,7 +55,7 @@ export function buildRestoreOperationReceipt(input: {
         ...common,
         nativeStatus: input.outcome.status,
         proof: 'native-status',
-        effect: disposition.filesChanged ? 'committed' : 'none',
+        effect: input.outcome.status === 'recovery-required' ? 'unreconciled' : disposition.filesChanged ? 'committed' : 'none',
         retry: disposition.needsReopen
           ? 'blocked-until-reopen'
           : disposition.filesChanged ? 'do-not-retry' : 'review-and-reauthorize',
@@ -63,8 +63,11 @@ export function buildRestoreOperationReceipt(input: {
       }
     }
     case 'post-commit-refresh-failed': {
-      const disposition = classifyVaultRestoreStatus(input.outcome.status)
-      if (!disposition.filesChanged) throw new Error('A rolled-back restore cannot have committed effects')
+      // Only committed-ready reaches renderer workspace refresh. A recovery-required
+      // journal is not a proven completed commit and cannot enter this branch.
+      if (input.outcome.status !== 'committed-ready') {
+        throw new Error('Post-commit refresh failure requires a committed-ready native status')
+      }
       return {
         ...common,
         nativeStatus: input.outcome.status,

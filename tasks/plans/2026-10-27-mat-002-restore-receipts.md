@@ -13,6 +13,7 @@
 - A rejected invocation after submission is **unknown**, not rolled back; an explicit authorization rejection before submission is **not submitted**.
 - Renderer-generated operation IDs are correlation hints, not native receipts; no implicit repeat of destructive actions.
 - Null paths and revisions mean **not reported by the native restore contract**.
+- `recovery-required` is **unreconciled**, not a proven complete commit, even though editor writes must remain frozen; only `committed-ready` can enter post-commit workspace refresh.
 - Do not mark MAT-002 complete until other mutation owners, restart tests and hosted verification are added.
 
 ---
@@ -28,7 +29,7 @@
 - [x] **Step 1: Add failing tests:** rolled back, committed, needs reopen, reply missing, pre-submit rejection, cross-vault visibility, post-commit UI failure.
 - [x] **Step 2: Verify red:** initial focused run: six failing tests against missing receipt behavior. Separate refresh-failure case failed before support was added.
 - [x] **Step 3: Implement:** derive effects from native classifier; require reopen for unknown or failed post-commit refresh; never invent paths or revisions.
-- [x] **Step 4: Verify green:** `node --experimental-strip-types --test src/lib/workspace/operationReceipt.test.ts` passed 7/7 in a standalone Node harness with classifier behavior reproduced from the current PR. This does not replace execution against the repository checkout.
+- [x] **Step 4: Verify green:** `node --experimental-strip-types --test src/lib/workspace/operationReceipt.test.ts` passed 9/9 in an isolated Node harness with classifier behavior reproduced from the current PR (two failing-first semantic regressions: incomplete recovery and invalid refresh evidence). This does not replace execution against the repository checkout.
 - [ ] **Step 5: Verify integrated CI:** complete current-head source tests, desktop compilation and visual checks.
 - [ ] **Step 6: Commit verified task:** commit on the stacked MAT-002 branch; do not infer a CI pass from local tests.
 
