@@ -32,6 +32,11 @@ test('backup settings shows the native confirmed restore outcome without inventi
   const settings = page.getByRole('dialog', { name: 'Settings' })
   const backup = settings.locator('[data-help-topic="backups"]')
   await expect(backup.getByRole('region', { name: 'Last restore attempt (this session)' })).toHaveCount(0)
+  // The backup hook loads on vault open, before this fixture override. Changing
+  // its configured destination triggers the real re-fetch after the override.
+  const options = settings.locator('details.backup-options')
+  if (await options.getAttribute('open') === null) await options.locator('summary').click()
+  await settings.getByRole('textbox', { name: /Backup folder outside this vault/ }).fill('C:/ReceiptFixture')
   await expect(backup.getByText('vault-backup-test-123')).toBeVisible()
   await backup.getByRole('button', { name: 'Restore backup vault-backup-test-123' }).click()
   await backup.getByRole('button', { name: 'Restore backup', exact: true }).click()
