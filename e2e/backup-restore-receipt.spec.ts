@@ -157,3 +157,43 @@ test('older retained backups remain selectable instead of disappearing after the
   await backup.getByRole('button', { name: 'Show fewer backups' }).click()
   await expect(backup.locator('.backup-entry')).toHaveCount(10)
 })
+
+test('unverified backup is visible for inspection but never eligible for Restore', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.evaluate(() => {
+    const host = window as Window & { __TAURI_INTERNALS__?: NativeBridge; __unverifiedRestoreCalls?: number }
+    const native = host.__TAURI_INTERNALS__
+    if (!native) throw new Error('Native fixture bridge unavailable')
+    const invoke = native.invoke.bind(native)
+    host.__unverifiedRestoreCalls = 0
+    native.invoke = (command, args) => {
+      if (command === 'vault_list_backups') return Promise.resolve([
+        { name: 'vault-backup-corrupt', path: 'vault-backup-corrupt', created_at: '2026-10-27T00:00:00Z',
+          size_bytes: 512, storage_kind: 'external_backup', verified: false },
+        { name: 'vault-backup-valid', path: 'vault-backup-valid', created_at: '2026-10-27T00:00:00Z',
+          size_bytes: 512, storage_kind: 'external_backup', verified: true },
+      ])
+      if (command === 'vault_restore_backup') {
+        host.__unverifiedRestoreCalls = (host.__unverifiedRestoreCalls ?? 0) + 1
+        return Promise.reject(new Error('Restore must not be submitted for unverified backup'))
+      }
+      return invoke(command, args)
+    }
+  })
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  const backup = settings.locator('[data-help-topic="backups"]')
+  const options = settings.locator('details.backup-options')
+  if (await options.getAttribute('open') === null) await options.locator('summary').click()
+  await settings.getByRole('textbox', { name: /Backup folder outside this vault/ }).fill('C:/UnverifiedFixture')
+  const bad = backup.locator('.backup-entry').filter({ hasText: 'vault-backup-corrupt' })
+  await expect(bad.getByRole('button', { name: 'Restore backup vault-backup-corrupt' })).toBeDisabled()
+  await expect(bad).toContainText('This backup could not be verified')
+  await expect(bad.getByRole('button', { name: 'Delete backup vault-backup-corrupt' })).toBeEnabled()
+  const good = backup.locator('.backup-entry').filter({ hasText: 'vault-backup-valid' })
+  await expect(good.getByRole('button', { name: 'Restore backup vault-backup-valid' })).toBeEnabled()
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __unverifiedRestoreCalls?: number }).__unverifiedRestoreCalls ?? 0,
+  )).toBe(0)
+})

@@ -104,3 +104,9 @@ The summary is temporary and per vault/backup destination, is intentionally abse
 - [x] GREEN implementation: list the first 10 entries and reveal successive groups of up to 10; render no arbitrary terminal 10-item cap. Reset disclosure on backup location change, remount by vault identity, and clear pending destructive approval on every page change.
 - [x] Source-contract regression added; the browser test was committed separately before implementation. Its expected red was grounded in the former `backups.slice(0, 10)` but **not observed in hosted execution before this green commit**, because CI was still queued.
 - [ ] Check browser behavior and all current-head gates before claiming verified. Native sort remains authoritative; no filesystem, authorization or restore behavior changed.
+
+### Task 6: Fail-closed Restore control for unverified backup entries (MAT-003/005)
+- [x] Native `entry_from_dir` sets `verified = read_and_verify_manifest(...).is_ok()`; native Restore invokes that validation before replacing files. The renderer previously exposed Restore even when `verified=false`, causing predictable rejection after submission and conservative quarantine.
+- [x] Explain invalid backup entries, keep reviewed Delete available for cleanup, and disable Restore unless the native listing verified the copy. Existing vault recovery holds remain authoritative.
+- [x] Authored one browser fixture for mixed valid/invalid backups and a source-contract assertion. No failing-first **hosted** run is recorded; not real corrupted-disk or installed-app proof.
+- [ ] Check exact-head source/TypeScript, browser, native and packaged recovery evidence before declaring completion.

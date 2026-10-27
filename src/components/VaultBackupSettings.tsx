@@ -150,12 +150,18 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
                 <span className="backup-meta">
                   {formatDate(entry.created_at)} · {formatBytes(entry.size_bytes)}
                 </span>
+                {!entry.verified ? (
+                  <p id={`backup-verification-${entry.name}`} className="backup-meta">
+                    This backup could not be verified, so it cannot be restored. Keep it for investigation or delete it after reviewing the consequences.
+                  </p>
+                ) : null}
                 <div className="backup-actions">
                   <button
                     type="button"
                     className="toolbar-button"
-                    disabled={isBusy || recoveryRequired}
+                    disabled={isBusy || recoveryRequired || !entry.verified}
                     aria-label={`Restore backup ${entry.name}`}
+                    aria-describedby={!entry.verified ? `backup-verification-${entry.name}` : undefined}
                     onClick={() => setPendingAction(createPendingBackupAction(backupScope, entry.name, 'restore'))}
                   >
                     Restore

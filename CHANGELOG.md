@@ -16,6 +16,8 @@
 
 ### Fixed
 
+- Disable Restore for backup copies that fail native integrity verification, with a clear explanation; reviewed Delete remains available for cleanup.
+
 - Require pending Restore/Delete confirmations to match the current vault, backup destination and backup name; clear outdated approvals rather than applying them to an identically named backup elsewhere.
 
 - Keep paused drafts safe when a backup restore outcome is unknown: closing requires explicit discard approval for unsaved edits, never flushes those edits over restored files, and blocks vault switching with restart instructions until recovery.

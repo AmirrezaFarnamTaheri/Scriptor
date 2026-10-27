@@ -161,3 +161,11 @@ test('older retained backups have an explicit bounded disclosure and cannot reus
   assert.match(source, /setPendingAction\(null\)[\s\S]*setVisibleBackupCount\(BACKUP_PAGE_SIZE\)/)
   assert.doesNotMatch(source, /backups\.slice\(0, 10\)/)
 })
+
+test('a backup with failed native integrity verification cannot enter the Restore confirmation', () => {
+  const settings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  assert.match(settings, /disabled=\{isBusy \|\| recoveryRequired \|\| !entry\.verified\}/)
+  assert.match(settings, /aria-describedby=\{!entry\.verified \?/)
+  assert.match(settings, /This backup could not be verified, so it cannot be restored/)
+  assert.match(settings, /Delete backup/)
+})
