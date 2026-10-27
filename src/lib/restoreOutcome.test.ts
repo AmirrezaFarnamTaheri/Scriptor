@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { classifyVaultRestoreStatus, classifyVaultRestoreFailure, runVaultRestoreWithOutcomeBoundary, VaultRestoreOutcomeUnknownError } from './restoreOutcome.ts'
+import { classifyVaultRestoreStatus, classifyVaultRestoreFailure, runVaultRestoreWithOutcomeBoundary, VaultRestoreOutcomeUnknownError, validateVaultRestoreResult } from './restoreOutcome.ts'
 
 test('rolled-back restore is the only outcome that can resume the old draft', () => {
   assert.deepEqual(classifyVaultRestoreStatus('rolled-back'), {
@@ -63,4 +63,26 @@ test('an authoritative native reply passes through; a later UI failure is not ro
   const result = { status: 'committed-ready', message: 'restored' }
   assert.equal(await runVaultRestoreWithOutcomeBoundary(async () => 'token', async () => result), result)
   assert.equal(classifyVaultRestoreFailure(new Error('refresh failed'), true), 'committed-needs-reconciliation')
+})
+
+
+test('an unknown native restore status never unfreezes editor persistence', () => {
+  assert.throws(
+    () => classifyVaultRestoreStatus('future-unknown-status' as never),
+    VaultRestoreOutcomeUnknownError,
+  )
+})
+
+test('an invalid or incomplete native reply stays indeterminate after submission', async () => {
+  for (const reply of [null, {}, { status: 'rolled-back' }, { status: 'unexpected', message: 'bad' }, { status: 'committed-ready', message: 42 }]) {
+    await assert.rejects(
+      runVaultRestoreWithOutcomeBoundary(async () => 'approved', async () => validateVaultRestoreResult(reply)),
+      VaultRestoreOutcomeUnknownError,
+    )
+  }
+})
+
+test('valid native reply is unchanged after runtime validation', () => {
+  const result = { status: 'committed-ready', message: 'done' }
+  assert.equal(validateVaultRestoreResult(result), result)
 })

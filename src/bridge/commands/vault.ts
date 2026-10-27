@@ -23,7 +23,7 @@ import type {
 } from '../../types/vault'
 import { requireNative } from '../native.ts'
 import { authorizeSensitiveOperation } from './authorization.ts'
-import { runVaultRestoreWithOutcomeBoundary } from '../../lib/restoreOutcome.ts'
+import { runVaultRestoreWithOutcomeBoundary, validateVaultRestoreResult } from '../../lib/restoreOutcome.ts'
 import { parseVaultHealthDiagnostics, parseVaultHealthReport } from '../../types/vaultValidators'
 
 // Tauri invokes may run concurrently. Preserve caller order here so a slow
@@ -428,11 +428,11 @@ export async function vaultRestoreBackup(backupName: string, backupPath?: string
   requireNative()
   return runVaultRestoreWithOutcomeBoundary(
     () => authorizeSensitiveOperation('restore_backup', backupName),
-    (authorizationToken) => invoke<VaultRestoreResult>('vault_restore_backup', {
+    async (authorizationToken) => validateVaultRestoreResult(await invoke<unknown>('vault_restore_backup', {
       backupName,
       backupPath: backupPath ?? null,
       authorizationToken,
-    }),
+    })),
   )
 }
 

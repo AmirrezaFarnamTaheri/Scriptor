@@ -88,6 +88,7 @@ test('restore lifecycle freezes persistence before replacement and refreshes der
 
 test('a rejected native restore reply keeps the editor frozen until reopen', () => {
   assert.match(vaultBridge, /return runVaultRestoreWithOutcomeBoundary\(/)
+  assert.match(vaultBridge, /validateVaultRestoreResult\(await invoke<unknown>/)
   assert.match(useVaultBackup, /classifyVaultRestoreFailure\(caught, restoreApplied\)/)
   const freeze = useVaultBackup.indexOf("if (failure === 'freeze-and-reopen')")
   const resume = useVaultBackup.indexOf("if (failure === 'safe-to-resume')", freeze)
