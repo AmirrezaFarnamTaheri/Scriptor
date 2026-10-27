@@ -10,8 +10,8 @@
 
 - [x] Inspect the existing real-hook harness, persistence queue, lifecycle guard, and board list rendering.
 - [x] Add failing-first behavioral regression using actual `useCanvasBoard` via the TypeScript-transpiled hook harness, not a source regex. Hold initial list, commit a Canvas edit, return the post-save list first, then release stale mount list; the fresh board must remain listed and the edited document unchanged.
-- [ ] **RED:** execute source-suite test on the test-only head; capture non-zero exit and decisive assertion.
-- [ ] **GREEN:** guard same-vault board-list publication by a monotonic read generation. Keep native ownership and existing document/saving guards; never suppress the returned result or invent a successful native write.
+- [x] **RED observed:** test-only `79e4723`, CI #40562214281 (`Contracts, automation, and lint` → `Run source regression suite`) failed the behavioral Canvas test because the older response replaced `fresh-board` with `old-board`. No mock-setup or import error.
+- [x] **GREEN implementation authored:** reuse the existing `OperationGuard` for board list requests; invalidate on vault lifecycle change and publish only the latest response. The native return value, save authority and active document guards stay unchanged. Exact-head CI is pending.
 - [ ] Run the focused source suite and exact-head CI/visual/browser/platform checks; keep draft until proven.
 - [ ] Continue auditing other MAT-005 mutation owners and installed recovery tests.
 

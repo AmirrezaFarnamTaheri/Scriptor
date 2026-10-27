@@ -16,6 +16,8 @@
 
 ### Fixed
 
+- Keep the Canvas board list current when two reads finish out of order in the same vault; the existing operation guard now prevents an older list response from replacing a newer post-save inventory.
+
 - Prevent stale same-vault backup-list results or errors from replacing newer inventory after manual backup, deletion or restore; responses now honor request ordering as well as vault/destination identity.
 
 - Disable Restore for backup copies that fail native integrity verification, with a clear explanation; reviewed Delete remains available for cleanup.

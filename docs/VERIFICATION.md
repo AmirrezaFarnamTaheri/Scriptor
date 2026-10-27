@@ -57,6 +57,16 @@ The parent-to-child review stack is [PR #180](https://github.com/AmirrezaFarnamT
 
 The source regression and TypeScript correction preserve the stronger scoped confirmation, rather than restoring the unsafe name-only approval. Browser fixtures simulate native responses and therefore cannot establish installed Windows/macOS/Linux restore or journal-recovery behavior. The MAT-003 checkbox remains unchecked pending the broader Recovery Center inventory and platform acceptance.
 
+## MAT-005 Canvas board-list response ordering — October 27, 2026
+
+Draft [PR #209](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/209) is a sibling of #208, stacked on #206. It addresses **derived Canvas inventory freshness**, not native file persistence, conflict resolution or complete MAT-005 maturity.
+
+| Source and environment | Result | Evidence limit |
+|---|---|---|
+| Test-only `79e4723`, [CI #40562214281](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40562214281) | **Observed behavioral red** in `canvas-persistence-flush.test.mjs`: the slow initial list changed the latest inventory from `fresh-board` to `old-board`; `AssertionError` at line 637 | Uses the actual transpiled Canvas hook with controlled native list/save calls; not a packaged client |
+| Fix `5ea8ef4` | Added a separate `OperationGuard` for Canvas list publication, invalidated on vault change, preserving `isCurrent` checks and native result | **Implementation authored, exact-head green pending** |
+
+The active document identity guard remained intact; only board inventory could become stale. The fix does not introduce storage, permissions, write retries or new native calls. Full MAT-005 and installed-client evidence remain open.
 ## MAT-005 backup inventory request ordering — October 27, 2026
 
 PR [#206](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/206) is a bounded mutation-lifecycle slice stacked on #205. Its request-epoch guard is renderer-only; it neither overrides native vault ownership nor replaces backup authorization.
