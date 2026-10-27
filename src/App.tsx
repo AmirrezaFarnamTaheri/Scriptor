@@ -1751,6 +1751,7 @@ function App() {
           onRefreshDaemon={handleRefreshDaemon}
           onStartDaemon={handleStartDaemon}
           activePath={workspace.activePath}
+          onOpenNoteHistory={() => { setSettingsOpen(false); setNoteHistoryOpen(true) }}
           onConfigSaved={handleSettingsConfigSaved}
           onClose={handleCloseSettings}
           workspaceMode={workspaceMode}

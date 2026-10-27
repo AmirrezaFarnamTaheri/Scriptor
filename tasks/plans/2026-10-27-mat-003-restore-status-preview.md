@@ -53,6 +53,25 @@
 - [ ] **Step 4: Run current-head browser and visual verification.** `pnpm exec playwright test e2e/backup-restore-receipt.spec.ts` and supported visual workflows, inspecting actual screenshot artifacts for overflow and accessibility.
 - [ ] **Step 5: Check source and platform gates.** No claim of packaged recovery or completed MAT-003 inventory until native proof and release inclusion.
 
+### Task 3: Navigate safely to the selected note's existing revision history
+
+**Files:**
+- Create: `src/lib/workspace/recoveryHistoryAvailability.ts`, `src/lib/workspace/recoveryHistoryAvailability.test.ts`
+- Modify: `src/components/VaultBackupSettings.tsx`, `src/components/SettingsPanel.tsx`, `src/App.tsx`
+- Test: `e2e/backup-history-navigation.spec.ts`
+
+**Interfaces:**
+- Consumes: vault ID, active note path, restore recovery hold, Settings unsaved-config state
+- Produces: a navigation-only entry to existing `NoteHistoryPanel`, not a restore command
+
+- [x] **Behavioral red:** six targeted Node tests against the absent navigation availability policy; five expected assertions failed, one passed.
+- [x] **Behavioral green:** implemented vault/recovery/unsaved-settings/current-note guard; six of six isolated Node 22 tests passed.
+- [x] **UI wiring:** Backup Settings button opens the existing note history panel and closes Settings only when the guard allows it.
+- [ ] **Current-head acceptance:** run `node --experimental-strip-types --test src/lib/workspace/recoveryHistoryAvailability.test.ts`, `pnpm test:source`, `pnpm check:contracts`, `pnpm lint`, and `pnpm exec playwright test e2e/backup-history-navigation.spec.ts`; inspect browser screenshot/RTL/zoom behavior.
+- [ ] **Installed-client acceptance:** verify safe history navigation and return focus in Windows/macOS/Linux packages.
+
+This is one more read-only entrypoint, not the complete MAT-003 inventory of Canvas, external conflict, note history and interrupted journals. MAT-003 remains unchecked.
+
 ## Product behavior and limitations
 
 The summary is temporary and per vault/backup destination, is intentionally absent before any restore attempt, and is not stored on disk. Other recovery sources remain in their existing owning surfaces. No new `Recovery Center` navigation route or authorization model is introduced in this slice.

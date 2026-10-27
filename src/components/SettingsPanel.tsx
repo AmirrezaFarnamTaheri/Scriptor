@@ -105,6 +105,7 @@ interface SettingsPanelProps {
   workspaceChrome?: WorkspaceChromePrefs
   onPatchWorkspaceChrome?: (patch: Partial<WorkspaceChromePrefs>) => void
   onOpenSupport?: () => void
+  onOpenNoteHistory: () => void
   onOpenGoogleWorkspace?: (kind: 'collaboration' | 'planner' | 'gmail') => void
   gmailEnabled?: boolean
   theme?: AppTheme
@@ -171,6 +172,7 @@ function SettingsPanelImpl({
   workspaceChrome,
   onPatchWorkspaceChrome,
   onOpenSupport,
+  onOpenNoteHistory,
   onOpenGoogleWorkspace,
   gmailEnabled,
   theme = 'light',
@@ -352,7 +354,7 @@ function SettingsPanelImpl({
             )
           ) : null}
 
-          {vaultOpen && nativeReady ? <VaultBackupSettings backup={backup} /> : null}
+          {vaultOpen && nativeReady ? <VaultBackupSettings backup={backup} vaultId={vaultId} activePath={activePath} settingsDirty={configDirty} onOpenNoteHistory={onOpenNoteHistory} /> : null}
 
           <div className="settings-section">
             <h3>{t('settingsPanel.spellcheckGrammar')}</h3>

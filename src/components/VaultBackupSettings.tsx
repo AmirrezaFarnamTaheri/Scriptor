@@ -1,6 +1,7 @@
 import { memo, useState } from 'react'
 import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { HardDrive } from 'lucide-react'
+import { recoveryHistoryAvailability, type RecoveryHistoryReason } from '../lib/workspace/recoveryHistoryAvailability'
 import { describeRestoreReceipt } from '../lib/workspace/restoreReceiptPresentation'
 
 import type { useVaultBackup } from '../hooks/useVaultBackup'
@@ -9,6 +10,10 @@ type BackupHook = ReturnType<typeof useVaultBackup>
 
 interface VaultBackupSettingsProps {
   backup: BackupHook
+  vaultId: string | null
+  activePath: string | null
+  settingsDirty: boolean
+  onOpenNoteHistory: () => void
 }
 
 function formatBytes(bytes: number): string {
@@ -28,13 +33,20 @@ function formatDate(iso: string): string {
   }
 }
 
-export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }: VaultBackupSettingsProps) {
+export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, vaultId, activePath, settingsDirty, onOpenNoteHistory }: VaultBackupSettingsProps) {
   const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, lastRestoreReceipt, triggerBackup, restoreBackup, deleteBackup } =
     backup
 
   const receiptView = lastRestoreReceipt ? describeRestoreReceipt(lastRestoreReceipt) : null
   const [pendingAction, setPendingAction] = useState<{ name: string; action: 'restore' | 'delete' } | null>(null)
   const [backupOptionsOpen, setBackupOptionsOpen] = useState(settings.enabled || Boolean(settings.backupPath))
+  const historyAccess = recoveryHistoryAvailability({ vaultId, activePath, recoveryRequired, settingsDirty })
+  const reasons: Record<Exclude<RecoveryHistoryReason, null>, string> = {
+    'open-vault': 'Open a vault to review note history.',
+    'restart-vault': 'Restart Scriptor and reopen this vault before reviewing note history.',
+    'save-settings': 'Save or discard unsaved Settings changes before opening note history.',
+    'select-note': 'Select a note to review its saved revisions.',
+  }
   return (
     <div className="settings-section" data-help-topic="backups">
       <h3>
@@ -108,6 +120,17 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
           </p>
         </section>
       ) : null}
+
+      <section className="backup-recovery-tools" aria-label="Other recovery options">
+        <h4 className="settings-subheading">Other recovery options</h4>
+        <p className="health-subtitle">You can preview earlier revisions of the selected note without replacing the entire vault. Opening history does not modify files; restoring a revision requires separate review and approval.</p>
+        <button type="button" className="toolbar-button"
+          disabled={!historyAccess.allowed}
+          onClick={onOpenNoteHistory}>
+          Review selected note history
+        </button>
+        {historyAccess.reason ? <p className="health-subtitle">{reasons[historyAccess.reason]}</p> : null}
+      </section>
 
       {backups.length > 0 ? (
         <>
