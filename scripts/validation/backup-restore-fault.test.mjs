@@ -106,3 +106,13 @@ test('indeterminate restore blocks repeated backup mutations in affected vault',
   assert.match(backupSettings, /disabled=\{isBusy \|\| recoveryRequired\}/)
   assert.match(backupSettings, /Restart Scriptor and reopen the vault/)
 })
+
+test('backup restore exposes vault-scoped receipts without replacing native outcomes', () => {
+  const status = useVaultBackup.indexOf('const disposition = classifyVaultRestoreStatus(result.status)')
+  const receipt = useVaultBackup.indexOf('setRestoreReceipt(buildRestoreOperationReceipt(', status)
+  assert.ok(status >= 0 && receipt > status)
+  assert.match(useVaultBackup, /const lastRestoreReceipt = visibleOperationReceipt\(restoreReceipt, ownedVaultId, settings\.backupPath\)/)
+  assert.match(useVaultBackup, /outcome: \{ kind: 'reply-missing' \}/)
+  assert.match(useVaultBackup, /outcome: \{ kind: 'not-submitted' \}/)
+  assert.match(useVaultBackup, /outcome: \{ kind: 'post-commit-refresh-failed'/)
+})

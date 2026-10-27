@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Improved
+
+- Introduce read-only, vault-scoped restore operation receipts with explicit native confirmation, uncertain effects, retry safety and reopen requirements; retain unknown paths and revisions as unknown rather than inventing native evidence. The receipts are an internal foundation for future recovery UI, not an expanded restore authority.
+
 ### Fixed
 
 - Reject malformed or unrecognized native restore results as indeterminate, keeping the previous editor draft frozen until the vault can be reopened. Typed Tauri invocation responses are now validated after submission, with failing-first regression coverage.
