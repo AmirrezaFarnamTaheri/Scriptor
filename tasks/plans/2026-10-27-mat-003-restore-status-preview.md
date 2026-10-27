@@ -85,3 +85,8 @@ The summary is temporary and per vault/backup destination, is intentionally abse
 - [x] Added vault/folder/name/action identity. A stale approval is hidden and checked again before invoking. Editing the backup location clears pending approval; vault changes remount Backup settings.
 - [x] Local Node 22.16.0 isolated helper test passed 6/6; regression source assertions added.
 - [ ] Required hosted exact-head CI, browser scope-switch testing, and installed-client evidence. This is a bounded MAT-005 lifecycle hardening slice, not MAT-005 completion.
+
+### Hosted CI correction for scoped confirmations
+- [x] Observed red on `c89698d`: the React build reported TS18047 on the nullable pending action; the old plain-language source contract asserted the now unsafe name-only state shape (734/735 tests passed).
+- [x] Fix the JSX render guard to narrow `pendingAction` before reading its properties; update the source contract to assert scoped approvals and the guard rather than reinstating the unsafe state shape.
+- [ ] Recheck current commit's source suite, TypeScript frontend build, browser E2E, Rust/desktop and visual gates. Prior green runs cannot certify a newer head.

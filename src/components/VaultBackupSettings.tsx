@@ -167,7 +167,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
                     Delete
                   </button>
                 </div>
-                {matchesBackupActionScope(pendingAction, backupScope, entry.name) ? <MutationConfirmation
+                {pendingAction && matchesBackupActionScope(pendingAction, backupScope, entry.name) ? <MutationConfirmation
                   ariaLabel={`${pendingAction.action === 'restore' ? 'Restore' : 'Delete'} backup ${entry.name}`}
                   message={pendingAction.action === 'restore'
                     ? `Restore ${entry.name}? This replaces the current vault files with the saved copy.`

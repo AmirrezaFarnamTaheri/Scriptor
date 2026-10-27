@@ -207,9 +207,10 @@ test('conflict resolution gives readable choices without changing the underlying
 test('backup recovery and snippets have honest confirmation and name-collision guards', () => {
   const backup = read('src/components/VaultBackupSettings.tsx')
   const snippets = read('src/components/SnippetsPanel.tsx')
-  assert.match(backup, /setPendingAction\(\{ name: entry\.name, action: 'restore' \}\)/)
-  assert.match(backup, /setPendingAction\(\{ name: entry\.name, action: 'delete' \}\)/)
+  assert.match(backup, /setPendingAction\(createPendingBackupAction\(backupScope, entry\.name, 'restore'\)\)/)
+  assert.match(backup, /setPendingAction\(createPendingBackupAction\(backupScope, entry\.name, 'delete'\)\)/)
   assert.match(backup, /<MutationConfirmation/)
+  assert.match(backup, /pendingAction && matchesBackupActionScope\(pendingAction, backupScope, entry\.name\)/)
   assert.match(snippets, /snippetNameTaken/)
   assert.match(snippets, /nextAvailableSnippetName/)
   assert.match(snippets, /Discard unsaved snippet edits/)
