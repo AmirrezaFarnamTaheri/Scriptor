@@ -23,3 +23,36 @@ export function classifyVaultRestoreStatus(status: VaultRestoreStatus): VaultRes
       return { filesChanged: true, resumeOldDraft: false, refreshWorkspace: false, needsReopen: true }
   }
 }
+
+/** A native restore may have committed even if the renderer never received its reply. */
+export class VaultRestoreOutcomeUnknownError extends Error {
+  constructor(cause: unknown) {
+    super('Restore outcome was not confirmed by the native command.', { cause })
+    this.name = 'VaultRestoreOutcomeUnknownError'
+  }
+}
+
+/**
+ * Authorization failures are known to precede native submission. After
+ * submission begins, any rejection is an unknown commit outcome.
+ * Never automatically retry a potentially committed restore.
+ */
+export async function runVaultRestoreWithOutcomeBoundary<TAuthorization, TResult>(
+  authorize: () => Promise<TAuthorization>,
+  submit: (authorization: TAuthorization) => Promise<TResult>,
+): Promise<TResult> {
+  const authorization = await authorize()
+  try {
+    return await submit(authorization)
+  } catch (cause) {
+    throw new VaultRestoreOutcomeUnknownError(cause)
+  }
+}
+
+export type VaultRestoreFailureDisposition = 'safe-to-resume' | 'freeze-and-reopen' | 'committed-needs-reconciliation'
+
+/** A rejected native invocation must not release a superseded editor draft. */
+export function classifyVaultRestoreFailure(error: unknown, committed: boolean): VaultRestoreFailureDisposition {
+  if (committed) return 'committed-needs-reconciliation'
+  return error instanceof VaultRestoreOutcomeUnknownError ? 'freeze-and-reopen' : 'safe-to-resume'
+}

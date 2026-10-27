@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { classifyVaultRestoreStatus } from './restoreOutcome.ts'
+import { classifyVaultRestoreStatus, classifyVaultRestoreFailure, runVaultRestoreWithOutcomeBoundary, VaultRestoreOutcomeUnknownError } from './restoreOutcome.ts'
 
 test('rolled-back restore is the only outcome that can resume the old draft', () => {
   assert.deepEqual(classifyVaultRestoreStatus('rolled-back'), {
@@ -21,4 +21,46 @@ test('an unfinished recovery retains frozen persistence and requires reopen', ()
   assert.deepEqual(classifyVaultRestoreStatus('recovery-required'), {
     filesChanged: true, resumeOldDraft: false, refreshWorkspace: false, needsReopen: true,
   })
+})
+
+test('a failed authorization occurs before submission and may safely resume the draft', async () => {
+  const denied = new Error('permission denied')
+  let submissions = 0
+  await assert.rejects(
+    runVaultRestoreWithOutcomeBoundary(async () => { throw denied }, async () => { submissions += 1 }),
+    (error: unknown) => error === denied,
+  )
+  assert.equal(submissions, 0)
+  assert.equal(classifyVaultRestoreFailure(denied, false), 'safe-to-resume')
+})
+
+test('a lost reply after native submission is indeterminate and is not retried', async () => {
+  const lost = new Error('native bridge disconnected')
+  let submissions = 0
+  await assert.rejects(
+    runVaultRestoreWithOutcomeBoundary(async () => 'token', async () => {
+      submissions += 1
+      throw lost
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof VaultRestoreOutcomeUnknownError)
+      assert.equal(error.cause, lost)
+      assert.equal(classifyVaultRestoreFailure(error, false), 'freeze-and-reopen')
+      return true
+    },
+  )
+  assert.equal(submissions, 1)
+})
+
+test('a synchronous invoke failure is also indeterminate', async () => {
+  await assert.rejects(
+    runVaultRestoreWithOutcomeBoundary(async () => 'token', () => { throw new Error('invoke unavailable') }),
+    VaultRestoreOutcomeUnknownError,
+  )
+})
+
+test('an authoritative native reply passes through; a later UI failure is not rollback', async () => {
+  const result = { status: 'committed-ready', message: 'restored' }
+  assert.equal(await runVaultRestoreWithOutcomeBoundary(async () => 'token', async () => result), result)
+  assert.equal(classifyVaultRestoreFailure(new Error('refresh failed'), true), 'committed-needs-reconciliation')
 })

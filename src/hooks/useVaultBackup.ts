@@ -8,7 +8,7 @@ import {
   vaultRestoreBackup,
 } from '../bridge/commands'
 import type { VaultBackupEntry } from '../bridge/commands'
-import { classifyVaultRestoreStatus } from '../lib/restoreOutcome'
+import { classifyVaultRestoreStatus, classifyVaultRestoreFailure } from '../lib/restoreOutcome'
 import { backupRetentionCandidates, DEFAULT_VAULT_BACKUP_SETTINGS, validateVaultBackupSettings, type VaultBackupSettings } from '../lib/vaultBackupPolicy'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
@@ -238,11 +238,16 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       } catch (caught) {
         if (!ownsVault(requestedVault)) return
         const message = caught instanceof Error ? caught.message : 'Restore failed'
-        if (!restoreApplied) {
-          // The invoke rejected before a committed outcome was returned: a
-          // transport error, or a pre-transaction failure such as authorization
-          // or manifest verification. Nothing on disk was replaced, so it is
-          // safe to resume the original editor persistence generation.
+        const failure = classifyVaultRestoreFailure(caught, restoreApplied)
+        if (failure === 'freeze-and-reopen') {
+          // The native transaction may have committed before its reply was lost.
+          // Do not resume an old draft or silently retry this restore.
+          setLastError('The restore result could not be confirmed. Vault files may have changed; editing remains paused. Close and reopen this vault before saving or attempting another restore.')
+          return
+        }
+        if (failure === 'safe-to-resume') {
+          // This failure is known to precede native restore submission. Only
+          // such a failure, or an authoritative rolled-back result, may resume.
           try {
             await dispatchVaultLifecycleEvent('scriptor:vault-restore-aborted', { backupName })
           } catch (resumeError) {
