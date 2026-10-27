@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Prevent an older Canvas explicit save-flush result from reporting a different vault or newer unsaved document as saved; native save outcomes remain authoritative and serialized.
+- Prevent an older Canvas explicit save-flush result from reporting a different vault or newer unsaved document as saved; native save outcomes remain authoritative and serialized. Scope each explicit flush to the revision present when it began, so edits made during the earlier native write retain independent pending saves rather than being silently consumed by the older flush.
 
 - Upgrade `webpki-roots` and `webpki-root-certs` to 1.0.10 and `rustls-webpki` to 0.103.16 to fix RUSTSEC-2026-0381, RUSTSEC-2026-0382 and RUSTSEC-2026-0383, which affected the bundled root certificates by trusting distrusted emSign intermediates and by accepting certificate paths through distrusted intermediates.
 
