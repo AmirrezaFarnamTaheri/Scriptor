@@ -810,8 +810,9 @@ export function useWorkspaceEditor({
   }, [activeNoteRef, draftMarkdownRef])
 
   const flushAllPendingSaves = useCallback(async (): Promise<boolean> => {
-    // Never flush a paused draft to a vault with an unknown restore result.
-    if (persistenceSuspendedRef.current) return requestFrozenDraftExit()
+    // Save/mutation callers never receive permission from a frozen-draft
+    // discard confirmation. Only the desktop close handler may request exit.
+    if (persistenceSuspendedRef.current) return false
     const failuresBefore = saveFailureCountRef.current
     let ok = true
     if (activePathRef.current && activeNoteRef.current) {
@@ -830,7 +831,7 @@ export function useWorkspaceEditor({
     // A new edit can arrive while the final captured write is in flight. Do not
     // authorize closing or replacing the vault until that newer work is saved.
     return ok && saveFailureCountRef.current === failuresBefore && !hasPendingPersistence()
-  }, [activeNoteRef, activePathRef, flushPendingDocumentSave, hasPendingPersistence, performSave, requestFrozenDraftExit])
+  }, [activeNoteRef, activePathRef, flushPendingDocumentSave, hasPendingPersistence, performSave])
 
   const scheduleSave = useCallback(
     (markdown: string) => {
@@ -977,6 +978,10 @@ export function useWorkspaceEditor({
   useEffect(() => {
     flushAllPendingSavesRef.current = flushAllPendingSaves
   }, [flushAllPendingSaves])
+  const requestFrozenDraftExitRef = useRef(requestFrozenDraftExit)
+  useEffect(() => {
+    requestFrozenDraftExitRef.current = requestFrozenDraftExit
+  }, [requestFrozenDraftExit])
 
   const hasPendingPersistenceRef = useRef(hasPendingPersistence)
   useEffect(() => {
@@ -1023,7 +1028,11 @@ export function useWorkspaceEditor({
             if (closingAfterFlush) setCloseState('delayed')
           }, 2_000)
           try {
-            const flushed = await flushAllPendingSavesRef.current()
+            // Discard approval is a close-only decision; never allow rename,
+            // replace, or other mutations to treat it as a successful save.
+            const flushed = persistenceSuspendedRef.current
+              ? await requestFrozenDraftExitRef.current()
+              : await flushAllPendingSavesRef.current()
             if (!flushed) {
               setCloseState('failed')
               setError(persistenceSuspendedRef.current
