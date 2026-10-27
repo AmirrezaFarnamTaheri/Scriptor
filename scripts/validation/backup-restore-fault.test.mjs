@@ -135,3 +135,9 @@ test('confirmed native reopen-required status and post-commit refresh failure qu
   assert.ok(postCommitComment > 0 && postCommitError > postCommitComment)
   assert.match(useVaultBackup.slice(postCommitComment, postCommitError), /quarantineRestore\(requestedVault\)/)
 })
+
+test('recovery hold warning does not falsely assert a lost native reply', () => {
+  const backupSettings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  assert.match(backupSettings, /This vault needs recovery before backup operations can continue/)
+  assert.doesNotMatch(backupSettings, /An earlier restore did not return a confirmed result/)
+})

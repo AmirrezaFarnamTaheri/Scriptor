@@ -95,7 +95,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
         </div>
       </details>
 
-      {recoveryRequired ? <p className="settings-status warn" role="alert">An earlier restore did not return a confirmed result. Backup, restore and delete are paused for this vault. Restart Scriptor and reopen the vault to reconcile its files safely.</p> : null}
+      {recoveryRequired ? <p className="settings-status warn" role="alert">This vault needs recovery before backup operations can continue. Backup, restore and delete are paused. Restart Scriptor and reopen the vault before editing or retrying.</p> : null}
       {lastMessage ? <p className="settings-status ok">{lastMessage}</p> : null}
       {lastError ? <p className="settings-status warn" role="alert">{lastError}</p> : null}
       {backupListError ? <p className="settings-status warn" role="alert">{backupListError}</p> : null}
