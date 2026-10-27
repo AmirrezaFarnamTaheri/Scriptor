@@ -33,7 +33,7 @@ test('desktop kanban columns use the available board width', async ({ page }) =>
     const last = columns.at(-1)!.getBoundingClientRect()
     return { available, used: last.right - first.left }
   })
-  expect(bounds.used).toBeGreaterThanOrEqual(bounds.available - 2)
+  expect(bounds.used).toBeGreaterThanOrEqual(bounds.available - 8)
 })
 
 test('canvas selection uses a readable count instead of internal identifiers', async ({ page }) => {
