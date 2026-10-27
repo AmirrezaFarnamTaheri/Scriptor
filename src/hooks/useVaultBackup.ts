@@ -182,11 +182,16 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         setLastError(`Could not delete ${failedDeletes.length} old backup(s): ${failedDeletes.join(', ')}`)
       }
     } catch (caught) {
-      if (ownsBackupScope(requestedVault, requestedPath)) setLastError(caught instanceof Error ? caught.message : 'Backup failed')
+      if (ownsBackupScope(requestedVault, requestedPath)) {
+        // The mutation invalidated the old list read. Reconcile with a fresh
+        // read-only request, never another native backup submission.
+        setLastError(caught instanceof Error ? caught.message : 'Backup failed')
+        await listBackups()
+      }
     } finally {
       finishOperation()
     }
-  }, [ownedVaultId, settings.backupPath, settings.maxSnapshots, beginOperation, finishOperation, ownsBackupScope, setBackups, setLastError, setLastMessage])
+  }, [ownedVaultId, settings.backupPath, settings.maxSnapshots, beginOperation, finishOperation, ownsBackupScope, listBackups, setBackups, setLastError, setLastMessage])
 
   const triggerBackupRef = useRef(triggerBackup)
   useEffect(() => {
