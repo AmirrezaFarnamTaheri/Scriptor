@@ -99,3 +99,8 @@ The summary is temporary and per vault/backup destination, is intentionally abse
 - [ ] RED: The current Backup settings renders `backups.slice(0, 10)` without any means of accessing entries 11+. A browser fixture was added that lists twelve valid retained backups and requires a keyboard-accessible, bounded Show Older control. Run it against the pre-fix head and record the decisive failure.
 - [ ] GREEN: Reveal additional results ten at a time, offer a collapse action, and clear pending destructive confirmation when a page or destination changes. Keep the existing native sorted listing and restore authority.
 - [ ] Hosted current-head browser execution, source tests, TypeScript and visual/RTL review; installed-client validation still required.
+
+### Older backup pagination implementation
+- [x] GREEN implementation: list the first 10 entries and reveal successive groups of up to 10; render no arbitrary terminal 10-item cap. Reset disclosure on backup location change, remount by vault identity, and clear pending destructive approval on every page change.
+- [x] Source-contract regression added; the browser test was committed separately before implementation. Its expected red was grounded in the former `backups.slice(0, 10)` but **not observed in hosted execution before this green commit**, because CI was still queued.
+- [ ] Check browser behavior and all current-head gates before claiming verified. Native sort remains authoritative; no filesystem, authorization or restore behavior changed.

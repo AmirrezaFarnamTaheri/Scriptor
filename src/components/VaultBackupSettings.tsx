@@ -8,6 +8,7 @@ import { describeRestoreReceipt } from '../lib/workspace/restoreReceiptPresentat
 import type { useVaultBackup } from '../hooks/useVaultBackup'
 
 type BackupHook = ReturnType<typeof useVaultBackup>
+const BACKUP_PAGE_SIZE = 10
 
 interface VaultBackupSettingsProps {
   backup: BackupHook
@@ -40,6 +41,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
 
   const receiptView = lastRestoreReceipt ? describeRestoreReceipt(lastRestoreReceipt) : null
   const [pendingAction, setPendingAction] = useState<PendingBackupAction | null>(null)
+  const [visibleBackupCount, setVisibleBackupCount] = useState(BACKUP_PAGE_SIZE)
   const backupScope = { vaultId, backupPath: settings.backupPath }
   const [backupOptionsOpen, setBackupOptionsOpen] = useState(settings.enabled || Boolean(settings.backupPath))
   const historyAccess = recoveryHistoryAvailability({ vaultId, activePath, recoveryRequired, settingsDirty })
@@ -105,6 +107,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
             placeholder="Leave empty to keep recovery copies in this vault"
             onChange={(event) => {
               setPendingAction(null)
+              setVisibleBackupCount(BACKUP_PAGE_SIZE)
               setSettings({ backupPath: event.target.value })
             }}
           />
@@ -140,8 +143,8 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
       {backups.length > 0 ? (
         <>
           <h4 className="settings-subheading">Recent backups</h4>
-          <ul className="backup-list">
-            {backups.slice(0, 10).map((entry) => (
+          <ul id="vault-backup-list" className="backup-list">
+            {backups.slice(0, visibleBackupCount).map((entry) => (
               <li key={entry.name} className="backup-entry">
                 <span className="backup-name">{entry.name} · {entry.storage_kind === 'external_backup' ? 'Backup outside vault' : 'Local recovery copy'}{entry.verified ? ' · verified' : ' · not verified'}</span>
                 <span className="backup-meta">
@@ -187,6 +190,29 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
               </li>
             ))}
           </ul>
+          {(backups.length > visibleBackupCount || visibleBackupCount > BACKUP_PAGE_SIZE) ? (
+            <div className="settings-actions">
+              {backups.length > visibleBackupCount ? (
+                <button type="button" className="toolbar-button" aria-controls="vault-backup-list"
+                  onClick={() => {
+                    // A paged-away Restore/Delete confirmation is not reusable.
+                    setPendingAction(null)
+                    setVisibleBackupCount((count) => Math.min(backups.length, count + BACKUP_PAGE_SIZE))
+                  }}>
+                  Show {Math.min(BACKUP_PAGE_SIZE, backups.length - visibleBackupCount)} older backups
+                </button>
+              ) : null}
+              {visibleBackupCount > BACKUP_PAGE_SIZE ? (
+                <button type="button" className="toolbar-button" aria-controls="vault-backup-list"
+                  onClick={() => {
+                    setPendingAction(null)
+                    setVisibleBackupCount(BACKUP_PAGE_SIZE)
+                  }}>
+                  Show fewer backups
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </>
       ) : !backupListError ? (
         backupListLoading

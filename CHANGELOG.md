@@ -4,6 +4,8 @@
 
 ### Improved
 
+- Reveal older retained backups progressively in sets of ten instead of hiding every backup beyond the first ten. Paging or changing destinations discards outstanding Restore/Delete approval, and the native backup order remains unchanged.
+
 - Offer a safe path from Backup settings to the current note's existing revision history. Disallow the navigation when no note is selected, Settings has unsaved changes, or the vault is paused for restore recovery; opening history performs no mutation.
 
 - Explain the latest restore attempt in Backup settings using vault-scoped, session-only read-only receipt evidence. Preserve clear distinctions between confirmed rollback, completed replacement, incomplete recovery and lost native replies; this is not a persisted recovery inventory or a new restore authority.
