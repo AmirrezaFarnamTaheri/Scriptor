@@ -24,3 +24,8 @@ The request token is renderer-only; native vault selection, backup scope and per
 - [x] Beginning a backup/restore/delete mutation invalidates earlier reads; publishing the final post-create-and-retention inventory invalidates reads started during the mutation.
 - [x] Added source-contract coverage for both request paths and mutation boundaries. No new storage, files or authorization authority.
 - [ ] Exact-head hosted **green** source regression, browser race fixture, TypeScript, Rust/desktop and visual jobs are required before claiming this slice verified. Installed-client recovery and other MAT-005 owners remain open.
+
+## Central verification
+- [x] The failing-first source assertion and exact test-only CI run are recorded in [the verification ledger](../../docs/VERIFICATION.md#mat-005-backup-inventory-request-ordering--october-27-2026).
+- [x] A second browser fixture now covers a late same-scope **error** after a successful post-create listing, complementing the stale-success case.
+- [ ] Both browser paths and full current-head CI must pass; no installed or native acceptance claim is made from these mocks.

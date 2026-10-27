@@ -82,3 +82,66 @@ test('pending same-scope backup list cannot resurrect stale entries after a comp
   await expect(backup.getByText('vault-backup-abcdef123456-20261027-143000-9999', { exact: false })).toBeVisible()
   await expect(backup.getByText('vault-backup-abcdef123456-20261027-142000-9999', { exact: false })).toHaveCount(0)
 })
+
+test('late same-scope list error cannot replace a successful post-create inventory', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.evaluate(() => {
+    const host = window as Window & {
+      __TAURI_INTERNALS__?: NativeBridge
+      __mat005ErrorRace?: { requests: number; rejectOld?: (error: Error) => void }
+    }
+    const native = host.__TAURI_INTERNALS__
+    if (!native) throw new Error('Native fixture bridge unavailable')
+    const original = native.invoke.bind(native)
+    const race: NonNullable<typeof host.__mat005ErrorRace> = { requests: 0 }
+    host.__mat005ErrorRace = race
+    const entry = {
+      name: 'vault-backup-abcdef123456-20261027-151500-9999',
+      path: 'vault-backup-abcdef123456-20261027-151500-9999',
+      created_at: '2026-10-27T15:15:00Z',
+      size_bytes: 64, storage_kind: 'external_backup', verified: true,
+    }
+    native.invoke = (command, args) => {
+      if (command === 'authorize_sensitive_operation' && args?.operation === 'create_backup') {
+        return Promise.resolve({
+          token: 'fixture-backup-approval',
+          operation: 'create_backup',
+          scope: 'C:/MAT005-Error',
+          expiresAtMs: Date.now() + 30000,
+        })
+      }
+      if (command === 'vault_create_backup') return Promise.resolve(entry)
+      if (command === 'vault_list_backups' && args?.backupPath === 'C:/MAT005-Error') {
+        race.requests++
+        if (race.requests === 1) {
+          return new Promise((_, reject) => { race.rejectOld = reject })
+        }
+        return Promise.resolve([entry])
+      }
+      return original(command, args)
+    }
+  })
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  const backup = settings.locator('[data-help-topic="backups"]')
+  const options = settings.locator('details.backup-options')
+  if (await options.getAttribute('open') === null) await options.locator('summary').click()
+  await settings.getByRole('textbox', { name: /Backup folder outside this vault/ }).fill('C:/MAT005-Error')
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __mat005ErrorRace?: { requests: number } }).__mat005ErrorRace?.requests ?? 0,
+  )).toBe(1)
+  await backup.getByRole('button', { name: 'Back up now' }).click()
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __mat005ErrorRace?: { requests: number } }).__mat005ErrorRace?.requests ?? 0,
+  )).toBe(2)
+  await expect(backup.getByText('vault-backup-abcdef123456-20261027-151500-9999')).toBeVisible()
+  await page.evaluate(() => {
+    (window as Window & { __mat005ErrorRace?: { rejectOld?: (error: Error) => void } })
+      .__mat005ErrorRace?.rejectOld?.(new Error('Outdated access denied'))
+  })
+  // Give React the opportunity to process the deliberately late rejection.
+  await page.waitForTimeout(100)
+  await expect(backup.getByText('vault-backup-abcdef123456-20261027-151500-9999')).toBeVisible()
+  await expect(backup.getByRole('alert')).toHaveCount(0)
+})
