@@ -916,4 +916,31 @@ mod tests {
             .expect_err("vault_health needs the index cache");
         assert_eq!(error, "no index cache is open; call OpenVault first");
     }
+    #[test]
+    fn git_commit_gateway_rejects_stale_and_missing_vault_before_queueing() {
+        let vault = tempfile::tempdir().expect("temporary vault");
+        let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+        let mut state = DaemonState::default();
+        state.session = Some(session);
+
+        for payload in [
+            json!({
+                "files": ["sample.md"],
+                "message": "Wrong target",
+                "expected_vault_id": "former-vault",
+            }),
+            json!({
+                "files": ["sample.md"],
+                "message": "Unknown target",
+            }),
+        ] {
+            let error = dispatch(&mut state, "git_commit_cmd", &payload)
+                .expect_err("Git commits without matching vault ownership must be denied");
+            assert!(
+                error.contains("Git commit vault identity"),
+                "wrong or missing vault must fail at identity check, not GitQueue: {error}"
+            );
+        }
+    }
+
 }
