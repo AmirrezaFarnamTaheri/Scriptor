@@ -16,6 +16,8 @@
 
 ### Fixed
 
+- Prevent stale same-vault backup-list results or errors from replacing newer inventory after manual backup, deletion or restore; responses now honor request ordering as well as vault/destination identity.
+
 - Disable Restore for backup copies that fail native integrity verification, with a clear explanation; reviewed Delete remains available for cleanup.
 
 - Require pending Restore/Delete confirmations to match the current vault, backup destination and backup name; clear outdated approvals rather than applying them to an identically named backup elsewhere.

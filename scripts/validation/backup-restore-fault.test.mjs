@@ -191,3 +191,25 @@ test('MAT-005 backup listing rejects stale same-vault, same-folder completions',
   const acceptChecks = [...useVaultBackup.matchAll(/requestEpoch === backupListRequestEpochRef\.current/g)]
   assert.ok(acceptChecks.length >= 2, 'both refresh and effect requests must reject stale completions')
 })
+
+test('MAT-005 backup inventory invalidates pending reads at mutation boundaries', () => {
+  const start = useVaultBackup.indexOf('const beginOperation = useCallback')
+  const end = useVaultBackup.indexOf('const finishOperation', start)
+  assert.ok(start >= 0 && end > start)
+  assert.match(useVaultBackup.slice(start, end), /backupListRequestEpochRef\.current \+= 1/)
+  const createStart = useVaultBackup.indexOf('const triggerBackup = useCallback')
+  const createEnd = useVaultBackup.indexOf('const triggerBackupRef', createStart)
+  assert.ok(createStart >= 0 && createEnd > createStart)
+  assert.match(useVaultBackup.slice(createStart, createEnd), /backupListRequestEpochRef\.current \+= 1[\s\S]*setBackups\(sorted\.filter/)
+})
+
+test('MAT-005 backup inventory gates both successful reads and stale errors', () => {
+  const directStart = useVaultBackup.indexOf('const listBackups = useCallback')
+  const directEnd = useVaultBackup.indexOf('const triggerBackup = useCallback', directStart)
+  const effectStart = useVaultBackup.indexOf('let cancelled = false\n    const requestEpoch', directEnd)
+  assert.ok(directStart >= 0 && directEnd > directStart && effectStart > directEnd)
+  const direct = useVaultBackup.slice(directStart, directEnd)
+  const effect = useVaultBackup.slice(effectStart, useVaultBackup.indexOf('return () => {', effectStart))
+  assert.equal((direct.match(/requestEpoch === backupListRequestEpochRef\.current/g) ?? []).length, 2)
+  assert.equal((effect.match(/requestEpoch === backupListRequestEpochRef\.current/g) ?? []).length, 2)
+})
