@@ -204,6 +204,7 @@ function harness(options = {}) {
     // Positional hook slots: document is index 1, status is index 4.
     // Revisit these mappings if useCanvasBoard changes hook declaration order.
     currentDocument: () => slots[1],
+    currentBoards: () => slots[2],
     currentStatus: () => slots[4],
     timers,
     fireTimers,
@@ -605,4 +606,36 @@ test('concurrent new-board requests do not duplicate the native creation write',
   await first
   assert.equal(saves, 1)
   assert.equal(h.currentDocument().title, 'Only once')
+})
+
+
+test('older same-vault Canvas board-list reply never replaces a newer post-save inventory', async () => {
+  const older = deferred()
+  const newer = deferred()
+  let requests = 0
+  const h = harness({
+    commandOverrides: {
+      canvasListDocuments: async () => (++requests === 1 ? older.promise : newer.promise),
+    },
+  })
+  const board = h.render()
+  // Initial mount hydration owns the earlier, still-pending list request.
+  assert.equal(requests, 1)
+  board.updateDocument(current => ({ ...current, title: 'Edited after initial listing began' }))
+  const saving = board.flushPendingSave()
+  await flushMicrotasks()
+  assert.equal(requests, 2, 'the successful save must refresh the board inventory')
+
+  const fresh = [{ id: 'fresh-board', title: 'Fresh', blockCount: 1, updatedAt: '2026-10-27T00:00:00Z', path: 'fresh.canvas' }]
+  const stale = [{ id: 'old-board', title: 'Old', blockCount: 1, updatedAt: '2026-10-26T00:00:00Z', path: 'old.canvas' }]
+  newer.resolve(fresh)
+  assert.equal(await saving, true)
+  assert.deepEqual(Array.from(h.currentBoards(), item => item.id), ['fresh-board'])
+
+  older.resolve(stale)
+  await flushMicrotasks()
+  assert.deepEqual(Array.from(h.currentBoards(), item => item.id), ['fresh-board'],
+    'a slow initial listing must not hide a newer board saved in this same vault')
+  assert.equal(h.currentDocument().title, 'Edited after initial listing began',
+    'a stale inventory response cannot replace the active unsaved document either')
 })
