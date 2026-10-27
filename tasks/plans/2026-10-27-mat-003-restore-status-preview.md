@@ -110,3 +110,8 @@ The summary is temporary and per vault/backup destination, is intentionally abse
 - [x] Explain invalid backup entries, keep reviewed Delete available for cleanup, and disable Restore unless the native listing verified the copy. Existing vault recovery holds remain authoritative.
 - [x] Authored one browser fixture for mixed valid/invalid backups and a source-contract assertion. No failing-first **hosted** run is recorded; not real corrupted-disk or installed-app proof.
 - [ ] Check exact-head source/TypeScript, browser, native and packaged recovery evidence before declaring completion.
+
+### Task 7: Preserve keyboard focus during backup disclosure (MAT-003/020)
+- [x] Add Playwright assertions to the existing twelve-backup fixture: keyboard focus must remain on the disclosure control after both expansion and collapse. With two mutually exclusive buttons, changing the label previously unmounted the focused button.
+- [x] Use one stable button with a changing accessible label, bounded ten-at-a-time count, `aria-controls` and `aria-expanded`. Continue clearing destructive confirmation when visibility changes.
+- [ ] Failing-first browser execution was not observed (authored test precedes this implementation in Git history); verify exact head via hosted Browser E2E, visual/RTL checks and keyboard interaction in installed client.

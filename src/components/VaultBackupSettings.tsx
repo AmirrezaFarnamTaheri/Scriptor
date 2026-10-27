@@ -198,25 +198,20 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
           </ul>
           {(backups.length > visibleBackupCount || visibleBackupCount > BACKUP_PAGE_SIZE) ? (
             <div className="settings-actions">
-              {backups.length > visibleBackupCount ? (
-                <button type="button" className="toolbar-button" aria-controls="vault-backup-list"
-                  onClick={() => {
-                    // A paged-away Restore/Delete confirmation is not reusable.
-                    setPendingAction(null)
-                    setVisibleBackupCount((count) => Math.min(backups.length, count + BACKUP_PAGE_SIZE))
-                  }}>
-                  Show {Math.min(BACKUP_PAGE_SIZE, backups.length - visibleBackupCount)} older backups
-                </button>
-              ) : null}
-              {visibleBackupCount > BACKUP_PAGE_SIZE ? (
-                <button type="button" className="toolbar-button" aria-controls="vault-backup-list"
-                  onClick={() => {
-                    setPendingAction(null)
-                    setVisibleBackupCount(BACKUP_PAGE_SIZE)
-                  }}>
-                  Show fewer backups
-                </button>
-              ) : null}
+              <button type="button" className="toolbar-button" aria-controls="vault-backup-list"
+                aria-expanded={visibleBackupCount > BACKUP_PAGE_SIZE}
+                onClick={() => {
+                  // Keep one focusable control while its label switches between
+                  // expand/collapse; paged-away destructive approval is invalid.
+                  setPendingAction(null)
+                  setVisibleBackupCount((count) => backups.length > count
+                    ? Math.min(backups.length, count + BACKUP_PAGE_SIZE)
+                    : BACKUP_PAGE_SIZE)
+                }}>
+                {backups.length > visibleBackupCount
+                  ? `Show ${Math.min(BACKUP_PAGE_SIZE, backups.length - visibleBackupCount)} older backups`
+                  : 'Show fewer backups'}
+              </button>
             </div>
           ) : null}
         </>

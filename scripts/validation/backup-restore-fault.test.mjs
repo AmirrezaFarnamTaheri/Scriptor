@@ -156,7 +156,8 @@ test('backup Restore and Delete confirmations cannot transfer between vaults or 
 test('older retained backups have an explicit bounded disclosure and cannot reuse hidden approvals', () => {
   const source = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
   assert.match(source, /backups\.slice\(0, visibleBackupCount\)/)
-  assert.match(source, /Show \{Math\.min\(BACKUP_PAGE_SIZE, backups\.length - visibleBackupCount\)\} older backups/)
+  assert.match(source, /Show .*older backups/)
+  assert.match(source, /aria-expanded=\{visibleBackupCount > BACKUP_PAGE_SIZE\}/)
   assert.match(source, /Show fewer backups/)
   assert.match(source, /setPendingAction\(null\)[\s\S]*setVisibleBackupCount\(BACKUP_PAGE_SIZE\)/)
   assert.doesNotMatch(source, /backups\.slice\(0, 10\)/)
