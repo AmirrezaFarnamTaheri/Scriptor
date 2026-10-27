@@ -916,6 +916,7 @@ mod tests {
             .expect_err("vault_health needs the index cache");
         assert_eq!(error, "no index cache is open; call OpenVault first");
     }
+
     #[test]
     fn git_commit_gateway_rejects_stale_and_missing_vault_before_queueing() {
         let vault = tempfile::tempdir().expect("temporary vault");
