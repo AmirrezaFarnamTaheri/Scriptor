@@ -66,7 +66,7 @@ export function useWorkspaceGit({
       setGitMutationBusy({ vaultId: targetVaultId, active: true })
       setError(null)
       try {
-        await gitCommit(files, message)
+        await gitCommit(files, message, targetVaultId)
         await controller.refresh()
         logActivity('success', 'Git commit created', message)
       } catch (caught) {
