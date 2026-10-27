@@ -152,9 +152,11 @@ test('older retained backups remain selectable instead of disappearing after the
   const older = backup.getByRole('button', { name: 'Show 2 older backups' })
   await expect(older).toBeVisible()
   await older.click()
+  await expect(backup.getByRole('button', { name: 'Show fewer backups' })).toBeFocused()
   await expect(backup.locator('.backup-entry')).toHaveCount(12)
   await expect(backup.getByRole('button', { name: 'Restore backup retained-snapshot-12' })).toBeVisible()
   await backup.getByRole('button', { name: 'Show fewer backups' }).click()
+  await expect(backup.getByRole('button', { name: 'Show 2 older backups' })).toBeFocused()
   await expect(backup.locator('.backup-entry')).toHaveCount(10)
 })
 
