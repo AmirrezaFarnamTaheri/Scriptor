@@ -72,3 +72,8 @@ export function validateVaultRestoreResult(value: unknown): VaultRestoreResult {
   }
   return value as VaultRestoreResult
 }
+
+/** Until application restart, prevent another mutation of a vault with an unconfirmed restore. */
+export function isVaultRestoreQuarantined(heldVaultId: string | null, activeVaultId: string | null): boolean {
+  return heldVaultId !== null && heldVaultId === activeVaultId
+}

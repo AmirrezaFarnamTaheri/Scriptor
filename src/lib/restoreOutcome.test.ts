@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { classifyVaultRestoreStatus, classifyVaultRestoreFailure, runVaultRestoreWithOutcomeBoundary, VaultRestoreOutcomeUnknownError, validateVaultRestoreResult } from './restoreOutcome.ts'
+import { classifyVaultRestoreStatus, classifyVaultRestoreFailure, runVaultRestoreWithOutcomeBoundary, VaultRestoreOutcomeUnknownError, validateVaultRestoreResult, isVaultRestoreQuarantined } from './restoreOutcome.ts'
 
 test('rolled-back restore is the only outcome that can resume the old draft', () => {
   assert.deepEqual(classifyVaultRestoreStatus('rolled-back'), {
@@ -85,4 +85,11 @@ test('an invalid or incomplete native reply stays indeterminate after submission
 test('valid native reply is unchanged after runtime validation', () => {
   const result = { status: 'committed-ready', message: 'done' }
   assert.equal(validateVaultRestoreResult(result), result)
+})
+
+test('unconfirmed restore quarantine blocks only the originating vault until restart', () => {
+  assert.equal(isVaultRestoreQuarantined('vault-A', 'vault-A'), true)
+  assert.equal(isVaultRestoreQuarantined('vault-A', 'vault-B'), false)
+  assert.equal(isVaultRestoreQuarantined('vault-A', null), false)
+  assert.equal(isVaultRestoreQuarantined(null, 'vault-A'), false)
 })

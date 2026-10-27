@@ -8,7 +8,7 @@ import {
   vaultRestoreBackup,
 } from '../bridge/commands'
 import type { VaultBackupEntry } from '../bridge/commands'
-import { classifyVaultRestoreStatus, classifyVaultRestoreFailure } from '../lib/restoreOutcome'
+import { classifyVaultRestoreStatus, classifyVaultRestoreFailure, isVaultRestoreQuarantined } from '../lib/restoreOutcome'
 import { backupRetentionCandidates, DEFAULT_VAULT_BACKUP_SETTINGS, validateVaultBackupSettings, type VaultBackupSettings } from '../lib/vaultBackupPolicy'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
@@ -57,6 +57,11 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const [errorView, setErrorView] = useState<{vaultId: string | null; path: string; value: string | null}>({vaultId: ownedVaultId, path: settings.backupPath, value: null})
   const [messageView, setMessageView] = useState<{vaultId: string | null; path: string; value: string | null}>({vaultId: ownedVaultId, path: settings.backupPath, value: null})
   const [isBusy, setIsBusy] = useState(false)
+  // A lost native restore reply can hide already-promoted files. Keep this
+  // vault quarantined for the remainder of this app session, even if the
+  // backup destination or active vault changes. A full restart clears it.
+  const [recoveryHoldVaultId, setRecoveryHoldVaultId] = useState<string | null>(null)
+  const recoveryRequired = isVaultRestoreQuarantined(recoveryHoldVaultId, ownedVaultId)
   // Hide a previous vault's data on the very first render after switching.
   // React forbids synchronous setState in effects; owner-keyed state needs no reset effect.
   // Backups are identified by both vault and destination directory. Never
@@ -73,6 +78,11 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const setLastMessage = useCallback((value: string | null) => setMessageView({vaultId: ownedVaultId, path: settings.backupPath, value}), [ownedVaultId, settings.backupPath])
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const operationBusyRef = useRef(false)
+  const recoveryHoldRef = useRef<string | null>(null)
+  const quarantineRestore = useCallback((id: string) => {
+    recoveryHoldRef.current = id
+    setRecoveryHoldVaultId(id)
+  }, [])
   const currentVaultRef = useRef<string | null>(ownedVaultId)
   const currentBackupPathRef = useRef(settings.backupPath)
 
@@ -88,11 +98,11 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   // A scheduled backup, manual backup, restore and deletion must not overlap.
   // State alone is not a mutex: two invocations may race before React renders.
   const beginOperation = useCallback(() => {
-    if (operationBusyRef.current) return false
+    if (operationBusyRef.current || isVaultRestoreQuarantined(recoveryHoldRef.current, ownedVaultId)) return false
     operationBusyRef.current = true
     setIsBusy(true)
     return true
-  }, [])
+  }, [ownedVaultId])
   const finishOperation = useCallback(() => {
     operationBusyRef.current = false
     setIsBusy(false)
@@ -242,7 +252,8 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         if (failure === 'freeze-and-reopen') {
           // The native transaction may have committed before its reply was lost.
           // Do not resume an old draft or silently retry this restore.
-          setLastError('The restore result could not be confirmed. Vault files may have changed; editing remains paused. Close and reopen this vault before saving or attempting another restore.')
+          quarantineRestore(requestedVault)
+          setLastError('The restore result could not be confirmed. Vault files may have changed; editing remains paused. Restart Scriptor and reopen this vault before saving or attempting another restore.')
           return
         }
         if (failure === 'safe-to-resume') {
@@ -265,7 +276,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         finishOperation()
       }
     },
-    [ownedVaultId, settings.backupPath, beginOperation, finishOperation, ownsVault, setLastError, setLastMessage],
+    [ownedVaultId, settings.backupPath, beginOperation, finishOperation, ownsVault, setLastError, setLastMessage, quarantineRestore],
   )
 
   const deleteBackup = useCallback(
@@ -333,6 +344,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       backupListError,
       backupListLoading,
       isBusy,
+      recoveryRequired,
       lastError,
       lastMessage,
       triggerBackup,
@@ -340,6 +352,6 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       deleteBackup,
       listBackups,
     }),
-    [settings, setSettings, backups, backupListError, backupListLoading, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup, listBackups],
+    [settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup, listBackups],
   )
 }

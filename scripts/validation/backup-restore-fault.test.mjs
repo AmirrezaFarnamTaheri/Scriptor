@@ -96,3 +96,12 @@ test('a rejected native restore reply keeps the editor frozen until reopen', () 
   assert.match(useVaultBackup.slice(freeze, resume), /editing remains paused/)
   assert.doesNotMatch(useVaultBackup.slice(freeze, resume), /scriptor:vault-restore-aborted/)
 })
+
+test('indeterminate restore blocks repeated backup mutations in affected vault', () => {
+  assert.match(useVaultBackup, /isVaultRestoreQuarantined\(recoveryHoldRef\.current, ownedVaultId\)/)
+  assert.match(useVaultBackup, /quarantineRestore\(requestedVault\)/)
+  assert.match(useVaultBackup, /recoveryRequired,/)
+  const backupSettings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  assert.match(backupSettings, /disabled=\{isBusy \|\| recoveryRequired\}/)
+  assert.match(backupSettings, /Restart Scriptor and reopen the vault/)
+})

@@ -6,7 +6,7 @@
 
 - Reject malformed or unrecognized native restore results as indeterminate, keeping the previous editor draft frozen until the vault can be reopened. Typed Tauri invocation responses are now validated after submission, with failing-first regression coverage.
 
-- Keep editor drafts paused if a native backup-restore reply is lost after submission. Distinguish pre-submission authorization rejection from an indeterminate transaction outcome, preserve native terminal statuses and require vault reopening before further saves or retries.
+- Keep editor drafts paused if a native backup-restore reply is lost after submission. Distinguish pre-submission authorization rejection from an indeterminate transaction outcome, preserve native terminal statuses, and quarantine repeated backup/restore/delete actions for the affected vault until Scriptor is restarted and the vault reopened.
 
 - Upgrade `webpki-roots` and `webpki-root-certs` to 1.0.10 and `rustls-webpki` to 0.103.16 to fix RUSTSEC-2026-0381, RUSTSEC-2026-0382 and RUSTSEC-2026-0383, which affected the bundled root certificates by trusting distrusted emSign intermediates and by accepting certificate paths through distrusted intermediates.
 
