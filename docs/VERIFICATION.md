@@ -198,6 +198,12 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - **Implementation pending exact-head GREEN:** the controller forwards the immutable vault ID, the typed Tauri bridge requires it, native Tauri checks the active session, and headless daemon-backed reads validate under the vault-switch lock. The separately exposed `daemon_git_status` Tauri command and its TypeScript bridge now require the same initiating identity; Browser fixtures refuse mismatched IDs.
 - **Outstanding:** current-head source/Rust/Windows/browser/visual checks, installed desktop delayed-read/vault-switch acceptance, and broader daemon/CLI/MCP parity. Read provenance does not imply a committed mutation.
 
+## MAT-008 — Daemon Git status RPC provenance (draft PR #215)
+
+- **Observed RED:** test-only head `d51b0e3`, [CI #40666737446](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40666737446), failed `transport::tests::unscoped_git_status_is_rejected_before_native_read_on_both_daemon_routes` (61 passing daemon tests, 1 failing). The unbound request reached the native Git read.
+- **Implementation:** typed `RpcMethod::GitStatus` requires `expected_vault_id`. The daemon's direct handler, outside-lock transport, and Invoke paths verify the same authoritative session before resolving a native Git root. Desktop, CLI and TUI use the ID returned by daemon `OpenVault`. Missing or stale identities fail closed.
+- **Pending:** exact-head Rustfmt/Clippy/Rust, IPC bindings, TypeScript, Browser E2E, Windows and visual acceptance; installed authenticated IPC concurrency, restart and reopening. This is one MAT-008 slice and not mutation receipt proof.
+
 ## Canonical history gate
 
 Run from a full canonical clone:

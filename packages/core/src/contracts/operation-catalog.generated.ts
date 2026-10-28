@@ -1520,7 +1520,7 @@ export const OPERATION_CATALOG = {
       "owner": "crates/ipc/src/lib.rs",
       "authorizationClass": "local-ipc",
       "mutationClass": "read-only",
-      "scope": null,
+      "scope": "expected-vault",
       "schemaKind": "typed-rust",
       "inputType": "RpcMethod::GitStatus",
       "maxInputBytes": 2097152,

@@ -200,8 +200,10 @@ fn graph_impl(focus_path: Option<String>, depth: u32) -> Result<String, String> 
         _ => Err("unexpected daemon graph response".into()),
     }
 }
-fn git_status_impl() -> Result<String, String> {
-    match daemon_rpc(RpcMethod::GitStatus)? {
+fn git_status_impl(expected_vault_id: &str) -> Result<String, String> {
+    match daemon_rpc(RpcMethod::GitStatus {
+        expected_vault_id: expected_vault_id.to_string(),
+    })? {
         RpcPayload::GitStatus { json } => Ok(json),
         _ => Err("unexpected daemon git status response".into()),
     }
@@ -572,7 +574,7 @@ pub(crate) fn bridge_git_status(
             .ok_or_else(|| "No vault is open. Call vault_open first.".to_string())?;
         super::git::validate_git_status_target(&session.descriptor.id, expected_vault_id)?;
         drop(guard);
-        git_status_impl()
+        git_status_impl(expected_vault_id)
     })
 }
 pub(crate) fn bridge_save_note(

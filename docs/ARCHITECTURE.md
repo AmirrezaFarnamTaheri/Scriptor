@@ -18,6 +18,8 @@ CLI/TUI and MCP
   -> daemon handlers and shared kernel crates
 ```
 
+Daemon Git status RPC reads carry the originating vault identity from `OpenVault`. The daemon checks that identity against its active session under the existing lock before capturing the Git root. Desktop, CLI, and TUI propagate it; a stale or unbound request is rejected instead of reading another client's selected vault.
+
 The renderer is not an authority boundary. Native operations validate scope, authorization, runtime payloads, paths, process policy, and cancellation independently of UI state.
 
 Desktop Git commits carry the initiating vault identity in the typed bridge. The Tauri handler checks that ID against the active session while holding its read lease, before acquiring GitQueue or starting a write. A delayed invoke from another vault is refused. The daemon gateway and direct-path CLI have separate session contracts and still need their MAT-008 parity audit.

@@ -604,8 +604,10 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         }
         "set_headless_engine" => Ok(Value::Null),
         "git_status_cmd" => {
-            let session = state.require_session()?;
-            to_value(git_status(session.root.root()).map_err(|e| e.to_string())?)
+            let expected_vault_id = require_str(payload, "expected_vault_id")
+                .or_else(|_| require_str(payload, "expectedVaultId"))?;
+            let root = state.git_status_root(&expected_vault_id)?;
+            to_value(git_status(&root).map_err(|e| e.to_string())?)
         }
         "git_commit_cmd" => {
             let files: Vec<String> = require_deserialize(payload, "files")?;

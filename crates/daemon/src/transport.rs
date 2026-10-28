@@ -310,7 +310,7 @@ fn dispatch_request(
         RpcMethod::ExportRunNote { .. }
             | RpcMethod::ExportRunMarkdown { .. }
             | RpcMethod::RebuildIndex
-            | RpcMethod::GitStatus
+            | RpcMethod::GitStatus { .. }
     ) || matches!(
         &request.method,
         RpcMethod::Invoke { command, .. } if command_gateway::is_outside_lock_command(command)
@@ -350,7 +350,9 @@ fn dispatch_request(
             dispatch_export_sync(state, id, &request.method)
         }
         RpcMethod::RebuildIndex => dispatch_rebuild_sync(state, id),
-        RpcMethod::GitStatus => dispatch_git_status_sync(state, id),
+        RpcMethod::GitStatus { expected_vault_id } => {
+            dispatch_git_status_sync(state, id, &expected_vault_id)
+        }
         RpcMethod::OpenVault { .. } => {
             let rebuild_job = { lock_recover(state).index_rebuild.clone() };
             rebuild_job.wait();
@@ -472,12 +474,12 @@ fn dispatch_invoke_outside_lock(
         "plantuml_render" => command_gateway::cmd_plantuml_render(&payload)
             .and_then(|output| serde_json::to_string(&output).map_err(|error| error.to_string())),
         "git_status_cmd" => {
-            let root = {
-                let guard = lock_recover(state);
-                guard
-                    .require_session()
-                    .map(|session| session.root.root().to_path_buf())
-            };
+            let root = require_invoke_str(&payload, "expected_vault_id")
+                .or_else(|_| require_invoke_str(&payload, "expectedVaultId"))
+                .and_then(|expected| {
+                    let guard = lock_recover(state);
+                    guard.git_status_root(&expected)
+                });
             root.and_then(|root| {
                 scriptor_native_git::git_status(&root)
                     .map_err(|error| error.to_string())
@@ -655,12 +657,14 @@ fn dispatch_invoke_outside_lock(
     }
 }
 
-fn dispatch_git_status_sync(state: &Arc<Mutex<DaemonState>>, id: u64) -> RpcResponse {
+fn dispatch_git_status_sync(
+    state: &Arc<Mutex<DaemonState>>,
+    id: u64,
+    expected_vault_id: &str,
+) -> RpcResponse {
     let root = {
         let guard = lock_recover(state);
-        guard
-            .require_session()
-            .map(|session| session.root.root().to_path_buf())
+        guard.git_status_root(expected_vault_id)
     };
     let result = root.and_then(|root| {
         scriptor_native_git::git_status(&root)

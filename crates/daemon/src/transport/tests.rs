@@ -805,17 +805,46 @@ fn unscoped_git_status_is_rejected_before_native_read_on_both_daemon_routes() {
         ..DaemonState::default()
     }));
 
-    let outside_lock = dispatch_git_status_sync(&state, 901);
+    let outside_lock = dispatch_git_status_sync(&state, 901, "");
     let result = format!("{:?}", outside_lock.result);
     assert!(
         result.contains("Git status vault identity"),
         "an unbound RPC must not read the daemon's currently active vault: {result}"
     );
 
-    let through_handler = lock_recover(&state).handle(RpcRequest::new(902, RpcMethod::GitStatus));
+    let through_handler = lock_recover(&state).handle(RpcRequest::new(
+        902,
+        RpcMethod::GitStatus {
+            expected_vault_id: String::new(),
+        },
+    ));
     let result = format!("{:?}", through_handler.result);
     assert!(
         result.contains("Git status vault identity"),
         "the direct daemon handler must reject an unbound Git status request: {result}"
+    );
+}
+
+#[test]
+fn daemon_git_status_rejects_stale_identity_but_accepts_originating_vault() {
+    let vault = tempfile::tempdir().expect("temporary vault");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let expected_vault_id = session.descriptor.id.clone();
+    let state = Arc::new(Mutex::new(DaemonState {
+        session: Some(session),
+        ..DaemonState::default()
+    }));
+
+    let stale = dispatch_git_status_sync(&state, 903, "another-vault");
+    assert!(
+        format!("{:?}", stale.result).contains("Git status vault identity mismatch"),
+        "a stale RPC must not read the active vault"
+    );
+
+    let correct = dispatch_git_status_sync(&state, 904, &expected_vault_id);
+    assert!(
+        matches!(correct.result, RpcResult::Ok(RpcPayload::GitStatus { .. })),
+        "the originating vault should reach Git status: {:?}",
+        correct.result
     );
 }
