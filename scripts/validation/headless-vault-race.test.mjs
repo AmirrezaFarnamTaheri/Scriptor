@@ -167,6 +167,7 @@ test('every vault-relative daemon bridge uses the verified-vault gateway', () =>
   ]) assert.ok(call.test(nativeExportSource), `export headless path must use checked call: ${call}`)
 
   assert.ok(nativeGitSource.includes('bridge_git_status(&state, &expected_vault_id)'))
+  assert.ok(nativeDaemonSource.includes('bridge_git_status(&state, &expected_vault_id)'))
 })
 
 test('export command adapters keep originating-vault validation ahead of dispatch', () => {

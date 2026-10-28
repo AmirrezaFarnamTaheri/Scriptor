@@ -8,6 +8,7 @@
 - [x] Controller forwards its captured target vault to the status fetcher; the no-vault sentinel never crosses native.
 - [x] Typed bridge and native Tauri status command require and validate the initiating vault.
 - [x] Headless daemon-backed status uses the existing switch lock, validating the requested vault inside the same critical section before RPC.
+- [x] The separately exposed daemon Git status Tauri command and typed bridge also require the initiating vault, including the existing headless adapter source contract.
 - [x] Browser fixture rejects invalid vault identity; canonical operation contract scope and generated artifacts record `expected-vault`.
 - [ ] Current-head source, TypeScript, native, Browser E2E, Windows, desktop, visual and documentation gates.
 - [ ] Installed desktop delayed-read/vault switch acceptance, including headless mode.

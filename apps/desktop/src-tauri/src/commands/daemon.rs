@@ -404,8 +404,11 @@ pub fn daemon_graph(
     bridge_graph(&state, focus_path, depth)
 }
 #[tauri::command]
-pub fn daemon_git_status(state: tauri::State<AppState>) -> Result<String, String> {
-    bridge_git_status(&state)
+pub fn daemon_git_status(
+    state: tauri::State<AppState>,
+    expected_vault_id: String,
+) -> Result<String, String> {
+    bridge_git_status(&state, &expected_vault_id)
 }
 #[tauri::command]
 pub fn daemon_save_note(

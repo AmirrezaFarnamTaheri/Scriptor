@@ -195,7 +195,7 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 ## MAT-008 — Git status read provenance (draft PR #213)
 
 - **Observed behavioral RED:** test-only head `caf63390bbbeaa8893af446169c5995a920777cc`, [CI #40599461753](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40599461753), three source regressions: native Git status was invoked without the initiating vault ID, a blank origin was accepted, and the controller did not pass the captured vault ID to its fetcher.
-- **Implementation pending exact-head GREEN:** the controller forwards the request's immutable vault ID, Tauri bridge requires a nonempty ID, native Tauri checks against the active session, and headless daemon-backed reads validate under the vault-switch lock before RPC. Browser fixtures refuse mismatched identities.
+- **Implementation pending exact-head GREEN:** the controller forwards the immutable vault ID, the typed Tauri bridge requires it, native Tauri checks the active session, and headless daemon-backed reads validate under the vault-switch lock. The separately exposed `daemon_git_status` Tauri command and its TypeScript bridge now require the same initiating identity; Browser fixtures refuse mismatched IDs.
 - **Outstanding:** current-head source/Rust/Windows/browser/visual checks, installed desktop delayed-read/vault-switch acceptance, and broader daemon/CLI/MCP parity. Read provenance does not imply a committed mutation.
 
 ## Canonical history gate
