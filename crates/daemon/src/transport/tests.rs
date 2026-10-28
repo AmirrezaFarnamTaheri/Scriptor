@@ -812,8 +812,7 @@ fn unscoped_git_status_is_rejected_before_native_read_on_both_daemon_routes() {
         "an unbound RPC must not read the daemon's currently active vault: {result}"
     );
 
-    let through_handler = lock_recover(&state)
-        .handle(RpcRequest::new(902, RpcMethod::GitStatus));
+    let through_handler = lock_recover(&state).handle(RpcRequest::new(902, RpcMethod::GitStatus));
     let result = format!("{:?}", through_handler.result);
     assert!(
         result.contains("Git status vault identity"),
