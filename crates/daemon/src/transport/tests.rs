@@ -795,3 +795,28 @@ fn reload_config_broadcasts_config_json_to_connected_clients() {
     }
     pipe_guard.disarm();
 }
+
+#[test]
+fn unscoped_git_status_is_rejected_before_native_read_on_both_daemon_routes() {
+    let vault = tempfile::tempdir().expect("temporary vault");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let state = Arc::new(Mutex::new(DaemonState {
+        session: Some(session),
+        ..DaemonState::default()
+    }));
+
+    let outside_lock = dispatch_git_status_sync(&state, 901);
+    let result = format!("{:?}", outside_lock.result);
+    assert!(
+        result.contains("Git status vault identity"),
+        "an unbound RPC must not read the daemon's currently active vault: {result}"
+    );
+
+    let through_handler = lock_recover(&state)
+        .handle(RpcRequest::new(902, RpcMethod::GitStatus));
+    let result = format!("{:?}", through_handler.result);
+    assert!(
+        result.contains("Git status vault identity"),
+        "the direct daemon handler must reject an unbound Git status request: {result}"
+    );
+}
