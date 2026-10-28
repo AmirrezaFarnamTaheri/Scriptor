@@ -16,6 +16,7 @@ The daemon state mutex serializes identification with snapshotting the GitQueue 
 - [x] Observed RED in [CI #40657380487](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40657380487): both test functions reached GitQueue and failed `not a git repository` instead of rejecting identity.
 - [x] Added a single shared `require_git_commit_vault_identity` guard and wired both daemon command paths before queue creation.
 - [x] Added a positive test for a matching originating ID without requiring a real Git repository.
+- [x] Extracted existing command-gateway Rust tests into a child module to stay below the 950-line source-size ratchet; no increase to the budget.
 - [ ] Verify Rust source, formatting, Clippy, Rust tests, Windows, browser, and visual gates on the implementation's exact head.
 - [ ] Verify an actual authenticated daemon IPC session with a delayed old-vault request, restart, and response-loss behavior.
 - [ ] Audit remaining CLI/TUI/MCP operations separately; this PR does not complete MAT-008.
