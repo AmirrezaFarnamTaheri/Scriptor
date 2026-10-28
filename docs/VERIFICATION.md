@@ -191,6 +191,17 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - **Patch:** raise direct workspace minimums to `0.13.5` and update the single Cargo.lock entry. The crates.io index confirms checksum `278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb`; both versions have the same normal dependency set and feature flags. No security ignore is introduced and no application parser feature is disabled.
 - **Pending:** exact-head cargo-deny, Cargo.lock parity, Rust tests, production builds, browser and package acceptance. This is an independent dependency fix and does not certify MAT-008.
 
+## MAT-005 Saved Views query ownership — October 29, 2026
+
+[PR #218](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/218) is an independent renderer read-freshness slice. Native Saved Views filtering and vault permissions are unchanged.
+
+| Source / environment | Observed result | Classification |
+|---|---|---|
+| Test-only `687bd7e` · [CI #40779293100](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40779293100) | Three real-hook assertions failed in `saved-views-query-ownership.test.mjs`: test 345 old Alpha query overwrote Beta; test 346 vault A's path remained on vault B; test 347 new vault's result was absent with unchanged filter. | **Three observed behavioral RED failures**, not test setup or compile failures |
+| Implementation following the test-only commit | One shared generation between manual and debounced queries; render-visible results are keyed to vault/filter identity; stale success/error callbacks are ignored; effect cleanup invalidates outstanding operations. | **Implemented — exact-head GREEN not yet verified** |
+
+A mocked native query is not proof of installed-client vault changes or remote data integrity. Broader MAT-005 mutation acceptance and desktop restart tests remain open.
+
 ## Canonical history gate
 
 Run from a full canonical clone:
