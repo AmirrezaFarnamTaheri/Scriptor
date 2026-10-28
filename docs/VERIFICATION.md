@@ -193,6 +193,13 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 
 ## MAT-018 command palette availability — pending exact-head acceptance
 
+### MAT-018 note result availability — October 29, 2026
+
+[PR #216](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/216) adds a second callback-availability regression to the command palette. In its test-only head `8ab1b67`, the real JSX component harness renders a selectable note result despite missing `onOpenNote`; its selection calls an optional callback and closes without opening any note.
+
+A narrow guard now requires both a note-search function **and** an opener before note-result queries or selectable note results can be presented; the existing positive click-through test remains. **No hosted failing-first result was observed before the implementation commit:** CI [#40763493567](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40763493567) was still queued. Exact-head source/TypeScript/browser and installed-client keyboard/RTL/zoom acceptance remain pending. This is not a MAT-018 completion certificate.
+
+
 The test-only PR #216 head `d12f1a55454592a3e1d1364b0d2a73d08dc30eb8` established failing-first behavior in [CI #40677971239](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40677971239): the palette advertised a missing knowledge-workbench callback and showed a closed-tab restore action with zero closed tabs. The two new tests fail by assertion (683 of 685 source tests passed), not because of import or runner failure.
 
 The implementation restricts command registration to available owner callbacks, an actual active note for organization/history, and a positive closed-tab count with a reopen callback. It preserves available command handlers, keyboard shortcuts, and native authorization boundaries.

@@ -26,3 +26,10 @@ Omission of truly unavailable handlers is preferable to an inert selectable opti
 - [ ] Observe a hosted RED on the test-only head. Do not count missing imports, harness defects or skipped tests as behavioral RED.
 - [ ] Use the smallest eligibility guard so note search has a launch owner; keep existing query cancellation and actual click behavior. Repeat focused and exact-head CI/visual tests.
 - [ ] This is one no-op availability case, not the complete MAT-018 shared-capability or contextual-help contract.
+
+## Note search availability follow-up — production guard
+
+- [x] Added the existing `onOpenNote` callback to note-result eligibility and the query effect; note matches no longer appear as selectable no-ops, and native note search does not run without an opener. The searchable commands and Help remain available.
+- [x] The test-only head `8ab1b67` includes two real-component behavioral cases: suppress unavailable note results and preserve click-through when a handler exists.
+- [ ] **Failing-first hosted result not observed:** [CI #40763493567](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40763493567) was queued at implementation time. Do not call this a completed TDD red/green cycle without that evidence; see [`docs/VERIFICATION.md`](../../docs/VERIFICATION.md).
+- [ ] Verify exact-head source and browser CI, visual/a11y matrix, and installed-client acceptance; do not mark MAT-018 complete.

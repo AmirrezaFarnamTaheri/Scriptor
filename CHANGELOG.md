@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Hide note-search results in the command palette unless the current surface can actually open a note, rather than offering a selectable result that merely closes the palette.
+
 - Hide command palette actions when their optional launcher is unavailable, when there is no active note to organize, or when no closed tab can be reopened. Preserve available commands and their native permission boundaries.
 
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
