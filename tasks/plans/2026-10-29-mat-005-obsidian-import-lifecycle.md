@@ -9,10 +9,14 @@ A completed native import also calls `onImported` and sets React state after an 
 
 ## Tests
 - [x] Add three actual-component JSX behavior tests: simultaneous submit; success after unmount; failure after unmount. Only native command and React scheduling are mocked.
-- [ ] **RED:** run hosted source suite at exact test-only head. Confirm failures are in the intended assertions rather than missing dependencies/harness setup.
-- [ ] **GREEN:** single-flight ref prevents duplicate submissions before UI update; mount ownership suppresses late callbacks and state updates after unmount. Do not weaken the current native vault authorization.
+- [ ] **RED:** source suite on test-only `69a8c3a` ([CI #40783884097](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40783884097)) was queued at implementation time; no observed red assertion yet. Do not present this as a verified TDD red-green cycle.
+- [x] **Implementation authored (green pending):** synchronous single-flight ref prevents duplicate submissions before UI rerender; a mount lifecycle token suppresses late callbacks and state updates after unmount. Native vault authorization remains untouched.
 - [ ] Re-run exact-head source, TypeScript, browser E2E, Rust, Windows and visual gates. Validate installed Windows/macOS/Linux import, vault switch and restart separately.
-- [ ] Update `docs/VERIFICATION.md` and `CHANGELOG.md` only after implementation, recording actual red/green evidence. Broader MAT-005 stays open.
+- [x] Update `docs/VERIFICATION.md` and `CHANGELOG.md` after implementation. Record the real status: test-only run queued, expected regression not observed, exact-head green still pending. Broader MAT-005 stays open.
 
 ## Safety boundary
 The UI must not interpret a closed dialog as a native cancellation. The native `ImportVault` authorization, source path, vault session and resulting file writes remain authoritative.
+
+## Failure/retry contract
+- [x] Added a failure-then-explicit-retry behavioral test to prove synchronous exclusion is released after native denial, without silently retrying the mutation.
+- [ ] Full exact-head hosted source/TypeScript/browser/Rust/desktop/visual gates and installed-client vault-switch/restart acceptance are required.

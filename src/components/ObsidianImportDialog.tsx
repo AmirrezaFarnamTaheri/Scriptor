@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { CheckCircle2, FolderOpen, ShieldAlert, X } from 'lucide-react'
 
 import { vaultDetectObsidian, vaultImportObsidian } from '../bridge/commands/vault.ts'
@@ -27,6 +27,17 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
   const [result, setResult] = useState<ObsidianImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const checkGeneration = useRef(0)
+  const importInFlightRef = useRef(false)
+  const importLifecycleRef = useRef(0)
+
+  useEffect(() => {
+    const lifecycle = ++importLifecycleRef.current
+    return () => {
+      // A closed or remounted dialog cannot publish an earlier native reply.
+      if (importLifecycleRef.current === lifecycle) importLifecycleRef.current += 1
+      checkGeneration.current += 1
+    }
+  }, [])
 
   useEscapeToClose(true, onClose)
   useFocusTrap(dialogRef, { active: true, initialFocus: false })
@@ -69,7 +80,12 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
   }, [validateSource])
 
   const handleImport = useCallback(async () => {
-    if (!sourcePath.trim()) return
+    // React busy state updates on a later render. Claim this dialog's native
+    // mutation synchronously so a second submit cannot request authorization.
+    if (importInFlightRef.current || !sourcePath.trim()) return
+    importInFlightRef.current = true
+    const lifecycle = importLifecycleRef.current
+    const ownsDialog = () => importLifecycleRef.current === lifecycle
     setIsImporting(true)
     setError(null)
     setResult(null)
@@ -79,12 +95,16 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
         importAttachments,
         preserveFrontmatter,
       })
+      // A native import can complete even after this overlay closes. It must
+      // not notify a subsequently selected vault or mutate an unmounted form.
+      if (!ownsDialog()) return
       setResult(importResult)
       onImported?.(importResult)
     } catch (caught) {
-      setError(String(caught))
+      if (ownsDialog()) setError(String(caught))
     } finally {
-      setIsImporting(false)
+      importInFlightRef.current = false
+      if (ownsDialog()) setIsImporting(false)
     }
   }, [sourcePath, convertWikilinks, importAttachments, preserveFrontmatter, onImported])
 

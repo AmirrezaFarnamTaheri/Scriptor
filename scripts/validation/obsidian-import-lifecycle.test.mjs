@@ -184,3 +184,26 @@ test('import rejection after unmount does not update a destroyed dialog', async 
   assert.equal(h.imported.length, 0)
   assert.equal(h.updatesAfterUnmount.length, 0)
 })
+
+test('a failed native import releases single-flight for one explicit retry', async () => {
+  const pending = [deferred(), deferred()]
+  let attempt = 0
+  const h = harness(() => pending[attempt++].promise)
+  let tree = h.render()
+  h.sourceInput(tree).props.onChange({ target: { value: '/fixture/retry' } })
+  tree = h.render()
+  h.submit(tree)
+  h.submit(tree)
+  assert.equal(h.importCalls.length, 1, 'duplicate submit cannot start another authorization')
+
+  pending[0].reject(new Error('ImportVault denied'))
+  await h.settle()
+  tree = h.render()
+  h.submit(tree)
+  h.submit(tree)
+  assert.equal(h.importCalls.length, 2, 'one new explicit attempt is allowed after failure')
+  pending[1].resolve(successfulImport())
+  await h.settle()
+  assert.equal(h.imported.length, 1, 'only successful new attempt updates the workspace')
+  assert.equal(h.updatesAfterUnmount.length, 0)
+})

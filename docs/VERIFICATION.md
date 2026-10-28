@@ -41,6 +41,18 @@ enforcement applies to maintained product and contributor documentation.
 Provenance-sensitive audit records under `docs/validation/` and archived
 documents remain exempt; active user guides do not.
 
+## MAT-005 Obsidian import lifecycle — October 29, 2026
+
+PR [#219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219) addresses two renderer-level defects in the Obsidian import overlay. Native `ImportVault` authorization and file writes are unchanged.
+
+| Source | Observation | Evidence class |
+|---|---|---|
+| Test-only head `69a8c3a`, [CI #40783884097](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40783884097) | Three real-dialog JSX behavioral tests were authored; at the time of the fix, hosted CI was queued | **No observed failing-first run**; do not claim TDD RED |
+| Implemented follow-up | Synchronous import single-flight, mount-generation check before post-await state/callbacks; failure releases in-flight claim for an explicit user retry | **Authored, not yet verified GREEN** |
+| Required acceptance | Current-head source regression, browser, TypeScript, native/Rust, Windows/desktop, visual and clean installed-client import/vault-switch scenarios | **Pending** |
+
+A closed dialog does **not** cancel, roll back or establish the outcome of an already submitted native import. It only prevents late renderer feedback.
+
 ## PR #160 remediation evidence — October 11, 2026
 
 This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.
