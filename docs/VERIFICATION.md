@@ -185,6 +185,12 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - The release upload boundary excludes unpacked bundle internals and CI evidence.
 - Checksums and attestations cover installers, while target trust records remain separately verified release metadata.
 
+## RUSTSEC-2026-0414 — pulldown-cmark advisory remediation
+
+- **Failure observed:** [CI #40661251859](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40661251859) at MAT-008 daemon head `eb19fcb42014531026dac9c4d88f01300f223dc8`. Cargo deny rejected `pulldown-cmark 0.13.4` with advisory RUSTSEC-2026-0414: crafted `[[a|]]` input may cause exponential event growth when `ENABLE_WIKILINKS` is on.
+- **Patch:** raise direct workspace minimums to `0.13.5` and update the single Cargo.lock entry. The crates.io index confirms checksum `278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb`; both versions have the same normal dependency set and feature flags. No security ignore is introduced and no application parser feature is disabled.
+- **Pending:** exact-head cargo-deny, Cargo.lock parity, Rust tests, production builds, browser and package acceptance. This is an independent dependency fix and does not certify MAT-008.
+
 ## MAT-005 — Git mutation single-flight (draft PR #210)
 
 - **Observed RED:** test-only head `6182df80b78b81c8043f3c5364735db3f741839b`, [CI #40585634586](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40585634586), `Run source regression suite`. A repeat commit reached native Git twice (expected one, observed two); a pending pull ceased showing busy after switching vaults (expected true, observed false).
@@ -193,6 +199,7 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - **Prior exact-head hosted GREEN:** commit `186a3b3` passed source, Rust, Browser E2E, Windows, frontend, container, docs and visual workflows in [CI #40586771173](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40586771173) and [Visual #40586771362](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40586771362); it does not certify later heads.
 - **Next failing-first stage:** test-only commit `32f525d` adds real-hook regressions for stale pull/commit completion refreshing a different vault, including switch-away-and-back. No source fix has been applied and **RED remains unobserved** until hosted source tests execute.
 - **Pending:** exact-head hosted source, TypeScript, browser, Rust, Windows, and visual acceptance; installed-client duplicate-submit, vault switch, crash/restart and native failure acceptance. This is one MAT-005 slice, not checklist completion.
+
 ## Canonical history gate
 
 Run from a full canonical clone:
