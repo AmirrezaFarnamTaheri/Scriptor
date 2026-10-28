@@ -16,6 +16,8 @@
 
 ### Fixed
 
+- Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
+
 - Reconcile backup listings with a read-only scoped refresh after denied/failed backup creation, keeping the original error visible without automatically retrying the write.
 
 - Prevent stale same-vault backup-list results or errors from replacing newer inventory after manual backup, deletion or restore; responses now honor request ordering as well as vault/destination identity.
