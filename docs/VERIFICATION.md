@@ -193,6 +193,14 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 
 ## MAT-018 command palette availability — pending exact-head acceptance
 
+### MAT-018 collapsed-rail focus visibility — October 29, 2026
+
+- **Observed RED:** [CI #40769827862](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40769827862), head `802051d`, Browser E2E: 147/148 passed; `e2e/command-palette-focus.spec.ts` failed on `expect(search).not.toBeVisible()` after **Hide vault sidebar**. [Workflow screenshots #40769827908](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40769827908) failed on the same assertion. The underlying desktop rail used `opacity:0` and zero-width grid columns; the input still remained visible to the browser visibility check and was not removed from keyboard navigation.
+- **Implementation (new exact-head checks required):** hide the collapsed desktop rail with `visibility:hidden`, retaining the pre-existing opacity/grid animation. Exclude mobile-pane navigation and restore the Vault pane's interactivity at actual mobile width and zoom reflow. Keep the original palette open/close/focus test and add a mobile-pane regression.
+- **Verification pending:** exact-head Browser E2E, populated screenshot, frontend/TypeScript, visual, RTL/200% zoom and installed-client keyboard/screen-reader acceptance. These are not satisfied by editing CSS or by the historical failed CI run.
+
+
+
 ### MAT-018 palette focus after closing dialog — October 29, 2026
 
 - **Source defect:** `focus-search` called `input.focus()` while the command palette's `useFocusTrap` was still active. Its `focusin` listener reclaims focus outside the dialog; if the sidebar is collapsed the target may not be visible at all.

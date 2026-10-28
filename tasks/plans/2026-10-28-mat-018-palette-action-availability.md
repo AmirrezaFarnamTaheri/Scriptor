@@ -45,3 +45,9 @@ The command currently invokes `document.querySelector('.vault-search input')?.fo
 - [ ] This is a MAT-018 action-availability slice, not complete capability/Help alignment.
 
 **Evidence classification:** The behavioral red was not observed before implementation, even though the tests precede the fix in Git history. The test-only run, new-head verification status, and remaining keyboard/packaged acceptance gates are recorded only in the [central MAT-018 verification ledger](../../docs/VERIFICATION.md#mat-018-command-palette-availability--pending-exact-head-acceptance).
+
+## Collapsed-sidebar focus follow-up
+- [x] Diagnosed the existing browser failure against the desktop rail visibility contract; observed-red provenance, exact assertions and verification limits are in [the central MAT-018 record](../../docs/VERIFICATION.md#mat-018-command-palette-availability--pending-exact-head-acceptance).
+- [x] Collapsed desktop Vault rail now uses `visibility:hidden` so its search controls cannot remain keyboard-focusable while the rail is concealed. Mobile Vault navigation continues to show its pane despite persisted desktop collapse.
+- [x] Kept the original Playwright assertion and added collapsed-state, restoration and mobile-pane checks.
+- [ ] Full exact-head Browser E2E, workflow screenshots, 200% zoom/RTL and installed-client keyboard acceptance.
