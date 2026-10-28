@@ -4,7 +4,7 @@
 
 ## Test-first ledger
 
-- [x] Hosted RED on test-only head `caf63390`: CI #40599461753 proved three behavioral failures in the real bridge/controller tests.
+- [x] Hosted RED on the test-only head is recorded in [`docs/VERIFICATION.md`](../../docs/VERIFICATION.md).
 - [x] Controller forwards its captured target vault to the status fetcher; the no-vault sentinel never crosses native.
 - [x] Typed bridge and native Tauri status command require and validate the initiating vault.
 - [x] Headless daemon-backed status uses the existing switch lock, validating the requested vault inside the same critical section before RPC.
