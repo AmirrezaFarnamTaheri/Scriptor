@@ -207,3 +207,16 @@ test('a failed native import releases single-flight for one explicit retry', asy
   assert.equal(h.imported.length, 1, 'only successful new attempt updates the workspace')
   assert.equal(h.updatesAfterUnmount.length, 0)
 })
+
+test('Obsidian import overlay remounts on active vault change, invalidating old dialog ownership', () => {
+  const overlay = readFileSync(
+    new URL('../../src/components/app/CapabilityWorkflowOverlays.tsx', import.meta.url), 'utf8',
+  )
+  const composition = readFileSync(
+    new URL('../../src/hooks/useWorkspaceComposition.ts', import.meta.url), 'utf8',
+  )
+  const app = readFileSync(new URL('../../src/App.tsx', import.meta.url), 'utf8')
+  assert.match(overlay, /<ObsidianImportDialog\s+key=\{props\.vaultId \?\? 'closed'\}/)
+  assert.match(composition, /managerProps:\s*\{[^}]*vaultId/)
+  assert.match(app, /<CapabilityWorkflowOverlays[\s\S]*\{\.\.\.composition\.managerProps\}/)
+})

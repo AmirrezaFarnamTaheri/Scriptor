@@ -89,6 +89,7 @@ export function CapabilityWorkflowOverlays(props: CapabilityWorkflowOverlaysProp
         <ErrorBoundary name="obsidian-import" fallback={<PanelErrorFallback title="Obsidian import" onDismiss={props.onCloseObsidianImport} />}>
           <Suspense fallback={<PanelFallback />}>
             <ObsidianImportDialog
+              key={props.vaultId ?? 'closed'}
               onClose={props.onCloseObsidianImport}
               onImported={(result) => props.onObsidianImported(result.notesImported)}
             />

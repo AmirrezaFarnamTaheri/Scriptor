@@ -20,3 +20,8 @@ The UI must not interpret a closed dialog as a native cancellation. The native `
 ## Failure/retry contract
 - [x] Added a failure-then-explicit-retry behavioral test to prove synchronous exclusion is released after native denial, without silently retrying the mutation.
 - [ ] Full exact-head hosted source/TypeScript/browser/Rust/desktop/visual gates and installed-client vault-switch/restart acceptance are required.
+
+## Active-vault overlay ownership
+- [x] The parent `CapabilityWorkflowOverlays` already receives `vaultId` via `composition.managerProps`, but used an unkeyed Obsidian dialog across vault transitions. Key the dialog by that identity so the previous owner's effect cleanup invalidates late native completion feedback before the new vault's dialog is mounted.
+- [x] Added a cross-surface source regression checking the vault ID propagation and React remount key. The existing behavior tests cover the old dialog's post-unmount completion. This source check alone is not full browser-vault-switch proof.
+- [ ] Verify exact-head browser and native authorization acceptance. The existing native `ImportVault` check consumes an authorization token scoped to the active session; this UI change does not replace it.
