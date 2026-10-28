@@ -210,6 +210,11 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 
 
 
+### MAT-018 note-search test harness coverage — October 29, 2026
+
+- CodeRabbit identified a valid gap: the JSX component test did not execute `useEffect`, so it could not detect a native note search incorrectly starting without an `onOpenNote` callback. The test harness now commits the real effect callbacks with deterministic timers and records `searchNotes` calls, asserting no work without an opener and preserved scheduling when one exists.
+- **Scope/evidence:** test-only improvement, not a new application behavior fix and not an observed behavioral red. Require a passing exact-head source run before claiming regression coverage green.
+
 ### MAT-018 note result availability — October 29, 2026
 
 [PR #216](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/216) adds a second callback-availability regression to the command palette. In its test-only head `8ab1b67`, the real JSX component harness renders a selectable note result despite missing `onOpenNote`; its selection calls an optional callback and closes without opening any note.

@@ -51,3 +51,8 @@ The command currently invokes `document.querySelector('.vault-search input')?.fo
 - [x] Collapsed desktop Vault rail now uses `visibility:hidden` so its search controls cannot remain keyboard-focusable while the rail is concealed. Mobile Vault navigation continues to show its pane despite persisted desktop collapse.
 - [x] Kept the original Playwright assertion and added collapsed-state, restoration and mobile-pane checks.
 - [ ] Full exact-head Browser E2E, workflow screenshots, 200% zoom/RTL and installed-client keyboard acceptance.
+
+## CodeRabbit note-search effect coverage
+- [x] The component harness now commits its real React effect callbacks with controllable timers. A missing note opener must not schedule or call the native-backed search; an available opener preserves query scheduling and selectable result dispatch.
+- [x] This addresses the latest CodeRabbit coverage nitpick without changing CommandPalette production code or weakening the existing no-op suppression test.
+- [ ] Exact-head source and browser checks required. This test-hardening is **not** an observed new failing-first application regression; evidence limitations remain in [the MAT-018 verification record](../../docs/VERIFICATION.md#mat-018-command-palette-availability--pending-exact-head-acceptance).
