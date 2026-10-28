@@ -57,6 +57,19 @@ The parent-to-child review stack is [PR #180](https://github.com/AmirrezaFarnamT
 
 The source regression and TypeScript correction preserve the stronger scoped confirmation, rather than restoring the unsafe name-only approval. Browser fixtures simulate native responses and therefore cannot establish installed Windows/macOS/Linux restore or journal-recovery behavior. The MAT-003 checkbox remains unchecked pending the broader Recovery Center inventory and platform acceptance.
 
+## MAT-005 Canvas explicit-flush ownership — October 27, 2026
+
+[PR #207](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/207) originated as an independent Canvas lifecycle fix and has now been integrated into [PR #209](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/209) alongside same-vault board-list ordering. This integration does not complete MAT-005.
+
+| Source | Observed result | Classification |
+|---|---|---|
+| Test-only `b3ebaeb` · [CI #40556426344](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40556426344) | Real-hook tests 182 and 183 both failed, expecting `New board ready.` but receiving `Canvas saved.` for old-vault and newer-edit cases | **Two observed behavioral red assertions** |
+| Implementation after `b3ebaeb` | Explicit flush checks origin lifecycle, same document object and mount status before accepting any UI completion; keeps native serialized saves and successful durability results | **Implemented; exact-head hosted green and packaged acceptance pending** |
+| `c2acae9` · [CI #40558029426](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40558029426) | 684/685 source tests passed; regression 183 failed because the originating explicit flush also submitted a subsequent pending `New unsaved revision`. Other CI lanes passed, including Browser E2E, Rust, frontend, Windows, supply-chain and container smoke | **Observed post-implementation behavioral failure; not a green MAT-005 gate** |
+| `1aa05b2` | Explicit flush now bounds its submitted payload/retry to the request's captured sequence and observes only the in-flight save present at invocation. New edits remain independently debounced or explicitly flushable | **Source fix pushed; exact-head GREEN later verified on PR #207, installed-client acceptance pending** |
+
+[PR #207 CI #40584936590](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40584936590) and [visual #40584936811](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40584936811) passed on `7a4578a`; those runs do not verify this **combined** #209 head. Mocks do not certify an installed client's crash/restart recovery. No new native command, permission scope, or file format was introduced.
+
 ## MAT-005 Canvas board-list response ordering — October 27, 2026
 
 Draft [PR #209](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/209) is a sibling of #208, stacked on #206. It addresses **derived Canvas inventory freshness**, not native file persistence, conflict resolution or complete MAT-005 maturity.
@@ -64,7 +77,7 @@ Draft [PR #209](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/209) is a 
 | Source and environment | Result | Evidence limit |
 |---|---|---|
 | Test-only `79e4723`, [CI #40562214281](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40562214281) | **Observed behavioral red** in `canvas-persistence-flush.test.mjs`: the slow initial list changed the latest inventory from `fresh-board` to `old-board`; `AssertionError` at line 637 | Uses the actual transpiled Canvas hook with controlled native list/save calls; not a packaged client |
-| Fix `5ea8ef4` | Added a separate `OperationGuard` for Canvas list publication, invalidated on vault change, preserving `isCurrent` checks and native result | **Implementation authored, exact-head green pending** |
+| Fix `5ea8ef4` | Added a separate `OperationGuard` for Canvas list publication, invalidated on vault change, preserving `isCurrent` checks and native result | **Passed on `8503393` in [CI #40762396787](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40762396787); combined head re-verification pending** |
 
 The active document identity guard remained intact; only board inventory could become stale. The fix does not introduce storage, permissions, write retries or new native calls. Full MAT-005 and installed-client evidence remain open.
 ## MAT-005 backup inventory request ordering — October 27, 2026

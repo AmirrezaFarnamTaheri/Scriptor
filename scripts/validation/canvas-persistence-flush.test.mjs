@@ -639,3 +639,72 @@ test('older same-vault Canvas board-list reply never replaces a newer post-save 
   assert.equal(h.currentDocument().title, 'Edited after initial listing began',
     'a stale inventory response cannot replace the active unsaved document either')
 })
+
+test('a completed explicit flush cannot publish the old vault status into the new vault', async () => {
+  const writing = deferred()
+  const started = deferred()
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async (json, expectedVaultId) => {
+        assert.equal(expectedVaultId, 'vault-first')
+        started.resolve()
+        return writing.promise
+      },
+    },
+  })
+  const oldBoard = h.render('vault-first')
+  await flushMicrotasks()
+  oldBoard.updateDocument((current) => ({ ...current, title: 'First vault dirty canvas' }))
+  const flushing = oldBoard.flushPendingSave()
+  await started.promise
+
+  // Same hook stays mounted while the active vault changes. The old native
+  // write may finish, but cannot claim the newly selected vault was saved.
+  h.render('vault-second')
+  await flushMicrotasks()
+  const newVaultStatus = h.currentStatus()
+  assert.notEqual(newVaultStatus, 'Canvas saved.')
+
+  writing.resolve({ indexWarning: null })
+  assert.equal(await flushing, true, 'native result must remain a successful old-vault write')
+  await flushMicrotasks()
+  assert.equal(h.currentStatus(), newVaultStatus, 'old-vault completion must not update new-vault status')
+  assert.equal(h.currentDocument().vaultId, 'vault-second')
+})
+
+test('an older explicit flush must not claim that newer unsaved Canvas edits are saved', async () => {
+  const writing = deferred()
+  const started = deferred()
+  const savedPayloads = []
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async (json) => {
+        savedPayloads.push(JSON.parse(json).title)
+        if (savedPayloads.length === 1) {
+          started.resolve()
+          return writing.promise
+        }
+        return { indexWarning: null }
+      },
+    },
+  })
+  const board = h.render()
+  await flushMicrotasks()
+  board.updateDocument((current) => ({ ...current, title: 'Old submitted revision' }))
+  const flushing = board.flushPendingSave()
+  await started.promise
+
+  board.updateDocument((current) => ({ ...current, title: 'New unsaved revision' }))
+  const statusBeforeOldReply = h.currentStatus()
+  writing.resolve({ indexWarning: null })
+  assert.equal(await flushing, true)
+  await flushMicrotasks()
+
+  assert.equal(h.currentDocument().title, 'New unsaved revision')
+  assert.equal(h.currentStatus(), statusBeforeOldReply, 'old save must not claim new edits are durable')
+  assert.deepEqual(savedPayloads, ['Old submitted revision'])
+
+  assert.equal(await board.flushPendingSave(), true, 'newer edits should remain flushable')
+  assert.deepEqual(savedPayloads, ['Old submitted revision', 'New unsaved revision'])
+  assert.equal(h.currentStatus(), 'Canvas saved.')
+})

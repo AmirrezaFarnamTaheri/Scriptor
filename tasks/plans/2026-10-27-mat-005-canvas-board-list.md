@@ -18,3 +18,9 @@
 ## Invariant
 
 Read ordering governs derived UI inventory only. Native Canvas files and Markdown vault state remain authoritative; no new retries, permissions, storage, or implicit mutation.
+
+## Integration of complementary Canvas flush ownership
+- [x] Preserved the board-list `OperationGuard` and its stale-list regression from this branch.
+- [x] Incorporated [PR #207](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/207) explicit-flush lifecycle/sequence guard and both its previously red Canvas tests, preserving successful native writes and future edit ownership.
+- [ ] Verify **all** Canvas persistence tests and exact-head hosted CI on the combined PR #209 commit. Earlier green for #207 and #209 separately is insufficient.
+- [ ] Keep installed-client and cross-owner MAT-005 acceptance open.

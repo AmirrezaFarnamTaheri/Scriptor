@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Keep explicit Canvas save completion tied to the originating vault and document revision; newer unsaved edits remain separately flushable. This is combined with same-vault Canvas board-inventory request ordering, without changing the native writer or authorization.
+
 ### Improved
 
 - Reveal older retained backups progressively in sets of ten instead of hiding every backup beyond the first ten. Paging or changing destinations discards outstanding Restore/Delete approval, and the native backup order remains unchanged.
