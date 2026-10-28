@@ -921,8 +921,10 @@ mod tests {
     fn git_commit_gateway_rejects_stale_and_missing_vault_before_queueing() {
         let vault = tempfile::tempdir().expect("temporary vault");
         let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
-        let mut state = DaemonState::default();
-        state.session = Some(session);
+        let mut state = DaemonState {
+            session: Some(session),
+            ..DaemonState::default()
+        };
 
         for payload in [
             json!({
