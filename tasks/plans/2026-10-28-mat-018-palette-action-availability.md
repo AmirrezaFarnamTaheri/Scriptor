@@ -18,3 +18,11 @@ buildPaletteCommands adds multiple commands with optional chaining such as openK
 ## Limits and follow-ups
 
 Omission of truly unavailable handlers is preferable to an inert selectable option in this narrow slice. A shared, localized unavailable-reason model for real-but-blocked operations, contextual Help and non-palette launchers remains separate MAT-018 work. All native permission checks remain authoritative. No new UI persistence, file mutation, provider write or granted authority.
+
+## Next no-op regression: note result opener presence
+
+- [x] Identified an additional MAT-018 availability gap: the palette's `searchNotes` results are rendered as selectable note options even if `onOpenNote` is absent; selecting one only closes the palette.
+- [x] Added a test-only, real-component TypeScript/JSX harness `scripts/validation/command-palette-note-availability.test.mjs`, checking both missing-handler suppression and positive note opening. React scheduling, i18n and search are stubbed; the component and its actual command-selection callback are executed.
+- [ ] Observe a hosted RED on the test-only head. Do not count missing imports, harness defects or skipped tests as behavioral RED.
+- [ ] Use the smallest eligibility guard so note search has a launch owner; keep existing query cancellation and actual click behavior. Repeat focused and exact-head CI/visual tests.
+- [ ] This is one no-op availability case, not the complete MAT-018 shared-capability or contextual-help contract.
