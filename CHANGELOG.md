@@ -16,6 +16,8 @@
 
 ### Fixed
 
+- Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
+
 - Disable Restore for backup copies that fail native integrity verification, with a clear explanation; reviewed Delete remains available for cleanup.
 
 - Require pending Restore/Delete confirmations to match the current vault, backup destination and backup name; clear outdated approvals rather than applying them to an identically named backup elsewhere.

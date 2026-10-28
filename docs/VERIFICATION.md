@@ -201,6 +201,12 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - The release upload boundary excludes unpacked bundle internals and CI evidence.
 - Checksums and attestations cover installers, while target trust records remain separately verified release metadata.
 
+## RUSTSEC-2026-0414 — pulldown-cmark advisory remediation
+
+- **Failure observed:** [CI #40661251859](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40661251859) at MAT-008 daemon head `eb19fcb42014531026dac9c4d88f01300f223dc8`. Cargo deny rejected `pulldown-cmark 0.13.4` with advisory RUSTSEC-2026-0414: crafted `[[a|]]` input may cause exponential event growth when `ENABLE_WIKILINKS` is on.
+- **Patch:** raise direct workspace minimums to `0.13.5` and update the single Cargo.lock entry. The crates.io index confirms checksum `278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb`; both versions have the same normal dependency set and feature flags. No security ignore is introduced and no application parser feature is disabled.
+- **Pending:** exact-head cargo-deny, Cargo.lock parity, Rust tests, production builds, browser and package acceptance. This is an independent dependency fix and does not certify MAT-008.
+
 ## Canonical history gate
 
 Run from a full canonical clone:
