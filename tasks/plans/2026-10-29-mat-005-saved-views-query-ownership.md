@@ -21,3 +21,8 @@ No query DSL or schema migration; no native command, search engine, dependency, 
 - [ ] Confirm the three previously failing source tests now pass, and the broader source suite remains green on the new commit.
 - [ ] Verify TypeScript, browser, Rust, Windows, visual and narrow/RTL product gates on the new commit; installed-client vault transitions remain separate.
 - [ ] Keep MAT-005 unchecked until other mutation and read owners meet acceptance.
+
+## Test-harness fidelity follow-up
+- [x] The existing mock previously recreated `useCallback` on every render. Since the fixed component intentionally includes its memoized callback in effect dependencies, this would spuriously restart the effect on unrelated rerenders and invalidate the latest result. Updated the mock to preserve `useCallback` and `useMemo` values when dependency identities are equal, matching React's contract.
+- [x] All three behavioral assertions remain unchanged. No production code changes in this follow-up.
+- [ ] Confirm exact-head hosted source suite and browser gates on this new commit; do not infer green from a harness change.

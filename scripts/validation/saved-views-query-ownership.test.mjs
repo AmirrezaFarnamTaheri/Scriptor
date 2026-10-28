@@ -20,6 +20,7 @@ function deferred() {
 function harness(queryHandler) {
   const state = []
   const effects = new Map()
+  const memoValues = new Map()
   const timerCallbacks = new Map()
   const calls = []
   let cursor = 0
@@ -38,8 +39,21 @@ function harness(queryHandler) {
         state[index] = typeof value === 'function' ? value(state[index]) : value
       }]
     },
-    useCallback(callback) { cursor++; return callback },
-    useMemo(factory) { cursor++; return factory() },
+    useCallback(callback, dependencies) {
+      const index = cursor++
+      const previous = memoValues.get(index)
+      if (previous && equalDeps(previous.dependencies, dependencies)) return previous.value
+      memoValues.set(index, { value: callback, dependencies })
+      return callback
+    },
+    useMemo(factory, dependencies) {
+      const index = cursor++
+      const previous = memoValues.get(index)
+      if (previous && equalDeps(previous.dependencies, dependencies)) return previous.value
+      const value = factory()
+      memoValues.set(index, { value, dependencies })
+      return value
+    },
     useRef(initial) {
       const index = cursor++
       if (!(index in state)) state[index] = { current: initial }
