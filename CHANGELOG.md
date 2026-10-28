@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
+
 - Bind daemon Git status RPC and Invoke reads to the originating vault identity; desktop, CLI and TUI now forward the identity returned by `OpenVault` so a concurrent vault switch cannot silently redirect a pending status request.
 
 - Bind Git status reads to the originating vault at the controller, renderer bridge and native Tauri boundary, including headless daemon-backed reads; reject missing or stale vault IDs before returning status for the wrong workspace.
