@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Keep Obsidian import single-flight across same-vault dialog reopen until the original native request settles, and invalidate stale dialog responses during React commit-phase cleanup.
+
 - Prevent duplicate Obsidian import submissions before React rerenders; late import responses from closed dialogs no longer update another workspace, while an explicit retry remains available after failure.
 
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.

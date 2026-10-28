@@ -246,6 +246,10 @@ test('Obsidian import overlay remounts on active vault change, invalidating old 
   )
   const app = readFileSync(new URL('../../src/App.tsx', import.meta.url), 'utf8')
   assert.match(overlay, /<ObsidianImportDialog\s+key=\{props\.vaultId \?\? 'closed'\}/)
+  assert.match(overlay, /const importInFlightByVault = useRef<Set<string>>\(new Set\(\)\)/)
+  assert.match(overlay, /importInFlightByVault=\{importInFlightByVault\.current\}/)
+  assert.match(overlay, /vaultId=\{props\.vaultId \?\? null\}/)
+
   assert.match(composition, /managerProps:\s*\{[^}]*vaultId/)
   assert.match(app, /<CapabilityWorkflowOverlays[\s\S]*\{\.\.\.composition\.managerProps\}/)
 })

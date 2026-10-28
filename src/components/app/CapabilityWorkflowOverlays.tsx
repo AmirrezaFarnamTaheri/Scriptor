@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, useRef } from 'react'
 import type { PluginManifest, PluginRuntimePolicy } from '@scriptor/core/contracts/plugin'
 import type { PluginWorkspaceDefinition } from '@scriptor/plugin-api'
 
@@ -35,6 +35,8 @@ interface CapabilityWorkflowOverlaysProps {
 }
 
 export function CapabilityWorkflowOverlays(props: CapabilityWorkflowOverlaysProps) {
+  // Outlive the conditional dialog; its native import can continue after close.
+  const importInFlightByVault = useRef<Set<string>>(new Set())
   return (
     <>
       {props.pluginManagerOpen ? (
@@ -90,6 +92,8 @@ export function CapabilityWorkflowOverlays(props: CapabilityWorkflowOverlaysProp
           <Suspense fallback={<PanelFallback />}>
             <ObsidianImportDialog
               key={props.vaultId ?? 'closed'}
+              vaultId={props.vaultId ?? null}
+              importInFlightByVault={importInFlightByVault.current}
               onClose={props.onCloseObsidianImport}
               onImported={(result) => props.onObsidianImported(result.notesImported)}
             />

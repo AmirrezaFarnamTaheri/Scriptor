@@ -31,3 +31,9 @@ The UI must not interpret a closed dialog as a native cancellation. The native `
 - [x] Authored a commit-before-passive-cleanup race using distinct harness layout/passive effect queues. The old native result must not publish callback or React state after the dialog is removed at commit, even if its passive cleanup is delayed.
 - [ ] Run the test-only head and record exact failing assertions **before** changing production code.
 - [ ] Use a vault-scoped claim owned above the conditional dialog and invalidate the lifecycle during layout cleanup. Re-run the same tests and full exact-head CI, desktop/browser/visual; do not infer installed-client acceptance.
+
+## CodeRabbit remediation implementation (verification pending)
+- [x] The `CapabilityWorkflowOverlays` owner now retains a `Set<string>` for in-flight vault IDs beyond dialog closure, keyed to the active vault and passed to `ObsidianImportDialog`. A blocked same-vault submit explains that the original native import may still be running.
+- [x] The originating dialog releases its claim only in the native promise `finally`; an unmount never releases it early or implies cancellation. Vault B has its own independent key while vault A remains native-owned.
+- [x] Replace passive `useEffect` lifecycle cleanup with commit-phase `useLayoutEffect` cleanup; the test harness now separates layout and passive queues.
+- [ ] Run failing-first red on the test-only head; then publish this implementation and verify all current-head gates. Do not claim an observed red until the decisive assertions are in hosted logs.
