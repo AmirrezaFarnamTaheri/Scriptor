@@ -26,3 +26,10 @@ One native Git mutation may run at a time through this UI owner. Both the synchr
 ## Safety boundaries
 
 No new command, API key, storage format, parallel status cache, permission broker or optimistic rollback. A failed request does not prove rollback; native error and activity paths remain unchanged. Keep the PR draft while installed-client gates and wider MAT backlog remain open.
+
+## Additional MAT-005 finding — delayed Git error ownership
+
+- [x] The `useWorkspaceGit` hook receives a **workspace-wide** `setError`. Unlike success-side refreshes, the three native Git mutation catch paths had no vault lifecycle guard; a failed old-vault operation could overwrite the current vault's message.
+- [x] Four real-hook behavioral cases were authored first as detached test commit `397cc6a`: delayed failures after vault switch for commit/pull/push, plus A→B→A. Keep audit activity and release the mutation single-flight gate.
+- [x] Reuse the existing `isCurrentVaultLifecycle(targetVaultId, lifecycle)` for `setError(detail)` in all three catch paths; no change to native GitQueue, transport, authorization, retries or activity logging.
+- [ ] **Failing-first hosted execution has not been observed** on the detached test-only commit. Require current-head source, frontend, Rust, Browser E2E, Windows/visual, CodeRabbit and installed-client acceptance. MAT-005 remains unchecked.

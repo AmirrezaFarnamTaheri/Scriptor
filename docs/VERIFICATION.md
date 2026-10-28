@@ -154,6 +154,13 @@ creating missing-baseline failures. Documentation screenshots mirror reviewed Wi
 with the platform suffix removed; regenerate them with `scripts/screenshots/capture.ps1`.
 
 
+
+### MAT-005 Git mutation stale-error scope — October 29, 2026
+
+[PR #210](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/210) adds four real-hook checks: a failed Git commit, pull or push submitted in vault A must not replace vault B's workspace-wide error state; an A→B→A switch must not revive the first session. Test-first detached commit `397cc6a` preceded the implementation; **a failing-first hosted run was not observed**, so this is not claimed as a completed red-green test cycle.
+
+Production now reuses the existing vault lifecycle guard on the three `setError(detail)` completion paths. Original native failure and activity logging remain intact, and the synchronous mutation busy state still settles. Full exact-head CI and installed desktop acceptance are pending.
+
 ## Release and recovery gate
 
 - Build every installer from the exact audited tag.

@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Prevent delayed Git commit, pull and push failures from overwriting the error state of a different active vault, without dropping operation audit entries.
+
 - Keep Git commit, pull and push completions from refreshing a different vault, including after navigating away and back; preserve authoritative native results while excluding stale UI refreshes.
 
 - Prevent overlapping workspace Git commits, pulls and pushes before React renders a busy state, and retain a truthful busy indicator while navigating between vaults during an active native Git mutation.

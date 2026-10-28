@@ -95,7 +95,7 @@ export function useWorkspaceGit({
         logActivity('success', 'Git commit created', message)
       } catch (caught) {
         const detail = caught instanceof Error ? caught.message : String(caught)
-        setError(detail)
+        if (isCurrentVaultLifecycle(targetVaultId, lifecycle)) setError(detail)
         logActivity('error', 'Git commit failed', detail)
       } finally {
         finishMutation()
@@ -121,7 +121,7 @@ export function useWorkspaceGit({
       logActivity('success', `Git pull complete (${strategy})`, result.message)
     } catch (caught) {
       const detail = caught instanceof Error ? caught.message : String(caught)
-      setError(detail)
+      if (isCurrentVaultLifecycle(targetVaultId, lifecycle)) setError(detail)
       logActivity('error', `Git pull failed (${strategy})`, detail)
     } finally {
       finishMutation()
@@ -142,7 +142,7 @@ export function useWorkspaceGit({
       logActivity('success', 'Git push complete', result.message)
     } catch (caught) {
       const detail = caught instanceof Error ? caught.message : String(caught)
-      setError(detail)
+      if (isCurrentVaultLifecycle(targetVaultId, lifecycle)) setError(detail)
       logActivity('error', 'Git push failed', detail)
     } finally {
       finishMutation()
