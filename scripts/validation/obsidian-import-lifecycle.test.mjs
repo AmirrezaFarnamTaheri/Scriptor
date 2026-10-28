@@ -23,11 +23,14 @@ const successfulImport = () => ({
   importedPaths: ['notes/one.md', 'notes/two.md'],
 })
 
-function harness(importCommand) {
+function harness(importCommand, { vaultId = 'vault-test', importInFlightByVault = new Set() } = {}) {
   const slots = []
   const memo = new Map()
   const effects = new Map()
+  const layoutEffects = new Map()
   const pendingEffects = []
+  const pendingLayoutEffects = []
+  const delayedPassiveCleanups = []
   const imported = []
   const importCalls = []
   const updatesAfterUnmount = []
@@ -65,6 +68,13 @@ function harness(importCommand) {
       const prior = effects.get(index)
       if (!prior || !sameDeps(prior.dependencies, dependencies)) {
         pendingEffects.push({ index, callback, dependencies })
+      }
+    },
+    useLayoutEffect(callback, dependencies) {
+      const index = cursor++
+      const prior = layoutEffects.get(index)
+      if (!prior || !sameDeps(prior.dependencies, dependencies)) {
+        pendingLayoutEffects.push({ index, callback, dependencies })
       }
     },
   }
@@ -107,10 +117,19 @@ function harness(importCommand) {
   function render() {
     cursor = 0
     pendingEffects.length = 0
+    pendingLayoutEffects.length = 0
     const tree = module.exports.ObsidianImportDialog({
       onClose() {},
       onImported: result => imported.push(result),
+      vaultId,
+      importInFlightByVault,
     })
+    // Layout effects own the commit phase and must run before passive effects.
+    for (const pending of pendingLayoutEffects) {
+      layoutEffects.get(pending.index)?.cleanup?.()
+      const cleanup = pending.callback()
+      layoutEffects.set(pending.index, { dependencies: pending.dependencies, cleanup })
+    }
     for (const pending of pendingEffects) {
       effects.get(pending.index)?.cleanup?.()
       const cleanup = pending.callback()
@@ -128,15 +147,25 @@ function harness(importCommand) {
     assert.ok(form, 'the Obsidian import dialog is rendered')
     form.props.onSubmit({ preventDefault() {} })
   }
-  function unmount() {
+  function unmount({ delayPassiveCleanup = false } = {}) {
     mounted = false
-    for (const effect of effects.values()) effect.cleanup?.()
+    // A React commit removes layout owners before passive cleanup runs.
+    for (const effect of layoutEffects.values()) effect.cleanup?.()
+    layoutEffects.clear()
+    for (const effect of effects.values()) {
+      if (!effect.cleanup) continue
+      if (delayPassiveCleanup) delayedPassiveCleanups.push(effect.cleanup)
+      else effect.cleanup()
+    }
     effects.clear()
+  }
+  function flushPassiveCleanup() {
+    for (const cleanup of delayedPassiveCleanups.splice(0)) cleanup()
   }
   async function settle() {
     for (let i = 0; i < 12; i++) await Promise.resolve()
   }
-  return { render, sourceInput, submit, unmount, settle, imported, importCalls, updatesAfterUnmount }
+  return { render, sourceInput, submit, unmount, flushPassiveCleanup, settle, imported, importCalls, updatesAfterUnmount }
 }
 
 test('two import submissions in one render turn result in one native authorized import', async () => {
@@ -219,4 +248,49 @@ test('Obsidian import overlay remounts on active vault change, invalidating old 
   assert.match(overlay, /<ObsidianImportDialog\s+key=\{props\.vaultId \?\? 'closed'\}/)
   assert.match(composition, /managerProps:\s*\{[^}]*vaultId/)
   assert.match(app, /<CapabilityWorkflowOverlays[\s\S]*\{\.\.\.composition\.managerProps\}/)
+})
+
+test('closing and reopening the same vault cannot start another import until the first settles', async () => {
+  const claims = new Set()
+  const operations = [deferred(), deferred()]
+  let attempts = 0
+  const importCommand = () => operations[attempts++].promise
+  const first = harness(importCommand, { vaultId: 'same-vault', importInFlightByVault: claims })
+  let tree = first.render()
+  first.sourceInput(tree).props.onChange({ target: { value: '/fixture/obsidian-one' } })
+  tree = first.render()
+  first.submit(tree)
+  assert.equal(attempts, 1, 'first dialog starts exactly one authorized import')
+  first.unmount() // Closing a dialog does not cancel the native import.
+
+  const reopened = harness(importCommand, { vaultId: 'same-vault', importInFlightByVault: claims })
+  let newTree = reopened.render()
+  reopened.sourceInput(newTree).props.onChange({ target: { value: '/fixture/obsidian-two' } })
+  newTree = reopened.render()
+  reopened.submit(newTree)
+  assert.equal(attempts, 1, 'same-vault remount must not submit a second native import')
+
+  operations[0].resolve(successfulImport())
+  await first.settle()
+  assert.equal(first.imported.length, 0, 'closed dialog must not announce old native success')
+  reopened.submit(newTree)
+  assert.equal(attempts, 2, 'a new explicit import is allowed after native settlement')
+  operations[1].resolve(successfulImport())
+  await reopened.settle()
+  assert.equal(reopened.imported.length, 1)
+})
+
+test('commit-phase dialog cleanup rejects native success before passive effects are cleaned up', async () => {
+  const request = deferred()
+  const h = harness(() => request.promise, { vaultId: 'first-vault' })
+  let tree = h.render()
+  h.sourceInput(tree).props.onChange({ target: { value: '/fixture/obsidian' } })
+  tree = h.render()
+  h.submit(tree)
+  h.unmount({ delayPassiveCleanup: true })
+  request.resolve(successfulImport())
+  await h.settle()
+  assert.equal(h.imported.length, 0, 'no callback after the overlay was removed at commit')
+  assert.equal(h.updatesAfterUnmount.length, 0, 'no state writes during the passive-cleanup gap')
+  h.flushPassiveCleanup()
 })

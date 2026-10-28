@@ -25,3 +25,9 @@ The UI must not interpret a closed dialog as a native cancellation. The native `
 - [x] The parent `CapabilityWorkflowOverlays` already receives `vaultId` via `composition.managerProps`, but used an unkeyed Obsidian dialog across vault transitions. Key the dialog by that identity so the previous owner's effect cleanup invalidates late native completion feedback before the new vault's dialog is mounted.
 - [x] Added a cross-surface source regression checking the vault ID propagation and React remount key. The existing behavior tests cover the old dialog's post-unmount completion. This source check alone is not full browser-vault-switch proof.
 - [ ] Verify exact-head browser and native authorization acceptance. The existing native `ImportVault` check consumes an authorization token scoped to the active session; this UI change does not replace it.
+
+## CodeRabbit follow-up — tests first (review of `3c534d7`)
+- [x] Authored a two-dialog same-vault remount race with the real JSX component and one shared import claim owner. The second Import submit must not reach the mocked native `vaultImportObsidian` while the original call is in flight, and retry only becomes available after native settlement.
+- [x] Authored a commit-before-passive-cleanup race using distinct harness layout/passive effect queues. The old native result must not publish callback or React state after the dialog is removed at commit, even if its passive cleanup is delayed.
+- [ ] Run the test-only head and record exact failing assertions **before** changing production code.
+- [ ] Use a vault-scoped claim owned above the conditional dialog and invalidate the lifecycle during layout cleanup. Re-run the same tests and full exact-head CI, desktop/browser/visual; do not infer installed-client acceptance.
