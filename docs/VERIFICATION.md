@@ -194,6 +194,13 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 
 ## MAT-008 — Git status read provenance (draft PR #213)
 
+### Two authenticated socket clients — current test-harness correction (2026-10-29)
+
+The exact-head [CI #40762865932](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40762865932) ran the new daemon test `transport::tests::authenticated_clients_keep_git_status_bound_after_another_client_switches_vault`. The daemon crate reported **63 passed, 1 failed**, exit 101. Client B failed to establish transport at `crates/daemon/src/transport/tests.rs:935` with `Io(NotFound)` before the stale vault-status denial was asserted. The other existing daemon status identity tests passed. **This is test-harness socket-admission failure, not evidence of a vault data leak or a passing cross-client isolation case.**
+
+The test's ephemeral listener accepts exactly two connections before closing. The minimal fixture correction establishes client B's authenticated socket through a `Ping` before A opens vault A, reserving the second client connection and leaving the required A→B vault-switch/status-denial assertions unchanged. This is a **hypothesized harness correction pending exact-head Rust green verification**, not a product-security acceptance claim. The parent CodeRabbit daemon-boundary thread must remain open pending exact-head evidence and installed multiprocess/restart acceptance.
+
+
 - **Observed behavioral RED:** test-only head `caf63390bbbeaa8893af446169c5995a920777cc`, [CI #40599461753](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40599461753), three source regressions: native Git status was invoked without the initiating vault ID, a blank origin was accepted, and the controller did not pass the captured vault ID to its fetcher.
 - **Implementation pending exact-head GREEN:** the controller forwards the immutable vault ID, the typed Tauri bridge requires it, native Tauri checks the active session, and headless daemon-backed reads validate under the vault-switch lock. The separately exposed `daemon_git_status` Tauri command and its TypeScript bridge now require the same initiating identity; Browser fixtures refuse mismatched IDs.
 - **Outstanding:** current-head source/Rust/Windows/browser/visual checks, installed desktop delayed-read/vault-switch acceptance, and broader daemon/CLI/MCP parity. Read provenance does not imply a committed mutation.

@@ -889,6 +889,20 @@ fn authenticated_clients_keep_git_status_bound_after_another_client_switches_vau
     let client_b = crate::client::DaemonRpcClient::new();
     let timeout = Duration::from_secs(10);
 
+    // The test listener accepts exactly two connections and then closes.
+    // Establish B's authenticated socket before A mutates the daemon session:
+    // otherwise a reconnect by A could consume the last accept slot, turning
+    // B's vault switch into a NotFound transport failure rather than testing
+    // the required wrong-vault status denial.
+    let connected_b = client_b
+        .call_with_timeout(RpcRequest::new(904, RpcMethod::Ping), timeout)
+        .expect("client B establishes its authenticated connection");
+    assert!(
+        matches!(connected_b.result, RpcResult::Ok(RpcPayload::Pong)),
+        "client B must authenticate before vault changes: {:?}",
+        connected_b.result
+    );
+
     let opened_a = client_a
         .call_with_timeout(
             RpcRequest::new(
