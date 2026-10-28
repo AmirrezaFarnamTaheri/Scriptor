@@ -17,3 +17,8 @@
 ## Constraints
 
 Status results do not prove a mutation completed. The original per-vault cache, request guard and native session remain authoritative. Do not weaken the expected-vault boundary or create another permission system. Keep draft until real-client acceptance.
+
+## Authenticated transport test compilation correction
+- [x] Correct the versioned Pong variant match in the existing two-client native regression without changing the daemon's vault-identity contract.
+- [x] Compiler diagnostic and why it does not prove the cross-client security scenario are recorded in [the MAT-008 verification record](../../docs/VERIFICATION.md#mat-008--git-status-read-provenance-draft-pr-213).
+- [ ] Require exact-head Clippy, daemon two-client suite and installed multiprocess/restart acceptance; retain the unresolved CodeRabbit daemon thread until evidence exists.

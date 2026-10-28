@@ -898,7 +898,7 @@ fn authenticated_clients_keep_git_status_bound_after_another_client_switches_vau
         .call_with_timeout(RpcRequest::new(904, RpcMethod::Ping), timeout)
         .expect("client B establishes its authenticated connection");
     assert!(
-        matches!(connected_b.result, RpcResult::Ok(RpcPayload::Pong)),
+        matches!(connected_b.result, RpcResult::Ok(RpcPayload::Pong { .. })),
         "client B must authenticate before vault changes: {:?}",
         connected_b.result
     );
