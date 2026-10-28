@@ -944,4 +944,5 @@ mod tests {
                 "wrong or missing vault must fail at identity check, not GitQueue: {error}"
             );
         }
-    }}
+    }
+}
