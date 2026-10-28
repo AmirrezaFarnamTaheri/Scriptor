@@ -56,3 +56,10 @@ The command currently invokes `document.querySelector('.vault-search input')?.fo
 - [x] The component harness now commits its real React effect callbacks with controllable timers. A missing note opener must not schedule or call the native-backed search; an available opener preserves query scheduling and selectable result dispatch.
 - [x] This addresses the latest CodeRabbit coverage nitpick without changing CommandPalette production code or weakening the existing no-op suppression test.
 - [ ] Exact-head source and browser checks required. This test-hardening is **not** an observed new failing-first application regression; evidence limitations remain in [the MAT-018 verification record](../../docs/VERIFICATION.md#mat-018-command-palette-availability--pending-exact-head-acceptance).
+
+## CodeRabbit accessibility follow-up — failing-first browser tests
+- [x] Add real Playwright reproduction: select Inspector in the mobile navigation, activate palette `Focus vault search`, and require switching to the mobile Vault pane before focusing the visible field.
+- [x] Add real Playwright reproduction: collapse desktop Vault sidebar, press the configured global `F` shortcut outside an editor, and require the rail to expand before search receives focus.
+- [ ] Record hosted red on the test-only head. A failed setup/harness condition is not a behavioral red.
+- [ ] Fix the existing owners: pass the mobile-pane selector into the palette command and expand/focus in `useAppKeyboardShortcuts` for the global route; preserve the existing no-op availability guard and native boundaries.
+- [ ] Verify exact-head browser, source, TypeScript, visual and installed-client mobile/200%-zoom keyboard behavior. Keep MAT-018 open.

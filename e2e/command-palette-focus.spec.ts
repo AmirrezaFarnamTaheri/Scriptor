@@ -97,3 +97,38 @@ test('mobile Vault pane remains accessible after the desktop sidebar was collaps
   await expect(page.locator('.vault-search input')).toBeVisible()
   await expect(page.locator('.vault-panel')).toHaveCSS('pointer-events', 'auto')
 })
+
+test('Focus vault search selects mobile Vault pane from Inspector', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.setViewportSize({ width: 768, height: 900 })
+  const mobileNav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+  await mobileNav.getByRole('button', { name: 'Inspector', exact: true }).click()
+  await expect(page.locator('.workspace-grid')).toHaveAttribute('data-mobile-pane', 'inspector')
+  await expect(page.locator('.vault-search input')).not.toBeVisible()
+
+  await openCommandPalette(page)
+  await runCommand(page, 'Focus vault search')
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toHaveCount(0)
+  await expect(page.locator('.workspace-grid')).toHaveAttribute('data-mobile-pane', 'vault')
+  await expect(page.locator('.vault-search input')).toBeVisible()
+  await expect(page.locator('.vault-search input')).toBeFocused()
+})
+
+test('global F shortcut expands collapsed desktop Vault sidebar before focusing search', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await openCommandPalette(page)
+  await runCommand(page, 'Hide vault sidebar')
+  const workspace = page.locator('.workspace-grid')
+  const search = page.locator('.vault-search input')
+  await expect(workspace).toHaveAttribute('data-vault-collapsed', 'true')
+  await expect(search).not.toBeVisible()
+  // A non-editable element owns focus: this exercises the configured global
+  // shortcut rather than insertion into a text editor.
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).focus()
+  await page.keyboard.press('f')
+  await expect(workspace).toHaveAttribute('data-vault-collapsed', 'false')
+  await expect(search).toBeVisible()
+  await expect(search).toBeFocused()
+})
