@@ -33,3 +33,13 @@ Omission of truly unavailable handlers is preferable to an inert selectable opti
 - [x] The real-component tests cover both unavailable note-result suppression and positive click-through. See the [central verification record](../../docs/VERIFICATION.md#mat-018-command-palette-availability--pending-exact-head-acceptance) for test-only head and evidence.
 - [ ] The second note-search slice lacks an observed failing-first hosted result. Do not count it as a verified red/green cycle; see the [central verification record](../../docs/VERIFICATION.md#mat-018-command-palette-availability--pending-exact-head-acceptance).
 - [ ] Verify exact-head source and browser CI, visual/a11y matrix, and installed-client acceptance; do not mark MAT-018 complete.
+
+## Focus vault search — follow-on action availability regression
+
+The command currently invokes `document.querySelector('.vault-search input')?.focus()` synchronously. `CommandPalette.runSelected()` calls `command.run()` **before** closing the modal, while `useFocusTrap` reclaims focus from targets outside the open dialog. With the vault sidebar collapsed, the selector is also hidden. Both cases advertise an action without successfully moving focus.
+
+- [x] Add two Playwright scenarios through the real command palette: ordinary use must leave the dialog closed and focus the vault-search input; use after hiding the vault sidebar must reveal it and focus the input.
+- [ ] RED: observe these failures on a **test-only** exact-head Browser E2E run, record the decisive assertion, and distinguish fixture/setup errors from missing behavior.
+- [ ] GREEN: defer search focus until the palette unmounts and the focus trap releases it; choose the Vault sidebar and expand it when necessary. Do not invent a second focus broker or change shortcuts.
+- [ ] Verify current-head source/TypeScript, E2E, keyboard, narrow/RTL/200%-zoom and installed-client focus.
+- [ ] This is a MAT-018 action-availability slice, not complete capability/Help alignment.
