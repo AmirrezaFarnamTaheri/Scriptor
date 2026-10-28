@@ -42,6 +42,19 @@ export function useWorkspaceGit({
     controller.setActiveVault(vaultId)
   }, [controller, vaultId])
 
+  // Distinguish a new session from an old mutation, including A -> B -> A.
+  const vaultLifecycleRef = useRef({ vaultId, generation: 0 })
+  useEffect(() => {
+    const previous = vaultLifecycleRef.current
+    if (previous.vaultId !== vaultId) {
+      vaultLifecycleRef.current = { vaultId, generation: previous.generation + 1 }
+    }
+  }, [vaultId])
+  const isCurrentVaultLifecycle = useCallback((id: string | null, generation: number) => {
+    const current = vaultLifecycleRef.current
+    return current.vaultId === id && current.generation === generation
+  }, [])
+
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot)
 
   // React state controls presentation, but only a ref can reject concurrent
@@ -72,10 +85,13 @@ export function useWorkspaceGit({
         return
       }
       if (!beginMutation()) return
+      const lifecycle = vaultLifecycleRef.current.generation
       setError(null)
       try {
         await gitCommit(files, message)
-        await controller.refresh()
+        if (isCurrentVaultLifecycle(targetVaultId, lifecycle)) {
+          await controller.refresh(targetVaultId)
+        }
         logActivity('success', 'Git commit created', message)
       } catch (caught) {
         const detail = caught instanceof Error ? caught.message : String(caught)
@@ -85,18 +101,23 @@ export function useWorkspaceGit({
         finishMutation()
       }
     },
-    [beginMutation, controller, finishMutation, logActivity, setError, vaultId],
+    [beginMutation, controller, finishMutation, isCurrentVaultLifecycle, logActivity, setError, vaultId],
   )
 
   const pullRemote = useCallback(async (strategy: GitPullStrategy) => {
     const targetVaultId = vaultId
     if (!beginMutation()) return
+    const lifecycle = vaultLifecycleRef.current.generation
     setError(null)
     try {
       if (!targetVaultId) throw new Error('No active vault is open.')
       const result = await gitPull(targetVaultId, strategy)
-      await refreshVault()
-      await controller.refresh()
+      if (isCurrentVaultLifecycle(targetVaultId, lifecycle)) {
+        await refreshVault()
+        if (isCurrentVaultLifecycle(targetVaultId, lifecycle)) {
+          await controller.refresh(targetVaultId)
+        }
+      }
       logActivity('success', `Git pull complete (${strategy})`, result.message)
     } catch (caught) {
       const detail = caught instanceof Error ? caught.message : String(caught)
@@ -105,16 +126,19 @@ export function useWorkspaceGit({
     } finally {
       finishMutation()
     }
-  }, [beginMutation, controller, finishMutation, logActivity, refreshVault, setError, vaultId])
+  }, [beginMutation, controller, finishMutation, isCurrentVaultLifecycle, logActivity, refreshVault, setError, vaultId])
 
   const pushRemote = useCallback(async () => {
     const targetVaultId = vaultId
     if (!beginMutation()) return
+    const lifecycle = vaultLifecycleRef.current.generation
     setError(null)
     try {
       if (!targetVaultId) throw new Error('No active vault is open.')
       const result = await gitPush(targetVaultId)
-      await controller.refresh()
+      if (isCurrentVaultLifecycle(targetVaultId, lifecycle)) {
+        await controller.refresh(targetVaultId)
+      }
       logActivity('success', 'Git push complete', result.message)
     } catch (caught) {
       const detail = caught instanceof Error ? caught.message : String(caught)
@@ -123,7 +147,7 @@ export function useWorkspaceGit({
     } finally {
       finishMutation()
     }
-  }, [beginMutation, controller, finishMutation, logActivity, setError, vaultId])
+  }, [beginMutation, controller, finishMutation, isCurrentVaultLifecycle, logActivity, setError, vaultId])
 
   const scopedSlot = vaultId === null ? undefined : snapshot.slots[vaultStatusKey(vaultId)]
 

@@ -192,6 +192,7 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - **Pending:** exact-head cargo-deny, Cargo.lock parity, Rust tests, production builds, browser and package acceptance. This is an independent dependency fix and does not certify MAT-008.
 
 ## MAT-005 — Git mutation single-flight (draft PR #210)
+- **Further observed RED:** [CI #40675186002](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40675186002) failed three new source tests at `f8ba9be6`: old pull refreshed new vault, old commit refreshed another vault's status, and A→B→A revived an earlier refresh. The implementation introduces a generation-scoped UI refresh guard; current-head GREEN and installed-client proof remain pending.
 
 - **Observed RED:** test-only head `6182df80b78b81c8043f3c5364735db3f741839b`, [CI #40585634586](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40585634586), `Run source regression suite`. A repeat commit reached native Git twice (expected one, observed two); a pending pull ceased showing busy after switching vaults (expected true, observed false).
 - The initial error-path test failed on a VM cross-realm `Error` prefix, not production behavior. The harness supplies the host `Error` constructor in the implementation commit; this is a test-fixture correction, not a changed product expectation.

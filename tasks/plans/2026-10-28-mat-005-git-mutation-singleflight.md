@@ -16,7 +16,9 @@ One native Git mutation may run at a time through this UI owner. Both the synchr
 - [x] Implement minimum ref-owned single-flight gate shared by commit, pull and push.
 - [x] Earlier green baseline verified on `186a3b3` (CI #40586771173; Visual #40586771362).
 - [x] New RED candidates committed on `32f525d`: old-pull cross-vault refresh, old-commit status refresh, and ABA navigation regression.
-- [ ] **Await observed RED** at test-only head; then implement minimum initiating-vault lifecycle guard and obtain exact-head green, without weakening the three assertions.
+- [x] Observed RED at [CI #40675186002](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40675186002), test-only head `f8ba9be6`: stale pull cross-vault refresh, stale commit status refresh, and A→B→A reuse all failed for expected reasons.
+- [x] Added a vault generation guard to skip stale refresh effects without weakening the assertions or changing native write success.
+- [ ] Verify exact-head GREEN source, Rust, Windows, browser and visual results.
 - [ ] Hosted exact-head source regressions, TypeScript, browser, Rust, Windows and visual workflows.
 - [ ] Installed-client acceptance for same-render double submission, vault switch while pending, denied native write, and later explicit retry.
 - [ ] Broad MAT-005 mutation owner review; no graduation or merge claim yet.

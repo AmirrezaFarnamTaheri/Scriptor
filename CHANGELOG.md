@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Keep Git commit, pull and push completions from refreshing a different vault, including after navigating away and back; preserve authoritative native results while excluding stale UI refreshes.
+
 - Prevent overlapping workspace Git commits, pulls and pushes before React renders a busy state, and retain a truthful busy indicator while navigating between vaults during an active native Git mutation.
 
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
