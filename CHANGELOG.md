@@ -2,10 +2,6 @@
 
 ## Unreleased
 
-### Fixed
-
-- Keep explicit Canvas save completion tied to the originating vault and document revision; newer unsaved edits remain separately flushable. This is combined with same-vault Canvas board-inventory request ordering, without changing the native writer or authorization.
-
 ### Improved
 
 - Reveal older retained backups progressively in sets of ten instead of hiding every backup beyond the first ten. Paging or changing destinations discards outstanding Restore/Delete approval, and the native backup order remains unchanged.
@@ -19,6 +15,8 @@
 - Introduce read-only, vault-scoped restore operation receipts with explicit native confirmation, uncertain effects, retry safety and reopen requirements; retain unknown paths and revisions as unknown rather than inventing native evidence. The receipts are an internal foundation for future recovery UI, not an expanded restore authority.
 
 ### Fixed
+
+- Keep explicit Canvas save completion tied to the originating vault and document revision; newer unsaved edits remain separately flushable. This is combined with same-vault Canvas board-inventory request ordering, without changing the native writer or authorization.
 
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
 
