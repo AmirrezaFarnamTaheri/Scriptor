@@ -10,7 +10,7 @@ buildPaletteCommands adds multiple commands with optional chaining such as openK
 
 - [x] Read the command builder, registry, palette and existing source tests. Preserve available commands and their existing callbacks.
 - [x] Author focused behavior tests: absent owner means command absent, a missing active note cannot be organized, and zero closed tabs cannot be reopened. Available owners still execute the right callback.
-- [x] RED: [CI #40677971239](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40677971239), head `d12f1a5`, source regression failed with exactly two intended assertions: missing knowledge-workbench handler still advertised, and empty closed-tab history still advertised.
+- [x] RED: Confirmed the advertised no-op command failures; the exact test-only run, counts, and classification live in the [central MAT-018 verification record](../../docs/VERIFICATION.md#mat-018-command-palette-availability--pending-exact-head-acceptance).
 - [x] Implement the minimum registration guards directly in the builder, using the existing owner callbacks, active note and closed-tab count (no second availability cache).
 - [ ] GREEN: require the same source regression suite to pass on the implementation head; hosted results pending.
 - [ ] Exact-head source/TypeScript/browser/visual/accessibility checks. Keyboard command palette at narrow/RTL/200% zoom and user study are independent gates.
@@ -30,6 +30,6 @@ Omission of truly unavailable handlers is preferable to an inert selectable opti
 ## Note search availability follow-up — production guard
 
 - [x] Added the existing `onOpenNote` callback to note-result eligibility and the query effect; note matches no longer appear as selectable no-ops, and native note search does not run without an opener. The searchable commands and Help remain available.
-- [x] The test-only head `8ab1b67` includes two real-component behavioral cases: suppress unavailable note results and preserve click-through when a handler exists.
-- [ ] **Failing-first hosted result not observed:** [CI #40763493567](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40763493567) was queued at implementation time. Do not call this a completed TDD red/green cycle without that evidence; see [`docs/VERIFICATION.md`](../../docs/VERIFICATION.md).
+- [x] The real-component tests cover both unavailable note-result suppression and positive click-through. See the [central verification record](../../docs/VERIFICATION.md#mat-018-command-palette-availability--pending-exact-head-acceptance) for test-only head and evidence.
+- [ ] The second note-search slice lacks an observed failing-first hosted result. Do not count it as a verified red/green cycle; see the [central verification record](../../docs/VERIFICATION.md#mat-018-command-palette-availability--pending-exact-head-acceptance).
 - [ ] Verify exact-head source and browser CI, visual/a11y matrix, and installed-client acceptance; do not mark MAT-018 complete.
