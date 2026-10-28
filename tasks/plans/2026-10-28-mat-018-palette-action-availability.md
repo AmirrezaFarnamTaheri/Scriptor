@@ -63,3 +63,9 @@ The command currently invokes `document.querySelector('.vault-search input')?.fo
 - [ ] Record hosted red on the test-only head. A failed setup/harness condition is not a behavioral red.
 - [ ] Fix the existing owners: pass the mobile-pane selector into the palette command and expand/focus in `useAppKeyboardShortcuts` for the global route; preserve the existing no-op availability guard and native boundaries.
 - [ ] Verify exact-head browser, source, TypeScript, visual and installed-client mobile/200%-zoom keyboard behavior. Keep MAT-018 open.
+
+## CodeRabbit focus-search implementation (not yet hosted green)
+- [x] The palette `focus-search` action now chooses the mobile Vault pane as well as Vault sidebar before requesting deferred focus.
+- [x] The global `F` shortcut follows the same existing owner: change Inbox to Vault, select mobile Vault, reveal collapsed desktop rail, and request focus on the next animation frame.
+- [x] App passes the live mobile-pane setter and desktop collapsed state to the respective command/shortcut owners; no new command registry or permission authority.
+- [ ] Both new real-browser assertions need exact-head RED then GREEN evidence, plus keyboard/zoom/RTL and installed-client acceptance. Existing CodeRabbit threads remain open until verified.

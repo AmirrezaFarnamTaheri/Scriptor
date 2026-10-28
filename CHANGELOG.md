@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Make Vault search keyboard access select the mobile Vault pane and expand a collapsed desktop Vault sidebar before moving focus, from both the command palette and the global shortcut.
+
 - Exclude the collapsed desktop Vault sidebar from keyboard focus instead of only making it transparent; keep the independently selected mobile Vault pane accessible and restore palette-to-search focus when the rail reopens.
 
 - Make the command palette's **Focus vault search** action reveal the Vault sidebar when needed and move keyboard focus after the palette closes, instead of losing focus to the still-active modal trap.

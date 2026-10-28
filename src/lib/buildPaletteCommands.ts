@@ -73,6 +73,7 @@ export interface PaletteCommandContext {
   deleteActiveNote?: () => void | Promise<void>
   openRecentNote?: (path: string) => void | Promise<void>
   recentNotes?: Array<{ path: string; title: string }>
+  setMobilePane?: (pane: 'vault') => void
   setEditorSurfaceMode?: (mode: 'source' | 'split' | 'rendered') => void
   toggleVaultSidebar?: () => void
   toggleInspector?: () => void
@@ -133,6 +134,7 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     openRecentNote,
     recentNotes = [],
     setEditorSurfaceMode,
+    setMobilePane,
     toggleVaultSidebar,
     toggleInspector,
     vaultSidebarCollapsed,
@@ -446,6 +448,8 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
             // The search belongs to the Vault sidebar, not Inbox. Closing
             // the palette releases its focus trap before this target is focused.
             workspace.setSidebarView('vault')
+            // Mobile Editor/Inspector panes hide the Vault search completely.
+            setMobilePane?.('vault')
             if (vaultSidebarCollapsed) toggleVaultSidebar?.()
             window.requestAnimationFrame(() => {
               document.querySelector<HTMLInputElement>('.vault-search input')?.focus()
