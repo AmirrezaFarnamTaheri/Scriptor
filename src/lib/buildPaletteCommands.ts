@@ -163,7 +163,10 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
       ? [{
           id: 'organize-active-note',
           label: 'Mark active note organized',
-          run: () => void workspace.organizeNote(workspace.activePath!),
+          run: () => {
+            if (!workspace.activePath) return
+            void workspace.organizeNote(workspace.activePath)
+          },
         } satisfies AppCommandDefinition]
       : []),
     {
