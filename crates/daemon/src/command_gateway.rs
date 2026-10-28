@@ -55,6 +55,25 @@ pub(crate) use support::{
 mod catalog;
 pub use catalog::{is_outside_lock_command, list_commands, requires_desktop_authorization};
 
+/// A daemon Git commit must target the vault selected when it was requested.
+/// The check precedes GitQueue admission; the daemon lock is held at call sites
+/// so the observed session and queue root belong to the same vault.
+pub(crate) fn require_git_commit_vault_identity(
+    state: &DaemonState,
+    payload: &Value,
+) -> Result<(), String> {
+    let expected = payload
+        .get("expected_vault_id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| "Git commit vault identity is required".to_string())?;
+    let active = &state.require_session()?.descriptor.id;
+    if expected != active {
+        return Err("Git commit vault identity does not match the active vault".to_string());
+    }
+    Ok(())
+}
+
 pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Result<Value, String> {
     match command {
         "health_check" => Ok(json!("ok")),
@@ -608,6 +627,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             to_value(git_status(session.root.root()).map_err(|e| e.to_string())?)
         }
         "git_commit_cmd" => {
+            require_git_commit_vault_identity(state, payload)?;
             let files: Vec<String> = require_deserialize(payload, "files")?;
             let message = require_str(payload, "message")?;
             to_value(
@@ -944,5 +964,21 @@ mod tests {
                 "wrong or missing vault must fail at identity check, not GitQueue: {error}"
             );
         }
+    }
+
+    #[test]
+    fn git_commit_gateway_accepts_originating_vault_identity() {
+        let vault = tempfile::tempdir().expect("temporary vault");
+        let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+        let active_id = session.descriptor.id.clone();
+        let state = DaemonState {
+            session: Some(session),
+            ..DaemonState::default()
+        };
+        super::require_git_commit_vault_identity(
+            &state,
+            &json!({ "expected_vault_id": active_id }),
+        )
+        .expect("matching vault identity must be admitted");
     }
 }

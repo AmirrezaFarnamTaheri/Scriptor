@@ -493,7 +493,13 @@ fn dispatch_invoke_outside_lock(
                 .ok_or_else(|| "missing field: files".to_string())
                 .and_then(|value| serde_json::from_value(value).map_err(|error| error.to_string()));
             let message = require_invoke_str(&payload, "message");
-            let queue = { lock_recover(state).git_queue() };
+            // Admit under the daemon lock: an old-vault request must never
+            // acquire a queue bound to the currently selected vault.
+            let queue = {
+                let guard = lock_recover(state);
+                command_gateway::require_git_commit_vault_identity(&guard, &payload)
+                    .and_then(|_| guard.git_queue())
+            };
             match (files, message, queue) {
                 (Ok(files), Ok(message), Ok(queue)) => queue
                     .enqueue(move |root| {

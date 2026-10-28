@@ -185,6 +185,12 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - The release upload boundary excludes unpacked bundle internals and CI evidence.
 - Checksums and attestations cover installers, while target trust records remain separately verified release metadata.
 
+## MAT-008 — Daemon Git commit identity (draft PR #212)
+
+- **Observed failing-first:** [CI #40657380487](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40657380487), Rust workspace test lane at test-only commit `eb26a20db7b064ee312397cc579b7455cf71cf29`. Both `command_gateway::tests::git_commit_gateway_rejects_stale_and_missing_vault_before_queueing` and `transport::tests::outside_lock_git_commit_rejects_stale_and_missing_vault_before_queueing` failed because an invalid request reached GitQueue and returned `not a git repository` instead of a vault-identity error.
+- **Implementation:** the command gateway owns one session-identity guard requiring nonblank `expected_vault_id` and exact match with the active vault. Both daemon execution paths check it while holding their existing daemon-state lock and before creating/enqueuing a queue. Existing queue serialization and IPC authorization are unchanged.
+- **Required verification:** current-head source/Rustfmt/Clippy/Rust tests, Linux/Windows/Browser and applicable visual gates, plus an installed authenticated daemon IPC session switch/restart test. No installed-client acceptance has yet been established; MAT-008 remains open.
+
 ## Canonical history gate
 
 Run from a full canonical clone:
