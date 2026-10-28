@@ -191,6 +191,14 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - **Patch:** raise direct workspace minimums to `0.13.5` and update the single Cargo.lock entry. The crates.io index confirms checksum `278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb`; both versions have the same normal dependency set and feature flags. No security ignore is introduced and no application parser feature is disabled.
 - **Pending:** exact-head cargo-deny, Cargo.lock parity, Rust tests, production builds, browser and package acceptance. This is an independent dependency fix and does not certify MAT-008.
 
+## MAT-018 command palette availability — pending exact-head acceptance
+
+The test-only PR #216 head `d12f1a55454592a3e1d1364b0d2a73d08dc30eb8` established failing-first behavior in [CI #40677971239](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40677971239): the palette advertised a missing knowledge-workbench callback and showed a closed-tab restore action with zero closed tabs. The two new tests fail by assertion (683 of 685 source tests passed), not because of import or runner failure.
+
+The implementation restricts command registration to available owner callbacks, an actual active note for organization/history, and a positive closed-tab count with a reopen callback. It preserves available command handlers, keyboard shortcuts, and native authorization boundaries.
+
+**Pending:** exact-head source, TypeScript, browser, accessibility, visual, and installed-client acceptance at 200% zoom/narrow widths. This is a bounded MAT-018 slice, not completion of centralized capability/Help availability.
+
 ## Canonical history gate
 
 Run from a full canonical clone:

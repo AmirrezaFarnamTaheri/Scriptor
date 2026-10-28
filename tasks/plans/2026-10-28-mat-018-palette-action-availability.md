@@ -10,8 +10,9 @@ buildPaletteCommands adds multiple commands with optional chaining such as openK
 
 - [x] Read the command builder, registry, palette and existing source tests. Preserve available commands and their existing callbacks.
 - [x] Author focused behavior tests: absent owner means command absent, a missing active note cannot be organized, and zero closed tabs cannot be reopened. Available owners still execute the right callback.
-- [ ] RED: observe the exact missing-prerequisite failures in hosted pnpm test:source; distinguish a real assertion from setup/type errors.
-- [ ] GREEN: gate only affected AppCommandDefinition registrations using existing owner callbacks/resource counts, without adding duplicate availability state or permissions.
+- [x] RED: [CI #40677971239](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40677971239), head `d12f1a5`, source regression failed with exactly two intended assertions: missing knowledge-workbench handler still advertised, and empty closed-tab history still advertised.
+- [x] Implement the minimum registration guards directly in the builder, using the existing owner callbacks, active note and closed-tab count (no second availability cache).
+- [ ] GREEN: require the same source regression suite to pass on the implementation head; hosted results pending.
 - [ ] Exact-head source/TypeScript/browser/visual/accessibility checks. Keyboard command palette at narrow/RTL/200% zoom and user study are independent gates.
 
 ## Limits and follow-ups

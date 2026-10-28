@@ -159,14 +159,13 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
       shortcut: 'Alt+I',
       run: () => workspace.setSidebarView('inbox'),
     },
-    {
-      id: 'organize-active-note',
-      label: 'Mark active note organized',
-      run: () => {
-        if (!workspace.activePath) return
-        void workspace.organizeNote(workspace.activePath)
-      },
-    },
+    ...(workspace.activePath
+      ? [{
+          id: 'organize-active-note',
+          label: 'Mark active note organized',
+          run: () => void workspace.organizeNote(workspace.activePath!),
+        } satisfies AppCommandDefinition]
+      : []),
     {
       id: 'open-daily-note',
       label: "Open today's daily note",
@@ -257,41 +256,56 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     ...(setPluginManagerOpen
       ? [{ id: 'open-plugin-manager', label: 'Open built-in modules', keywords: ['plugins', 'extensions', 'modules', 'permissions'], run: () => setPluginManagerOpen(true) } satisfies AppCommandDefinition]
       : []),
-    {
-      id: 'open-knowledge-workbench',
-      label: 'Explore notes',
-      keywords: ['knowledge workbench', 'organize notes', 'note links'],
-      shortcut: 'Alt+K',
-      run: () => openKnowledgeWorkbench?.('repair'),
-    },
-    {
-      id: 'open-publish-center',
-      label: 'Open publish center',
-      run: () => setPublishCenterOpen?.(true),
-    },
-    { id: 'open-tags', label: 'Browse tags', run: () => openKnowledgeWorkbench?.('tags') },
-    { id: 'open-filters', label: 'Review note links', run: () => openKnowledgeWorkbench?.('repair') },
-    { id: 'open-saved-views', label: 'Saved views', run: () => openKnowledgeWorkbench?.('views') },
-    {
-      id: 'open-smart-collections',
-      label: 'Saved note collections',
-      keywords: ['DQL', 'smart collections'],
-      run: () => openKnowledgeWorkbench?.('collections'),
-    },
-    {
-      id: 'reopen-closed-tab',
-      label:
-        workspace.closedTabCount && workspace.closedTabCount > 0
-          ? `Reopen closed tab (${workspace.closedTabCount})`
-          : 'Reopen closed tab',
-      shortcut: 'Ctrl+Shift+T',
-      run: () => workspace.reopenClosedTab?.(),
-    },
-    { id: 'open-cheatsheet', label: 'Markdown cheatsheet', run: () => setCheatsheetOpen?.(true) },
-    { id: 'open-support', label: 'Support Scriptor', keywords: ['donate', 'github', 'star'], run: () => setSupportOpen?.(true) },
-    { id: 'open-portal', label: 'Open portal clipboard', run: () => setPortalOpen?.(true) },
-    { id: 'open-quick-capture', label: 'Quick capture (scratchpad & todos)', run: () => setQuickCaptureOpen?.(true) },
-    { id: 'open-note-history', label: 'Note history timeline', shortcut: 'Ctrl+Alt+H', run: () => setNoteHistoryOpen?.(true) },
+    ...(openKnowledgeWorkbench
+      ? [
+          {
+            id: 'open-knowledge-workbench',
+            label: 'Explore notes',
+            keywords: ['knowledge workbench', 'organize notes', 'note links'],
+            shortcut: 'Alt+K',
+            run: () => openKnowledgeWorkbench('repair'),
+          },
+          { id: 'open-tags', label: 'Browse tags', run: () => openKnowledgeWorkbench('tags') },
+          { id: 'open-filters', label: 'Review note links', run: () => openKnowledgeWorkbench('repair') },
+          { id: 'open-saved-views', label: 'Saved views', run: () => openKnowledgeWorkbench('views') },
+          {
+            id: 'open-smart-collections',
+            label: 'Saved note collections',
+            keywords: ['DQL', 'smart collections'],
+            run: () => openKnowledgeWorkbench('collections'),
+          },
+        ] satisfies AppCommandDefinition[]
+      : []),
+    ...(setPublishCenterOpen
+      ? [{ id: 'open-publish-center', label: 'Open publish center', run: () => setPublishCenterOpen(true) } satisfies AppCommandDefinition]
+      : []),
+    ...(workspace.reopenClosedTab && (workspace.closedTabCount ?? 0) > 0
+      ? [{
+          id: 'reopen-closed-tab',
+          label: `Reopen closed tab (${workspace.closedTabCount})`,
+          shortcut: 'Ctrl+Shift+T',
+          run: () => workspace.reopenClosedTab?.(),
+        } satisfies AppCommandDefinition]
+      : []),
+    ...(setCheatsheetOpen
+      ? [{ id: 'open-cheatsheet', label: 'Markdown cheatsheet', run: () => setCheatsheetOpen(true) } satisfies AppCommandDefinition]
+      : []),
+    ...(setSupportOpen
+      ? [{ id: 'open-support', label: 'Support Scriptor', keywords: ['donate', 'github', 'star'], run: () => setSupportOpen(true) } satisfies AppCommandDefinition]
+      : []),
+    ...(setPortalOpen
+      ? [{ id: 'open-portal', label: 'Open portal clipboard', run: () => setPortalOpen(true) } satisfies AppCommandDefinition]
+      : []),
+    ...(setQuickCaptureOpen
+      ? [{
+          id: 'open-quick-capture',
+          label: 'Quick capture (scratchpad & todos)',
+          run: () => setQuickCaptureOpen(true),
+        } satisfies AppCommandDefinition]
+      : []),
+    ...(setNoteHistoryOpen && workspace.activePath
+      ? [{ id: 'open-note-history', label: 'Note history timeline', shortcut: 'Ctrl+Alt+H', run: () => setNoteHistoryOpen(true) } satisfies AppCommandDefinition]
+      : []),
     { id: 'open-bibliography', label: 'Browse bibliography', run: () => setBibliographyOpen(true) },
     ...(setGmailManagerOpen
       ? [
