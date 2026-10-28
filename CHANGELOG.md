@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Bind Git status reads to the originating vault at the controller, renderer bridge and native Tauri boundary, including headless daemon-backed reads; reject missing or stale vault IDs before returning status for the wrong workspace.
+
 - Reject desktop Git commits whose initiating vault no longer matches the native active session, including missing vault IDs. Bind the renderer request to its originating vault before entering GitQueue rather than committing against a newly selected vault.
 
 - Upgrade `webpki-roots` and `webpki-root-certs` to 1.0.10 and `rustls-webpki` to 0.103.16 to fix RUSTSEC-2026-0381, RUSTSEC-2026-0382 and RUSTSEC-2026-0383, which affected the bundled root certificates by trusting distrusted emSign intermediates and by accepting certificate paths through distrusted intermediates.

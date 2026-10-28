@@ -13,13 +13,29 @@ use crate::state::{active_session, git_queue_handle, use_headless_engine};
 use super::daemon::bridge_git_status;
 use super::shared::parse_daemon_json;
 
+/// Validate read provenance before any native or daemon status fetch.
+pub(crate) fn validate_git_status_target(
+    active_vault_id: &str,
+    expected_vault_id: &str,
+) -> Result<(), String> {
+    if expected_vault_id.trim().is_empty() {
+        return Err("Git status requires an initiating vault identity.".into());
+    }
+    crate::commands::vault::validate_expected_vault(active_vault_id, Some(expected_vault_id))
+        .map_err(|_| "Git status was not read because the active vault changed.".to_string())
+}
+
 #[tauri::command]
-pub fn git_status_cmd(state: tauri::State<AppState>) -> Result<GitStatus, String> {
+pub fn git_status_cmd(
+    state: tauri::State<AppState>,
+    expected_vault_id: String,
+) -> Result<GitStatus, String> {
     if use_headless_engine(&state) {
-        let json = bridge_git_status(&state)?;
+        let json = bridge_git_status(&state, &expected_vault_id)?;
         return parse_daemon_json(&json);
     }
     let session = active_session(&state)?;
+    validate_git_status_target(&session.descriptor.id, &expected_vault_id)?;
     git_status(session.root.root()).map_err(|error| error.to_string())
 }
 
@@ -188,7 +204,18 @@ pub fn git_show_head_file_cmd(
 mod tests {
     use std::cell::Cell;
 
-    use super::with_expected_git_vault;
+    use super::{validate_git_status_target, with_expected_git_vault};
+
+    #[test]
+    fn git_status_rejects_missing_and_stale_vault_identity() {
+        for expected in ["", "old-vault"] {
+            assert!(
+                validate_git_status_target("current-vault", expected).is_err(),
+                "a status read must not accept missing or mismatched provenance"
+            );
+        }
+        assert!(validate_git_status_target("current-vault", "current-vault").is_ok());
+    }
 
     #[test]
     fn git_commit_rejects_stale_and_missing_vault_before_queueing() {

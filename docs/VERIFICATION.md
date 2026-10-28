@@ -189,8 +189,14 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 ## MAT-008 — Git commit expected-vault binding (draft PR #211)
 
 - **Hosted RED:** test-only `06a3a4e482b432238b11621807d01e730162bd70`, [CI #40595869204](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40595869204), source regression: 683 pass, 2 expected failures. The Git commit invocation omitted `expectedVaultId`; an empty vault identity was not rejected.
-- **Implementation awaiting exact-head checks:** require the initiating vault in the TypeScript bridge and native Tauri commit command, enforce it before GitQueue, and test native denied/accepted outcomes plus the browser mock.
-- **Still pending:** source GREEN, Rust/Windows/Browser E2E/visual/docs, installed-client delayed-invoke acceptance, and daemon/CLI/MCP parity under issue #188. This slice does not complete MAT-008.
+- **Verified at PR #211 head `169df38`:** the typed bridge carries the initiating vault ID and native Tauri validates it before GitQueue; [CI #40598382091](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40598382091), [Desktop #40598382118](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40598382118), [Visual #40598381865](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40598381865), [Screenshots #40598381858](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40598381858), and [Docs #40598381879](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40598381879) passed at that head.
+- **Still pending:** installed-client delayed-invoke acceptance and daemon/CLI/MCP parity under issue #188. A passing hosted matrix is not packaged-client proof. This slice does not complete MAT-008.
+
+## MAT-008 — Git status read provenance (draft PR #213)
+
+- **Observed behavioral RED:** test-only head `caf63390bbbeaa8893af446169c5995a920777cc`, [CI #40599461753](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40599461753), three source regressions: native Git status was invoked without the initiating vault ID, a blank origin was accepted, and the controller did not pass the captured vault ID to its fetcher.
+- **Implementation pending exact-head GREEN:** the controller forwards the request's immutable vault ID, Tauri bridge requires a nonempty ID, native Tauri checks against the active session, and headless daemon-backed reads validate under the vault-switch lock before RPC. Browser fixtures refuse mismatched identities.
+- **Outstanding:** current-head source/Rust/Windows/browser/visual checks, installed desktop delayed-read/vault-switch acceptance, and broader daemon/CLI/MCP parity. Read provenance does not imply a committed mutation.
 
 ## Canonical history gate
 

@@ -3544,7 +3544,7 @@ export const OPERATION_CATALOG = {
       "owner": "apps/desktop/src-tauri/src/commands/git.rs",
       "authorizationClass": "read-only",
       "mutationClass": "read-only",
-      "scope": null,
+      "scope": "expected-vault",
       "authorizationVariant": null,
       "schemaKind": "native-rust",
       "outcomePolicy": [

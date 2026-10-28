@@ -6,9 +6,12 @@ import { authorizeSensitiveOperation } from './authorization.ts'
 
 export type GitPullStrategy = 'fast-forward' | 'merge' | 'rebase'
 
-export async function gitStatus(): Promise<GitStatus> {
+export async function gitStatus(expectedVaultId: string): Promise<GitStatus> {
   requireNative()
-  return invoke<GitStatus>('git_status_cmd')
+  if (!expectedVaultId?.trim()) {
+    throw new Error('A vault identity is required before reading Git status.')
+  }
+  return invoke<GitStatus>('git_status_cmd', { expectedVaultId })
 }
 
 export async function gitCommit(

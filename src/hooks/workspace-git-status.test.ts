@@ -132,6 +132,19 @@ describe('workspace git status slots', () => {
     assert.equal(controller.getStatus('vault-b'), null)
   })
 
+  it('does not invoke native Git without a vault identity', async () => {
+    let calls = 0
+    const controller = new WorkspaceGitStatusController(async () => {
+      calls += 1
+      return statusFor('never')
+    })
+    controller.setActiveVault(null)
+    await controller.refresh()
+    assert.equal(calls, 0)
+    assert.equal(controller.getStatus(null), null)
+    assert.equal(controller.getSnapshot().isLoading, false)
+  })
+
   it('maps a null active vault to the sentinel slot key', () => {
     assert.notEqual(vaultStatusKey(null), '')
     assert.equal(vaultStatusKey(null), vaultStatusKey(null))

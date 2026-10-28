@@ -21,6 +21,7 @@ CLI/TUI and MCP
 The renderer is not an authority boundary. Native operations validate scope, authorization, runtime payloads, paths, process policy, and cancellation independently of UI state.
 
 Desktop Git commits carry the initiating vault identity in the typed bridge. The Tauri handler checks that ID against the active session while holding its read lease, before acquiring GitQueue or starting a write. A delayed invoke from another vault is refused. The daemon gateway and direct-path CLI have separate session contracts and still need their MAT-008 parity audit.
+Git status reads carry that same originating identity through the status controller and bridge; native Tauri and headless daemon-backed status paths validate it against the active session before reading, preventing a delayed read from being cached under a different vault.
 
 Research workspaces compose the existing vault/indexer/native boundaries. Database edits flush the source editor through its mutation coordinator, then retain the revision originally displayed by the table; a changed source requires reload and review. Capture and Zotero imports preview content before a missing-destination, expected-vault write. Credentials used for reviewed imports stay in memory and pagination is reset when the key changes.
 
