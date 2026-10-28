@@ -119,9 +119,6 @@ fn git_commit_gateway_accepts_originating_vault_identity() {
         session: Some(session),
         ..DaemonState::default()
     };
-    super::require_git_commit_vault_identity(
-        &state,
-        &json!({ "expected_vault_id": active_id }),
-    )
-    .expect("matching vault identity must be admitted");
+    super::require_git_commit_vault_identity(&state, &json!({ "expected_vault_id": active_id }))
+        .expect("matching vault identity must be admitted");
 }
