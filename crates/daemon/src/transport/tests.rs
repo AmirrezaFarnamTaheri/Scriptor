@@ -5,7 +5,7 @@ use scriptor_ipc::{
     read_frame_resyncing, write_frame,
 };
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -862,15 +862,22 @@ fn authenticated_clients_keep_git_status_bound_after_another_client_switches_vau
     let socket_for_server = socket.clone();
     let (ready_tx, ready_rx) = std::sync::mpsc::channel();
     let (handle_tx, handle_rx) = std::sync::mpsc::channel();
+    let stop_accepts = Arc::new(AtomicBool::new(false));
+    let stop_for_server = Arc::clone(&stop_accepts);
     let server = std::thread::spawn(move || {
         let listener = create_listener_with_retry(&socket_for_server, 10);
         let state = Arc::new(Mutex::new(DaemonState::default()));
         let event_hub = EventHub::new();
         ready_tx.send(()).expect("listener ready");
-        // Separate authenticated client connections share the daemon's vault,
-        // but must never borrow each other's Git status request identity.
-        for _ in 0..2 {
+        // Keep the listener alive throughout both clients' RPC sequences.
+        // A client may reconnect after a transient transport error; limiting
+        // accept() to two sockets used to close the socket name early and turn
+        // the test into Io(NotFound) before the security assertion ran.
+        loop {
             let stream = listener.accept().expect("accept authenticated client");
+            if stop_for_server.load(Ordering::Acquire) {
+                break;
+            }
             handle_tx
                 .send(spawn_test_handler(
                     stream,
@@ -889,11 +896,8 @@ fn authenticated_clients_keep_git_status_bound_after_another_client_switches_vau
     let client_b = crate::client::DaemonRpcClient::new();
     let timeout = Duration::from_secs(10);
 
-    // The test listener accepts exactly two connections and then closes.
-    // Establish B's authenticated socket before A mutates the daemon session:
-    // otherwise a reconnect by A could consume the last accept slot, turning
-    // B's vault switch into a NotFound transport failure rather than testing
-    // the required wrong-vault status denial.
+    // Establish both independently authenticated request clients before
+    // the vault switch; the listener stays available for legitimate retries.
     let connected_b = client_b
         .call_with_timeout(RpcRequest::new(904, RpcMethod::Ping), timeout)
         .expect("client B establishes its authenticated connection");
@@ -990,13 +994,14 @@ fn authenticated_clients_keep_git_status_bound_after_another_client_switches_vau
     client_a.reset();
     client_b.reset();
     teardown_rpc_session();
+    // Unblock accept() with a final local connection, then join every handler
+    // (including any legitimate reconnects) instead of assuming exactly two.
+    stop_accepts.store(true, Ordering::Release);
+    let wake = connect_client().expect("wake authenticated test listener for shutdown");
+    drop(wake);
     server.join().expect("daemon listener joins");
-    for _ in 0..2 {
-        handle_rx
-            .recv_timeout(Duration::from_secs(5))
-            .expect("connection handler delivered")
-            .join()
-            .expect("authenticated handler exits");
+    for handle in handle_rx {
+        handle.join().expect("authenticated handler exits");
     }
     pipe_guard.disarm();
 }

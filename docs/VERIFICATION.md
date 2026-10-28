@@ -41,6 +41,17 @@ enforcement applies to maintained product and contributor documentation.
 Provenance-sensitive audit records under `docs/validation/` and archived
 documents remain exempt; active user guides do not.
 
+## MAT-008 authenticated multi-client Git status CI — October 28, 2026
+
+[PR #213](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/213) retains the daemon's expected-vault identity guard across the typed RPC, handler, and gateway. The authenticated two-client regression must finish without transport errors before it can certify stale-vault denial.
+
+| Head and environment | Evidence | Classification |
+|---|---|---|
+| `26f024bc`, [CI #40776353451](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40776353451) Linux Rust workspace tests | `authenticated_clients_keep_git_status_bound_after_another_client_switches_vault` failed at `transport/tests.rs:916`: client A `OpenVault` returned `Io(NotFound)` before identity rejection was exercised; other 63 daemon tests passed | **Failed test-harness transport setup, not security denial proof** |
+| Follow-up test-fixture correction | Keep the authenticated listener accepting valid client reconnects until both clients finish, signal shutdown using a local wake connection and join all handler threads; retain stale denial and matching-ID assertions | **Authored; new exact-head Rust execution required** |
+
+The current CodeRabbit cross-client thread remains open. The hosted test is not packaged desktop multi-process/restart or real operational acceptance, even if it passes.
+
 ## PR #160 remediation evidence — October 11, 2026
 
 This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.
