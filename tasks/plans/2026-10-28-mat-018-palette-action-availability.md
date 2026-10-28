@@ -40,6 +40,8 @@ The command currently invokes `document.querySelector('.vault-search input')?.fo
 
 - [x] Add two Playwright scenarios through the real command palette: ordinary use must leave the dialog closed and focus the vault-search input; use after hiding the vault sidebar must reveal it and focus the input.
 - [ ] RED: observe these failures on a **test-only** exact-head Browser E2E run, record the decisive assertion, and distinguish fixture/setup errors from missing behavior.
-- [ ] GREEN: defer search focus until the palette unmounts and the focus trap releases it; choose the Vault sidebar and expand it when necessary. Do not invent a second focus broker or change shortcuts.
+- [x] GREEN implementation authored: choose Vault sidebar, reveal a collapsed sidebar through the existing owner, and defer focus until after palette dismissal. Hide the command when the sidebar is collapsed but cannot be reopened. No second focus broker or changed shortcut.
 - [ ] Verify current-head source/TypeScript, E2E, keyboard, narrow/RTL/200%-zoom and installed-client focus.
 - [ ] This is a MAT-018 action-availability slice, not complete capability/Help alignment.
+
+**Evidence classification:** At the time the code was committed, the test-only [CI #40769455505](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40769455505) was queued at the supply-chain job. There was **no observed behavioral red** on the test-only commit. The test exists prior to implementation in Git history, but its actual failure has not been established. The hosted post-fix browser/keyboard result is also pending; see the authoritative `docs/VERIFICATION.md` record for verification status.

@@ -437,12 +437,22 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
           } satisfies AppCommandDefinition,
         ]
       : []),
-    {
-      id: 'focus-search',
-      label: 'Focus vault search',
-      shortcut: 'F',
-      run: () => document.querySelector<HTMLInputElement>('.vault-search input')?.focus(),
-    },
+    ...(!vaultSidebarCollapsed || toggleVaultSidebar
+      ? [{
+          id: 'focus-search',
+          label: 'Focus vault search',
+          shortcut: 'F',
+          run: () => {
+            // The search belongs to the Vault sidebar, not Inbox. Closing
+            // the palette releases its focus trap before this target is focused.
+            workspace.setSidebarView('vault')
+            if (vaultSidebarCollapsed) toggleVaultSidebar?.()
+            window.requestAnimationFrame(() => {
+              document.querySelector<HTMLInputElement>('.vault-search input')?.focus()
+            })
+          },
+        } satisfies AppCommandDefinition]
+      : []),
   ]
   const commands: PaletteCommand[] = toPaletteCommands(baseCommands)
 

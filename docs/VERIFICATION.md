@@ -193,6 +193,15 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 
 ## MAT-018 command palette availability — pending exact-head acceptance
 
+### MAT-018 palette focus after closing dialog — October 29, 2026
+
+- **Source defect:** `focus-search` called `input.focus()` while the command palette's `useFocusTrap` was still active. Its `focusin` listener reclaims focus outside the dialog; if the sidebar is collapsed the target may not be visible at all.
+- **Test-only head `0394cf8`:** two Playwright cases require the palette to close and focus the visible vault search, including after hiding the sidebar. The [test-only CI #40769455505](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40769455505) had not reached the browser lane before implementation. **No observed failing-first result.**
+- **Implementation:** use the existing Vault sidebar view/toggle owner and defer focus by one animation frame until after modal teardown; a collapsed sidebar without a reopening owner does not advertise the command.
+- **Pending:** exact-head browser focus tests, TypeScript, source lint, narrow/mobile/RTL and 200% zoom, and installed-client keyboard acceptance. No MAT-018 graduation claim.
+
+
+
 ### MAT-018 note result availability — October 29, 2026
 
 [PR #216](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/216) adds a second callback-availability regression to the command palette. In its test-only head `8ab1b67`, the real JSX component harness renders a selectable note result despite missing `onOpenNote`; its selection calls an optional callback and closes without opening any note.
