@@ -21,3 +21,9 @@
 ## Safety invariants
 
 Use existing daemon mutex, authenticated IPC and native Git status kernel. A failed transport reply is not evidence of native mutation rollback. Do not add a parallel daemon vault authority or a second permission broker.
+
+## Post-integration authenticated RPC regression (PR #213)
+
+- [x] PR #215's daemon identity enforcement is merged into parent PR #213. A new two-client, socket-backed regression in `crates/daemon/src/transport/tests.rs` opens vault A through client A, switches to vault B through a second authenticated client, and requires the first client's old GitStatus identity to fail closed while B's status remains available.
+- [ ] Execute the new test through hosted exact-head Rust/Clippy CI and record the outcome in `docs/VERIFICATION.md`. This is an automated authenticated transport check, not an installed desktop's real multi-process/restart acceptance.
+- [ ] Keep CodeRabbit's daemon cross-client finding open if hosted tests or installed-client acceptance remain incomplete.

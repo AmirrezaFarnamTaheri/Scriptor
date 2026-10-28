@@ -848,3 +848,141 @@ fn daemon_git_status_rejects_stale_identity_but_accepts_originating_vault() {
         correct.result
     );
 }
+
+#[test]
+fn authenticated_clients_keep_git_status_bound_after_another_client_switches_vault() {
+    let _guard = endpoint_lock();
+    teardown_rpc_session();
+    let vault_a = tempfile::tempdir().expect("first temporary vault");
+    let vault_b = tempfile::tempdir().expect("second temporary vault");
+    let (socket, _socket_dir) = test_socket_name();
+    let mut pipe_guard = PipeGuard::new(&socket);
+    write_endpoint(&socket).expect("write authenticated endpoint");
+
+    let socket_for_server = socket.clone();
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let (handle_tx, handle_rx) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let listener = create_listener_with_retry(&socket_for_server, 10);
+        let state = Arc::new(Mutex::new(DaemonState::default()));
+        let event_hub = EventHub::new();
+        ready_tx.send(()).expect("listener ready");
+        // Separate authenticated client connections share the daemon's vault,
+        // but must never borrow each other's Git status request identity.
+        for _ in 0..2 {
+            let stream = listener.accept().expect("accept authenticated client");
+            handle_tx
+                .send(spawn_test_handler(
+                    stream,
+                    Arc::clone(&state),
+                    Arc::clone(&event_hub),
+                ))
+                .expect("send connection handler");
+        }
+    });
+
+    ready_rx
+        .recv_timeout(Duration::from_secs(10))
+        .expect("daemon listener started");
+
+    let client_a = crate::client::DaemonRpcClient::new();
+    let client_b = crate::client::DaemonRpcClient::new();
+    let timeout = Duration::from_secs(10);
+
+    let opened_a = client_a
+        .call_with_timeout(
+            RpcRequest::new(
+                905,
+                RpcMethod::OpenVault {
+                    path: vault_a.path().display().to_string(),
+                },
+            ),
+            timeout,
+        )
+        .expect("client A opens its vault");
+    let id_a = match opened_a.result {
+        RpcResult::Ok(RpcPayload::VaultOpened { vault_id, .. }) => vault_id,
+        other => panic!("client A could not open vault: {other:?}"),
+    };
+
+    let initial = client_a
+        .call_with_timeout(
+            RpcRequest::new(
+                906,
+                RpcMethod::GitStatus {
+                    expected_vault_id: id_a.clone(),
+                },
+            ),
+            timeout,
+        )
+        .expect("client A reads its originating vault");
+    assert!(
+        matches!(initial.result, RpcResult::Ok(RpcPayload::GitStatus { .. })),
+        "client A must read its vault before another client switches: {:?}",
+        initial.result
+    );
+
+    let opened_b = client_b
+        .call_with_timeout(
+            RpcRequest::new(
+                907,
+                RpcMethod::OpenVault {
+                    path: vault_b.path().display().to_string(),
+                },
+            ),
+            timeout,
+        )
+        .expect("client B switches daemon vault");
+    let id_b = match opened_b.result {
+        RpcResult::Ok(RpcPayload::VaultOpened { vault_id, .. }) => vault_id,
+        other => panic!("client B could not switch vault: {other:?}"),
+    };
+    assert_ne!(id_a, id_b, "the two clients must use distinct vault IDs");
+
+    let stale = client_a
+        .call_with_timeout(
+            RpcRequest::new(
+                908,
+                RpcMethod::GitStatus {
+                    expected_vault_id: id_a,
+                },
+            ),
+            timeout,
+        )
+        .expect("client A receives an explicit denial, not a transport error");
+    assert!(
+        format!("{:?}", stale.result).contains("Git status vault identity mismatch"),
+        "client A must never receive vault B's status after the switch: {:?}",
+        stale.result
+    );
+
+    let current = client_b
+        .call_with_timeout(
+            RpcRequest::new(
+                909,
+                RpcMethod::GitStatus {
+                    expected_vault_id: id_b,
+                },
+            ),
+            timeout,
+        )
+        .expect("client B reads its newly active vault");
+    assert!(
+        matches!(current.result, RpcResult::Ok(RpcPayload::GitStatus { .. })),
+        "current vault identity must remain usable: {:?}",
+        current.result
+    );
+
+    client_a.reset();
+    client_b.reset();
+    teardown_rpc_session();
+    server.join().expect("daemon listener joins");
+    for _ in 0..2 {
+        handle_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("connection handler delivered")
+            .join()
+            .expect("authenticated handler exits");
+    }
+    pipe_guard.disarm();
+}
