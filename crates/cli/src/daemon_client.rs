@@ -297,10 +297,6 @@ pub fn open_vault_with_id(path: &Path) -> Result<String, Box<dyn std::error::Err
     }
 }
 
-pub fn open_vault(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    open_vault_with_id(path).map(|_| ())
-}
-
 /// Ensure the daemon is ready and return the identity of its opened vault.
 pub fn ensure_vault_open_with_id(path: &Path) -> Result<String, Box<dyn std::error::Error>> {
     ensure_daemon_running()?;

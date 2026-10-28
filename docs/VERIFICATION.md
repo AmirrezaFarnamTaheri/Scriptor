@@ -200,6 +200,7 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 
 ## MAT-008 — Daemon Git status RPC provenance (draft PR #215)
 
+- **Rust lint regression (2026-10-28):** exact-head CI #40671152135 failed `cargo clippy --locked --workspace --all-targets -- -D warnings` because the superseded `daemon_client::open_vault` wrapper became unused at `crates/cli/src/daemon_client.rs:300` when status callers adopted `ensure_vault_open_with_id`. The follow-up deletes this unused wrapper rather than suppressing `dead_code`; fresh exact-head validation is required.
 - **Observed RED:** test-only head `d51b0e3`, [CI #40666737446](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40666737446), failed `transport::tests::unscoped_git_status_is_rejected_before_native_read_on_both_daemon_routes` (61 passing daemon tests, 1 failing). The unbound request reached the native Git read.
 - **Implementation:** typed `RpcMethod::GitStatus` requires `expected_vault_id`. The daemon's direct handler, outside-lock transport, and Invoke paths verify the same authoritative session before resolving a native Git root. Desktop, CLI and TUI use the ID returned by daemon `OpenVault`. Missing or stale identities fail closed.
 - **Pending:** exact-head Rustfmt/Clippy/Rust, IPC bindings, TypeScript, Browser E2E, Windows and visual acceptance; installed authenticated IPC concurrency, restart and reopening. This is one MAT-008 slice and not mutation receipt proof.

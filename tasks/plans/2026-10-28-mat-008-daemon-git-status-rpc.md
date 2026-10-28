@@ -13,6 +13,7 @@
 - [x] Desktop, CLI and TUI propagate the initiating ID returned by daemon `OpenVault`.
 - [x] Preserve failing-first denial assertions and add mismatch/matching-ID coverage.
 - [x] Synchronize generated TypeScript IPC binding, operation-catalog scope, docs, and changelog.
+- [x] Diagnose exact-head Clippy failure on CI #40671152135: `daemon_client::open_vault` is an unused wrapper after the identity-returning API migration; remove it without lowering warning policy.
 - [ ] Verify all exact-head Rustfmt, Rust/Clippy, source-contract, Browser E2E, Windows, desktop, screenshots, localization, and visual checks.
 - [ ] Perform installed authenticated-IPC vault-switch, restart, and stale-read acceptance.
 - [ ] Complete broader MAT-008 cross-entrypoint mutation parity and capability graduation.
