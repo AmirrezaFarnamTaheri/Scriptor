@@ -187,3 +187,47 @@ test('switching away and back cannot revive the previous pull refresh owner', as
   assert.deepEqual(h.calls.workspaceRefreshes, [], 'ABA navigation must not revive a stale operation')
   assert.deepEqual(h.calls.gitRefreshes, [], 'old pull cannot reuse the new same-name vault session')
 })
+
+for (const mutation of ['commit', 'pull', 'push']) {
+  test(`a stale failed Git ${mutation} does not overwrite a different vault's workspace error`, async () => {
+    const h = harness()
+    const pending = deferred()
+    if (mutation === 'commit') h.commands.gitCommit = () => pending.promise
+    if (mutation === 'pull') h.commands.gitPull = () => pending.promise
+    if (mutation === 'push') h.commands.gitPush = () => pending.promise
+
+    const previousVault = h.render()
+    const action = mutation === 'commit'
+      ? previousVault.commitFiles(['note.md'], 'Before switch')
+      : mutation === 'pull'
+        ? previousVault.pullRemote('fast-forward')
+        : previousVault.pushRemote()
+
+    h.options.vaultId = 'vault-beta'
+    h.render()
+    const currentErrors = [...h.calls.errors]
+    pending.reject(new Error('Old vault Git operation failed'))
+    await action
+
+    assert.deepEqual(h.calls.errors, currentErrors, 'the old vault must not surface a workspace-wide error in vault-beta')
+    assert.equal(h.calls.activities.at(-1)?.[0], 'error', 'old operation failure remains auditable')
+    assert.equal(h.render().isGitBusy, false, 'the native operation gate must still release')
+  })
+}
+
+test('an A-B-A navigation does not resurrect a stale Git error from the first A session', async () => {
+  const h = harness()
+  const pending = deferred()
+  h.commands.gitPull = () => pending.promise
+  const oldPull = h.render().pullRemote('fast-forward')
+  h.options.vaultId = 'vault-beta'
+  h.render()
+  h.options.vaultId = 'vault-alpha'
+  h.render()
+  const currentErrors = [...h.calls.errors]
+  pending.reject(new Error('Old session pull failed'))
+  await oldPull
+  assert.deepEqual(h.calls.errors, currentErrors, 'a new session with the same vault ID is not the original operation')
+  assert.equal(h.calls.activities.at(-1)?.[0], 'error')
+  assert.equal(h.render().isGitBusy, false)
+})
