@@ -21,13 +21,14 @@ function deferred() {
 function harness() {
   const slots = []
   let cursor = 0
-  const calls = { commits: [], pulls: [], pushes: [], errors: [], activities: [] }
+  const calls = { commits: [], pulls: [], pushes: [], errors: [], activities: [], gitRefreshes: [], workspaceRefreshes: [] }
   const commands = {
     gitCommit: async (...args) => { calls.commits.push(args) },
     gitPull: async (...args) => { calls.pulls.push(args); return { message: 'Pulled' } },
     gitPush: async (...args) => { calls.pushes.push(args); return { message: 'Pushed' } },
     gitStatus: async () => ({ is_repo: true }),
   }
+  const effects = []
   const react = {
     useState(initial) {
       const i = cursor++
@@ -39,7 +40,7 @@ function harness() {
       return slots[i] ??= { current: initial }
     },
     useCallback: (fn) => fn,
-    useEffect() {},
+    useEffect(callback) { effects.push(callback) },
     useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot(),
   }
   class MockStatusController {
@@ -48,7 +49,7 @@ function harness() {
     getStatus() { return { is_repo: true } }
     setActiveVault() {}
     setStatusErrorHandler() {}
-    async refresh() {}
+    async refresh(...args) { calls.gitRefreshes.push(args) }
   }
   const module = { exports: {} }
   vm.runInNewContext(source, {
@@ -62,11 +63,11 @@ function harness() {
   })
   const options = {
     vaultId: 'vault-alpha',
-    refreshVault: async () => {},
+    refreshVault: async () => { calls.workspaceRefreshes.push(options.vaultId) },
     logActivity: (...args) => calls.activities.push(args),
     setError: (value) => calls.errors.push(value),
   }
-  const render = () => { cursor = 0; return module.exports.useWorkspaceGit(options) }
+  const render = () => { cursor = 0; effects.length = 0; const result = module.exports.useWorkspaceGit(options); for (const effect of effects) effect(); return result }
   return { render, options, calls, commands }
 }
 
@@ -125,4 +126,64 @@ test('a failed Git write releases the guard for an explicit later retry', async 
   await h.render().commitFiles(['first.md'], 'Explicit retry')
   assert.equal(h.calls.commits.length, 2)
   assert.equal(h.render().isGitBusy, false)
+})
+
+test('late Git pull cannot refresh the newly selected vault', async () => {
+  const h = harness()
+  const pendingPull = deferred()
+  h.commands.gitPull = async (...args) => {
+    h.calls.pulls.push(args)
+    return pendingPull.promise
+  }
+
+  const operation = h.render().pullRemote('fast-forward')
+  h.options.vaultId = 'vault-beta'
+  h.render()
+  pendingPull.resolve({ message: 'Pulled vault-alpha' })
+  await operation
+
+  assert.deepEqual(h.calls.workspaceRefreshes, [], 'the old pull must not rescan the current vault')
+  assert.deepEqual(h.calls.gitRefreshes, [], 'the old pull must not refresh the new vault Git status')
+  assert.equal(h.render().isGitBusy, false, 'completion releases the shared mutation guard')
+
+  h.commands.gitPull = async (...args) => { h.calls.pulls.push(args); return { message: 'Pulled vault-beta' } }
+  await h.render().pullRemote('fast-forward')
+  assert.deepEqual(h.calls.workspaceRefreshes, ['vault-beta'], 'same-vault pull continues to refresh')
+  assert.equal(h.calls.gitRefreshes.length, 1, 'same-vault Git status is refreshed')
+})
+
+test('late Git commit cannot refresh status for another vault', async () => {
+  const h = harness()
+  const pendingCommit = deferred()
+  h.commands.gitCommit = (...args) => {
+    h.calls.commits.push(args)
+    return pendingCommit.promise
+  }
+
+  const operation = h.render().commitFiles(['original.md'], 'Original vault commit')
+  h.options.vaultId = 'vault-beta'
+  h.render()
+  pendingCommit.resolve()
+  await operation
+
+  assert.equal(h.calls.commits.length, 1, 'the originating write was submitted once')
+  assert.deepEqual(h.calls.gitRefreshes, [], 'its late completion must not read another vault')
+  assert.equal(h.render().isGitBusy, false)
+})
+
+test('switching away and back cannot revive the previous pull refresh owner', async () => {
+  const h = harness()
+  const pendingPull = deferred()
+  h.commands.gitPull = () => pendingPull.promise
+
+  const operation = h.render().pullRemote('fast-forward')
+  h.options.vaultId = 'vault-beta'
+  h.render()
+  h.options.vaultId = 'vault-alpha'
+  h.render()
+  pendingPull.resolve({ message: 'Old pull completed' })
+  await operation
+
+  assert.deepEqual(h.calls.workspaceRefreshes, [], 'ABA navigation must not revive a stale operation')
+  assert.deepEqual(h.calls.gitRefreshes, [], 'old pull cannot reuse the new same-name vault session')
 })
