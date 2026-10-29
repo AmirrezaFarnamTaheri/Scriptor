@@ -191,6 +191,13 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - **Patch:** raise direct workspace minimums to `0.13.5` and update the single Cargo.lock entry. The crates.io index confirms checksum `278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb`; both versions have the same normal dependency set and feature flags. No security ignore is introduced and no application parser feature is disabled.
 - **Pending:** exact-head cargo-deny, Cargo.lock parity, Rust tests, production builds, browser and package acceptance. This is an independent dependency fix and does not certify MAT-008.
 
+## PR #222 — local-socket subscription compatibility (October 29, 2026)
+
+- **Observed failure:** [CI #40852302352](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40852302352), exact dependency-upgrade head `8c13a68e1f063712af8c2979830623bab79e7fab`: `Contracts, automation, lint, and Rust tests` failed at `Clippy workspace checks` because `interprocess::local_socket::traits::Stream::split` is deprecated. Other executable jobs and standalone Visual/Desktop workflows passed on that old head. This is a dependency compatibility blocker, not a demonstrated application data regression.
+- **Source correction:** [`3708b1c`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/3708b1cb197caa399016e530992ae49a36e49b8a) removes the deprecated split and detached disconnect-probe thread. The authenticated nonblocking stream now checks for EOF/unexpected client data before each event-receive interval, and reuses the same stream for deadline-bounded event writes. Endpoint nonce checks, event encoding, rate limits and the original subscription poll interval are unchanged.
+- **Hosted exact-head verification:** [CI #40862620166](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40862620166), plus desktop compile and Visual review, were queued/in progress when this record was authored; no green result is claimed here. The existing daemon event subscription and reconnection Rust tests must pass after the dependency bump.
+- **Not yet established:** installed-client disconnect/reconnect and multiprocess shutdown behavior. The source change is not proof of release acceptance.
+
 ## MAT-005 Saved Views query ownership — October 29, 2026
 
 [PR #218](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/218) is an independent renderer read-freshness slice. Native Saved Views filtering and vault permissions are unchanged.
@@ -198,9 +205,11 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 | Source / environment | Observed result | Classification |
 |---|---|---|
 | Test-only `687bd7e` · [CI #40779293100](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40779293100) | Three real-hook assertions failed in `saved-views-query-ownership.test.mjs`: test 345 old Alpha query overwrote Beta; test 346 vault A's path remained on vault B; test 347 new vault's result was absent with unchanged filter. | **Three observed behavioral RED failures**, not test setup or compile failures |
-| Implementation following the test-only commit | One shared generation between manual and debounced queries; render-visible results are keyed to vault/filter identity; stale success/error callbacks are ignored; effect cleanup invalidates outstanding operations. | **Implemented — exact-head GREEN not yet verified** |
+| Implementation following the test-only commit | One shared generation between manual and debounced queries; render-visible results are keyed to vault/filter identity; stale success/error callbacks are ignored; effect cleanup invalidates outstanding operations. | **Implemented — hosted exact-head CI verified on `929619d`** |
 
 A mocked native query is not proof of installed-client vault changes or remote data integrity. Broader MAT-005 mutation acceptance and desktop restart tests remain open.
+
+Exact-head [CI #40784067680](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067680), [Visual #40784067783](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067783) and [Docs #40784067709](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067709) completed successfully before merging current main. Fresh exact-head validation remains required.
 
 ## Canonical history gate
 
