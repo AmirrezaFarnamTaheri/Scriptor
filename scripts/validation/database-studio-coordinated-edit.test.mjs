@@ -47,7 +47,7 @@ function harness(withCoordinator, { delayList = false } = {}) {
   const builderComponent = () => null
   const mockCommands = {
     vaultListViewNotes: () => delayList
-      ? new Promise(resolve => { pendingLists.push(resolve) })
+      ? new Promise((resolve, reject) => { pendingLists.push({ resolve, reject }) })
       : Promise.resolve([{ path: note.metadata.path }]),
     vaultReadNote: async (path) => {
       if (path === '.scriptor/presets/database-studio.md') {
@@ -164,11 +164,17 @@ function harness(withCoordinator, { delayList = false } = {}) {
     return result
   }
   const completeList = () => {
-    const resolve = pendingLists.shift()
-    assert.ok(resolve, 'deferred native view list was requested')
-    resolve([{ path: note.metadata.path }])
+    const pending = pendingLists.shift()
+    assert.ok(pending, 'deferred native view list was requested')
+    pending.resolve([{ path: note.metadata.path }])
   }
-  return { render, settle, load, startLoad, completeList, results, currentView, changeView, nativeWrites, coordinated, note }
+  const failList = (message) => {
+    const pending = pendingLists.shift()
+    assert.ok(pending, 'deferred native view list was requested')
+    pending.reject(new Error(message))
+  }
+  const errorText = () => find(render(), node => node.type === 'p' && node.props?.role === 'alert')?.props.children ?? null
+  return { render, settle, load, startLoad, completeList, failList, errorText, results, currentView, changeView, nativeWrites, coordinated, note }
 
 }
 
@@ -235,4 +241,17 @@ test('a delayed Database Studio query cannot publish old-view notes after filter
   const current = h.results()
   assert.equal(current.rows.length, 0, 'the completed old request does not repopulate stale notes')
   assert.equal(current.columns.length, 0, 'the new filter has no loaded projections yet')
+})
+
+test('a delayed old-view query failure cannot become an error on the selected new view', async () => {
+  const h = harness(true, { delayList: true })
+  h.render()
+  await h.settle()
+  h.startLoad()
+  await h.settle()
+  h.changeView({ ...h.currentView(), filters: [{ field: 'title', value: 'Other' }] })
+
+  h.failList('Old view native lookup was denied')
+  await h.settle()
+  assert.equal(h.errorText(), null, 'the new view must not display the previous query failure')
 })
