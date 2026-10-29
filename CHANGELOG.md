@@ -14,6 +14,13 @@
 
 - Hide command palette actions when their optional launcher is unavailable, when there is no active note to organize, or when no closed tab can be reopened. Preserve available commands and their native permission boundaries.
 
+- Refuse source attachment symlinks and nested destination symlink escapes on Obsidian import; stage complete files and publish using create-only hard links, retaining existing attachments and cleaning up staging files after collisions.
+- Reject Obsidian imports when the destination vault is inside the source folder, preventing recursive discovery of files created by the importer itself.
+
+- Preserve existing destination Markdown notes during Obsidian imports and repeat imports: use the vault writer's atomic create-only precondition, report path collisions as skips, and never silently overwrite local edits.
+
+- Keep daemon event subscriptions working with the updated `interprocess` crate by polling nonblocking socket disconnects in the existing event loop instead of using deprecated stream halves and a detached reader thread.
+
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
 
 - Upgrade `webpki-roots` and `webpki-root-certs` to 1.0.10 and `rustls-webpki` to 0.103.16 to fix RUSTSEC-2026-0381, RUSTSEC-2026-0382 and RUSTSEC-2026-0383, which affected the bundled root certificates by trusting distrusted emSign intermediates and by accepting certificate paths through distrusted intermediates.

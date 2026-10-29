@@ -258,36 +258,21 @@ fn handle_connection_with_preauth_slot(
                 result: RpcResult::Ok(RpcPayload::Unit),
             };
             write_response_with_timeout(&mut stream, response)?;
-            let (mut recv_half, mut send_half) = stream.split();
-            let (disconnect_tx, disconnect_rx) = std::sync::mpsc::sync_channel::<()>(1);
-            std::thread::spawn(move || {
-                let mut probe = [0u8; 1];
-                loop {
-                    match recv_half.read(&mut probe) {
-                        Ok(0) => {
-                            let _ = disconnect_tx.try_send(());
-                            break;
-                        }
-                        Ok(_) => {
-                            let _ = disconnect_tx.try_send(());
-                            break;
-                        }
-                        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
-                            std::thread::sleep(Duration::from_millis(20));
-                        }
-                        Err(_) => {
-                            let _ = disconnect_tx.try_send(());
-                            break;
-                        }
-                    }
-                }
-            });
+            // Real daemon accepts already set this; direct authenticated
+            // handler callers must not block while polling subscriptions.
+            stream.set_nonblocking(true).map_err(IpcError::from)?;
+            // Poll disconnects alongside events on this nonblocking socket.
+            // No split or detached reader thread is needed, so the socket and
+            // subscriber are released together when the client disconnects.
+            let mut probe = [0u8; 1];
             loop {
-                if disconnect_rx.try_recv().is_ok() {
-                    return Ok(());
+                match stream.read(&mut probe) {
+                    Ok(_) => return Ok(()), // EOF or unexpected client data
+                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => {}
+                    Err(_) => return Ok(()),
                 }
                 match subscription.recv_timeout(SUBSCRIPTION_POLL_INTERVAL) {
-                    Ok(event) => write_event_with_timeout(&mut send_half, event)?,
+                    Ok(event) => write_event_with_timeout(&mut stream, event)?,
                     Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
                     Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return Ok(()),
                 }

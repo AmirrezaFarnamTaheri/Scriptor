@@ -69,3 +69,6 @@ The command currently invokes `document.querySelector('.vault-search input')?.fo
 - [x] The global `F` shortcut follows the same existing owner: change Inbox to Vault, select mobile Vault, reveal collapsed desktop rail, and request focus on the next animation frame.
 - [x] App passes the live mobile-pane setter and desktop collapsed state to the respective command/shortcut owners; no new command registry or permission authority.
 - [ ] Both new real-browser assertions need exact-head RED then GREEN evidence, plus keyboard/zoom/RTL and installed-client acceptance. Existing CodeRabbit threads remain open until verified.
+
+## Main integration
+Obsidian native import safety and newer main history are retained. Integration requires fresh exact-head source, browser/keyboard, desktop and visual verification; no installed-client claim is made.
