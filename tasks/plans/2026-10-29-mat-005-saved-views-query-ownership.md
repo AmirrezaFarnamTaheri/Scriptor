@@ -26,3 +26,6 @@ No query DSL or schema migration; no native command, search engine, dependency, 
 - [x] The existing mock previously recreated `useCallback` on every render. Since the fixed component intentionally includes its memoized callback in effect dependencies, this would spuriously restart the effect on unrelated rerenders and invalidate the latest result. Updated the mock to preserve `useCallback` and `useMemo` values when dependency identities are equal, matching React's contract.
 - [x] All three behavioral assertions remain unchanged. No production code changes in this follow-up.
 - [ ] Confirm exact-head hosted source suite and browser gates on this new commit; do not infer green from a harness change.
+
+## Main integration
+Latest main's Obsidian note/attachment safety changes are retained in this branch. Hosted exact-head verification must be repeated after the integration commit; historical passing checks are not the new head's proof.
