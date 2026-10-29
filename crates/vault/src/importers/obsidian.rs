@@ -137,10 +137,7 @@ pub fn import_obsidian_vault(
         if !entry.file_type().is_file() {
             skipped_files += 1;
             if entry.file_type().is_symlink() {
-                errors.push(format!(
-                    "{}: symbolic links are not imported",
-                    relative_str
-                ));
+                errors.push(format!("{}: symbolic links are not imported", relative_str));
             }
             continue;
         }
@@ -253,21 +250,23 @@ fn import_attachment(
         });
     }
     let relative_str = format_path(relative);
-    let destination_relative = RelativeVaultPath::parse(&format!(
-        "_attachments/{relative_str}"
-    ))?;
+    let destination_relative = RelativeVaultPath::parse(&format!("_attachments/{relative_str}"))?;
     let destination = root.resolve_relative(&destination_relative)?;
-    let parent = destination.parent().ok_or_else(|| VaultError::InvalidConfig {
-        message: "Cannot determine attachment directory".into(),
-    })?;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| VaultError::InvalidConfig {
+            message: "Cannot determine attachment directory".into(),
+        })?;
     fs::create_dir_all(parent).map_err(|error| VaultError::io(parent, error))?;
 
     // Validate every newly created prefix; joining a separately verified
     // _attachments directory would permit nested symlinks to escape the vault.
     let destination = root.resolve_relative(&destination_relative)?;
-    let parent = destination.parent().ok_or_else(|| VaultError::InvalidConfig {
-        message: "Cannot determine attachment directory".into(),
-    })?;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| VaultError::InvalidConfig {
+            message: "Cannot determine attachment directory".into(),
+        })?;
     // A quick duplicate check avoids copying large files on repeated imports.
     // It is not an authority: hard-link publication below is still create-only.
     match fs::symlink_metadata(&destination) {
@@ -493,7 +492,10 @@ mod tests {
             .write_all(b"incomplete asset")
             .unwrap();
         drop(staged);
-        assert!(!path.exists(), "staging must be removed even after an incomplete write");
+        assert!(
+            !path.exists(),
+            "staging must be removed even after an incomplete write"
+        );
     }
 
     #[cfg(unix)]
@@ -539,11 +541,7 @@ mod tests {
         let target = tempfile::tempdir().unwrap();
         let outside = tempfile::tempdir().unwrap();
         fs::create_dir_all(target.path().join("_attachments")).unwrap();
-        symlink(
-            outside.path(),
-            target.path().join("_attachments/assets"),
-        )
-        .unwrap();
+        symlink(outside.path(), target.path().join("_attachments/assets")).unwrap();
         let root = VaultRoot::open(target.path()).unwrap();
         let result = import_obsidian_vault(
             "test-vault",
@@ -559,7 +557,10 @@ mod tests {
             "importing a nested attachment must not write through a symlink outside the target vault"
         );
         assert!(
-            result.errors.iter().any(|message| message.contains("assets/photo.png")),
+            result
+                .errors
+                .iter()
+                .any(|message| message.contains("assets/photo.png")),
             "the rejected attachment must appear in the import error details"
         );
     }
@@ -639,7 +640,10 @@ mod tests {
         for entry in fs::read_dir(imported.parent().unwrap()).unwrap() {
             let entry = entry.unwrap();
             assert!(
-                !entry.file_name().to_string_lossy().starts_with(".scriptor-"),
+                !entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(".scriptor-"),
                 "completed or rejected imports must clean temporary attachment files"
             );
         }
