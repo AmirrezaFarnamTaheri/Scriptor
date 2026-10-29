@@ -537,12 +537,24 @@ mod tests {
         let source = tempfile::tempdir().unwrap();
         fs::create_dir_all(source.path().join(".obsidian")).unwrap();
         fs::create_dir_all(source.path().join("notes")).unwrap();
-        fs::write(source.path().join("notes/shared.md"), "# Incoming replacement\n").unwrap();
-        fs::write(source.path().join("notes/new.md"), "# Fresh imported note\n").unwrap();
+        fs::write(
+            source.path().join("notes/shared.md"),
+            "# Incoming replacement\n",
+        )
+        .unwrap();
+        fs::write(
+            source.path().join("notes/new.md"),
+            "# Fresh imported note\n",
+        )
+        .unwrap();
 
         let target = tempfile::tempdir().unwrap();
         fs::create_dir_all(target.path().join("notes")).unwrap();
-        fs::write(target.path().join("notes/shared.md"), "# Local work to preserve\n").unwrap();
+        fs::write(
+            target.path().join("notes/shared.md"),
+            "# Local work to preserve\n",
+        )
+        .unwrap();
         let root = VaultRoot::open(target.path()).unwrap();
 
         let result = import_obsidian_vault(
@@ -563,12 +575,17 @@ mod tests {
             "# Fresh imported note\n"
         );
         assert_eq!(result.notes_imported, 1, "only the new note was imported");
-        assert_eq!(result.skipped_files, 1, "the collided note is counted as skipped");
+        assert_eq!(
+            result.skipped_files, 1,
+            "the collided note is counted as skipped"
+        );
         assert_eq!(result.imported_paths, vec!["notes/new.md"]);
         assert!(
-            result.errors.iter().any(|message|
-                message.contains("notes/shared.md") && message.contains("already exists")
-            ),
+            result
+                .errors
+                .iter()
+                .any(|message| message.contains("notes/shared.md")
+                    && message.contains("already exists")),
             "the import report must explain which existing note was preserved: {:?}",
             result.errors
         );
@@ -585,10 +602,17 @@ mod tests {
         let options = ImportObsidianOptions::default();
         let first = import_obsidian_vault("test-vault", &root, source.path(), &options).unwrap();
         assert_eq!(first.notes_imported, 1);
-        fs::write(target.path().join("daily.md"), "# Edited locally after import\n").unwrap();
+        fs::write(
+            target.path().join("daily.md"),
+            "# Edited locally after import\n",
+        )
+        .unwrap();
 
         let second = import_obsidian_vault("test-vault", &root, source.path(), &options).unwrap();
-        assert_eq!(second.notes_imported, 0, "repeat imports must not reapply existing notes");
+        assert_eq!(
+            second.notes_imported, 0,
+            "repeat imports must not reapply existing notes"
+        );
         assert_eq!(second.skipped_files, 1);
         assert_eq!(
             fs::read_to_string(target.path().join("daily.md")).unwrap(),
