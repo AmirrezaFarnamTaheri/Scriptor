@@ -33,7 +33,9 @@ arboard = "3"
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
-tauri-plugin-deep-link = "2"
+# 2.6.2 currently fails to compile with the locked rust-ini ParseOption API.
+# Preserve 2.6.1 until upstream releases a compatible patch.
+tauri-plugin-deep-link = "=2.6.1"
 uuid = { version = "1", features = ["v4"] }
 reqwest = { version = "0.13", features = ["json", "blocking", "form", "query"] }
 tracing = "0.1"
