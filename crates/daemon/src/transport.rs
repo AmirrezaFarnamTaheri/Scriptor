@@ -258,7 +258,10 @@ fn handle_connection_with_preauth_slot(
                 result: RpcResult::Ok(RpcPayload::Unit),
             };
             write_response_with_timeout(&mut stream, response)?;
-            // The connection is nonblocking: poll disconnects alongside events.
+            // Real daemon accepts already set this; direct authenticated
+            // handler callers must not block while polling subscriptions.
+            stream.set_nonblocking(true).map_err(IpcError::from)?;
+            // Poll disconnects alongside events on this nonblocking socket.
             // No split or detached reader thread is needed, so the socket and
             // subscriber are released together when the client disconnects.
             let mut probe = [0u8; 1];
