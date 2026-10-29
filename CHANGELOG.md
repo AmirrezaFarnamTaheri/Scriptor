@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Keep daemon event subscriptions working with the updated `interprocess` crate by polling nonblocking socket disconnects in the existing event loop instead of using deprecated stream halves and a detached reader thread.
+
 - Bind Obsidian import authorization and native write admission to the vault that opened the dialog; reject empty or changed vault identity before import, even if approval was delayed.
 
 - Ignore a late Obsidian source-folder picker result after its import dialog closes, rather than triggering validation or updating an unmounted dialog.
