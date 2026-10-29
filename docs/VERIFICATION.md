@@ -214,6 +214,18 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - **Hosted exact-head verification:** [CI #40862620166](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40862620166), plus desktop compile and Visual review, were queued/in progress when this record was authored; no green result is claimed here. The existing daemon event subscription and reconnection Rust tests must pass after the dependency bump.
 - **Not yet established:** installed-client disconnect/reconnect and multiprocess shutdown behavior. The source change is not proof of release acceptance.
 
+## MAT-005 / MAT-010 Database Studio source-editor coordination — October 29, 2026
+
+[PR #217](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/217) guards the mutation boundary between Database Studio and the one writable Markdown source editor. It is a focused safety slice, not full MAT-005, MAT-009 or MAT-010 implementation.
+
+| Source or environment | Result | Classification |
+|---|---|---|
+| Test-only `8bd17fc`, [CI #40776875924](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40776875924) | Two real-component tests authored before the fix. Hosted source-suite outcome not observed when production code was published. | **Observed failing-first result not yet established** |
+| Follow-up code to `DatabaseStudioPanel.editCell` | Direct native fallback removed. Without `runSourceNoteMutation`, loaded cells are read-only and direct calls reject; with a coordinator, expected-hash and initiating-vault checks remain. | **Source implementation; current-head green pending** |
+
+No installed-client unsaved-draft, vault-switch, or restart acceptance is asserted. A browser mock cannot certify native rollback or durable success.
+
+
 ## Canonical history gate
 
 Run from a full canonical clone:

@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Make Database Studio metadata edits read-only when the source-editor mutation coordinator is absent. Never bypass an unsaved editor draft with a direct frontmatter write; retain note viewing and guarded coordinated edits.
+
 - Refuse source attachment symlinks and nested destination symlink escapes on Obsidian import; stage complete files and publish using create-only hard links, retaining existing attachments and cleaning up staging files after collisions.
 - Reject Obsidian imports when the destination vault is inside the source folder, preventing recursive discovery of files created by the importer itself.
 
