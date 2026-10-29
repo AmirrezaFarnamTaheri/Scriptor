@@ -359,6 +359,74 @@ fn is_attachment(extension: &str) -> bool {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
+    #[test]
+    fn import_does_not_follow_source_attachment_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        let external = tempfile::tempdir().unwrap();
+        let outside_image = external.path().join("private.png");
+        fs::write(&outside_image, b"outside-vault-data").unwrap();
+        symlink(&outside_image, source.path().join("linked.png")).unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        let root = VaultRoot::open(target.path()).unwrap();
+        let result = import_obsidian_vault(
+            "test-vault",
+            &root,
+            source.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(result.attachments_imported, 0);
+        assert_eq!(result.skipped_files, 1);
+        assert!(
+            !target.path().join("_attachments/linked.png").exists(),
+            "an import must not copy an external file through a source symlink"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn import_does_not_escape_through_nested_attachment_destination_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        fs::create_dir_all(source.path().join("assets")).unwrap();
+        fs::write(source.path().join("assets/photo.png"), b"picture").unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        fs::create_dir_all(target.path().join("_attachments")).unwrap();
+        symlink(
+            outside.path(),
+            target.path().join("_attachments/assets"),
+        )
+        .unwrap();
+        let root = VaultRoot::open(target.path()).unwrap();
+        let result = import_obsidian_vault(
+            "test-vault",
+            &root,
+            source.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(result.attachments_imported, 0);
+        assert!(
+            !outside.path().join("photo.png").exists(),
+            "importing a nested attachment must not write through a symlink outside the target vault"
+        );
+        assert!(
+            result.errors.iter().any(|message| message.contains("assets/photo.png")),
+            "the rejected attachment must appear in the import error details"
+        );
+    }
+
     #[test]
     fn test_detect_obsidian_vault() {
         let tmp = tempfile::tempdir().unwrap();
