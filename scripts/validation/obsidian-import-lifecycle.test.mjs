@@ -23,7 +23,7 @@ const successfulImport = () => ({
   importedPaths: ['notes/one.md', 'notes/two.md'],
 })
 
-function harness(importCommand, { vaultId = 'vault-test', importInFlightByVault = new Set() } = {}) {
+function harness(importCommand, { vaultId = 'vault-test', importInFlightByVault = new Set(), browseCommand = async () => null } = {}) {
   const slots = []
   const memo = new Map()
   const effects = new Map()
@@ -33,6 +33,7 @@ function harness(importCommand, { vaultId = 'vault-test', importInFlightByVault 
   const delayedPassiveCleanups = []
   const imported = []
   const importCalls = []
+  const detectCalls = []
   const updatesAfterUnmount = []
   let cursor = 0
   let mounted = true
@@ -85,7 +86,7 @@ function harness(importCommand, { vaultId = 'vault-test', importInFlightByVault 
     'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'fragment' },
     'lucide-react': { CheckCircle2: icon, FolderOpen: icon, ShieldAlert: icon, X: icon },
     '../bridge/commands/vault.ts': {
-      vaultDetectObsidian: async () => true,
+      vaultDetectObsidian: async (path) => { detectCalls.push(path); return true },
       vaultImportObsidian: (path, options) => {
         importCalls.push({ path, options })
         return importCommand(path, options)
@@ -93,6 +94,7 @@ function harness(importCommand, { vaultId = 'vault-test', importInFlightByVault 
     },
     '../hooks/useEscapeToClose': { useEscapeToClose() {} },
     '../hooks/useFocusTrap': { useFocusTrap() {} },
+    '@tauri-apps/plugin-dialog': { open: browseCommand },
   }
   const module = { exports: {} }
   vm.runInNewContext(compiled, {
@@ -142,6 +144,11 @@ function harness(importCommand, { vaultId = 'vault-test', importInFlightByVault 
     assert.ok(input, 'the source-folder input exists')
     return input
   }
+  function browse(tree) {
+    const button = findAll(tree, node => node.type === 'button' && node.props?.children === 'Browse')[0]
+    assert.ok(button, 'Browse button exists in real dialog')
+    button.props.onClick()
+  }
   function submit(tree) {
     const form = findAll(tree, node => node.type === 'form' && node.props?.role === 'dialog')[0]
     assert.ok(form, 'the Obsidian import dialog is rendered')
@@ -165,7 +172,7 @@ function harness(importCommand, { vaultId = 'vault-test', importInFlightByVault 
   async function settle() {
     for (let i = 0; i < 12; i++) await Promise.resolve()
   }
-  return { render, sourceInput, submit, unmount, flushPassiveCleanup, settle, imported, importCalls, updatesAfterUnmount }
+  return { render, sourceInput, browse, submit, unmount, flushPassiveCleanup, settle, imported, importCalls, detectCalls, updatesAfterUnmount }
 }
 
 test('two import submissions in one render turn result in one native authorized import', async () => {
@@ -296,5 +303,19 @@ test('commit-phase dialog cleanup rejects native success before passive effects 
   await h.settle()
   assert.equal(h.imported.length, 0, 'no callback after the overlay was removed at commit')
   assert.equal(h.updatesAfterUnmount.length, 0, 'no state writes during the passive-cleanup gap')
+  h.flushPassiveCleanup()
+})
+
+test('late native folder chooser after closing import dialog cannot validate or write stale UI', async () => {
+  const chooser = deferred()
+  const h = harness(async () => successfulImport(), { browseCommand: async () => chooser.promise })
+  const tree = h.render()
+  h.browse(tree)
+  await h.settle() // the native folder picker is still outstanding
+  h.unmount({ delayPassiveCleanup: true })
+  chooser.resolve('/fixture/old-vault-chosen-after-close')
+  await h.settle()
+  assert.deepEqual(h.detectCalls, [], 'the unmounted dialog must not start a new native folder validation')
+  assert.deepEqual(h.updatesAfterUnmount, [], 'a native chooser response must not write state after close')
   h.flushPassiveCleanup()
 })

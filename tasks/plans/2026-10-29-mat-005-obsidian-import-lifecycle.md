@@ -42,3 +42,10 @@ The UI must not interpret a closed dialog as a native cancellation. The native `
 - [x] Aligned `CapabilityWorkflowOverlays` with the existing owner contract in `obsidian-import-lifecycle.test.mjs`: a non-reactive `useRef<Set<string>>(new Set())` persists claims across conditional dialog remounts, and the dialog receives `.current`. This is a behavior-preserving owner refactor from a lazily created `useState` Set, not a change to the native import or authorization contract.
 - [ ] Do not label the source-regex mismatch as a *behavioral* RED; no exact-head failing regression run for this shape disagreement was observed before the fix. The real JSX harness still checks native import single-flight, close/reopen, unmount and commit-phase cleanup.
 - [ ] Require new exact-head source / browser / TS / native / visual checks and installed-client acceptance before the PR can leave draft.
+
+## Browse dialog stale native selection (test first)
+- [x] Audited `handleBrowse`: after awaiting the native folder chooser it unconditionally sets source, clears status, and calls `vaultDetectObsidian`. Closing the import overlay while the system picker is pending can therefore initiate a read and update destroyed React state after the chooser resolves.
+- [x] Added an actual-JSX behavioral regression to the existing harness: hold the native `open()` promise, unmount before resolving it, then require no `vaultDetectObsidian` call and no state update after unmount. Only the plugin-dialog and vault-command boundaries are mocked.
+- [ ] Observe the focused test fail against the test-only head for this intended behavior; distinguish harness/import errors from actual stale side effects.
+- [ ] Pass the originating layout lifecycle into the Browse completion guard without affecting native import ownership, successful folder selection or explicit validation.
+- [ ] Re-run current-head source, TypeScript, browser, Rust and visual checks; installed-client dialog and vault-switch cases remain separate.
