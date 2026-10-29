@@ -507,20 +507,25 @@ fn accepts_parallel_ping_connections() {
     let socket_for_server = socket.clone();
     let (ready_tx, ready_rx) = std::sync::mpsc::channel();
     let (handle_tx, handle_rx) = std::sync::mpsc::channel();
+    let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
     let server = std::thread::spawn(move || {
         let listener = create_listener_with_retry(&socket_for_server, 10);
         let state = Arc::new(Mutex::new(DaemonState::default()));
         let event_hub = EventHub::new();
         ready_tx.send(()).expect("send ready");
-        let mut accepted = 0usize;
-        while accepted < 2 {
+        // The client may reconnect once after a transient I/O failure. Do not
+        // drop the listener merely because two connections were accepted:
+        // both *responses* must settle before this test stops its server.
+        loop {
             let stream = match listener.accept() {
                 Ok(s) => s,
                 Err(_) => continue,
             };
+            if stop_rx.try_recv().is_ok() {
+                break;
+            }
             let handle = spawn_test_handler(stream, Arc::clone(&state), Arc::clone(&event_hub));
             handle_tx.send(handle).expect("send handle");
-            accepted += 1;
         }
     });
 
@@ -559,22 +564,24 @@ fn accepts_parallel_ping_connections() {
         }
         Err(last_err.unwrap())
     });
-    assert!(matches!(
-        first.join().expect("join").expect("rpc").result,
-        RpcResult::Ok(_)
-    ));
-    assert!(matches!(
-        second.join().expect("join").expect("rpc").result,
-        RpcResult::Ok(_)
-    ));
+    let first_result = first.join().expect("first client thread");
+    let second_result = second.join().expect("second client thread");
+
+    // Close the listener after both client attempts have settled, even when
+    // a client failed. A synthetic connection only wakes the accept loop; it
+    // is never counted as a successful Ping response.
+    stop_tx.send(()).expect("signal listener shutdown");
+    let wake_name = resolve_name(&socket).expect("resolve wake socket");
+    let wake = LocalSocketStream::connect(wake_name.borrow()).expect("wake listener");
+    drop(wake);
     server.join().expect("server thread");
-    for _ in 0..2 {
-        let handle = handle_rx
-            .recv_timeout(Duration::from_secs(5))
-            .expect("recv handle");
+    for handle in handle_rx {
         handle.join().expect("handler thread");
     }
     pipe_guard.disarm();
+
+    assert!(matches!(first_result.expect("first rpc").result, RpcResult::Ok(_)));
+    assert!(matches!(second_result.expect("second rpc").result, RpcResult::Ok(_)));
 }
 
 #[test]
