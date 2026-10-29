@@ -119,6 +119,17 @@ pub fn import_obsidian_vault(
                     notes_imported += 1;
                     imported_paths.push(path);
                 }
+                Err(VaultError::HashMismatch { expected, .. })
+                    if expected == crate::write::EXPECTED_MISSING_CONTENT_HASH =>
+                {
+                    // The writer owns the atomic create-only check. An
+                    // existing note must not be replaced by an import.
+                    skipped_files += 1;
+                    errors.push(format!(
+                        "{}: destination note already exists; original content preserved",
+                        relative_str
+                    ));
+                }
                 Err(e) => {
                     errors.push(format!("{}: {}", relative_str, e));
                 }
@@ -168,7 +179,15 @@ fn import_note(
     let target_rel = format_path(relative);
     let target = RelativeVaultPath::parse(&target_rel)?;
 
-    save_note(vault_id, root, &target, &markdown, None)?;
+    // Use the vault writer's atomic create-only CAS; checking path.exists()
+    // first would race another editor or import writing the same destination.
+    save_note(
+        vault_id,
+        root,
+        &target,
+        &markdown,
+        Some(crate::write::EXPECTED_MISSING_CONTENT_HASH),
+    )?;
     Ok(target_rel)
 }
 
@@ -510,6 +529,97 @@ mod tests {
         assert_eq!(
             convert_callouts("before\n> [!\nafter"),
             "before\n> [!\nafter"
+        );
+    }
+
+    #[test]
+    fn import_preserves_existing_local_note_and_reports_collision() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        fs::create_dir_all(source.path().join("notes")).unwrap();
+        fs::write(
+            source.path().join("notes/shared.md"),
+            "# Incoming replacement\n",
+        )
+        .unwrap();
+        fs::write(
+            source.path().join("notes/new.md"),
+            "# Fresh imported note\n",
+        )
+        .unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        fs::create_dir_all(target.path().join("notes")).unwrap();
+        fs::write(
+            target.path().join("notes/shared.md"),
+            "# Local work to preserve\n",
+        )
+        .unwrap();
+        let root = VaultRoot::open(target.path()).unwrap();
+
+        let result = import_obsidian_vault(
+            "test-vault",
+            &root,
+            source.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            fs::read_to_string(target.path().join("notes/shared.md")).unwrap(),
+            "# Local work to preserve\n",
+            "an Obsidian import must never overwrite a note already in the destination vault"
+        );
+        assert_eq!(
+            fs::read_to_string(target.path().join("notes/new.md")).unwrap(),
+            // The existing Obsidian callout converter normalizes the terminal newline.
+            // The collision safety contract is about preserving local notes.
+            "# Fresh imported note"
+        );
+        assert_eq!(result.notes_imported, 1, "only the new note was imported");
+        assert_eq!(
+            result.skipped_files, 1,
+            "the collided note is counted as skipped"
+        );
+        assert_eq!(result.imported_paths, vec!["notes/new.md"]);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|message| message.contains("notes/shared.md")
+                    && message.contains("already exists")),
+            "the import report must explain which existing note was preserved: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn repeated_obsidian_import_does_not_replace_prior_imported_note() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        fs::write(source.path().join("daily.md"), "# Original import\n").unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        let root = VaultRoot::open(target.path()).unwrap();
+        let options = ImportObsidianOptions::default();
+        let first = import_obsidian_vault("test-vault", &root, source.path(), &options).unwrap();
+        assert_eq!(first.notes_imported, 1);
+        fs::write(
+            target.path().join("daily.md"),
+            "# Edited locally after import\n",
+        )
+        .unwrap();
+
+        let second = import_obsidian_vault("test-vault", &root, source.path(), &options).unwrap();
+        assert_eq!(
+            second.notes_imported, 0,
+            "repeat imports must not reapply existing notes"
+        );
+        assert_eq!(second.skipped_files, 1);
+        assert_eq!(
+            fs::read_to_string(target.path().join("daily.md")).unwrap(),
+            "# Edited locally after import\n",
+            "repeat import must preserve subsequent user edits"
         );
     }
 

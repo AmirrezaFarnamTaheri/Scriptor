@@ -41,6 +41,12 @@ enforcement applies to maintained product and contributor documentation.
 Provenance-sensitive audit records under `docs/validation/` and archived
 documents remain exempt; active user guides do not.
 
+## MAT-005 Obsidian import collision safety — October 29, 2026
+
+Draft [PR #228](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/228) adds two real, filesystem-backed Rust regression cases: an incoming note colliding with authored local content, and repeating an import after editing the previously imported note. The test-only commit [`d8aa3c9`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/d8aa3c9be9342b83bed379f98f1f149a8c099900) predates the implementation; its [CI run #40863276455](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40863276455) was queued, so **no observed failing-first Rust assertion is claimed**.
+
+The importer now calls the existing atomic vault writer with `EXPECTED_MISSING_CONTENT_HASH` rather than a missing precondition. An existing destination note is skipped and reported with a path-specific explanation; new notes still import. No parallel writer, file-existence race, authorization change or silent merge is introduced. **Implementation-head Rust, Clippy, source, desktop, visual and installed-client evidence are pending**, so no release claim follows from this source patch. See `tasks/plans/2026-10-29-obsidian-create-only.md`.
+
 ## PR #160 remediation evidence — October 11, 2026
 
 This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.
