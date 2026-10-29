@@ -150,12 +150,25 @@ pub fn git_apply_merged_conflict_cmd(
         .map_err(|error| error.to_string())
 }
 
+fn validate_git_preview_target(
+    active_vault_id: &str,
+    expected_vault_id: &str,
+) -> Result<(), String> {
+    if expected_vault_id.trim().is_empty() {
+        return Err("Git preview requires an initiating vault identity.".into());
+    }
+    crate::commands::vault::validate_expected_vault(active_vault_id, Some(expected_vault_id))
+        .map_err(|_| "Git preview was not read because the active vault changed.".to_string())
+}
+
 #[tauri::command]
 pub fn git_show_merge_base_file_cmd(
     state: tauri::State<AppState>,
     path: String,
+    expected_vault_id: String,
 ) -> Result<Option<String>, String> {
     let session = active_session(&state)?;
+    validate_git_preview_target(&session.descriptor.id, &expected_vault_id)?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
     let resolved = session
         .root
@@ -172,8 +185,10 @@ pub fn git_show_merge_base_file_cmd(
 pub fn git_read_conflict_markers_cmd(
     state: tauri::State<AppState>,
     path: String,
+    expected_vault_id: String,
 ) -> Result<Vec<String>, String> {
     let session = active_session(&state)?;
+    validate_git_preview_target(&session.descriptor.id, &expected_vault_id)?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
     let file_path = session
         .root
@@ -186,8 +201,10 @@ pub fn git_read_conflict_markers_cmd(
 pub fn git_show_head_file_cmd(
     state: tauri::State<AppState>,
     path: String,
+    expected_vault_id: String,
 ) -> Result<Option<String>, String> {
     let session = active_session(&state)?;
+    validate_git_preview_target(&session.descriptor.id, &expected_vault_id)?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
     let resolved = session
         .root
@@ -204,7 +221,7 @@ pub fn git_show_head_file_cmd(
 mod tests {
     use std::cell::Cell;
 
-    use super::{validate_git_status_target, with_expected_git_vault};
+    use super::{validate_git_preview_target, validate_git_status_target, with_expected_git_vault};
 
     #[test]
     fn git_status_rejects_missing_and_stale_vault_identity() {
@@ -215,6 +232,14 @@ mod tests {
             );
         }
         assert!(validate_git_status_target("current-vault", "current-vault").is_ok());
+    }
+
+    #[test]
+    fn git_preview_rejects_stale_and_missing_vault_before_reading() {
+        for expected in ["", "another-vault"] {
+            assert!(validate_git_preview_target("origin-vault", expected).is_err());
+        }
+        assert!(validate_git_preview_target("origin-vault", "origin-vault").is_ok());
     }
 
     #[test]
