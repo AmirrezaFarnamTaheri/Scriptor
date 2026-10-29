@@ -82,6 +82,18 @@ pub fn import_obsidian_vault(
         });
     }
 
+    // The destination must not live inside the source tree: WalkDir could
+    // otherwise discover new _attachments files while this import creates
+    // them and repeatedly import the files it just wrote.
+    let source_root = obsidian_path
+        .canonicalize()
+        .map_err(|error| VaultError::io(obsidian_path, error))?;
+    if root.root().starts_with(&source_root) {
+        return Err(VaultError::InvalidConfig {
+            message: "The Scriptor destination is inside the Obsidian source folder; choose a separate destination to avoid importing generated files".into(),
+        });
+    }
+
     let mut notes_imported = 0u32;
     let mut attachments_imported = 0u32;
     let mut skipped_files = 0u32;
@@ -550,6 +562,45 @@ mod tests {
             result.errors.iter().any(|message| message.contains("assets/photo.png")),
             "the rejected attachment must appear in the import error details"
         );
+    }
+
+    #[test]
+    fn importer_rejects_its_own_source_as_destination_without_side_effects() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        let root = VaultRoot::open(source.path()).unwrap();
+
+        let error = import_obsidian_vault(
+            "test-vault",
+            &root,
+            source.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .expect_err("source and destination must not overlap");
+        assert!(error.to_string().contains("inside the Obsidian source"));
+        assert!(
+            !source.path().join("_attachments").exists(),
+            "refuse the import before creating destination files"
+        );
+    }
+
+    #[test]
+    fn importer_rejects_target_nested_in_source_before_writing() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        let target_path = source.path().join("scriptor-target");
+        fs::create_dir_all(&target_path).unwrap();
+        let root = VaultRoot::open(&target_path).unwrap();
+
+        let error = import_obsidian_vault(
+            "test-vault",
+            &root,
+            source.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .expect_err("destination within source must be rejected");
+        assert!(error.to_string().contains("inside the Obsidian source"));
+        assert!(!target_path.join("_attachments").exists());
     }
 
     #[test]

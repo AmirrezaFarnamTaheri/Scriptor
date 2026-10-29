@@ -5,6 +5,7 @@
 ### Fixed
 
 - Refuse source attachment symlinks and nested destination symlink escapes on Obsidian import; stage complete files and publish using create-only hard links, retaining existing attachments and cleaning up staging files after collisions.
+- Reject Obsidian imports when the destination vault is inside the source folder, preventing recursive discovery of files created by the importer itself.
 
 - Preserve existing destination Markdown notes during Obsidian imports and repeat imports: use the vault writer's atomic create-only precondition, report path collisions as skips, and never silently overwrite local edits.
 

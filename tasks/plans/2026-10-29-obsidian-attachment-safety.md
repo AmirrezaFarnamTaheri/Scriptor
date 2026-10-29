@@ -4,6 +4,7 @@
 
 ## Observed source risks
 
+- Importing an Obsidian source that contains its destination can cause the walk to visit newly generated attachments and recurse. Reject destination roots within the canonical source root before making files.
 - `WalkDir.follow_links(false)` does not traverse symlink directories but returns symlink file entries. The importer's previous extension-only file classifier copied the target bytes for such entries, including outside the selected source.
 - The importer resolved only `_attachments`. A nested prefix such as `_attachments/assets` could be a symlink to a directory outside the destination vault; joining and `fs::copy` then wrote there.
 - `if dest.exists() { ... }; fs::copy(..., dest)` was a check-then-write race. A second writer could create a destination between those operations, which `fs::copy` then replaced.

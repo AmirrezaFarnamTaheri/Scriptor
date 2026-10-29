@@ -47,6 +47,8 @@ Stacked draft [PR #229](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/22
 
 Implementation: skip source symlink/nonregular entries, resolve every destination via `VaultRoot::resolve_relative` after creating parents, copy into a unique create-only staging file, then use atomic `fs::hard_link` publication while holding the existing vault mutation lock. This follows the established offline-PDF publication pattern, not a new authority. Existing destination attachments are reported as skips; staging is removed automatically. The copy may be long, so it runs outside the mutation lock. A source path changed by an adversarial external process after its filesystem-type check is not covered by these ordinary filesystem tests.
 
+Additional filesystem regressions reject the same folder or a nested folder as a destination before any _attachments directory is created; canonical source-path containment is validated before the importer starts walking or writing.
+
 **Verification is pending on the implementation head.** Test-only CI may be queued/canceled and cannot be treated as observed RED; Rustfmt, Clippy, full native tests, browser/desktop/visual and installed-client acceptance are required before merge.
 
 ## MAT-005 Obsidian import collision safety — October 29, 2026
