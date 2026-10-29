@@ -476,6 +476,9 @@ export function useGoogleCalendarSync({
       const localIds = new Set<string>()
       for (const note of vaultNotes) {
         for (const task of note.tasks) {
+          if (!task.id?.trim()) {
+            throw new Error('Missing vault task identity. Review or reindex the source note before syncing Google Tasks.')
+          }
           if (localIds.has(task.id)) {
             throw new Error('Duplicate vault task identity. Review or reindex the source notes before syncing Google Tasks.')
           }
@@ -490,6 +493,7 @@ export function useGoogleCalendarSync({
       const legacyPrefix = `${SOURCE_MARKER_PREFIX} `
       const remoteOwners = new Set<string>()
       const legacyOwners = new Set<string>()
+      const claimedTaskIds = new Set<string>()
       const remoteIds = new Set<string>()
       for (const remoteTask of tasks) {
         if (!remoteTask.id.trim() || remoteIds.has(remoteTask.id)) {
@@ -525,6 +529,14 @@ export function useGoogleCalendarSync({
         }
         if (claimedLocalIds.size > 1) {
           throw new Error('Ambiguous Google Tasks ownership. One Google Task claims multiple vault tasks; review before syncing.')
+        }
+        // A legacy and a scoped marker on different provider records still
+        // claim the same local identity. Never choose one by list order.
+        for (const taskId of claimedLocalIds) {
+          if (claimedTaskIds.has(taskId)) {
+            throw new Error('Ambiguous Google Tasks ownership. Multiple Google Tasks claim one vault task; review before syncing.')
+          }
+          claimedTaskIds.add(taskId)
         }
       }
 

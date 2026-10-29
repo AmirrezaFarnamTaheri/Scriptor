@@ -12,6 +12,7 @@ A source identity may authorize at most one provider record. Two Google Tasks wi
 - [ ] Exact-head hosted source/TypeScript/Rust/Windows/browser/visual/docs verification.
 - [ ] Installed desktop and real-provider duplicate-task, permission-denial, refresh and reconnect verification.
 - [x] Extend fail-closed preflight for multiple source claims per remote record, repeated remote IDs, malformed current-vault markers and duplicate migratable legacy markers. Four additional hook tests were added on test-only `dd5601a8`; hosted RED was not observed before implementation.
+- [x] Additional test-only `0e1af9f` covers duplicate ownership across legacy/scoped marker formats and missing local task IDs. The follow-up fix rejects both before the native batch. Hosted RED was not observed before the implementation.
 - [ ] Further MAT-016 duplicate-title reorders, source-note movement, account changes and live provider collision/reconciliation acceptance.
 
 ## Boundaries

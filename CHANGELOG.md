@@ -6,6 +6,11 @@
 
 - Fail closed before Google Tasks mirroring when local identities, provider record IDs, current-vault markers or migratable legacy markers are duplicated or ambiguous. Reject malformed owners and one remote record claiming multiple local tasks before approving any create/update/completion; display a review-required explanation instead of guessing ownership.
 
+- Refuse source attachment symlinks and nested destination symlink escapes on Obsidian import; stage complete files and publish using create-only hard links, retaining existing attachments and cleaning up staging files after collisions.
+- Reject Obsidian imports when the destination vault is inside the source folder, preventing recursive discovery of files created by the importer itself.
+
+- Preserve existing destination Markdown notes during Obsidian imports and repeat imports: use the vault writer's atomic create-only precondition, report path collisions as skips, and never silently overwrite local edits.
+
 - Keep daemon event subscriptions working with the updated `interprocess` crate by polling nonblocking socket disconnects in the existing event loop instead of using deprecated stream halves and a detached reader thread.
 
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
