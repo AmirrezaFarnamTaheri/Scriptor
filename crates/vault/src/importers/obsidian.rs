@@ -119,6 +119,17 @@ pub fn import_obsidian_vault(
                     notes_imported += 1;
                     imported_paths.push(path);
                 }
+                Err(VaultError::HashMismatch { expected, .. })
+                    if expected == crate::write::EXPECTED_MISSING_CONTENT_HASH =>
+                {
+                    // The writer owns the atomic create-only check. An
+                    // existing note must not be replaced by an import.
+                    skipped_files += 1;
+                    errors.push(format!(
+                        "{}: destination note already exists; original content preserved",
+                        relative_str
+                    ));
+                }
                 Err(e) => {
                     errors.push(format!("{}: {}", relative_str, e));
                 }
@@ -168,7 +179,15 @@ fn import_note(
     let target_rel = format_path(relative);
     let target = RelativeVaultPath::parse(&target_rel)?;
 
-    save_note(vault_id, root, &target, &markdown, None)?;
+    // Use the vault writer's atomic create-only CAS; checking path.exists()
+    // first would race another editor or import writing the same destination.
+    save_note(
+        vault_id,
+        root,
+        &target,
+        &markdown,
+        Some(crate::write::EXPECTED_MISSING_CONTENT_HASH),
+    )?;
     Ok(target_rel)
 }
 
