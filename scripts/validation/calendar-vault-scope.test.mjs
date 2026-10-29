@@ -251,3 +251,36 @@ test('disconnect invalidates an in-flight OAuth completion before hydration', as
   assert.equal(h.render().status, 'disconnected')
   assert.equal(h.render().authedEmail, null)
 })
+
+
+test('duplicate scoped remote ownership markers require review instead of completing a duplicate', async () => {
+  const marker = scoped('vault-a', 'task-a')
+  const h = harness([
+    task('remote-original', 'Buy milk', marker),
+    task('remote-duplicate', 'Buy milk', marker),
+  ], local())
+  await h.render().refresh()
+
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0,
+    'two provider records for one local ID must not update or complete either record')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /duplicate|ambiguous|review/i,
+    'the user needs an actionable explanation rather than a guessed provider mutation')
+})
+
+test('duplicate local stable task IDs across notes cannot create two provider tasks', async () => {
+  const h = harness([], [
+    { path: 'one.md', tasks: [{ id: 'same-id', text: 'Original', checked: false, line: 0, dueDate: null }] },
+    { path: 'two.md', tasks: [{ id: 'same-id', text: 'Other task', checked: false, line: 0, dueDate: null }] },
+  ])
+  await h.render().refresh()
+
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0,
+    'duplicated local identity must stop the batch before any provider create')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /duplicate|ambiguous|review/i)
+})
