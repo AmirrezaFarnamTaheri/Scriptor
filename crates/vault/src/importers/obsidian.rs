@@ -261,10 +261,11 @@ fn import_attachment(
             let _ = fs::remove_file(&self.0);
         }
     }
-    let _cleanup = StagingCleanup(staging.clone());
     let mut source_file =
         fs::File::open(&source).map_err(|error| VaultError::io(&source, error))?;
     let mut staging_file = crate::fs::create_private_file(&staging)?;
+    // Arm cleanup only after we exclusively own this staging name.
+    let _cleanup = StagingCleanup(staging.clone());
     std::io::copy(&mut source_file, &mut staging_file)
         .map_err(|error| VaultError::io(&staging, error))?;
     staging_file
