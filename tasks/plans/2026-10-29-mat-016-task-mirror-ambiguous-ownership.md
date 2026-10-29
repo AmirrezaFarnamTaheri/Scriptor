@@ -11,7 +11,8 @@ A source identity may authorize at most one provider record. Two Google Tasks wi
 - [x] Implement the minimum duplicate local-ID and current-vault remote-marker checks before the native Google Tasks batch, reusing the existing error and single-flight handling.
 - [ ] Exact-head hosted source/TypeScript/Rust/Windows/browser/visual/docs verification.
 - [ ] Installed desktop and real-provider duplicate-task, permission-denial, refresh and reconnect verification.
-- [ ] Further MAT-016 duplicate-title reorders, source-note movement, and legacy/scoped marker collision analysis.
+- [x] Extend fail-closed preflight for multiple source claims per remote record, repeated remote IDs, malformed current-vault markers and duplicate migratable legacy markers. Four additional hook tests were added on test-only `dd5601a8`; hosted RED was not observed before implementation.
+- [ ] Further MAT-016 duplicate-title reorders, source-note movement, account changes and live provider collision/reconciliation acceptance.
 
 ## Boundaries
 No new provider state manager, native command, permission broker, schema, dependency or record mutation is introduced. The visible error tells the user to review duplicates rather than deleting them. Provider task list consistency beyond the last successful snapshot and ambiguous post-write transport outcomes are not inferred.

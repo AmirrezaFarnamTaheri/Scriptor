@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Fail closed before Google Tasks mirroring when duplicate local stable task IDs or duplicate vault-scoped remote ownership markers would make a provider create/update/completion ambiguous. Use the existing Tasks error display and reviewed native sync path; never guess which Google task to modify.
+- Fail closed before Google Tasks mirroring when local identities, provider record IDs, current-vault markers or migratable legacy markers are duplicated or ambiguous. Reject malformed owners and one remote record claiming multiple local tasks before approving any create/update/completion; display a review-required explanation instead of guessing ownership.
 
 - Keep daemon event subscriptions working with the updated `interprocess` crate by polling nonblocking socket disconnects in the existing event loop instead of using deprecated stream halves and a detached reader thread.
 
