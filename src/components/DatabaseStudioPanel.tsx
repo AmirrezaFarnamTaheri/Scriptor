@@ -23,7 +23,7 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
   const [savedViews, setSavedViews] = useState<DatabaseView[]>([])
   const [rows, setRows] = useState<DatabaseRow[]>([])
   const [loadedColumns, setLoadedColumns] = useState<DatabaseColumn[]>([])
-  const [loadedScope, setLoadedScope] = useState<{ vaultId: string; revision: number } | null>(null)
+  const [loadedScope, setLoadedScope] = useState<{ vaultId: string; view: DatabaseView; native: boolean; presetVersion: number; revision: number } | null>(null)
   const [status, setStatus] = useState('Build a view, then load notes. Calculations cover loaded rows only.')
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,8 +43,8 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
   useEffect(() => {
     const request = ++generation.current
     viewRevision.current += 1
-    setLoadedScope(null)
-    setLoadedColumns([])
+    // The previous result is masked by its vault/native/preset identity during
+    // render; clear stored rows in the existing asynchronous load path.
     presetHash.current = undefined
     presetState.current = 'loading'
     void (async () => {
@@ -105,7 +105,7 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
       }
       if (request !== generation.current || requestedViewRevision !== viewRevision.current) return
       setRows(loaded); setLoadedColumns(valid.columns)
-      setLoadedScope({ vaultId, revision: requestedViewRevision })
+      setLoadedScope({ vaultId, view, native, presetVersion: reloadPresets, revision: requestedViewRevision })
       setStatus(`Loaded ${loaded.length} notes${hits.length > DATABASE_ROW_LIMIT ? `; examined first ${DATABASE_ROW_LIMIT} of ${hits.length} candidates` : ''}${skipped ? `; ${skipped} unavailable or over the content budget` : ''}. Metadata filters and aggregates cover loaded candidates only.`)
     } catch (failure) { if (request === generation.current && requestedViewRevision === viewRevision.current) setError(String(failure)) }
     finally { operationPending.current=false;if (request === generation.current) setBusy(false) }
@@ -153,9 +153,13 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
     finally { operationPending.current=false;if (request === generation.current) setBusy(false) }
   }
 
-  const resultsCurrent = loadedScope?.vaultId === vaultId && loadedScope.revision === viewRevision.current
-  const visibleRows = resultsCurrent ? rows : []
-  const visibleColumns = resultsCurrent ? loadedColumns : []
+  // Compare immutable render state, not mutable refs. This hides results on
+  // the FIRST render after a vault/preset/filter change, before effects settle.
+  const resultsCurrent = loadedScope?.vaultId === vaultId
+    && loadedScope.view === view && loadedScope.native === native
+    && loadedScope.presetVersion === reloadPresets
+  const visibleRows = useMemo(() => resultsCurrent ? rows : [], [resultsCurrent, rows])
+  const visibleColumns = useMemo(() => resultsCurrent ? loadedColumns : [], [resultsCurrent, loadedColumns])
   const values = useMemo(() => visibleRows.map((row) => visibleColumns.map((column) => column.formula ? calculateValue(column.formula, row.values) : row.values[column.key] ?? null)), [visibleRows, visibleColumns])
   const aggregates = useMemo(() => visibleColumns.map((_, index) => aggregateColumn(values.map((row) => row[index]))), [visibleColumns, values])
   const body = <>

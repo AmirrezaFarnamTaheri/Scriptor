@@ -227,6 +227,9 @@ No installed-client unsaved-draft, vault-switch, or restart acceptance is assert
 
 
 ## MAT-009 Database Studio view-result ownership — October 30, 2026
+- **CI failure observed:** [CI #40970375883](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40970375883) failed the fast lint job with `react-hooks/set-state-in-effect`, `react-hooks/refs`, and exhaustive-deps warnings. The fix removes new synchronous state updates from the vault effect, replaces render-time ref reads with a stored immutable view/vault/preset identity, and memoizes visible rows/columns. The query cancellation and stale-edit guards still use the ref only in callbacks/effects, where it is valid.
+- **Pending:** new exact-head lint, real component tests, TypeScript, Playwright and native/visual gates; do not reuse prior-head passes.
+
 
 - A view change could leave previous rows, aggregates and editable callbacks on screen. A pending query could later repopulate rows from a prior view.
 - Test-first `02692a0` adds two actual-TSX harness regressions for stale rows/edit callbacks and late query settlement. Hosted behavioral RED was not observed at the time of implementation.

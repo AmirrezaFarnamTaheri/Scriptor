@@ -19,3 +19,8 @@ Exact-head source, frontend/browser/Windows, visual and docs gates; installed-cl
 ## Stale error follow-up
 - Test-only `b9ed54c` models the previous view's native query rejecting after a filter switch.
 - The query catch and view-change handler now prevent an old error from appearing on a new view; the newer view remains ready for an explicit load. No hosted failing-first execution of this new test was observed before implementation.
+
+## Lint correction
+
+- **CI failure observed:** [CI #40970375883](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40970375883) failed the fast lint job with `react-hooks/set-state-in-effect`, `react-hooks/refs`, and exhaustive-deps warnings. The fix removes new synchronous state updates from the vault effect, replaces render-time ref reads with a stored immutable view/vault/preset identity, and memoizes visible rows/columns. The query cancellation and stale-edit guards still use the ref only in callbacks/effects, where it is valid.
+- **Pending:** new exact-head lint, real component tests, TypeScript, Playwright and native/visual gates; do not reuse prior-head passes.
