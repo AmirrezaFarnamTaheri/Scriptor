@@ -41,6 +41,12 @@ enforcement applies to maintained product and contributor documentation.
 Provenance-sensitive audit records under `docs/validation/` and archived
 documents remain exempt; active user guides do not.
 
+## MAT-005 Obsidian import initiating-vault guard — October 29, 2026
+
+Stacked draft [PR #227](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/227) builds on [PR #219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219). A delayed approval could otherwise bind an old dialog's request to the newly active vault. The TypeScript bridge now requires and forwards the originating vault ID; the native import command checks it against the active session **before** consuming the sensitive-operation token or writing files. This adds an admission guard, not a new permission authority or importer.
+
+The test-only source commit [`4208e00`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/4208e0091f22867b433ef32a39443c8246267c3a) includes bridge and native-order regressions. [Test-only CI #40855794851](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40855794851) was queued at implementation time, so **RED has not been observed**. The related real-dialog JSX harness also verifies forwarding the initiating vault. **Exact implementation-head CI, Rust/Windows/browser/visual and installed-client switch-during-approval acceptance are unverified**; do not merge, publish or graduate MAT-005 based on source inspection. Implementation record: [`tasks/plans/2026-10-29-mat-005-obsidian-import-vault-identity.md`](../tasks/plans/2026-10-29-mat-005-obsidian-import-vault-identity.md).
+
 ## MAT-005 Obsidian import lifecycle — October 29, 2026
 
 PR [#219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219) addresses renderer-level lifecycle defects in the Obsidian import overlay. Native `ImportVault` authorization and file writes are unchanged.

@@ -106,7 +106,7 @@ export function ObsidianImportDialog({ onClose, onImported, vaultId, importInFli
     setError(null)
     setResult(null)
     try {
-      const importResult = await vaultImportObsidian(sourcePath.trim(), {
+      const importResult = await vaultImportObsidian(sourcePath.trim(), vaultId, {
         convertWikilinks,
         importAttachments,
         preserveFrontmatter,

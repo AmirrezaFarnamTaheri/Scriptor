@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Bind Obsidian import authorization and native write admission to the vault that opened the dialog; reject empty or changed vault identity before import, even if approval was delayed.
+
 - Ignore a late Obsidian source-folder picker result after its import dialog closes, rather than triggering validation or updating an unmounted dialog.
 
 - Keep Obsidian import single-flight across same-vault dialog reopen until the original native request settles, and invalidate stale dialog responses during React commit-phase cleanup.

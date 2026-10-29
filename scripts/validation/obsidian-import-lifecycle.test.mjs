@@ -88,8 +88,8 @@ function harness(importCommand, { vaultId = 'vault-test', importInFlightByVault 
     'lucide-react': { CheckCircle2: icon, FolderOpen: icon, ShieldAlert: icon, X: icon },
     '../bridge/commands/vault.ts': {
       vaultDetectObsidian: async (path) => { detectCalls.push(path); return true },
-      vaultImportObsidian: (path, options) => {
-        importCalls.push({ path, options })
+      vaultImportObsidian: (path, expectedVaultId, options) => {
+        importCalls.push({ path, expectedVaultId, options })
         return importCommand(path, options)
       },
     },
@@ -187,6 +187,7 @@ test('two import submissions in one render turn result in one native authorized 
   h.submit(tree)
   h.submit(tree)
   assert.equal(h.importCalls.length, 1, 'one in-flight operation owns this dialog')
+  assert.equal(h.importCalls[0].expectedVaultId, 'vault-test', 'import must retain the dialog’s initiating vault')
   pending.resolve(successfulImport())
   await h.settle()
   assert.equal(h.imported.length, 1)
