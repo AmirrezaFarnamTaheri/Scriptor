@@ -95,7 +95,7 @@ export function CapabilityWorkflowOverlays(props: CapabilityWorkflowOverlaysProp
             <ObsidianImportDialog
               key={props.vaultId ?? 'closed'}
               vaultId={props.vaultId ?? null}
-              importInFlightByVault={importInFlightByVault.current}
+              importInFlightByVault={importInFlightByVault}
               onClose={props.onCloseObsidianImport}
               onImported={(result) => props.onObsidianImported(result.notesImported)}
             />

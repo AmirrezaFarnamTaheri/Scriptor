@@ -1,4 +1,4 @@
-import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { CheckCircle2, FolderOpen, ShieldAlert, X } from 'lucide-react'
 
 import { vaultDetectObsidian, vaultImportObsidian } from '../bridge/commands/vault.ts'
@@ -11,7 +11,7 @@ interface ObsidianImportDialogProps {
   onImported?: (result: ObsidianImportResult) => void
   vaultId: string | null
   /** The overlay owner persists this claim across same-vault dialog remounts. */
-  importInFlightByVault: Set<string>
+  importInFlightByVault: RefObject<Set<string>>
 }
 
 export function ObsidianImportDialog({ onClose, onImported, vaultId, importInFlightByVault }: ObsidianImportDialogProps) {
@@ -94,11 +94,11 @@ export function ObsidianImportDialog({ onClose, onImported, vaultId, importInFli
       setError('Open a vault before importing.')
       return
     }
-    if (importInFlightByVault.has(vaultId)) {
+    if (importInFlightByVault.current.has(vaultId)) {
       setError('An import is already running for this vault. It can finish after the dialog closes.')
       return
     }
-    importInFlightByVault.add(vaultId)
+    importInFlightByVault.current.add(vaultId)
     importInFlightRef.current = true
     const lifecycle = importLifecycleRef.current
     const ownsDialog = () => importLifecycleRef.current === lifecycle
@@ -121,7 +121,7 @@ export function ObsidianImportDialog({ onClose, onImported, vaultId, importInFli
     } finally {
       // Native settlement releases the shared vault claim, not dialog teardown.
       // The original native operation may still be running after an unmount.
-      importInFlightByVault.delete(vaultId)
+      importInFlightByVault.current.delete(vaultId)
       importInFlightRef.current = false
       if (ownsDialog()) setIsImporting(false)
     }

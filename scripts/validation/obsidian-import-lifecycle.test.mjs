@@ -37,6 +37,7 @@ function harness(importCommand, { vaultId = 'vault-test', importInFlightByVault 
   const updatesAfterUnmount = []
   let cursor = 0
   let mounted = true
+  const importInFlightByVaultRef = { current: importInFlightByVault }
 
   const sameDeps = (a, b) => Array.isArray(a) && Array.isArray(b) &&
     a.length === b.length && a.every((value, index) => Object.is(value, b[index]))
@@ -124,7 +125,7 @@ function harness(importCommand, { vaultId = 'vault-test', importInFlightByVault 
       onClose() {},
       onImported: result => imported.push(result),
       vaultId,
-      importInFlightByVault,
+      importInFlightByVault: importInFlightByVaultRef,
     })
     // Layout effects own the commit phase and must run before passive effects.
     for (const pending of pendingLayoutEffects) {
@@ -254,7 +255,8 @@ test('Obsidian import overlay remounts on active vault change, invalidating old 
   const app = readFileSync(new URL('../../src/App.tsx', import.meta.url), 'utf8')
   assert.match(overlay, /<ObsidianImportDialog\s+key=\{props\.vaultId \?\? 'closed'\}/)
   assert.match(overlay, /const importInFlightByVault = useRef<Set<string>>\(new Set\(\)\)/)
-  assert.match(overlay, /importInFlightByVault=\{importInFlightByVault\.current\}/)
+  assert.match(overlay, /importInFlightByVault=\{importInFlightByVault\}/)
+  assert.doesNotMatch(overlay, /importInFlightByVault=\{importInFlightByVault\.current\}/)
   assert.match(overlay, /vaultId=\{props\.vaultId \?\? null\}/)
 
   assert.match(composition, /managerProps:\s*\{[^}]*vaultId/)
