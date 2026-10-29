@@ -18,9 +18,11 @@
 
 - Keep explicit Canvas save completion tied to the originating vault and document revision; newer unsaved edits remain separately flushable. This is combined with same-vault Canvas board-inventory request ordering, without changing the native writer or authorization.
 
+- Keep the Canvas board list current when two reads finish out of order in the same vault; the existing operation guard now prevents an older list response from replacing a newer post-save inventory.
+
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
 
-- Keep the Canvas board list current when two reads finish out of order in the same vault; the existing operation guard now prevents an older list response from replacing a newer post-save inventory.
+- Reconcile backup listings with a read-only scoped refresh after denied/failed backup creation, keeping the original error visible without automatically retrying the write.
 
 - Prevent stale same-vault backup-list results or errors from replacing newer inventory after manual backup, deletion or restore; responses now honor request ordering as well as vault/destination identity.
 

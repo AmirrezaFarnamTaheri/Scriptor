@@ -214,3 +214,17 @@ test('MAT-005 backup inventory gates both successful reads and stale errors', ()
   assert.equal((direct.match(/requestEpoch === backupListRequestEpochRef\.current/g) ?? []).length, 2)
   assert.equal((effect.match(/requestEpoch === backupListRequestEpochRef\.current/g) ?? []).length, 2)
 })
+
+test('MAT-005 denied backup creation schedules a read-only list reconciliation', () => {
+  const start = useVaultBackup.indexOf('const triggerBackup = useCallback')
+  const end = useVaultBackup.indexOf('const triggerBackupRef', start)
+  assert.ok(start >= 0 && end > start, 'backup trigger block must be present')
+  const trigger = useVaultBackup.slice(start, end)
+  const failed = trigger.indexOf('} catch (caught) {')
+  const finished = trigger.indexOf('} finally {', failed)
+  assert.ok(failed > 0 && finished > failed)
+  assert.match(trigger.slice(failed, finished), /await listBackups\(\)/,
+    'a failed create must replace invalidated inventory read with a scoped read-only refresh')
+  assert.equal((trigger.match(/await vaultCreateBackup\(/g) ?? []).length, 1,
+    'the failure path must never resubmit the backup write')
+})

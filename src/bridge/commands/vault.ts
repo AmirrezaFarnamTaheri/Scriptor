@@ -399,9 +399,26 @@ export async function vaultCreateBackup(backupPath?: string): Promise<VaultBacku
   })
 }
 
+const BACKUP_LIST_TIMEOUT_MS = 30_000
+
 export async function vaultListBackups(backupPath?: string): Promise<VaultBackupEntry[]> {
   requireNative()
-  return invoke<VaultBackupEntry[]>('vault_list_backups', { backupPath: backupPath ?? null })
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  try {
+    // A read-only native request may never reply (for example, a disconnected
+    // external backup folder). Bound it so a failed-create reconciliation can
+    // release the UI mutex; the underlying native read is not a write retry.
+    return await Promise.race([
+      invoke<VaultBackupEntry[]>('vault_list_backups', { backupPath: backupPath ?? null }),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Backup inventory request timed out. Check the folder and retry the listing.'))
+        }, BACKUP_LIST_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+  }
 }
 
 export interface VaultRestoreResult {
