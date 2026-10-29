@@ -604,6 +604,48 @@ mod tests {
     }
 
     #[test]
+    fn repeated_attachment_import_preserves_edits_and_leaves_no_staging_file() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        fs::create_dir_all(source.path().join("assets")).unwrap();
+        fs::write(source.path().join("assets/diagram.png"), b"original import").unwrap();
+
+        let destination = tempfile::tempdir().unwrap();
+        let root = VaultRoot::open(destination.path()).unwrap();
+        let options = ImportObsidianOptions::default();
+
+        let first = import_obsidian_vault("test-vault", &root, source.path(), &options).unwrap();
+        assert_eq!(first.attachments_imported, 1);
+        assert!(first.errors.is_empty());
+
+        let imported = destination.path().join("_attachments/assets/diagram.png");
+        fs::write(&imported, b"local edits after import").unwrap();
+        let second = import_obsidian_vault("test-vault", &root, source.path(), &options).unwrap();
+
+        assert_eq!(second.attachments_imported, 0);
+        assert_eq!(second.skipped_files, 1);
+        assert_eq!(
+            fs::read(&imported).unwrap(),
+            b"local edits after import",
+            "a repeated import cannot replace an edited attachment"
+        );
+        assert!(
+            second.errors.iter().any(|error| {
+                error.contains("assets/diagram.png") && error.contains("already exists")
+            }),
+            "an attachment collision must be visible in the import report: {:?}",
+            second.errors
+        );
+        for entry in fs::read_dir(imported.parent().unwrap()).unwrap() {
+            let entry = entry.unwrap();
+            assert!(
+                !entry.file_name().to_string_lossy().starts_with(".scriptor-"),
+                "completed or rejected imports must clean temporary attachment files"
+            );
+        }
+    }
+
+    #[test]
     fn test_detect_obsidian_vault() {
         let tmp = tempfile::tempdir().unwrap();
         assert!(!detect_obsidian_vault(tmp.path()));
