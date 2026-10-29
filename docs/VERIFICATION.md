@@ -198,6 +198,12 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - **Hosted exact-head verification:** [CI #40862620166](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40862620166), plus desktop compile and Visual review, were queued/in progress when this record was authored; no green result is claimed here. The existing daemon event subscription and reconnection Rust tests must pass after the dependency bump.
 - **Not yet established:** installed-client disconnect/reconnect and multiprocess shutdown behavior. The source change is not proof of release acceptance.
 
+## MAT-016 — ambiguous Google Tasks mirroring (draft PR #230)
+
+- **RED confirmed:** test-only `12334132dad4e71fc7d54e09543be263f344443a`, hosted [CI #40883180912](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40883180912), source regression suite. Of 685 tests, 683 passed and exactly two new cases failed: duplicate scoped remote markers prepared a provider mutation (1 instead of 0), and duplicate stable IDs from two local notes likewise prepared a provider mutation (1 instead of 0).
+- **Implementation:** preflight duplicate local IDs and duplicate current-vault provider ownership markers before `googleCalendarApplyTaskSync`. Ambiguous ownership now produces an actionable review-required error in the existing Tasks panel. No provider write, new permission owner, or automatic duplicate reconciliation is introduced.
+- **Pending:** exact-head GREEN source, frontend/TypeScript, Rust, browser, Windows, visual and docs verification. Real Google provider and installed-desktop collision/restart acceptance remain unavailable. This is one MAT-016 slice, not completion of the 24-item program.
+
 ## Canonical history gate
 
 Run from a full canonical clone:

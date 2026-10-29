@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Fail closed before Google Tasks mirroring when duplicate local stable task IDs or duplicate vault-scoped remote ownership markers would make a provider create/update/completion ambiguous. Use the existing Tasks error display and reviewed native sync path; never guess which Google task to modify.
+
 - Keep daemon event subscriptions working with the updated `interprocess` crate by polling nonblocking socket disconnects in the existing event loop instead of using deprecated stream halves and a detached reader thread.
 
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.

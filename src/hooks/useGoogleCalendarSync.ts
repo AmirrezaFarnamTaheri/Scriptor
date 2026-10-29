@@ -471,6 +471,33 @@ export function useGoogleCalendarSync({
     let skipped = 0
 
     try {
+      // Both local and provider ownership must be unambiguous before any
+      // approved native Google Tasks batch is prepared.
+      const localIds = new Set<string>()
+      for (const note of vaultNotes) {
+        for (const task of note.tasks) {
+          if (localIds.has(task.id)) {
+            throw new Error('Duplicate vault task identity. Review or reindex the source notes before syncing Google Tasks.')
+          }
+          localIds.add(task.id)
+        }
+      }
+
+      // An interrupted prior mirror can leave two remote records claiming
+      // the same vault task. Choosing the first would wrongly complete the
+      // other as a deleted task. Fail the entire batch before native writes.
+      const ownedPrefix = vaultSourcePrefix(vaultId)
+      const remoteOwners = new Set<string>()
+      for (const remoteTask of tasks) {
+        const markers = new Set((remoteTask.notes ?? '').split('\n').filter(line => line.startsWith(ownedPrefix)))
+        for (const marker of markers) {
+          if (remoteOwners.has(marker)) {
+            throw new Error('Duplicate Google Tasks ownership marker. Review duplicate Google Tasks before syncing.')
+          }
+          remoteOwners.add(marker)
+        }
+      }
+
       for (const note of vaultNotes) {
         for (const task of note.tasks) {
           const marker = sourceMarker(vaultId, task.id)
