@@ -43,6 +43,19 @@ pub struct ImportResult {
     pub imported_paths: Vec<String>,
 }
 
+// Own a completed or partially written attachment staging file. On Windows,
+// unlinking an open file can fail, so close its handle before removing it.
+struct StagedAttachment {
+    path: std::path::PathBuf,
+    file: Option<fs::File>,
+}
+impl Drop for StagedAttachment {
+    fn drop(&mut self) {
+        drop(self.file.take());
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
 const OBSIDIAN_DIR: &str = ".obsidian";
 
 const ATTACHMENT_EXTENSIONS: &[&str] = &[
@@ -255,23 +268,27 @@ fn import_attachment(
     // visible. The existing PDF export uses the same atomic hard-link publish
     // pattern: rename or fs::copy at the final path could replace a new file.
     let staging = parent.join(format!(".scriptor-{}.tmp", uuid::Uuid::new_v4()));
-    struct StagingCleanup(std::path::PathBuf);
-    impl Drop for StagingCleanup {
-        fn drop(&mut self) {
-            let _ = fs::remove_file(&self.0);
-        }
-    }
     let mut source_file =
         fs::File::open(&source).map_err(|error| VaultError::io(&source, error))?;
-    let mut staging_file = crate::fs::create_private_file(&staging)?;
-    // Arm cleanup only after we exclusively own this staging name.
-    let _cleanup = StagingCleanup(staging.clone());
-    std::io::copy(&mut source_file, &mut staging_file)
-        .map_err(|error| VaultError::io(&staging, error))?;
-    staging_file
+    let staging_file = crate::fs::create_private_file(&staging)?;
+    // Arm cleanup only after we exclusively own the staging path. The guard
+    // also owns the handle so error-path cleanup works on Windows.
+    let mut staged = StagedAttachment {
+        path: staging.clone(),
+        file: Some(staging_file),
+    };
+    std::io::copy(
+        &mut source_file,
+        staged.file.as_mut().expect("staging file is open"),
+    )
+    .map_err(|error| VaultError::io(&staging, error))?;
+    staged
+        .file
+        .as_ref()
+        .expect("staging file is open")
         .sync_all()
         .map_err(|error| VaultError::io(&staging, error))?;
-    drop(staging_file);
+    drop(staged.file.take());
 
     // Serialize publication against other Scriptor mutations, while keeping
     // the potentially long copy outside that lock.
@@ -445,6 +462,27 @@ fn is_attachment(extension: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn partial_attachment_staging_cleanup_closes_handle_before_removal() {
+        use std::io::Write;
+
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(".scriptor-partial.tmp");
+        let file = crate::fs::create_private_file(&path).unwrap();
+        let mut staged = StagedAttachment {
+            path: path.clone(),
+            file: Some(file),
+        };
+        staged
+            .file
+            .as_mut()
+            .unwrap()
+            .write_all(b"incomplete asset")
+            .unwrap();
+        drop(staged);
+        assert!(!path.exists(), "staging must be removed even after an incomplete write");
+    }
 
     #[cfg(unix)]
     #[test]
