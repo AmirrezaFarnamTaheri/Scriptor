@@ -376,3 +376,36 @@ test('a missing local stable task ID cannot be mirrored as an empty ownership ma
   assert.equal(result.updated, 0)
   assert.match(h.render().error ?? '', /duplicate|ambiguous|review|invalid/i)
 })
+
+
+test('a provider record claimed by two vaults cannot be mutated for either owner', async () => {
+  const h = harness([
+    task('shared-remote', 'Other vault title', [
+      scoped('vault-a', 'task-a'),
+      scoped('vault-b', 'task-b'),
+    ].join('\n')),
+  ], local())
+  await h.render().refresh()
+
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0, 'one provider task cannot safely be owned by different vaults')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /vault|owner|ambiguous|review/i)
+})
+
+test('a legacy marker cannot migrate a provider record already claimed by another vault', async () => {
+  const h = harness([
+    task('shared-legacy', 'Original remote title', [
+      'Scriptor source: task-a',
+      scoped('vault-b', 'task-b'),
+    ].join('\n')),
+  ], local())
+  await h.render().refresh()
+
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0, 'legacy migration must not overwrite a foreign vault record')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /vault|owner|ambiguous|review/i)
+})
