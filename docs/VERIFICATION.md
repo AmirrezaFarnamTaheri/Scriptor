@@ -226,6 +226,13 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 No installed-client unsaved-draft, vault-switch, or restart acceptance is asserted. A browser mock cannot certify native rollback or durable success.
 
 
+## MAT-009 Database Studio view-result ownership — October 30, 2026
+
+- A view change could leave previous rows, aggregates and editable callbacks on screen. A pending query could later repopulate rows from a prior view.
+- Test-first `02692a0` adds two actual-TSX harness regressions for stale rows/edit callbacks and late query settlement. Hosted behavioral RED was not observed at the time of implementation.
+- A view revision and loaded-scope key now invalidate old rows, projections and edit authority, and discard old query completion; native authorization, expected hash, source-editor coordination and 200-candidate/32-MiB budgets stay unchanged.
+- Await exact-head source/browser/Rust/Windows/visual tests and installed-client concurrency acceptance. MAT-009 complete native projections/pagination and MAT-010 schema/batch edits remain unimplemented.
+
 ## Canonical history gate
 
 Run from a full canonical clone:

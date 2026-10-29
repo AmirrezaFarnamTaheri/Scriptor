@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- In Database Studio, discard stale result rows, totals and edit authority when the current view changes; ignore late queries from previous filters and require a fresh load before editing.
+
 - Make Database Studio metadata edits read-only when the source-editor mutation coordinator is absent. Never bypass an unsaved editor draft with a direct frontmatter write; retain note viewing and guarded coordinated edits.
 
 - Refuse source attachment symlinks and nested destination symlink escapes on Obsidian import; stage complete files and publish using create-only hard links, retaining existing attachments and cleaning up staging files after collisions.

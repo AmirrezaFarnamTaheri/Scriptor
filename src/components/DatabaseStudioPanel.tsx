@@ -23,12 +23,15 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
   const [savedViews, setSavedViews] = useState<DatabaseView[]>([])
   const [rows, setRows] = useState<DatabaseRow[]>([])
   const [loadedColumns, setLoadedColumns] = useState<DatabaseColumn[]>([])
+  const [loadedScope, setLoadedScope] = useState<{ vaultId: string; revision: number } | null>(null)
   const [status, setStatus] = useState('Build a view, then load notes. Calculations cover loaded rows only.')
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [presetLoadFailed,setPresetLoadFailed]=useState(false)
   const [reloadPresets,setReloadPresets]=useState(0)
   const generation = useRef(0)
+  // Query identity is independent of the native operation lifecycle.
+  const viewRevision = useRef(0)
   const operationPending = useRef(false)
   const presetHash = useRef<string | undefined>(undefined)
   const presetState = useRef<'loading'|'missing'|'ready'|'failed'>('loading')
@@ -39,6 +42,9 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
 
   useEffect(() => {
     const request = ++generation.current
+    viewRevision.current += 1
+    setLoadedScope(null)
+    setLoadedColumns([])
     presetHash.current = undefined
     presetState.current = 'loading'
     void (async () => {
@@ -61,11 +67,21 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
     return () => { generation.current += 1 }
   }, [vaultId, native, reloadPresets])
 
+  const changeView = (next: DatabaseView) => {
+    viewRevision.current += 1
+    setView(next)
+    setLoadedScope(null)
+    setRows([])
+    setLoadedColumns([])
+    setStatus('View changed. Load notes to apply it.')
+  }
+
   const load = async () => {
     if (!native || !vaultId || busy || operationPending.current) return
     operationPending.current=true
     const request = ++generation.current
-    setBusy(true); setError(null)
+    const requestedViewRevision = viewRevision.current
+    setBusy(true); setError(null); setLoadedScope(null); setRows([]); setLoadedColumns([])
     try {
       const valid = validateDatabaseView(view)
       const hits = await vaultListViewNotes(databaseFilterJson(valid))
@@ -73,7 +89,7 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
       const loaded: DatabaseRow[] = []; let bytes = 0; let skipped = 0
       // Four in flight; cumulative content and returned rows both have fixed budgets.
       for (let offset = 0; offset < selected.length; offset += 4) {
-        if (request !== generation.current) return
+        if (request !== generation.current || requestedViewRevision !== viewRevision.current) return
         const batch = await Promise.allSettled(selected.slice(offset, offset + 4).map((hit) => vaultReadNote(hit.path)))
         for (const result of batch) {
           if (result.status === 'rejected') { skipped += 1; continue }
@@ -86,8 +102,9 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
         }
         if (bytes > 32 * 1024 * 1024) { skipped += selected.length - Math.min(offset + 4, selected.length); break }
       }
-      if (request !== generation.current) return
+      if (request !== generation.current || requestedViewRevision !== viewRevision.current) return
       setRows(loaded); setLoadedColumns(valid.columns)
+      setLoadedScope({ vaultId, revision: requestedViewRevision })
       setStatus(`Loaded ${loaded.length} notes${hits.length > DATABASE_ROW_LIMIT ? `; examined first ${DATABASE_ROW_LIMIT} of ${hits.length} candidates` : ''}${skipped ? `; ${skipped} unavailable or over the content budget` : ''}. Metadata filters and aggregates cover loaded candidates only.`)
     } catch (failure) { if (request === generation.current) setError(String(failure)) }
     finally { operationPending.current=false;if (request === generation.current) setBusy(false) }
@@ -117,35 +134,40 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
   }
 
   const editCell = async (row: DatabaseRow, key: string, value: CellValue) => {
+    if (!loadedScope || loadedScope.vaultId !== vaultId || loadedScope.revision !== viewRevision.current) throw new Error('The Database Studio view changed. Reload notes and review the cell before editing.')
     if (!runSourceNoteMutation) throw new Error('A source editor coordinator is required to edit note properties safely. Open the note in the editor to make this change.')
     if (!native || !vaultId || busy || operationPending.current) throw new Error('Open the vault and finish the current operation before editing.')
     operationPending.current=true
     const request = generation.current
+    const editViewRevision = viewRevision.current
     setBusy(true); setError(null)
     try {
-      const mutation=async()=>{const fresh=await vaultReadNote(row.note.metadata.path);if(request!==generation.current||fresh.metadata.vault_id!==vaultId)throw new Error('Vault changed before editing.');if(fresh.metadata.content_hash!==row.note.metadata.content_hash)throw new Error('Source note changed since this view was loaded. Reload the notes and review the cell before saving.');await vaultFrontmatterSet(row.note.metadata.path,key,formatScalarCell(value),row.note.metadata.content_hash,vaultId)}
+      const mutation=async()=>{if(editViewRevision!==viewRevision.current)throw new Error('The Database Studio view changed before editing. Reload notes.');const fresh=await vaultReadNote(row.note.metadata.path);if(request!==generation.current||editViewRevision!==viewRevision.current||fresh.metadata.vault_id!==vaultId)throw new Error('Vault or view changed before editing.');if(fresh.metadata.content_hash!==row.note.metadata.content_hash)throw new Error('Source note changed since this view was loaded. Reload the notes and review the cell before saving.');await vaultFrontmatterSet(row.note.metadata.path,key,formatScalarCell(value),row.note.metadata.content_hash,vaultId)}
       if (!await runSourceNoteMutation(row.note.metadata.path, mutation)) throw new Error('The source editor could not save its draft.')
       const note = await vaultReadNote(row.note.metadata.path)
-      if (request !== generation.current || note.metadata.vault_id !== vaultId) return
+      if (request !== generation.current || editViewRevision !== viewRevision.current || note.metadata.vault_id !== vaultId) return
       setRows((current) => current.map((item) => item.note.metadata.path === note.metadata.path ? { note, values: scalarFields(note.markdown) } : item))
       setStatus(`Saved ${key} in ${note.metadata.path}. Reload the view to reapply filters.`)
-    } catch (failure) { if (request === generation.current) setError(`Cell was not saved: ${String(failure)}`); throw failure }
+    } catch (failure) { if (request === generation.current && editViewRevision === viewRevision.current) setError(`Cell was not saved: ${String(failure)}`); throw failure }
     finally { operationPending.current=false;if (request === generation.current) setBusy(false) }
   }
 
-  const values = useMemo(() => rows.map((row) => loadedColumns.map((column) => column.formula ? calculateValue(column.formula, row.values) : row.values[column.key] ?? null)), [rows, loadedColumns])
-  const aggregates = useMemo(() => loadedColumns.map((_, index) => aggregateColumn(values.map((row) => row[index]))), [loadedColumns, values])
+  const resultsCurrent = loadedScope?.vaultId === vaultId && loadedScope.revision === viewRevision.current
+  const visibleRows = resultsCurrent ? rows : []
+  const visibleColumns = resultsCurrent ? loadedColumns : []
+  const values = useMemo(() => visibleRows.map((row) => visibleColumns.map((column) => column.formula ? calculateValue(column.formula, row.values) : row.values[column.key] ?? null)), [visibleRows, visibleColumns])
+  const aggregates = useMemo(() => visibleColumns.map((_, index) => aggregateColumn(values.map((row) => row[index]))), [visibleColumns, values])
   const body = <>
     <header className="database-studio-header" data-workspace-header-only={workspaceEmbedded ? 'true' : undefined}><h2>Database Studio</h2>{!workspaceEmbedded && <button type="button" onClick={onClose}>{embedded ? 'Back to saved views' : 'Close database studio'}</button>}</header>
     <div className="database-studio-body">
-      <label>Saved view<select value="" onChange={(event) => { const selected = savedViews.find((item) => item.id === event.target.value); if (selected) { setView(selected); setStatus('View selected. Load notes to apply it.') } }}><option value="">Select a view</option>{savedViews.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-      <DatabaseStudioBuilder view={view} onChange={setView} busy={busy} />
-      <div className="database-studio-actions"><button type="button" disabled={!native || busy} onClick={() => void load()}>Load notes</button><button type="button" disabled={!vaultId || busy || presetLoadFailed} onClick={() => void saveView()}>Save view</button><button type="button" disabled={busy} onClick={() => setView({ ...defaultDatabaseView(), id: crypto.randomUUID(), label: 'New view' })}>New view</button>{busy ? <button type="button" onClick={() => { generation.current += 1; if(presetState.current==='loading'){presetState.current='failed';setPresetLoadFailed(true);setError('Saved view loading was stopped. Reload saved views before saving.')}setBusy(false); setStatus('Stopped waiting. Any submitted save may still finish; reload to check its result.') }}>Stop waiting</button> : null}</div>
+      <label>Saved view<select value="" onChange={(event) => { const selected = savedViews.find((item) => item.id === event.target.value); if (selected) changeView(selected) }}><option value="">Select a view</option>{savedViews.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+      <DatabaseStudioBuilder view={view} onChange={changeView} busy={busy} />
+      <div className="database-studio-actions"><button type="button" disabled={!native || busy} onClick={() => void load()}>Load notes</button><button type="button" disabled={!vaultId || busy || presetLoadFailed} onClick={() => void saveView()}>Save view</button><button type="button" disabled={busy} onClick={() => changeView({ ...defaultDatabaseView(), id: crypto.randomUUID(), label: 'New view' })}>New view</button>{busy ? <button type="button" onClick={() => { generation.current += 1; if(presetState.current==='loading'){presetState.current='failed';setPresetLoadFailed(true);setError('Saved view loading was stopped. Reload saved views before saving.')}setBusy(false); setStatus('Stopped waiting. Any submitted save may still finish; reload to check its result.') }}>Stop waiting</button> : null}</div>
       {!native ? <p>Open a folder of notes in the desktop app to view and edit note properties. Saved views stay on this device.</p> : null}
       {error ? <p role="alert">{error}</p> : null}{presetLoadFailed?<><p>Review the loading error, repair the stored view file if needed, then reload before saving.</p><button type="button" disabled={busy} onClick={()=>setReloadPresets(value=>value+1)}>Reload saved views</button></>:null}<p role="status">{status}</p>
-      {native && !runSourceNoteMutation && rows.length > 0 ? <p>Note properties are read-only until the source editor is available. Open a note from the results to edit it safely.</p> : null}
-      <DatabaseStudioResults rows={rows} columns={loadedColumns} values={values} mode={view.mode} busy={busy || !runSourceNoteMutation} onOpenNote={onOpenNote} onEdit={editCell} />
-      {rows.length ? <details><summary>Totals for loaded notes</summary><dl>{loadedColumns.map((column,index) => <div key={column.key}><dt>{column.label}</dt><dd>Numeric count {aggregates[index].count}; sum {aggregates[index].sum ?? '—'}; average {aggregates[index].average ?? '—'}; min {aggregates[index].min ?? '—'}; max {aggregates[index].max ?? '—'}</dd></div>)}</dl></details> : null}
+      {native && !runSourceNoteMutation && visibleRows.length > 0 ? <p>Note properties are read-only until the source editor is available. Open a note from the results to edit it safely.</p> : null}
+      <DatabaseStudioResults rows={visibleRows} columns={visibleColumns} values={values} mode={view.mode} busy={busy || !runSourceNoteMutation} onOpenNote={onOpenNote} onEdit={editCell} />
+      {visibleRows.length ? <details><summary>Totals for loaded notes</summary><dl>{visibleColumns.map((column,index) => <div key={column.key}><dt>{column.label}</dt><dd>Numeric count {aggregates[index].count}; sum {aggregates[index].sum ?? '—'}; average {aggregates[index].average ?? '—'}; min {aggregates[index].min ?? '—'}; max {aggregates[index].max ?? '—'}</dd></div>)}</dl></details> : null}
     </div>
   </>
   if (inline) return <section className="database-studio" aria-label="Database Studio" data-help-topic="saved-views">{body}</section>
