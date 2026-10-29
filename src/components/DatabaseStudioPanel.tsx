@@ -73,6 +73,7 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
     setLoadedScope(null)
     setRows([])
     setLoadedColumns([])
+    setError(null)
     setStatus('View changed. Load notes to apply it.')
   }
 
@@ -106,7 +107,7 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
       setRows(loaded); setLoadedColumns(valid.columns)
       setLoadedScope({ vaultId, revision: requestedViewRevision })
       setStatus(`Loaded ${loaded.length} notes${hits.length > DATABASE_ROW_LIMIT ? `; examined first ${DATABASE_ROW_LIMIT} of ${hits.length} candidates` : ''}${skipped ? `; ${skipped} unavailable or over the content budget` : ''}. Metadata filters and aggregates cover loaded candidates only.`)
-    } catch (failure) { if (request === generation.current) setError(String(failure)) }
+    } catch (failure) { if (request === generation.current && requestedViewRevision === viewRevision.current) setError(String(failure)) }
     finally { operationPending.current=false;if (request === generation.current) setBusy(false) }
   }
 

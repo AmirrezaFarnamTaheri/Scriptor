@@ -230,7 +230,8 @@ No installed-client unsaved-draft, vault-switch, or restart acceptance is assert
 
 - A view change could leave previous rows, aggregates and editable callbacks on screen. A pending query could later repopulate rows from a prior view.
 - Test-first `02692a0` adds two actual-TSX harness regressions for stale rows/edit callbacks and late query settlement. Hosted behavioral RED was not observed at the time of implementation.
-- A view revision and loaded-scope key now invalidate old rows, projections and edit authority, and discard old query completion; native authorization, expected hash, source-editor coordination and 200-candidate/32-MiB budgets stay unchanged.
+- A view revision and loaded-scope key now invalidate old rows, projections, edit authority and stale query errors, and discard old query completion; native authorization, expected hash, source-editor coordination and 200-candidate/32-MiB budgets stay unchanged.
+- Test-only `b9ed54c` additionally covers late native query rejection after switching filters; its hosted RED was not observed at the time the guarded catch was committed.
 - Await exact-head source/browser/Rust/Windows/visual tests and installed-client concurrency acceptance. MAT-009 complete native projections/pagination and MAT-010 schema/batch edits remain unimplemented.
 
 ## Canonical history gate

@@ -15,3 +15,7 @@ Test-only commit `02692a0` adds two real-component cases to `scripts/validation/
 
 ## Pending
 Exact-head source, frontend/browser/Windows, visual and docs gates; installed-client vault switch, slow queries and dirty-editor workflows. This does not implement MAT-009 native pagination/complete aggregation or MAT-010 typed schema migration/batch edits.
+
+## Stale error follow-up
+- Test-only `b9ed54c` models the previous view's native query rejecting after a filter switch.
+- The query catch and view-change handler now prevent an old error from appearing on a new view; the newer view remains ready for an explicit load. No hosted failing-first execution of this new test was observed before implementation.
