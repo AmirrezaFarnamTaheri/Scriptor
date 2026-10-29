@@ -18,3 +18,6 @@ No indexer query pagination, 200-candidate/32MiB limit changes, view schema migr
 - The regression tests were authored on the test-only head `8bd17fc` before any product changes. [CI #40776875924](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40776875924) was queued/in progress when the implementation was prepared; a failing-first **behavioral** result was not yet observed. Do not label this a completed red-green cycle unless the original run establishes the intended failure.
 - The production edit removes only the uncoordinated `vaultFrontmatterSet` route. Cell buttons become disabled without `runSourceNoteMutation`, and direct `onEdit` calls reject before any native write. Read-only result navigation and view building continue to work.
 - [ ] Exact-head source regression, TypeScript, full browser, visual, Windows/Rust and installed unsaved-draft/vault-transition acceptance remain outstanding.
+
+## Main integration
+Current main's native Obsidian note and attachment import safety work is retained. The integration head needs its own hosted gates; historical tests do not certify this commit.
