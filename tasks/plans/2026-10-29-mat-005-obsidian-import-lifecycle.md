@@ -37,3 +37,8 @@ The UI must not interpret a closed dialog as a native cancellation. The native `
 - [x] The originating dialog releases its claim only in the native promise `finally`; an unmount never releases it early or implies cancellation. Vault B has its own independent key while vault A remains native-owned.
 - [x] Replace passive `useEffect` lifecycle cleanup with commit-phase `useLayoutEffect` cleanup; the test harness now separates layout and passive queues.
 - [ ] Run failing-first red on the test-only head; then publish this implementation and verify all current-head gates. Do not claim an observed red until the decisive assertions are in hosted logs.
+
+## Owner implementation / source-contract reconciliation
+- [x] Aligned `CapabilityWorkflowOverlays` with the existing owner contract in `obsidian-import-lifecycle.test.mjs`: a non-reactive `useRef<Set<string>>(new Set())` persists claims across conditional dialog remounts, and the dialog receives `.current`. This is a behavior-preserving owner refactor from a lazily created `useState` Set, not a change to the native import or authorization contract.
+- [ ] Do not label the source-regex mismatch as a *behavioral* RED; no exact-head failing regression run for this shape disagreement was observed before the fix. The real JSX harness still checks native import single-flight, close/reopen, unmount and commit-phase cleanup.
+- [ ] Require new exact-head source / browser / TS / native / visual checks and installed-client acceptance before the PR can leave draft.

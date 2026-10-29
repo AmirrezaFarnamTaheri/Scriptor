@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useRef } from 'react'
 import type { PluginManifest, PluginRuntimePolicy } from '@scriptor/core/contracts/plugin'
 import type { PluginWorkspaceDefinition } from '@scriptor/plugin-api'
 
@@ -38,7 +38,7 @@ export function CapabilityWorkflowOverlays(props: CapabilityWorkflowOverlaysProp
   // Outlive the conditional dialog; its native import can continue after close.
   // An overlay-owned non-reactive claim store survives dialog close/reopen.
   // The identity is initialized once; it is only mutated by native operation handlers.
-  const [importInFlightByVault] = useState(() => new Set<string>())
+  const importInFlightByVault = useRef<Set<string>>(new Set())
   return (
     <>
       {props.pluginManagerOpen ? (
@@ -95,7 +95,7 @@ export function CapabilityWorkflowOverlays(props: CapabilityWorkflowOverlaysProp
             <ObsidianImportDialog
               key={props.vaultId ?? 'closed'}
               vaultId={props.vaultId ?? null}
-              importInFlightByVault={importInFlightByVault}
+              importInFlightByVault={importInFlightByVault.current}
               onClose={props.onCloseObsidianImport}
               onImported={(result) => props.onObsidianImported(result.notesImported)}
             />
