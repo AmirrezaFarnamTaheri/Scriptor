@@ -41,6 +41,22 @@ enforcement applies to maintained product and contributor documentation.
 Provenance-sensitive audit records under `docs/validation/` and archived
 documents remain exempt; active user guides do not.
 
+## MAT-005 Obsidian attachment path and publication safety — October 29, 2026
+
+Stacked draft [PR #229](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/229) addresses two attachment paths beyond the Markdown-only changes in #228. Test-only commit [`de6af81`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/de6af818f83eebd2599b59ce4c26fda9219623fe) adds real Unix filesystem regressions for source attachment symlinks and a destination nested symlink to outside the vault. `WalkDir.follow_links(false)` still yields symlink entries; the previous importer did not reject them and joined paths under `_attachments` without revalidating the nested prefix.
+
+Implementation: skip source symlink/nonregular entries, resolve every destination via `VaultRoot::resolve_relative` after creating parents, copy into a unique create-only staging file, then use atomic `fs::hard_link` publication while holding the existing vault mutation lock. This follows the established offline-PDF publication pattern, not a new authority. Existing destination attachments are reported as skips; staging is removed automatically. The copy may be long, so it runs outside the mutation lock. A source path changed by an adversarial external process after its filesystem-type check is not covered by these ordinary filesystem tests.
+
+Additional filesystem regressions reject the same folder or a nested folder as a destination before any _attachments directory is created; canonical source-path containment is validated before the importer starts walking or writing.
+
+**Verification is pending on the implementation head.** Test-only CI may be queued/canceled and cannot be treated as observed RED; Rustfmt, Clippy, full native tests, browser/desktop/visual and installed-client acceptance are required before merge.
+
+## MAT-005 Obsidian import collision safety — October 29, 2026
+
+Draft [PR #228](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/228) adds two real, filesystem-backed Rust regression cases: an incoming note colliding with authored local content, and repeating an import after editing the previously imported note. The test-only commit [`d8aa3c9`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/d8aa3c9be9342b83bed379f98f1f149a8c099900) predates the implementation; its [CI run #40863276455](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40863276455) was queued, so **no observed failing-first Rust assertion is claimed**.
+
+The importer now calls the existing atomic vault writer with `EXPECTED_MISSING_CONTENT_HASH` rather than a missing precondition. An existing destination note is skipped and reported with a path-specific explanation; new notes still import. No parallel writer, file-existence race, authorization change or silent merge is introduced. **Implementation-head Rust, Clippy, source, desktop, visual and installed-client evidence are pending**, so no release claim follows from this source patch. See `tasks/plans/2026-10-29-obsidian-create-only.md`.
+
 ## MAT-005 Obsidian import lifecycle — October 29, 2026
 
 PR [#219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219) addresses renderer-level lifecycle defects in the Obsidian import overlay. Native `ImportVault` authorization and file writes are unchanged.
@@ -54,6 +70,8 @@ PR [#219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219) addresses r
 | Subsequent Browse guard | Capture dialog lifecycle before awaiting plugin-module loading and native picker; ignore selection if that owner has unmounted | **Implemented; exact-head source/functional checks pending** |
 
 A closed dialog does **not** cancel, roll back or establish the outcome of an already submitted native import. It only prevents late renderer feedback.
+
+Source acceptance (October 29, 2026): [CI #40881174514](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174514), [visual #40881174519](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174519), and [docs #40881174543](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174543) passed at exact branch head `c088066`. This establishes hosted source verification, not installed-client vault-switch, restart or lost-response reconciliation acceptance. The initial test-only RED was not observed.
 
 ## PR #160 remediation evidence — October 11, 2026
 
