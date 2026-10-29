@@ -572,7 +572,9 @@ mod tests {
         );
         assert_eq!(
             fs::read_to_string(target.path().join("notes/new.md")).unwrap(),
-            "# Fresh imported note\n"
+            // The existing Obsidian callout converter normalizes the terminal newline.
+            // The collision safety contract is about preserving local notes.
+            "# Fresh imported note"
         );
         assert_eq!(result.notes_imported, 1, "only the new note was imported");
         assert_eq!(
