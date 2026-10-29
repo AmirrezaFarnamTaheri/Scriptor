@@ -49,3 +49,8 @@ The UI must not interpret a closed dialog as a native cancellation. The native `
 - [ ] Observe the focused test fail against the test-only head for this intended behavior; distinguish harness/import errors from actual stale side effects.
 - [ ] Pass the originating layout lifecycle into the Browse completion guard without affecting native import ownership, successful folder selection or explicit validation.
 - [ ] Re-run current-head source, TypeScript, browser, Rust and visual checks; installed-client dialog and vault-switch cases remain separate.
+
+## Delayed Browse handling — production guard
+- [x] `handleBrowse` now captures the originating layout lifecycle; it exits after asynchronous plugin-module loading or folder-picker resolution if the dialog was removed. The existing `validateSource` call remains unchanged for an active dialog, and its generation guard still controls late validation replies.
+- [x] A real-JSX test was added in the preceding commit `54655e6`; the test-only CI was still queued when this guard was authored. **No hosted failing-first assertion was observed**, so do not classify it as a verified red-green cycle.
+- [ ] Reverify exact-head source, TypeScript, browser, Rust, visual and installed-client chooser-close behavior. This is renderer UI containment, not cancellation of a native chooser or native import.

@@ -66,13 +66,17 @@ export function ObsidianImportDialog({ onClose, onImported, vaultId, importInFli
   const handleValidate = useCallback(() => void validateSource(sourcePath), [sourcePath, validateSource])
 
   const handleBrowse = useCallback(async () => {
+    // The native folder picker can outlive the dialog that opened it.
+    // Never reopen a picker or validate its result for a destroyed overlay.
+    const lifecycle = importLifecycleRef.current
     const { open } = await import('@tauri-apps/plugin-dialog')
+    if (importLifecycleRef.current !== lifecycle) return
     const selection = await open({
       directory: true,
       multiple: false,
       title: 'Select Obsidian Vault',
     })
-    if (!selection) return
+    if (!selection || importLifecycleRef.current !== lifecycle) return
     const path = Array.isArray(selection) ? selection[0] : selection
     setSourcePath(path)
     setIsValid(null)

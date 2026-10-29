@@ -51,6 +51,9 @@ PR [#219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219) addresses t
 | Implemented follow-up | Synchronous import single-flight, mount-generation check before post-await state/callbacks; failure releases in-flight claim for an explicit user retry | **Authored, not yet verified GREEN** |
 | Required acceptance | Current-head source regression, browser, TypeScript, native/Rust, Windows/desktop, visual and clean installed-client import/vault-switch scenarios | **Pending** |
 
+| `54655e6` test-only follow-up · [CI #40850992642](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40850992642) | Real-JSX test covers a native folder chooser resolving after layout cleanup; the originating dialog must not validate the result or update React state after close | **Test authored first; no hosted RED observed before fix**, so browser/native acceptance remains pending |
+| Subsequent Browse guard | Capture dialog lifecycle before awaiting plugin-module loading and native picker; ignore selection if that owner has unmounted | **Implemented; exact-head source/functional checks pending** |
+
 A closed dialog does **not** cancel, roll back or establish the outcome of an already submitted native import. It only prevents late renderer feedback.
 
 ## PR #160 remediation evidence — October 11, 2026
