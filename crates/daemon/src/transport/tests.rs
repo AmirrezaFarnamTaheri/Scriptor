@@ -580,8 +580,14 @@ fn accepts_parallel_ping_connections() {
     }
     pipe_guard.disarm();
 
-    assert!(matches!(first_result.expect("first rpc").result, RpcResult::Ok(_)));
-    assert!(matches!(second_result.expect("second rpc").result, RpcResult::Ok(_)));
+    assert!(matches!(
+        first_result.expect("first rpc").result,
+        RpcResult::Ok(_)
+    ));
+    assert!(matches!(
+        second_result.expect("second rpc").result,
+        RpcResult::Ok(_)
+    ));
 }
 
 #[test]
