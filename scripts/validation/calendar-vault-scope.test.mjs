@@ -284,3 +284,69 @@ test('duplicate local stable task IDs across notes cannot create two provider ta
   assert.equal(result.updated, 0)
   assert.match(h.render().error ?? '', /duplicate|ambiguous|review/i)
 })
+
+
+test('one Google task claiming two distinct local identities must be reviewed', async () => {
+  const h = harness([
+    task('remote-shared', 'Shared record', scoped('vault-a', 'task-a') + '\n' + scoped('vault-a', 'task-b')),
+  ], [
+    { path: 'todo.md', tasks: [
+      { id: 'task-a', text: 'First task', checked: false, line: 0, dueDate: null },
+      { id: 'task-b', text: 'Second task', checked: false, line: 1, dueDate: null },
+    ] },
+  ])
+  await h.render().refresh()
+
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0, 'a single provider record must not be rebound and duplicated')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /duplicate|ambiguous|review|invalid/i)
+})
+
+test('two Google tasks with the same legacy stable-ID marker cannot be migrated by guessing', async () => {
+  const legacy = 'Scriptor source: task-a'
+  const h = harness([
+    task('legacy-one', 'First legacy task', legacy),
+    task('legacy-two', 'Second legacy task', legacy),
+  ], local())
+  await h.render().refresh()
+
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0, 'legacy ownership shared across records is uncertain')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /duplicate|ambiguous|review|invalid/i)
+})
+
+test('a duplicated remote task ID with different markers cannot authorize two writes', async () => {
+  const h = harness([
+    task('remote-shared', 'First', scoped('vault-a', 'task-a')),
+    task('remote-shared', 'Second', scoped('vault-a', 'task-b')),
+  ], [
+    { path: 'todo.md', tasks: [
+      { id: 'task-a', text: 'First', checked: false, line: 0, dueDate: null },
+      { id: 'task-b', text: 'Second', checked: false, line: 1, dueDate: null },
+    ] },
+  ])
+  await h.render().refresh()
+
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0, 'repeated provider IDs make ownership and revision unreliable')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /duplicate|ambiguous|review|invalid/i)
+})
+
+test('an empty current-vault ownership marker must not complete an unrelated remote task', async () => {
+  const h = harness([
+    task('remote-empty', 'Unrecognized owner', 'Scriptor source: vault:vault-a:'),
+  ], [])
+  await h.render().refresh()
+
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0, 'malformed ownership is not proof of a deleted local task')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /duplicate|ambiguous|review|invalid/i)
+})
