@@ -350,3 +350,29 @@ test('an empty current-vault ownership marker must not complete an unrelated rem
   assert.equal(result.updated, 0)
   assert.match(h.render().error ?? '', /duplicate|ambiguous|review|invalid/i)
 })
+
+
+test('legacy and scoped records claiming the same local task cannot be reconciled by list order', async () => {
+  const h = harness([
+    task('legacy-copy', 'Buy milk', 'Scriptor source: task-a'),
+    task('scoped-copy', 'Buy milk', scoped('vault-a', 'task-a')),
+  ], local())
+  await h.render().refresh()
+
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0, 'two marker formats must not bypass unique ownership')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /duplicate|ambiguous|review|invalid/i)
+})
+
+test('a missing local stable task ID cannot be mirrored as an empty ownership marker', async () => {
+  const h = harness([], local('', 'Unidentified task'))
+  await h.render().refresh()
+
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0, 'empty local identity cannot authorize a provider create')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /duplicate|ambiguous|review|invalid/i)
+})
