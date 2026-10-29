@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Refuse source attachment symlinks and nested destination symlink escapes on Obsidian import; stage complete files and publish using create-only hard links, retaining existing attachments and cleaning up staging files after collisions.
+
 - Preserve existing destination Markdown notes during Obsidian imports and repeat imports: use the vault writer's atomic create-only precondition, report path collisions as skips, and never silently overwrite local edits.
 
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.

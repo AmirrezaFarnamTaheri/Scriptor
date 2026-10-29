@@ -106,6 +106,19 @@ pub fn import_obsidian_vault(
         if entry.file_type().is_dir() {
             continue;
         }
+        // WalkDir does not descend into symlinks, but its iterator still
+        // includes symlinked files. Do not import outside-source file contents
+        // through them (or read from a FIFO/device by treating it as a file).
+        if !entry.file_type().is_file() {
+            skipped_files += 1;
+            if entry.file_type().is_symlink() {
+                errors.push(format!(
+                    "{}: symbolic links are not imported",
+                    relative_str
+                ));
+            }
+            continue;
+        }
 
         let extension = absolute
             .extension()
@@ -135,9 +148,16 @@ pub fn import_obsidian_vault(
                 }
             }
         } else if options.import_attachments && is_attachment(&extension) {
-            match import_attachment(root, obsidian_path, relative, &attachments_dir) {
+            match import_attachment(root, obsidian_path, relative) {
                 Ok(_) => {
                     attachments_imported += 1;
+                }
+                Err(VaultError::NoteExists(_)) => {
+                    skipped_files += 1;
+                    errors.push(format!(
+                        "{}: destination attachment already exists; original content preserved",
+                        relative_str
+                    ));
                 }
                 Err(e) => {
                     errors.push(format!("{}: {}", relative_str, e));
@@ -192,32 +212,98 @@ fn import_note(
 }
 
 fn import_attachment(
-    _root: &VaultRoot,
+    root: &VaultRoot,
     obsidian_root: &Path,
     relative: &Path,
-    attachments_dir: &Path,
 ) -> Result<(), VaultError> {
     let source = obsidian_root.join(relative);
+    // WalkDir's original file type is checked by the caller. Recheck at the
+    // read boundary in case an outside process replaced the entry.
+    let source_type = fs::symlink_metadata(&source)
+        .map_err(|error| VaultError::io(&source, error))?
+        .file_type();
+    if !source_type.is_file() {
+        return Err(VaultError::InvalidConfig {
+            message: "Obsidian attachment is no longer a regular file".into(),
+        });
+    }
     let relative_str = format_path(relative);
-    let safe_relative = RelativeVaultPath::parse(&relative_str)?;
-    let dest = attachments_dir.join(
-        safe_relative
-            .as_str()
-            .replace('/', std::path::MAIN_SEPARATOR_STR),
-    );
-    if dest.exists() {
-        return Err(VaultError::NoteExists(format!(
-            "_attachments/{}",
-            safe_relative.as_str()
-        )));
+    let destination_relative = RelativeVaultPath::parse(&format!(
+        "_attachments/{relative_str}"
+    ))?;
+    let destination = root.resolve_relative(&destination_relative)?;
+    let parent = destination.parent().ok_or_else(|| VaultError::InvalidConfig {
+        message: "Cannot determine attachment directory".into(),
+    })?;
+    fs::create_dir_all(parent).map_err(|error| VaultError::io(parent, error))?;
+
+    // Validate every newly created prefix; joining a separately verified
+    // _attachments directory would permit nested symlinks to escape the vault.
+    let destination = root.resolve_relative(&destination_relative)?;
+    let parent = destination.parent().ok_or_else(|| VaultError::InvalidConfig {
+        message: "Cannot determine attachment directory".into(),
+    })?;
+    // A quick duplicate check avoids copying large files on repeated imports.
+    // It is not an authority: hard-link publication below is still create-only.
+    match fs::symlink_metadata(&destination) {
+        Ok(_) => return Err(VaultError::NoteExists(destination_relative.to_string())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(VaultError::io(&destination, error)),
     }
 
-    let parent = dest.parent().ok_or_else(|| VaultError::InvalidConfig {
-        message: "Cannot determine parent directory".to_string(),
-    })?;
-    fs::create_dir_all(parent).map_err(|source_err| VaultError::io(parent, source_err))?;
+    // Build an entire attachment in the final directory before making it
+    // visible. The existing PDF export uses the same atomic hard-link publish
+    // pattern: rename or fs::copy at the final path could replace a new file.
+    let staging = parent.join(format!(".scriptor-{}.tmp", uuid::Uuid::new_v4()));
+    struct StagingCleanup(std::path::PathBuf);
+    impl Drop for StagingCleanup {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(&self.0);
+        }
+    }
+    let _cleanup = StagingCleanup(staging.clone());
+    let mut source_file =
+        fs::File::open(&source).map_err(|error| VaultError::io(&source, error))?;
+    let mut staging_file = crate::fs::create_private_file(&staging)?;
+    std::io::copy(&mut source_file, &mut staging_file)
+        .map_err(|error| VaultError::io(&staging, error))?;
+    staging_file
+        .sync_all()
+        .map_err(|error| VaultError::io(&staging, error))?;
+    drop(staging_file);
 
-    fs::copy(&source, &dest).map_err(|source_err| VaultError::io(&source, source_err))?;
+    // Serialize publication against other Scriptor mutations, while keeping
+    // the potentially long copy outside that lock.
+    let _lock = crate::fs::lock_vault_mutation(root.root())?;
+    if root.root().join(".scriptor/rename-txn.json").is_file() {
+        return Err(VaultError::InvalidConfig {
+            message: "Vault rename transaction is pending; retry import after recovery".into(),
+        });
+    }
+    let publish_path = root.resolve_relative(&destination_relative)?;
+    if publish_path.parent() != Some(parent) {
+        return Err(VaultError::InvalidConfig {
+            message: "Attachment directory changed during import; no file published".into(),
+        });
+    }
+    fs::hard_link(&staging, &publish_path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::AlreadyExists {
+            VaultError::NoteExists(destination_relative.to_string())
+        } else {
+            VaultError::io(&publish_path, error)
+        }
+    })?;
+    // Content and publication are complete; cleanup removes only our staging
+    // path. An interrupted pre-publication copy can never expose partial data.
+    #[cfg(unix)]
+    if let Err(error) = fs::File::open(parent).and_then(|directory| directory.sync_all()) {
+        tracing::warn!(
+            target: "scriptor_vault::importers::obsidian",
+            %error,
+            path = %publish_path.display(),
+            "attachment is published but directory durability sync failed"
+        );
+    }
     Ok(())
 }
 
