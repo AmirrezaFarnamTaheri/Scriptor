@@ -214,7 +214,9 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - **Hosted exact-head verification:** [CI #40862620166](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40862620166), plus desktop compile and Visual review, were queued/in progress when this record was authored; no green result is claimed here. The existing daemon event subscription and reconnection Rust tests must pass after the dependency bump.
 - **Not yet established:** installed-client disconnect/reconnect and multiprocess shutdown behavior. The source change is not proof of release acceptance.
 
-## MAT-016 — ambiguous Google Tasks mirroring (draft PR #230)
+## MAT-016 — ambiguous Google Tasks mirroring (PR #230)
+
+- **Follow-up ownership case:** test-only `02fe5719` adds two real-hook cases for a remote record shared by scoped A/B owner markers, or by an exact legacy A owner and scoped B owner. The native batch must not update either record. The corresponding renderer guard rejects current-vault claims on records also marked for a different vault. This new patch is **not yet exact-head hosted green**; source tests were written first, but the hosted RED was not observed when implementation began. Live-provider and installed-client acceptance remain pending.
 
 - **RED confirmed:** test-only `12334132dad4e71fc7d54e09543be263f344443a`, hosted [CI #40883180912](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40883180912), source regression suite. Of 685 tests, 683 passed and exactly two new cases failed: duplicate scoped remote markers prepared a provider mutation (1 instead of 0), and duplicate stable IDs from two local notes likewise prepared a provider mutation (1 instead of 0).
 - **Implementation:** preflight duplicate local IDs and duplicate current-vault provider ownership markers before `googleCalendarApplyTaskSync`. Ambiguous ownership now produces an actionable review-required error in the existing Tasks panel. No provider write, new permission owner, or automatic duplicate reconciliation is introduced.

@@ -490,6 +490,7 @@ export function useGoogleCalendarSync({
       // the same vault task. Choosing the first would wrongly complete the
       // other as a deleted task. Fail the entire batch before native writes.
       const ownedPrefix = vaultSourcePrefix(vaultId)
+      const anyVaultPrefix = `${SOURCE_MARKER_PREFIX} vault:`
       const legacyPrefix = `${SOURCE_MARKER_PREFIX} `
       const remoteOwners = new Set<string>()
       const legacyOwners = new Set<string>()
@@ -505,6 +506,7 @@ export function useGoogleCalendarSync({
         // markers only participate when their exact ID exists in this vault;
         // unscoped markers from other vaults do not authorize a rebind.
         const claimedLocalIds = new Set<string>()
+        let hasForeignVaultOwner = false
         const markerLines = new Set((remoteTask.notes ?? '').split('\n'))
         for (const marker of markerLines) {
           if (marker.startsWith(ownedPrefix)) {
@@ -517,6 +519,10 @@ export function useGoogleCalendarSync({
               throw new Error('Duplicate Google Tasks ownership marker. Review duplicate Google Tasks before syncing.')
             }
             remoteOwners.add(marker)
+          } else if (marker.startsWith(anyVaultPrefix)) {
+            // Never rebind a shared provider record across vaults, even when
+            // one of its other ownership claims is an exact legacy task ID.
+            hasForeignVaultOwner = true
           } else if (marker.startsWith(legacyPrefix)) {
             const taskId = marker.slice(legacyPrefix.length)
             if (!localIds.has(taskId)) continue
@@ -529,6 +535,9 @@ export function useGoogleCalendarSync({
         }
         if (claimedLocalIds.size > 1) {
           throw new Error('Ambiguous Google Tasks ownership. One Google Task claims multiple vault tasks; review before syncing.')
+        }
+        if (hasForeignVaultOwner && claimedLocalIds.size > 0) {
+          throw new Error('A Google Task is claimed by multiple vaults. Review ownership before syncing.')
         }
         // A legacy and a scoped marker on different provider records still
         // claim the same local identity. Never choose one by list order.

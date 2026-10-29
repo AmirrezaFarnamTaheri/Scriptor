@@ -17,3 +17,8 @@ A source identity may authorize at most one provider record. Two Google Tasks wi
 
 ## Boundaries
 No new provider state manager, native command, permission broker, schema, dependency or record mutation is introduced. The visible error tells the user to review duplicates rather than deleting them. Provider task list consistency beyond the last successful snapshot and ambiguous post-write transport outcomes are not inferred.
+
+## Cross-vault shared-provider owner preflight
+- Two additional real-hook regression cases in test-only `02fe5719` cover an A+B scoped owner on one provider record and a migratable legacy A marker alongside a scoped B owner. A mixed-owner provider record must not be modified by either vault; purely foreign records remain untouched.
+- Production checks for foreign scoped ownership on a record that also claims the current vault before submitting the existing authorized provider batch. No provider writes, new transport, identity migration or deletion are introduced.
+- The test-only workflow was queued when implementation was prepared, so a hosted failing-first result for these two cases is **not claimed**. Exact-head CI and live-provider acceptance remain required.

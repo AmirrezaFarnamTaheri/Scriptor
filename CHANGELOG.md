@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Fail closed before Google Tasks mirroring when local identities, provider record IDs, current-vault markers or migratable legacy markers are duplicated or ambiguous. Reject malformed owners and one remote record claiming multiple local tasks before approving any create/update/completion; display a review-required explanation instead of guessing ownership.
+- Fail closed before Google Tasks mirroring when local identities, provider record IDs, current-vault markers or migratable legacy markers are duplicated or ambiguous. Reject malformed owners, multiple local tasks on one remote record and provider tasks claimed by different vaults before approving any create/update/completion; display a review-required explanation instead of guessing ownership.
 
 - Refuse source attachment symlinks and nested destination symlink escapes on Obsidian import; stage complete files and publish using create-only hard links, retaining existing attachments and cleaning up staging files after collisions.
 - Reject Obsidian imports when the destination vault is inside the source folder, preventing recursive discovery of files created by the importer itself.
