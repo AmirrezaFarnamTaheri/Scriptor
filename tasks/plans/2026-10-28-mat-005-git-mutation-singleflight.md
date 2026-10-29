@@ -33,3 +33,6 @@ No new command, API key, storage format, parallel status cache, permission broke
 - [x] Four real-hook behavioral cases were authored first as detached test commit `397cc6a`: delayed failures after vault switch for commit/pull/push, plus A→B→A. Keep audit activity and release the mutation single-flight gate.
 - [x] Reuse the existing `isCurrentVaultLifecycle(targetVaultId, lifecycle)` for `setError(detail)` in all three catch paths; no change to native GitQueue, transport, authorization, retries or activity logging.
 - [ ] **Failing-first hosted execution has not been observed** on the detached test-only commit. Require current-head source, frontend, Rust, Browser E2E, Windows/visual, CodeRabbit and installed-client acceptance. MAT-005 remains unchecked.
+
+## Main integration
+Current main's Obsidian/native import safety work is retained. Merge commit requires fresh full CI, browser and installed-client vault-switch verification; historical hosted checks are not this head's proof.
