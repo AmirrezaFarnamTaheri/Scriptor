@@ -197,6 +197,13 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - **Patch:** raise direct workspace minimums to `0.13.5` and update the single Cargo.lock entry. The crates.io index confirms checksum `278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb`; both versions have the same normal dependency set and feature flags. No security ignore is introduced and no application parser feature is disabled.
 - **Pending:** exact-head cargo-deny, Cargo.lock parity, Rust tests, production builds, browser and package acceptance. This is an independent dependency fix and does not certify MAT-008.
 
+## PR #222 — local-socket subscription compatibility (October 29, 2026)
+
+- **Observed failure:** [CI #40852302352](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40852302352), exact dependency-upgrade head `8c13a68e1f063712af8c2979830623bab79e7fab`: `Contracts, automation, lint, and Rust tests` failed at `Clippy workspace checks` because `interprocess::local_socket::traits::Stream::split` is deprecated. Other executable jobs and standalone Visual/Desktop workflows passed on that old head. This is a dependency compatibility blocker, not a demonstrated application data regression.
+- **Source correction:** [`3708b1c`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/3708b1cb197caa399016e530992ae49a36e49b8a) removes the deprecated split and detached disconnect-probe thread. The authenticated nonblocking stream now checks for EOF/unexpected client data before each event-receive interval, and reuses the same stream for deadline-bounded event writes. Endpoint nonce checks, event encoding, rate limits and the original subscription poll interval are unchanged.
+- **Hosted exact-head verification:** [CI #40862620166](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40862620166), plus desktop compile and Visual review, were queued/in progress when this record was authored; no green result is claimed here. The existing daemon event subscription and reconnection Rust tests must pass after the dependency bump.
+- **Not yet established:** installed-client disconnect/reconnect and multiprocess shutdown behavior. The source change is not proof of release acceptance.
+
 ## Canonical history gate
 
 Run from a full canonical clone:
