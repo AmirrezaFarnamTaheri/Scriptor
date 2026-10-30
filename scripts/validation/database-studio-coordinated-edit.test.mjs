@@ -11,13 +11,14 @@ const source = ts.transpileModule(
   { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } },
 ).outputText
 
-function harness(withCoordinator) {
+function harness(withCoordinator, { delayList = false } = {}) {
   const slots = []
   let cursor = 0
   let firstRender = true
   let effects = []
   const nativeWrites = []
   const coordinated = []
+  const pendingLists = []
   const note = {
     metadata: {
       vault_id: 'vault-1', path: 'notes/record.md', title: 'Record',
@@ -43,8 +44,11 @@ function harness(withCoordinator) {
   }
   const jsx = (type, props, key) => ({ type, props, key })
   const resultComponent = () => null
+  const builderComponent = () => null
   const mockCommands = {
-    vaultListViewNotes: async () => [{ path: note.metadata.path }],
+    vaultListViewNotes: () => delayList
+      ? new Promise((resolve, reject) => { pendingLists.push({ resolve, reject }) })
+      : Promise.resolve([{ path: note.metadata.path }]),
     vaultReadNote: async (path) => {
       if (path === '.scriptor/presets/database-studio.md') {
         throw Object.assign(new Error('preset not found'), { code: 'NOT_FOUND' })
@@ -80,7 +84,7 @@ function harness(withCoordinator) {
       isMissingDatabasePreset: (error) => error?.code === 'NOT_FOUND',
       matchesMetadataFilters: () => true,
     },
-    './database/DatabaseStudioBuilder': { DatabaseStudioBuilder: () => null },
+    './database/DatabaseStudioBuilder': { DatabaseStudioBuilder: builderComponent },
     './database/DatabaseStudioResults': { DatabaseStudioResults: resultComponent },
     '../styles/components/database-studio.css': {},
   }
@@ -129,19 +133,49 @@ function harness(withCoordinator) {
   const settle = async () => {
     for (let i = 0; i < 16; i++) await Promise.resolve()
   }
-  const load = async () => {
+  const results = () => {
+    const result = find(render(), node => node.type === resultComponent)
+    assert.ok(result, 'real Database Studio results renderer is present')
+    return result.props
+  }
+  const currentView = () => {
+    const builder = find(render(), node => node.type === builderComponent)
+    assert.ok(builder, 'view editor is present')
+    return builder.props.view
+  }
+  const changeView = next => {
+    const builder = find(render(), node => node.type === builderComponent)
+    assert.ok(builder, 'view editor is present')
+    builder.props.onChange(next)
+    return results()
+  }
+  const startLoad = () => {
     const mounted = render()
-    const button = find(mounted, (node) =>
+    const button = find(mounted, node =>
       node.type === 'button' && node.props?.children === 'Load notes')
     assert.ok(button, 'real Database Studio load control is present')
     button.props.onClick()
-    await settle()
-    const latest = render()
-    const result = find(latest, (node) => node.type === resultComponent)
-    assert.ok(result?.props?.rows?.length, 'native note was loaded into Database Studio')
-    return result.props
   }
-  return { render, settle, load, nativeWrites, coordinated, note }
+  const load = async () => {
+    startLoad()
+    await settle()
+    const result = results()
+    assert.ok(result?.rows?.length, 'native note was loaded into Database Studio')
+    return result
+  }
+  const completeList = () => {
+    const pending = pendingLists.shift()
+    assert.ok(pending, 'deferred native view list was requested')
+    pending.resolve([{ path: note.metadata.path }])
+  }
+  const failList = (message) => {
+    const pending = pendingLists.shift()
+    assert.ok(pending, 'deferred native view list was requested')
+    pending.reject(new Error(message))
+  }
+  const errorText = () => find(render(), node => node.type === 'p' && node.props?.role === 'alert')?.props.children ?? null
+  return { render, settle, load, startLoad, completeList, failList, errorText, results, currentView, changeView, nativeWrites, coordinated, note }
+
 }
 
 test('Database Studio without editor mutation coordinator is read-only and cannot write a frontmatter cell', async () => {
@@ -171,4 +205,71 @@ test('Database Studio with source editor coordinator preserves the reviewed revi
   assert.equal(h.nativeWrites[0][2], 'Done')
   assert.equal(h.nativeWrites[0][3], 'sha-current', 'expected hash still protects source revision')
   assert.equal(h.nativeWrites[0][4], 'vault-1', 'native write retains originating vault')
+})
+
+test('changing a Database Studio view immediately removes stale results, totals, and edit authority', async () => {
+  const h = harness(true)
+  h.render()
+  await h.settle()
+  const original = await h.load()
+  assert.equal(original.rows.length, 1, 'original view includes the note')
+
+  const next = { ...h.currentView(), filters: [{ field: 'metadata', key: 'status', value: 'Done' }] }
+  const after = h.changeView(next)
+  assert.equal(after.rows.length, 0, 'old view rows must disappear before the next load')
+  assert.equal(after.columns.length, 0, 'old column projections must not describe the new view')
+  await assert.rejects(
+    original.onEdit(original.rows[0], 'status', 'Done'),
+    /view|query|reload|stale/i,
+    'an already-captured edit callback must not write once its view changes',
+  )
+  assert.equal(h.nativeWrites.length, 0, 'stale edit callback cannot reach native frontmatter')
+})
+
+test('changing only the view layout and name retains loaded results and edit authority', async () => {
+  const h = harness(true)
+  h.render()
+  await h.settle()
+  const loaded = await h.load()
+  assert.equal(loaded.rows.length, 1)
+
+  const list = h.changeView({ ...h.currentView(), mode: 'list' })
+  assert.equal(list.rows.length, 1, 'list presentation reuses the loaded query')
+  const gallery = h.changeView({ ...h.currentView(), mode: 'gallery' })
+  assert.equal(gallery.rows.length, 1, 'gallery presentation reuses the loaded query')
+  const renamed = h.changeView({ ...h.currentView(), label: 'Renamed view' })
+  assert.equal(renamed.rows.length, 1, 'renaming a view does not change its loaded data')
+
+  await loaded.onEdit(loaded.rows[0], 'status', 'Done')
+  assert.equal(h.nativeWrites.length, 1, 'presentation changes do not revoke a valid edit')
+})
+
+test('a delayed Database Studio query cannot publish old-view notes after filters change', async () => {
+  const h = harness(true, { delayList: true })
+  h.render()
+  await h.settle()
+  h.startLoad()
+  await h.settle()
+  const next = { ...h.currentView(), filters: [{ field: 'title', value: 'Other' }] }
+  const after = h.changeView(next)
+  assert.equal(after.rows.length, 0)
+
+  h.completeList()
+  await h.settle()
+  const current = h.results()
+  assert.equal(current.rows.length, 0, 'the completed old request does not repopulate stale notes')
+  assert.equal(current.columns.length, 0, 'the new filter has no loaded projections yet')
+})
+
+test('a delayed old-view query failure cannot become an error on the selected new view', async () => {
+  const h = harness(true, { delayList: true })
+  h.render()
+  await h.settle()
+  h.startLoad()
+  await h.settle()
+  h.changeView({ ...h.currentView(), filters: [{ field: 'title', value: 'Other' }] })
+
+  h.failList('Old view native lookup was denied')
+  await h.settle()
+  assert.equal(h.errorText(), null, 'the new view must not display the previous query failure')
 })
