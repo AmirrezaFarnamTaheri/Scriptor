@@ -263,6 +263,9 @@ test.describe('Frontend polish regressions', () => {
 
   test('inspector modes leave every editor toolbar control inside the writing column', async ({ page }) => {
     await launchApp(page)
+    // The app shell appears before Monaco's model is ready. Measure only after
+    // the writing editor has fully hydrated, without weakening overlap checks.
+    await waitForWorkspace(page)
     for (const width of [1440, 1240, 1024]) {
       await page.setViewportSize({ width, height: 900 })
       for (const mode of ['Inspector', 'Rendered output', 'Tools']) {
