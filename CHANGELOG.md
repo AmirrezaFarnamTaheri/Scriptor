@@ -32,6 +32,8 @@
 
 - Reject daemon Git commits with a missing or stale originating-vault ID before acquiring a native GitQueue, both through the regular command gateway and the transport's outside-lock execution path.
 
+- Keep Health Dashboard open until the existing workspace leaf/editor approves note navigation, preserving the initiating panel on refused dirty-note transitions and reporting native read failures without silently dismissing the panel.
+
 - Keep paused drafts safe when a backup restore outcome is unknown: closing requires explicit discard approval for unsaved edits, never flushes those edits over restored files, and blocks vault switching with restart instructions until recovery.
 
 - Reject malformed or unrecognized native restore results as indeterminate, keeping the previous editor draft frozen until the vault can be reopened. Typed Tauri invocation responses are now validated after submission, with failing-first regression coverage.
