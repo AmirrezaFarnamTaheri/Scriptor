@@ -6,6 +6,16 @@
 
 - Keep Saved Views search results attached to their originating vault and filter, discarding late manual and automatic query responses instead of showing stale results after edits or vault switches.
 
+- Make Vault search keyboard access select the mobile Vault pane and expand a collapsed desktop Vault sidebar before moving focus, from both the command palette and the global shortcut.
+
+- Exclude the collapsed desktop Vault sidebar from keyboard focus instead of only making it transparent; keep the independently selected mobile Vault pane accessible and restore palette-to-search focus when the rail reopens.
+
+- Make the command palette's **Focus vault search** action reveal the Vault sidebar when needed and move keyboard focus after the palette closes, instead of losing focus to the still-active modal trap.
+
+- Hide note-search results in the command palette unless the current surface can actually open a note, rather than offering a selectable result that merely closes the palette.
+
+- Hide command palette actions when their optional launcher is unavailable, when there is no active note to organize, or when no closed tab can be reopened. Preserve available commands and their native permission boundaries.
+
 - Make Database Studio metadata edits read-only when the source-editor mutation coordinator is absent. Never bypass an unsaved editor draft with a direct frontmatter write; retain note viewing and guarded coordinated edits.
 
 - Refuse source attachment symlinks and nested destination symlink escapes on Obsidian import; stage complete files and publish using create-only hard links, retaining existing attachments and cleaning up staging files after collisions.
