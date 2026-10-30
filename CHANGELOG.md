@@ -4,6 +4,12 @@
 
 ### Fixed
 
+- Prevent delayed Git commit, pull and push failures from overwriting the error state of a different active vault, without dropping operation audit entries.
+
+- Keep Git commit, pull and push completions from refreshing a different vault, including after navigating away and back; preserve authoritative native results while excluding stale UI refreshes.
+
+- Prevent overlapping workspace Git commits, pulls and pushes before React renders a busy state, and retain a truthful busy indicator while navigating between vaults during an active native Git mutation.
+
 - Reject daemon Git commits with a missing or stale originating-vault ID before acquiring a native GitQueue, both through the regular command gateway and the transport's outside-lock execution path.
 
 - Make Vault search keyboard access select the mobile Vault pane and expand a collapsed desktop Vault sidebar before moving focus, from both the command palette and the global shortcut.
