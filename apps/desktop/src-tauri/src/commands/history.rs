@@ -19,7 +19,10 @@ pub fn vault_restore_note_history_revision(
 ) -> Result<SaveNoteOutput, String> {
     let session = active_session(&state)?;
     // Reject a vault switch before consuming sensitive authorization or reading files.
-    crate::commands::vault::validate_expected_vault(&session.descriptor.id, Some(&expected_vault_id))?;
+    crate::commands::vault::validate_expected_vault(
+        &session.descriptor.id,
+        Some(&expected_vault_id),
+    )?;
     require_sensitive_operation(
         &state,
         &authorization_token,
