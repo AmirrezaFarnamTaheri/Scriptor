@@ -9,15 +9,9 @@ use crate::state::{AppState, active_session};
 /// A reviewed revision is immutable for this approval. Read the actual source
 /// bytes again and reject any missing or changed provenance before writing.
 fn validate_reviewed_revision_hash(markdown: &str, expected_hash: &str) -> Result<(), String> {
-    if expected_hash.trim().is_empty() {
-        return Err("Missing reviewed revision hash. Review the revision again.".into());
-    }
-    if scriptor_vault::content_hash(markdown) != expected_hash {
-        return Err("The reviewed historical revision changed since preview. Review again.".into());
-    }
-    Ok(())
+    scriptor_vault::validate_reviewed_history_revision(markdown, expected_hash)
+        .map_err(|error| error.to_string())
 }
-
 /// Restore a historical revision only if the note has not changed since this
 /// command observed its current content hash. A concurrent save between the
 /// read and write is rejected by the vault's optimistic-concurrency guard.
