@@ -51,6 +51,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const documentRef = useRef(document)
   const lifecycleGuardRef = useRef(new OperationGuard())
   const loadGuardRef = useRef(new OperationGuard())
+  const boardListGuardRef = useRef(new OperationGuard())
   const saveGuardRef = useRef(new OperationGuard())
   const templateGuardRef = useRef(new OperationGuard())
   const saveTailRef = useRef<Promise<boolean>>(Promise.resolve(true))
@@ -65,6 +66,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   useEffect(() => {
     lifecycleGuardRef.current.invalidate()
     loadGuardRef.current.invalidate()
+    boardListGuardRef.current.invalidate()
     saveGuardRef.current.invalidate()
     templateGuardRef.current.invalidate()
     if (saveTimer.current) {
@@ -114,12 +116,15 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     !vaultOpen || !vaultId ? 'Open a vault to edit canvas boards.' : status
 
   const refreshBoardList = useCallback(async (isCurrent: () => boolean = () => true) => {
+    // Request ordering is separate from the vault lifecycle. Two reads in the
+    // same vault can resolve in reverse order after a completed Canvas save.
+    const request = boardListGuardRef.current.issue()
     if (!isNativeBridgeAvailable() || !vaultOpen) {
-      if (isCurrent()) setBoards([])
+      if (isCurrent() && boardListGuardRef.current.isCurrent(request)) setBoards([])
       return []
     }
     const summaries = await canvasListDocuments()
-    if (isCurrent()) setBoards(summaries)
+    if (isCurrent() && boardListGuardRef.current.isCurrent(request)) setBoards(summaries)
     return summaries
   }, [vaultOpen])
 
@@ -323,6 +328,18 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   )
 
   const flushPendingSave = useCallback(async (): Promise<boolean> => {
+    // A successful old native write must never claim that another vault or
+    // a newer local document is already saved.
+    const originLifecycle = lifecycleGuardRef.current.snapshot()
+    const originDocument = documentRef.current
+    // The explicit flush owns only edits submitted at invocation time. A later
+    // edit retains its own pending payload and debounce, even if the older
+    // native write completes successfully while the user keeps typing.
+    const flushSequence = latestSaveSequenceRef.current
+    const inFlightAtStart = saveTailRef.current
+    const isCurrent = () => mountedRef.current &&
+      lifecycleGuardRef.current.isCurrent(originLifecycle) &&
+      documentRef.current === originDocument
     if (saveTimer.current) {
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
@@ -331,27 +348,29 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     const pending = pendingSavePayloadRef.current
     if (pending && isNativeBridgeAvailable() && vaultOpen) {
       pendingSavePayloadRef.current = null
-      const ok = await enqueueSave(pending, () => true)
+      const ok = await enqueueSave(pending, isCurrent)
       if (!ok) return false
     } else {
-      const inFlightOk = await saveTailRef.current
+      const inFlightOk = await inFlightAtStart
       if (!inFlightOk) {
         // A debounced payload may already have moved into the in-flight tail and
         // failed while this flush was waiting. enqueueSave re-inserts the newest
         // failed payload so the explicit flush gets one deterministic retry.
         const retry = pendingSavePayloadRef.current
-        if (!retry || !isNativeBridgeAvailable() || !vaultOpen) return false
+        if (!retry || retry.sequence > flushSequence || !isNativeBridgeAvailable() || !vaultOpen) return false
         pendingSavePayloadRef.current = null
-        return enqueueSave(retry, () => true)
+        return enqueueSave(retry, isCurrent)
       }
     }
 
     const retry = pendingSavePayloadRef.current
-    if (retry && isNativeBridgeAvailable() && vaultOpen) {
+    if (retry && retry.sequence <= flushSequence && isNativeBridgeAvailable() && vaultOpen) {
       pendingSavePayloadRef.current = null
-      return enqueueSave(retry, () => true)
+      return enqueueSave(retry, isCurrent)
     }
-    return saveTailRef.current
+    // A newer payload may have joined the save queue while this flush awaited
+    // its original write. Its durability belongs to that newer operation.
+    return true
   }, [enqueueSave, vaultOpen])
 
   useEffect(() => {

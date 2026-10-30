@@ -40,6 +40,10 @@
 
 - Keep Health Dashboard open until the existing workspace leaf/editor approves note navigation, preserving the initiating panel on refused dirty-note transitions and reporting native read failures without silently dismissing the panel.
 
+- Keep explicit Canvas save completion tied to the originating vault and document revision; newer unsaved edits remain separately flushable. This is combined with same-vault Canvas board-inventory request ordering, without changing the native writer or authorization.
+
+- Keep the Canvas board list current when two reads finish out of order in the same vault; the existing operation guard now prevents an older list response from replacing a newer post-save inventory.
+
 - Reconcile backup listings with a read-only scoped refresh after denied/failed backup creation, keeping the original error visible without automatically retrying the write.
 
 - Prevent stale same-vault backup-list results or errors from replacing newer inventory after manual backup, deletion or restore; responses now honor request ordering as well as vault/destination identity.
