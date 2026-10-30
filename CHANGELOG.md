@@ -30,6 +30,8 @@
 
 - Keep Saved Views search results attached to their originating vault and filter, discarding late manual and automatic query responses instead of showing stale results after edits or vault switches.
 
+- Reject daemon Git commits with a missing or stale originating-vault ID before acquiring a native GitQueue, both through the regular command gateway and the transport's outside-lock execution path.
+
 - Keep paused drafts safe when a backup restore outcome is unknown: closing requires explicit discard approval for unsaved edits, never flushes those edits over restored files, and blocks vault switching with restart instructions until recovery.
 
 - Reject malformed or unrecognized native restore results as indeterminate, keeping the previous editor draft frozen until the vault can be reopened. Typed Tauri invocation responses are now validated after submission, with failing-first regression coverage.

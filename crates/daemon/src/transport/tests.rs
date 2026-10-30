@@ -808,3 +808,37 @@ fn reload_config_broadcasts_config_json_to_connected_clients() {
     }
     pipe_guard.disarm();
 }
+
+#[test]
+fn outside_lock_git_commit_rejects_stale_and_missing_vault_before_queueing() {
+    let vault = tempfile::tempdir().expect("temporary vault");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let state = Arc::new(Mutex::new(DaemonState::default()));
+    lock_recover(&state).session = Some(session);
+    let event_hub = EventHub::new();
+
+    for payload in [
+        serde_json::json!({
+            "files": ["sample.md"],
+            "message": "Wrong target",
+            "expected_vault_id": "former-vault",
+        }),
+        serde_json::json!({
+            "files": ["sample.md"],
+            "message": "Unknown target",
+        }),
+    ] {
+        let response = dispatch_invoke_outside_lock(
+            &state,
+            42,
+            "git_commit_cmd",
+            &payload.to_string(),
+            &event_hub,
+        );
+        let observed = format!("{:?}", response.result);
+        assert!(
+            observed.contains("Git commit vault identity"),
+            "wrong or missing vault must fail at identity check, not GitQueue: {observed}"
+        );
+    }
+}
