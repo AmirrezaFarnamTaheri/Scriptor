@@ -272,7 +272,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
             </header>
             {vaultId && path && selectedId && previewReady && currentReady ? (
               <RevisionCopyForm
-                key={vaultId + ':' + path + ':' + selectedId}
+                key={vaultId + ':' + path + ':' + selectedId + ':' + (selectedRevision?.content_hash ?? '')}
                 vaultId={vaultId}
                 sourcePath={path}
                 revisionId={selectedId}

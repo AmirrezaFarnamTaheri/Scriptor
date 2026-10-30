@@ -14,3 +14,12 @@ test('MAT-004: history offers reviewed create-only revision copies without destr
   assert.match(form, /Confirm separate revision copy/)
   assert.doesNotMatch(form, /vaultRestoreNoteHistoryRevision/)
 })
+
+test('MAT-004: changed vault, revision or preview cannot complete a stale create-only action', () => {
+  assert.match(history, /selectedRevision\?\.content_hash/)
+  for (const field of ['vaultId', 'sourcePath', 'revisionId', 'reviewedMarkdown']) {
+    assert.match(form, new RegExp('originRef\\.current\\.' + field + ' === origin\\.' + field))
+  }
+  assert.match(form, /isCurrent: isCurrentOrigin/)
+  assert.doesNotMatch(form, /setConfirmCopy\(false\) \}, \[reviewedMarkdown\]/)
+})

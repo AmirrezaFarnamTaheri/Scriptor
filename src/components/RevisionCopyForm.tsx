@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { vaultReadNoteHistoryRevision, vaultSaveNote } from '../bridge/commands'
 import { copyReviewedRevisionAsNewNote } from '../lib/workspace/revisionCopy'
@@ -26,17 +26,24 @@ export function RevisionCopyForm({ sourcePath, revisionId, vaultId, reviewedMark
   const [error, setError] = useState('')
   const current = useRef(false)
   const pending = useRef(false)
+  const originRef = useRef({ sourcePath, revisionId, vaultId, reviewedMarkdown })
+  useLayoutEffect(() => {
+    originRef.current = { sourcePath, revisionId, vaultId, reviewedMarkdown }
+  }, [sourcePath, revisionId, vaultId, reviewedMarkdown])
 
   useEffect(() => {
     current.current = true
     return () => { current.current = false }
   }, [])
 
-  // A newer preview is not the reviewed source for an older confirmation.
-  useEffect(() => { setConfirmCopy(false) }, [reviewedMarkdown])
-
   const createCopy = async () => {
     if (pending.current || disabled) return
+    const origin = { sourcePath, revisionId, vaultId, reviewedMarkdown }
+    const isCurrentOrigin = () => current.current
+      && originRef.current.sourcePath === origin.sourcePath
+      && originRef.current.revisionId === origin.revisionId
+      && originRef.current.vaultId === origin.vaultId
+      && originRef.current.reviewedMarkdown === origin.reviewedMarkdown
     pending.current = true
     setBusy(true)
     setConfirmCopy(false)
@@ -44,19 +51,19 @@ export function RevisionCopyForm({ sourcePath, revisionId, vaultId, reviewedMark
     setMessage('')
     try {
       const createdPath = await copyReviewedRevisionAsNewNote(
-        { sourcePath, revisionId, vaultId, targetPath, reviewedMarkdown },
+        { ...origin, targetPath },
         {
           readRevision: vaultReadNoteHistoryRevision,
           createNote: (path, markdown, expectedHash, expectedVaultId) =>
             vaultSaveNote(path, markdown, expectedHash, false, expectedVaultId),
-          isCurrent: () => current.current,
+          isCurrent: isCurrentOrigin,
         },
       )
-      if (current.current) {
+      if (isCurrentOrigin()) {
         setMessage('Created ' + createdPath + '. The original note was not changed.')
       }
     } catch (caught) {
-      if (current.current) {
+      if (isCurrentOrigin()) {
         setError(caught instanceof Error ? caught.message : String(caught))
       }
     } finally {
