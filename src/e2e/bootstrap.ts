@@ -568,7 +568,10 @@ export function installE2eBridge(): void {
         }
       }
       case 'git_commit_cmd': {
-        const body = payload as { files?: string[]; message?: string }
+        const body = payload as { files?: string[]; message?: string; expectedVaultId?: string }
+        if (body.expectedVaultId !== SCREENSHOT_VAULT.id) {
+          throw new Error('Git commit target vault does not match the opened vault.')
+        }
         const files = body.files ?? []
         const message = String(body.message ?? '')
         window.__scriptorE2eGitCommits = [
