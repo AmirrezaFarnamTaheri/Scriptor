@@ -21,6 +21,7 @@ import { removeListMarkers } from './gfm-commands.ts'
 import { htmlToMarkdown, nodeToMarkdown } from './paste-handler.ts'
 import { MERMAID_SNIPPETS, MATH_SNIPPETS } from './snippet-catalogs.ts'
 import { normalizeSnippetCatalog, parseSnippetCatalogJson } from './snippet-catalog.ts'
+import './roundtrip-source-fidelity.test.ts'
 import {
   expandSnippetTemplate,
   looksLikeSnippetTemplate,
