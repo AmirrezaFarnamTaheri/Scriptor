@@ -23,6 +23,7 @@ import type {
 } from '../../types/vault'
 import { requireNative } from '../native.ts'
 import { authorizeSensitiveOperation } from './authorization.ts'
+import { runVaultRestoreWithOutcomeBoundary, validateVaultRestoreResult } from '../../lib/restoreOutcome.ts'
 import { parseVaultHealthDiagnostics, parseVaultHealthReport } from '../../types/vaultValidators'
 
 // Tauri invokes may run concurrently. Preserve caller order here so a slow
@@ -398,9 +399,26 @@ export async function vaultCreateBackup(backupPath?: string): Promise<VaultBacku
   })
 }
 
+const BACKUP_LIST_TIMEOUT_MS = 30_000
+
 export async function vaultListBackups(backupPath?: string): Promise<VaultBackupEntry[]> {
   requireNative()
-  return invoke<VaultBackupEntry[]>('vault_list_backups', { backupPath: backupPath ?? null })
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  try {
+    // A read-only native request may never reply (for example, a disconnected
+    // external backup folder). Bound it so a failed-create reconciliation can
+    // release the UI mutex; the underlying native read is not a write retry.
+    return await Promise.race([
+      invoke<VaultBackupEntry[]>('vault_list_backups', { backupPath: backupPath ?? null }),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Backup inventory request timed out. Check the folder and retry the listing.'))
+        }, BACKUP_LIST_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+  }
 }
 
 export interface VaultRestoreResult {
@@ -425,12 +443,14 @@ export type VaultRestoreStatus =
 
 export async function vaultRestoreBackup(backupName: string, backupPath?: string): Promise<VaultRestoreResult> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('restore_backup', backupName)
-  return invoke<VaultRestoreResult>('vault_restore_backup', {
-    backupName,
-    backupPath: backupPath ?? null,
-    authorizationToken,
-  })
+  return runVaultRestoreWithOutcomeBoundary(
+    () => authorizeSensitiveOperation('restore_backup', backupName),
+    async (authorizationToken) => validateVaultRestoreResult(await invoke<unknown>('vault_restore_backup', {
+      backupName,
+      backupPath: backupPath ?? null,
+      authorizationToken,
+    })),
+  )
 }
 
 export async function vaultDeleteBackup(backupName: string, backupPath?: string): Promise<void> {

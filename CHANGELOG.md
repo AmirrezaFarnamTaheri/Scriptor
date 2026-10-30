@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Improved
+
+- Reveal older retained backups progressively in sets of ten instead of hiding every backup beyond the first ten. Paging or changing destinations discards outstanding Restore/Delete approval, and the native backup order remains unchanged.
+
+- Offer a safe path from Backup settings to the current note's existing revision history. Disallow the navigation when no note is selected, Settings has unsaved changes, or the vault is paused for restore recovery; opening history performs no mutation.
+
+- Explain the latest restore attempt in Backup settings using vault-scoped, session-only read-only receipt evidence. Preserve clear distinctions between confirmed rollback, completed replacement, incomplete recovery and lost native replies; this is not a persisted recovery inventory or a new restore authority.
+
+- Do not classify a native `recovery-required` restore as a completed commit in operation receipts. Distinguish an unreconciled journal from a durable `committed-needs-reopen` result, and refuse impossible post-commit refresh evidence before it can generate a false completion claim.
+
+- Introduce read-only, vault-scoped restore operation receipts with explicit native confirmation, uncertain effects, retry safety and reopen requirements; retain unknown paths and revisions as unknown rather than inventing native evidence. The receipts are an internal foundation for future recovery UI, not an expanded restore authority.
+
 ### Fixed
 
 - Provide a reviewed, non-destructive note-history recovery option that saves a retained revision to a different Markdown path using the native atomic create-only precondition; source and existing destination notes are never replaced.
@@ -29,6 +41,24 @@
 - Reject daemon Git commits with a missing or stale originating-vault ID before acquiring a native GitQueue, both through the regular command gateway and the transport's outside-lock execution path.
 
 - Keep Health Dashboard open until the existing workspace leaf/editor approves note navigation, preserving the initiating panel on refused dirty-note transitions and reporting native read failures without silently dismissing the panel.
+
+- Keep explicit Canvas save completion tied to the originating vault and document revision; newer unsaved edits remain separately flushable. This is combined with same-vault Canvas board-inventory request ordering, without changing the native writer or authorization.
+
+- Keep the Canvas board list current when two reads finish out of order in the same vault; the existing operation guard now prevents an older list response from replacing a newer post-save inventory.
+
+- Reconcile backup listings with a read-only scoped refresh after denied/failed backup creation, keeping the original error visible without automatically retrying the write.
+
+- Prevent stale same-vault backup-list results or errors from replacing newer inventory after manual backup, deletion or restore; responses now honor request ordering as well as vault/destination identity.
+
+- Disable Restore for backup copies that fail native integrity verification, with a clear explanation; reviewed Delete remains available for cleanup.
+
+- Require pending Restore/Delete confirmations to match the current vault, backup destination and backup name; clear outdated approvals rather than applying them to an identically named backup elsewhere.
+
+- Keep paused drafts safe when a backup restore outcome is unknown: closing requires explicit discard approval for unsaved edits, never flushes those edits over restored files, and blocks vault switching with restart instructions until recovery.
+
+- Reject malformed or unrecognized native restore results as indeterminate, keeping the previous editor draft frozen until the vault can be reopened. Typed Tauri invocation responses are now validated after submission, with failing-first regression coverage.
+
+- Keep editor drafts paused if a native backup-restore reply is lost after submission. Distinguish pre-submission authorization rejection from an indeterminate transaction outcome, preserve native terminal statuses, and quarantine repeated backup/restore/delete actions for every affected vault until Scriptor is restarted and the vault reopened.
 
 - Make Vault search keyboard access select the mobile Vault pane and expand a collapsed desktop Vault sidebar before moving focus, from both the command palette and the global shortcut.
 

@@ -42,6 +42,12 @@ function harness(authorization = async () => 'test-approval') {
           return authorization(...args)
         },
       }
+      // This harness exercises Obsidian admission, not restore transactions.
+      // Fail loudly if an import accidentally calls the unrelated restore boundary.
+      if (name === '../../lib/restoreOutcome.ts') return {
+        runVaultRestoreWithOutcomeBoundary: () => { throw new Error('Obsidian import invoked restore outcome boundary') },
+        validateVaultRestoreResult: () => { throw new Error('Obsidian import invoked restore outcome validation') },
+      }
       if (name.endsWith('/vaultValidators')) return {
         parseVaultHealthDiagnostics: (v) => v,
         parseVaultHealthReport: (v) => v,

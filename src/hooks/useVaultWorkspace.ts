@@ -350,6 +350,7 @@ export function useVaultWorkspace(options?: {
     reloadActiveNoteFromDisk,
     keepEditingAfterExternalChange,
     resetNoteNavigation,
+    isEditorPersistenceSuspended,
     restoreEditorSession,
     prepareForVaultReplacement,
     finishVaultReplacement,
@@ -472,6 +473,10 @@ export function useVaultWorkspace(options?: {
       const requestId = ++vaultOpenRequestIdRef.current
       const isCurrent = () => requestId === vaultOpenRequestIdRef.current
       const cancelled = { status: 'cancelled' as const, isCurrent }
+      if (isEditorPersistenceSuspended()) {
+        setError('Cannot switch vaults while a restore result is unknown. Copy unsaved edits outside Scriptor, then close and restart the application before opening another vault.')
+        return cancelled
+      }
       if (!await prepareVaultSwitch() || !isCurrent()) return cancelled
       const saved = await resetNoteNavigation()
       if (!isCurrent()) return cancelled
@@ -569,7 +574,7 @@ export function useVaultWorkspace(options?: {
         return { status: 'failed', isCurrent }
       }
     },
-    [clearSearch, logActivity, onSessionLayoutRestore, onVaultChanged, openNote, refreshGit, refreshHealth, refreshNoteSummaries, refreshVaultConfig, refreshVaultSnippets, resetNoteNavigation, restoreEditorSession, setHealth, setHealthDiagnostics, setRebuild, vault],
+    [clearSearch, logActivity, onSessionLayoutRestore, onVaultChanged, openNote, refreshGit, refreshHealth, refreshNoteSummaries, refreshVaultConfig, refreshVaultSnippets, resetNoteNavigation, restoreEditorSession, isEditorPersistenceSuspended, setHealth, setHealthDiagnostics, setRebuild, vault],
   )
 
   const { inboxNotes, noteTypes, templatePaths } = useWorkspaceKnowledge(noteSummaries, entries, vaultConfig)
