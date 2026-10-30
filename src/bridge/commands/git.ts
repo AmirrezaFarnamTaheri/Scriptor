@@ -11,9 +11,16 @@ export async function gitStatus(): Promise<GitStatus> {
   return invoke<GitStatus>('git_status_cmd')
 }
 
-export async function gitCommit(files: string[], message: string): Promise<GitCommitOutput> {
+export async function gitCommit(
+  files: string[],
+  message: string,
+  expectedVaultId: string,
+): Promise<GitCommitOutput> {
   requireNative()
-  return invoke<GitCommitOutput>('git_commit_cmd', { files, message })
+  if (!expectedVaultId?.trim()) {
+    throw new Error('A vault identity is required before committing Git changes.')
+  }
+  return invoke<GitCommitOutput>('git_commit_cmd', { files, message, expectedVaultId })
 }
 
 export async function gitPull(vaultId: string, strategy: GitPullStrategy): Promise<GitPullOutput> {

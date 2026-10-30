@@ -12,6 +12,8 @@
 
 - Prevent duplicate Obsidian import submissions before React rerenders; late import responses from closed dialogs no longer update another workspace, while an explicit retry remains available after failure.
 
+- Make Database Studio metadata edits read-only when the source-editor mutation coordinator is absent. Never bypass an unsaved editor draft with a direct frontmatter write; retain note viewing and guarded coordinated edits.
+
 - Refuse source attachment symlinks and nested destination symlink escapes on Obsidian import; stage complete files and publish using create-only hard links, retaining existing attachments and cleaning up staging files after collisions.
 - Reject Obsidian imports when the destination vault is inside the source folder, preventing recursive discovery of files created by the importer itself.
 
@@ -20,6 +22,8 @@
 - Keep daemon event subscriptions working with the updated `interprocess` crate by polling nonblocking socket disconnects in the existing event loop instead of using deprecated stream halves and a detached reader thread.
 
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
+
+- Reject desktop Git commits whose initiating vault no longer matches the native active session, including missing vault IDs. Bind the renderer request to its originating vault before entering GitQueue rather than committing against a newly selected vault.
 
 - Upgrade `webpki-roots` and `webpki-root-certs` to 1.0.10 and `rustls-webpki` to 0.103.16 to fix RUSTSEC-2026-0381, RUSTSEC-2026-0382 and RUSTSEC-2026-0383, which affected the bundled root certificates by trusting distrusted emSign intermediates and by accepting certificate paths through distrusted intermediates.
 
