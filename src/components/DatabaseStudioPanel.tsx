@@ -12,6 +12,11 @@ import { DatabaseStudioResults } from './database/DatabaseStudioResults'
 import '../styles/components/database-studio.css'
 
 const PRESET_PATH = '.scriptor/presets/database-studio.md'
+// Presentation-only updates must not invalidate a completed (or pending) query.
+// Identity, filters, columns and combination logic determine result ownership.
+function queryIdentity(view: DatabaseView): string {
+  return JSON.stringify({ id: view.id, filters: view.filters, columns: view.columns, combine: view.combine })
+}
 interface Props { vaultOpen: boolean; vaultId: string | null; onClose: () => void; onOpenNote: (path: string) => void; embedded?: boolean; runSourceNoteMutation?: (path:string, mutation:()=>Promise<void>)=>Promise<boolean> }
 export interface DatabaseRow { note: NoteDocument; values: Record<string, CellValue> }
 
@@ -68,6 +73,10 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
   }, [vaultId, native, reloadPresets])
 
   const changeView = (next: DatabaseView) => {
+    if (queryIdentity(next) === queryIdentity(view)) {
+      setView(next)
+      return
+    }
     viewRevision.current += 1
     setView(next)
     setLoadedScope(null)
@@ -156,7 +165,7 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
   // Compare immutable render state, not mutable refs. This hides results on
   // the FIRST render after a vault/preset/filter change, before effects settle.
   const resultsCurrent = loadedScope?.vaultId === vaultId
-    && loadedScope.view === view && loadedScope.native === native
+    && queryIdentity(loadedScope.view) === queryIdentity(view) && loadedScope.native === native
     && loadedScope.presetVersion === reloadPresets
   const visibleRows = useMemo(() => resultsCurrent ? rows : [], [resultsCurrent, rows])
   const visibleColumns = useMemo(() => resultsCurrent ? loadedColumns : [], [resultsCurrent, loadedColumns])
