@@ -71,7 +71,8 @@ fn process_probe_entrypoint() {
         "watch_a" => {
             let path = std::env::var("SCRIPTOR_MAT008_VAULT").expect("A path");
             let ready = PathBuf::from(std::env::var("SCRIPTOR_MAT008_READY").expect("ready file"));
-            let signal = PathBuf::from(std::env::var("SCRIPTOR_MAT008_SIGNAL").expect("signal file"));
+            let signal =
+                PathBuf::from(std::env::var("SCRIPTOR_MAT008_SIGNAL").expect("signal file"));
             let id = open_vault(&path);
             let staged = ready.with_extension("tmp");
             fs::write(&staged, json!({ "vault_id": id }).to_string()).expect("write ready");
@@ -220,7 +221,14 @@ impl TestEnvironment {
         panic!("daemon did not publish a fresh authenticated endpoint");
     }
 
-    fn probe(&self, action: &str, vault: Option<&Path>, id: Option<&str>, ready: Option<&Path>, signal: Option<&Path>) -> ProcessGuard {
+    fn probe(
+        &self,
+        action: &str,
+        vault: Option<&Path>,
+        id: Option<&str>,
+        ready: Option<&Path>,
+        signal: Option<&Path>,
+    ) -> ProcessGuard {
         let mut command = Command::new(std::env::current_exe().expect("test executable"));
         command
             .args(["--exact", "process_probe_entrypoint", "--nocapture"])
@@ -240,7 +248,11 @@ impl TestEnvironment {
             command.env("SCRIPTOR_MAT008_SIGNAL", signal);
         }
         self.apply(&mut command);
-        ProcessGuard::new(command.spawn().expect("spawn independently authenticated probe"))
+        ProcessGuard::new(
+            command
+                .spawn()
+                .expect("spawn independently authenticated probe"),
+        )
     }
 }
 
@@ -260,26 +272,53 @@ fn probe_result(output: Output) -> Value {
     serde_json::from_str(json).expect("valid probe result")
 }
 
-fn run_switch_scenario(env: &TestEnvironment, root: &Path, label: &str, a: &Path, b: &Path) -> (String, String) {
+fn run_switch_scenario(
+    env: &TestEnvironment,
+    root: &Path,
+    label: &str,
+    a: &Path,
+    b: &Path,
+) -> (String, String) {
     let ready = root.join(format!("{label}-a-ready.json"));
     let signal = root.join(format!("{label}-allow-a-status"));
     let observer = env.probe("watch_a", Some(a), None, Some(&ready), Some(&signal));
     let observer_pid = observer.id();
-    wait_for(&ready, "first independently authenticated client to open vault A");
+    wait_for(
+        &ready,
+        "first independently authenticated client to open vault A",
+    );
     let ready_data: Value =
         serde_json::from_slice(&fs::read(&ready).expect("ready data")).expect("valid ready data");
-    let id_a = ready_data["vault_id"].as_str().expect("A vault identity").to_owned();
+    let id_a = ready_data["vault_id"]
+        .as_str()
+        .expect("A vault identity")
+        .to_owned();
     let current = probe_result(env.probe("switch_b", Some(b), None, None, None).finish());
-    let id_b = current["vault_id"].as_str().expect("B vault identity").to_owned();
+    let id_b = current["vault_id"]
+        .as_str()
+        .expect("B vault identity")
+        .to_owned();
     assert_ne!(id_a, id_b, "fixture vaults must have distinct identities");
-    assert_eq!(current["status"]["result"], "current", "B's own Git status stays available");
-    assert_ne!(observer_pid as u64, current["pid"].as_u64().expect("B process pid"));
+    assert_eq!(
+        current["status"]["result"], "current",
+        "B's own Git status stays available"
+    );
+    assert_ne!(
+        observer_pid as u64,
+        current["pid"].as_u64().expect("B process pid")
+    );
 
     fs::write(&signal, b"vault B opened").expect("release A's stale request");
     let stale = probe_result(observer.finish());
-    assert_eq!(stale["status"]["result"], "denied", "A cannot read B's Git status");
+    assert_eq!(
+        stale["status"]["result"], "denied",
+        "A cannot read B's Git status"
+    );
     assert!(
-        stale["status"]["reason"].as_str().unwrap_or_default().contains("Git status vault identity mismatch"),
+        stale["status"]["reason"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Git status vault identity mismatch"),
         "A must be refused for an identity mismatch, not due to transport failure: {stale}"
     );
     assert_eq!(stale["vault_id"], id_a);
@@ -296,7 +335,8 @@ fn authenticated_two_process_status_isolation_survives_daemon_restart() {
     let env = TestEnvironment::new(temp.path());
 
     let (mut first_daemon, first_nonce) = env.start_daemon(None);
-    let (old_a, old_b) = run_switch_scenario(&env, temp.path(), "before-restart", &vault_a, &vault_b);
+    let (old_a, old_b) =
+        run_switch_scenario(&env, temp.path(), "before-restart", &vault_a, &vault_b);
 
     first_daemon.stop();
     // Unix local sockets leave a filesystem node when the server is killed.
@@ -304,14 +344,27 @@ fn authenticated_two_process_status_isolation_survives_daemon_restart() {
     let _ = fs::remove_file(&env.socket);
 
     let (mut restarted_daemon, next_nonce) = env.start_daemon(Some(&first_nonce));
-    assert_ne!(first_nonce, next_nonce, "restart must issue fresh authenticated endpoint credentials");
+    assert_ne!(
+        first_nonce, next_nonce,
+        "restart must issue fresh authenticated endpoint credentials"
+    );
 
     let orphaned = probe_result(env.probe("status", None, Some(&old_b), None, None).finish());
-    assert_eq!(orphaned["status"]["result"], "denied", "restarted daemon has no open vault session");
-    let (new_a, new_b) = run_switch_scenario(&env, temp.path(), "after-restart", &vault_a, &vault_b);
-    assert_ne!(new_a, new_b, "new daemon still binds status to the initiating vault");
+    assert_eq!(
+        orphaned["status"]["result"], "denied",
+        "restarted daemon has no open vault session"
+    );
+    let (new_a, new_b) =
+        run_switch_scenario(&env, temp.path(), "after-restart", &vault_a, &vault_b);
+    assert_ne!(
+        new_a, new_b,
+        "new daemon still binds status to the initiating vault"
+    );
     let previous = probe_result(env.probe("status", None, Some(&old_a), None, None).finish());
-    assert_eq!(previous["status"]["result"], "denied", "pre-restart vault A cannot read active vault B");
+    assert_eq!(
+        previous["status"]["result"], "denied",
+        "pre-restart vault A cannot read active vault B"
+    );
     restarted_daemon.stop();
     #[cfg(unix)]
     let _ = fs::remove_file(&env.socket);
