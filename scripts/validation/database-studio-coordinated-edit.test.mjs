@@ -226,6 +226,24 @@ test('changing a Database Studio view immediately removes stale results, totals,
   assert.equal(h.nativeWrites.length, 0, 'stale edit callback cannot reach native frontmatter')
 })
 
+test('changing only the view layout and name retains loaded results and edit authority', async () => {
+  const h = harness(true)
+  h.render()
+  await h.settle()
+  const loaded = await h.load()
+  assert.equal(loaded.rows.length, 1)
+
+  const list = h.changeView({ ...h.currentView(), mode: 'list' })
+  assert.equal(list.rows.length, 1, 'list presentation reuses the loaded query')
+  const gallery = h.changeView({ ...h.currentView(), mode: 'gallery' })
+  assert.equal(gallery.rows.length, 1, 'gallery presentation reuses the loaded query')
+  const renamed = h.changeView({ ...h.currentView(), label: 'Renamed view' })
+  assert.equal(renamed.rows.length, 1, 'renaming a view does not change its loaded data')
+
+  await loaded.onEdit(loaded.rows[0], 'status', 'Done')
+  assert.equal(h.nativeWrites.length, 1, 'presentation changes do not revoke a valid edit')
+})
+
 test('a delayed Database Studio query cannot publish old-view notes after filters change', async () => {
   const h = harness(true, { delayList: true })
   h.render()
