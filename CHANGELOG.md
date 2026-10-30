@@ -36,6 +36,8 @@
 
 - Keep Saved Views search results attached to their originating vault and filter, discarding late manual and automatic query responses instead of showing stale results after edits or vault switches.
 
+- Reject daemon Git commits with a missing or stale originating-vault ID before acquiring a native GitQueue, both through the regular command gateway and the transport's outside-lock execution path.
+
 - Reconcile backup listings with a read-only scoped refresh after denied/failed backup creation, keeping the original error visible without automatically retrying the write.
 
 - Prevent stale same-vault backup-list results or errors from replacing newer inventory after manual backup, deletion or restore; responses now honor request ordering as well as vault/destination identity.

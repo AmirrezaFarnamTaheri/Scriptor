@@ -1,0 +1,124 @@
+use super::*;
+
+#[test]
+fn list_commands_meets_minimum() {
+    assert!(list_commands().len() >= 85);
+}
+
+#[test]
+fn dispatch_health_check_works() {
+    let mut state = DaemonState::default();
+    let result = dispatch(&mut state, "health_check", &json!({})).expect("health_check");
+    assert_eq!(result, json!("ok"));
+}
+
+#[test]
+fn require_bytes_accepts_valid_byte_array() {
+    let payload = json!({ "data": [0, 1, 127, 255] });
+    assert_eq!(require_bytes(&payload, "data"), Ok(vec![0, 1, 127, 255]));
+}
+
+#[test]
+fn require_bytes_rejects_out_of_range_and_non_integer_values() {
+    assert!(require_bytes(&json!({ "data": [0, 256] }), "data").is_err());
+    assert!(require_bytes(&json!({ "data": [1, -1] }), "data").is_err());
+    assert!(require_bytes(&json!({ "data": [1, 1.5] }), "data").is_err());
+    assert!(require_bytes(&json!({ "data": [1, "2"] }), "data").is_err());
+    assert!(require_bytes(&json!({ "data": "abc" }), "data").is_err());
+    assert!(require_bytes(&json!({}), "data").is_err());
+}
+
+#[test]
+fn read_only_whole_vault_scans_run_outside_lock_and_mutations_do_not() {
+    for command in [
+        "vault_rename_dry_run",
+        "vault_rename_tag_dry_run",
+        "vault_rename_section_dry_run",
+        "vault_rename_block_dry_run",
+        "vault_health",
+    ] {
+        assert!(
+            is_outside_lock_command(command),
+            "{command} reads the whole vault and must be dispatched outside the daemon lock"
+        );
+    }
+    for command in ["vault_rename_apply", "vault_lint_fix", "vault_save_note"] {
+        assert!(
+            !is_outside_lock_command(command),
+            "{command} mutates notes and must stay serialized by the daemon lock"
+        );
+    }
+}
+
+#[test]
+fn read_only_outside_lock_command_serves_rename_preview_from_cloned_session() {
+    let vault = tempfile::tempdir().expect("vault dir");
+    fs::write(vault.path().join("alpha.md"), "# Alpha\n").expect("write note");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let json = run_read_only_vault_command(
+        &session,
+        None,
+        "vault_rename_dry_run",
+        &json!({
+            "from_path": "alpha.md",
+            "to_path": "beta.md",
+            "update_links": false,
+        }),
+    )
+    .expect("rename dry run");
+    assert!(
+        json.contains("\"affected_files\"") && json.contains("alpha.md"),
+        "preview should report the affected source note: {json}"
+    );
+}
+
+#[test]
+fn read_only_outside_lock_health_requires_index_cache() {
+    let vault = tempfile::tempdir().expect("vault dir");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let error = run_read_only_vault_command(&session, None, "vault_health", &json!({}))
+        .expect_err("vault_health needs the index cache");
+    assert_eq!(error, "no index cache is open; call OpenVault first");
+}
+
+#[test]
+fn git_commit_gateway_rejects_stale_and_missing_vault_before_queueing() {
+    let vault = tempfile::tempdir().expect("temporary vault");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let mut state = DaemonState {
+        session: Some(session),
+        ..DaemonState::default()
+    };
+
+    for payload in [
+        json!({
+            "files": ["sample.md"],
+            "message": "Wrong target",
+            "expected_vault_id": "former-vault",
+        }),
+        json!({
+            "files": ["sample.md"],
+            "message": "Unknown target",
+        }),
+    ] {
+        let error = dispatch(&mut state, "git_commit_cmd", &payload)
+            .expect_err("Git commits without matching vault ownership must be denied");
+        assert!(
+            error.contains("Git commit vault identity"),
+            "wrong or missing vault must fail at identity check, not GitQueue: {error}"
+        );
+    }
+}
+
+#[test]
+fn git_commit_gateway_accepts_originating_vault_identity() {
+    let vault = tempfile::tempdir().expect("temporary vault");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let active_id = session.descriptor.id.clone();
+    let state = DaemonState {
+        session: Some(session),
+        ..DaemonState::default()
+    };
+    super::require_git_commit_vault_identity(&state, &json!({ "expected_vault_id": active_id }))
+        .expect("matching vault identity must be admitted");
+}
