@@ -717,12 +717,8 @@ function App() {
 
   const handleCloseGit = useCallback(() => setGitPanelOpen(false), [setGitPanelOpen])
   const handleRefreshGit = useCallback(() => { void refreshGit() }, [refreshGit])
-  const handleCommitGit = useCallback((files: string[], message: string) => {
-    void commitFiles(files, message)
-  }, [commitFiles])
-  const handlePullGit = useCallback((strategy: GitPullStrategy) => {
-    void pullRemote(strategy)
-  }, [pullRemote])
+  const handleCommitGit = useCallback((files: string[], message: string) => { void commitFiles(files, message) }, [commitFiles])
+  const handlePullGit = useCallback((strategy: GitPullStrategy) => { void pullRemote(strategy) }, [pullRemote])
   const handlePushGit = useCallback(() => { void pushRemote() }, [pushRemote])
   const handleResolveConflictGit = useCallback((path: string) => setConflictPath(path), [setConflictPath])
   const handleOpenNoteFromGit = useCallback((path: string) => { void openNote(path) }, [openNote])
