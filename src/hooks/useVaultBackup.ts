@@ -82,6 +82,8 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const setLastMessage = useCallback((value: string | null) => setMessageView({vaultId: ownedVaultId, path: settings.backupPath, value}), [ownedVaultId, settings.backupPath])
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const operationBusyRef = useRef(false)
+  // Reject older same-vault, same-folder inventory replies, including failures.
+  const backupListRequestEpochRef = useRef(0)
   const recoveryHoldRef = useRef<Set<string>>(new Set())
   const quarantineRestore = useCallback((id: string) => {
     recoveryHoldRef.current.add(id)
@@ -103,6 +105,8 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   // State alone is not a mutex: two invocations may race before React renders.
   const beginOperation = useCallback(() => {
     if (operationBusyRef.current || isVaultRestoreQuarantined(recoveryHoldRef.current, ownedVaultId)) return false
+    // No read started before a native mutation may later publish inventory.
+    backupListRequestEpochRef.current += 1
     operationBusyRef.current = true
     setIsBusy(true)
     return true
@@ -121,6 +125,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   }, [])
 
   const listBackups = useCallback(async () => {
+    const requestEpoch = ++backupListRequestEpochRef.current
     if (!ownedVaultId) {
       setBackups([])
       return
@@ -129,9 +134,13 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
     const requestedPath = settings.backupPath
     try {
       const list = await vaultListBackups(requestedPath || undefined)
-      if (ownsBackupScope(requestedVault, requestedPath)) setBackups(list || [])
+      if (ownsBackupScope(requestedVault, requestedPath) && requestEpoch === backupListRequestEpochRef.current) {
+        setBackups(list || [])
+      }
     } catch {
-      if (ownsBackupScope(requestedVault, requestedPath)) setBackupListError()
+      if (ownsBackupScope(requestedVault, requestedPath) && requestEpoch === backupListRequestEpochRef.current) {
+        setBackupListError()
+      }
     }
   }, [ownedVaultId, settings.backupPath, ownsBackupScope, setBackups, setBackupListError])
 
@@ -165,16 +174,24 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
           failedDeletes.push(old.name)
         }
       }
+      // This native mutation's final inventory supersedes any read that
+      // began before the create/retention sequence finished.
+      backupListRequestEpochRef.current += 1
       setBackups(sorted.filter((backup) => !deleted.has(backup.name)))
       if (failedDeletes.length > 0) {
         setLastError(`Could not delete ${failedDeletes.length} old backup(s): ${failedDeletes.join(', ')}`)
       }
     } catch (caught) {
-      if (ownsBackupScope(requestedVault, requestedPath)) setLastError(caught instanceof Error ? caught.message : 'Backup failed')
+      if (ownsBackupScope(requestedVault, requestedPath)) {
+        // The mutation invalidated the old list read. Reconcile with a fresh
+        // read-only request, never another native backup submission.
+        setLastError(caught instanceof Error ? caught.message : 'Backup failed')
+        await listBackups()
+      }
     } finally {
       finishOperation()
     }
-  }, [ownedVaultId, settings.backupPath, settings.maxSnapshots, beginOperation, finishOperation, ownsBackupScope, setBackups, setLastError, setLastMessage])
+  }, [ownedVaultId, settings.backupPath, settings.maxSnapshots, beginOperation, finishOperation, ownsBackupScope, listBackups, setBackups, setLastError, setLastMessage])
 
   const triggerBackupRef = useRef(triggerBackup)
   useEffect(() => {
@@ -317,12 +334,15 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
     const requestedVault = ownedVaultId
     const requestedPath = settings.backupPath
     let cancelled = false
+    const requestEpoch = ++backupListRequestEpochRef.current
     void vaultListBackups(requestedPath || undefined)
       .then((entries) => {
-        if (!cancelled && ownsBackupScope(requestedVault, requestedPath)) setBackups(entries || [])
+        if (!cancelled && ownsBackupScope(requestedVault, requestedPath) &&
+          requestEpoch === backupListRequestEpochRef.current) setBackups(entries || [])
       })
       .catch(() => {
-        if (!cancelled && ownsBackupScope(requestedVault, requestedPath)) setBackupListError()
+        if (!cancelled && ownsBackupScope(requestedVault, requestedPath) &&
+          requestEpoch === backupListRequestEpochRef.current) setBackupListError()
       })
     return () => {
       cancelled = true

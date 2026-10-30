@@ -183,3 +183,48 @@ test('a backup with failed native integrity verification cannot enter the Restor
   assert.match(settings, /This backup could not be verified, so it cannot be restored/)
   assert.match(settings, /Delete backup/)
 })
+
+
+test('MAT-005 backup listing rejects stale same-vault, same-folder completions', () => {
+  // A current vault + directory check alone cannot distinguish two overlapping
+  // requests for the same location. A monotonic request epoch is also required.
+  assert.match(useVaultBackup, /const backupListRequestEpochRef = useRef\(0\)/)
+  const acceptChecks = [...useVaultBackup.matchAll(/requestEpoch === backupListRequestEpochRef\.current/g)]
+  assert.ok(acceptChecks.length >= 2, 'both refresh and effect requests must reject stale completions')
+})
+
+test('MAT-005 backup inventory invalidates pending reads at mutation boundaries', () => {
+  const start = useVaultBackup.indexOf('const beginOperation = useCallback')
+  const end = useVaultBackup.indexOf('const finishOperation', start)
+  assert.ok(start >= 0 && end > start)
+  assert.match(useVaultBackup.slice(start, end), /backupListRequestEpochRef\.current \+= 1/)
+  const createStart = useVaultBackup.indexOf('const triggerBackup = useCallback')
+  const createEnd = useVaultBackup.indexOf('const triggerBackupRef', createStart)
+  assert.ok(createStart >= 0 && createEnd > createStart)
+  assert.match(useVaultBackup.slice(createStart, createEnd), /backupListRequestEpochRef\.current \+= 1[\s\S]*setBackups\(sorted\.filter/)
+})
+
+test('MAT-005 backup inventory gates both successful reads and stale errors', () => {
+  const directStart = useVaultBackup.indexOf('const listBackups = useCallback')
+  const directEnd = useVaultBackup.indexOf('const triggerBackup = useCallback', directStart)
+  const effectStart = useVaultBackup.indexOf('let cancelled = false\n    const requestEpoch', directEnd)
+  assert.ok(directStart >= 0 && directEnd > directStart && effectStart > directEnd)
+  const direct = useVaultBackup.slice(directStart, directEnd)
+  const effect = useVaultBackup.slice(effectStart, useVaultBackup.indexOf('return () => {', effectStart))
+  assert.equal((direct.match(/requestEpoch === backupListRequestEpochRef\.current/g) ?? []).length, 2)
+  assert.equal((effect.match(/requestEpoch === backupListRequestEpochRef\.current/g) ?? []).length, 2)
+})
+
+test('MAT-005 denied backup creation schedules a read-only list reconciliation', () => {
+  const start = useVaultBackup.indexOf('const triggerBackup = useCallback')
+  const end = useVaultBackup.indexOf('const triggerBackupRef', start)
+  assert.ok(start >= 0 && end > start, 'backup trigger block must be present')
+  const trigger = useVaultBackup.slice(start, end)
+  const failed = trigger.indexOf('} catch (caught) {')
+  const finished = trigger.indexOf('} finally {', failed)
+  assert.ok(failed > 0 && finished > failed)
+  assert.match(trigger.slice(failed, finished), /await listBackups\(\)/,
+    'a failed create must replace invalidated inventory read with a scoped read-only refresh')
+  assert.equal((trigger.match(/await vaultCreateBackup\(/g) ?? []).length, 1,
+    'the failure path must never resubmit the backup write')
+})
