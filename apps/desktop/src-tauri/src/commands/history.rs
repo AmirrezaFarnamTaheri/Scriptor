@@ -10,10 +10,10 @@ use crate::state::{AppState, active_session};
 /// bytes again and reject any missing or changed provenance before writing.
 fn validate_reviewed_revision_hash(markdown: &str, expected_hash: &str) -> Result<(), String> {
     if expected_hash.trim().is_empty() {
-        return Err("Cannot restore without a reviewed revision hash. Review the revision again.".to_string());
+        return Err("Missing reviewed revision hash. Review the revision again.".into());
     }
     if scriptor_vault::content_hash(markdown) != expected_hash {
-        return Err("The reviewed historical revision changed since preview. Review the revision again.".to_string());
+        return Err("The reviewed historical revision changed since preview. Review again.".into());
     }
     Ok(())
 }
