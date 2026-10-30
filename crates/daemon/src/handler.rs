@@ -122,7 +122,7 @@ impl DaemonState {
             RpcMethod::RebuildIndex => self.rebuild_index(),
             RpcMethod::HealthReport => self.health_report(),
             RpcMethod::HealthDiagnostics => self.health_diagnostics(),
-            RpcMethod::GitStatus => self.git_status(),
+            RpcMethod::GitStatus { expected_vault_id } => self.git_status(expected_vault_id),
             RpcMethod::Backlinks { path } => self.backlinks(path),
             RpcMethod::GraphSummary { path, depth } => self.graph_summary(path, depth),
             RpcMethod::SaveNote {
@@ -500,9 +500,28 @@ impl DaemonState {
         Ok(RpcPayload::HealthDiagnostics { json })
     }
 
-    fn git_status(&self) -> Result<RpcPayload, String> {
+    /// A daemon Git read is bound to the vault that initiated its RPC, even
+    /// when another client changes the daemon session while the RPC is in flight.
+    pub(crate) fn git_status_root(
+        &self,
+        expected_vault_id: &str,
+    ) -> Result<std::path::PathBuf, String> {
         let session = self.require_session()?;
-        let status = git_status(session.root.root()).map_err(|error| error.to_string())?;
+        if expected_vault_id.trim().is_empty() {
+            return Err("Git status vault identity is required".into());
+        }
+        if session.descriptor.id != expected_vault_id {
+            return Err(format!(
+                "Git status vault identity mismatch: requested '{expected_vault_id}', active '{}'",
+                session.descriptor.id
+            ));
+        }
+        Ok(session.root.root().to_path_buf())
+    }
+
+    fn git_status(&self, expected_vault_id: String) -> Result<RpcPayload, String> {
+        let root = self.git_status_root(&expected_vault_id)?;
+        let status = git_status(&root).map_err(|error| error.to_string())?;
         let json = serde_json::to_string(&status).map_err(|error| error.to_string())?;
         Ok(RpcPayload::GitStatus { json })
     }

@@ -200,8 +200,10 @@ fn graph_impl(focus_path: Option<String>, depth: u32) -> Result<String, String> 
         _ => Err("unexpected daemon graph response".into()),
     }
 }
-fn git_status_impl() -> Result<String, String> {
-    match daemon_rpc(RpcMethod::GitStatus)? {
+fn git_status_impl(expected_vault_id: &str) -> Result<String, String> {
+    match daemon_rpc(RpcMethod::GitStatus {
+        expected_vault_id: expected_vault_id.to_string(),
+    })? {
         RpcPayload::GitStatus { json } => Ok(json),
         _ => Err("unexpected daemon git status response".into()),
     }
@@ -404,8 +406,11 @@ pub fn daemon_graph(
     bridge_graph(&state, focus_path, depth)
 }
 #[tauri::command]
-pub fn daemon_git_status(state: tauri::State<AppState>) -> Result<String, String> {
-    bridge_git_status(&state)
+pub fn daemon_git_status(
+    state: tauri::State<AppState>,
+    expected_vault_id: String,
+) -> Result<String, String> {
+    bridge_git_status(&state, &expected_vault_id)
 }
 #[tauri::command]
 pub fn daemon_save_note(
@@ -557,8 +562,20 @@ pub(crate) fn bridge_graph(
 ) -> Result<String, String> {
     with_verified_vault(state, "daemon graph", || graph_impl(focus_path, depth))
 }
-pub(crate) fn bridge_git_status(state: &AppState) -> Result<String, String> {
-    with_verified_vault(state, "daemon git status", git_status_impl)
+pub(crate) fn bridge_git_status(
+    state: &AppState,
+    expected_vault_id: &str,
+) -> Result<String, String> {
+    // Keep validation and RPC inside the existing vault-switch critical section.
+    with_verified_vault(state, "daemon git status", || {
+        let guard = crate::state::read_recover(&state.session, "session");
+        let session = guard
+            .as_ref()
+            .ok_or_else(|| "No vault is open. Call vault_open first.".to_string())?;
+        super::git::validate_git_status_target(&session.descriptor.id, expected_vault_id)?;
+        drop(guard);
+        git_status_impl(expected_vault_id)
+    })
 }
 pub(crate) fn bridge_save_note(
     state: &AppState,

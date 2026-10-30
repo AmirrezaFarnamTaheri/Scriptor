@@ -282,8 +282,8 @@ pub fn ensure_daemon_running() -> Result<DaemonEndpoint, Box<dyn std::error::Err
     .into())
 }
 
-/// Open a vault in the already-running daemon session.
-pub fn open_vault(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+/// Open a vault and capture the daemon's own identity for later scoped RPCs.
+pub fn open_vault_with_id(path: &Path) -> Result<String, Box<dyn std::error::Error>> {
     let response = rpc_call(RpcRequest::new(
         2,
         RpcMethod::OpenVault {
@@ -291,16 +291,21 @@ pub fn open_vault(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         },
     ))?;
     match response.result {
-        RpcResult::Ok(RpcPayload::VaultOpened { .. }) => Ok(()),
+        RpcResult::Ok(RpcPayload::VaultOpened { vault_id, .. }) => Ok(vault_id),
         RpcResult::Error(error) => Err(error.to_string().into()),
         _ => Err("unexpected daemon open vault response".into()),
     }
 }
 
+/// Ensure the daemon is ready and return the identity of its opened vault.
+pub fn ensure_vault_open_with_id(path: &Path) -> Result<String, Box<dyn std::error::Error>> {
+    ensure_daemon_running()?;
+    open_vault_with_id(path)
+}
+
 /// Ensure the daemon is ready and has opened `path`.
 pub fn ensure_vault_open(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    ensure_daemon_running()?;
-    open_vault(path)
+    ensure_vault_open_with_id(path).map(|_| ())
 }
 
 #[cfg(test)]

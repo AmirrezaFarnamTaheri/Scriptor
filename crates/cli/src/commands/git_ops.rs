@@ -18,8 +18,11 @@ pub(crate) fn run_status(path: PathBuf, in_process: bool) -> CommandResult {
         let status = git_status(&path)?;
         println!("{}", serde_json::to_string_pretty(&status)?);
     } else {
-        daemon_client::ensure_vault_open(&path)?;
-        let response = rpc_call(RpcRequest::new(9, RpcMethod::GitStatus))?;
+        let expected_vault_id = daemon_client::ensure_vault_open_with_id(&path)?;
+        let response = rpc_call(RpcRequest::new(
+            9,
+            RpcMethod::GitStatus { expected_vault_id },
+        ))?;
         match response.result {
             RpcResult::Ok(RpcPayload::GitStatus { json }) => println!("{json}"),
             RpcResult::Error(error) => return Err(error.to_string().into()),

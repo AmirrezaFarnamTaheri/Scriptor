@@ -30,7 +30,7 @@ export interface GitStatusSnapshot {
   isLoading: boolean
 }
 
-type StatusFetcher = () => Promise<GitStatus>
+type StatusFetcher = (vaultId: string) => Promise<GitStatus>
 type StatusErrorHandler = (detail: string) => void
 
 export class WorkspaceGitStatusController {
@@ -78,10 +78,12 @@ export class WorkspaceGitStatusController {
   async refresh(explicitVaultId?: string | null): Promise<void> {
     const targetKey =
       explicitVaultId === undefined ? this.currentKey : vaultStatusKey(explicitVaultId)
+    // Never dispatch the no-vault sentinel to native Git.
+    if (targetKey === NO_VAULT_KEY) return
     const ticket = this.guard.issue()
     this.setLoading(true)
     try {
-      const status = await this.fetchStatus()
+      const status = await this.fetchStatus(targetKey)
       if (!this.guard.isCurrent(ticket)) return
       this.write(targetKey, { status, error: null })
     } catch (caught) {

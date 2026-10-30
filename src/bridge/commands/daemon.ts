@@ -148,10 +148,13 @@ export async function daemonGraph(focusPath?: string | null, depth = 1): Promise
 }
 
 /** Returns serialized Git status for the verified daemon vault. */
-export async function daemonGitStatusJson(): Promise<string> {
+export async function daemonGitStatusJson(expectedVaultId: string): Promise<string> {
   requireNative()
+  if (!expectedVaultId?.trim()) {
+    throw new Error('A vault identity is required before reading daemon Git status.')
+  }
   await ensureVaultBarrier()
-  return invoke<string>('daemon_git_status')
+  return invoke<string>('daemon_git_status', { expectedVaultId })
 }
 
 /** Saves a note through the verified daemon vault and validates the response. */

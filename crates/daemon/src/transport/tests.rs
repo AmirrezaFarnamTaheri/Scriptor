@@ -5,7 +5,7 @@ use scriptor_ipc::{
     read_frame_resyncing, write_frame,
 };
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -841,4 +841,267 @@ fn outside_lock_git_commit_rejects_stale_and_missing_vault_before_queueing() {
             "wrong or missing vault must fail at identity check, not GitQueue: {observed}"
         );
     }
+}
+
+#[test]
+fn unscoped_git_status_is_rejected_before_native_read_on_both_daemon_routes() {
+    let vault = tempfile::tempdir().expect("temporary vault");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let state = Arc::new(Mutex::new(DaemonState {
+        session: Some(session),
+        ..DaemonState::default()
+    }));
+
+    let outside_lock = dispatch_git_status_sync(&state, 901, "");
+    let result = format!("{:?}", outside_lock.result);
+    assert!(
+        result.contains("Git status vault identity"),
+        "an unbound RPC must not read the daemon's currently active vault: {result}"
+    );
+
+    let through_handler = lock_recover(&state).handle(RpcRequest::new(
+        902,
+        RpcMethod::GitStatus {
+            expected_vault_id: String::new(),
+        },
+    ));
+    let result = format!("{:?}", through_handler.result);
+    assert!(
+        result.contains("Git status vault identity"),
+        "the direct daemon handler must reject an unbound Git status request: {result}"
+    );
+}
+
+#[test]
+fn daemon_git_status_rejects_stale_identity_but_accepts_originating_vault() {
+    let vault = tempfile::tempdir().expect("temporary vault");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let expected_vault_id = session.descriptor.id.clone();
+    let state = Arc::new(Mutex::new(DaemonState {
+        session: Some(session),
+        ..DaemonState::default()
+    }));
+
+    let stale = dispatch_git_status_sync(&state, 903, "another-vault");
+    assert!(
+        format!("{:?}", stale.result).contains("Git status vault identity mismatch"),
+        "a stale RPC must not read the active vault"
+    );
+
+    let correct = dispatch_git_status_sync(&state, 904, &expected_vault_id);
+    assert!(
+        matches!(correct.result, RpcResult::Ok(RpcPayload::GitStatus { .. })),
+        "the originating vault should reach Git status: {:?}",
+        correct.result
+    );
+}
+
+#[test]
+fn authenticated_clients_keep_git_status_bound_after_another_client_switches_vault() {
+    let _guard = endpoint_lock();
+    teardown_rpc_session();
+    let vault_a = tempfile::tempdir().expect("first temporary vault");
+    let vault_b = tempfile::tempdir().expect("second temporary vault");
+    let (socket, _socket_dir) = test_socket_name();
+    let mut pipe_guard = PipeGuard::new(&socket);
+    write_endpoint(&socket).expect("write authenticated endpoint");
+
+    let socket_for_server = socket.clone();
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let (handle_tx, handle_rx) = std::sync::mpsc::channel();
+    let stop_accepts = Arc::new(AtomicBool::new(false));
+    let stop_for_server = Arc::clone(&stop_accepts);
+    let server = std::thread::spawn(move || {
+        let listener = create_listener_with_retry(&socket_for_server, 10);
+        let state = Arc::new(Mutex::new(DaemonState::default()));
+        let event_hub = EventHub::new();
+        ready_tx.send(()).expect("listener ready");
+        // Keep the listener alive throughout both clients' RPC sequences.
+        // A client may reconnect after a transient transport error; limiting
+        // accept() to two sockets used to close the socket name early and turn
+        // the test into Io(NotFound) before the security assertion ran.
+        loop {
+            let stream = listener.accept().expect("accept authenticated client");
+            if stop_for_server.load(Ordering::Acquire) {
+                break;
+            }
+            handle_tx
+                .send(spawn_test_handler(
+                    stream,
+                    Arc::clone(&state),
+                    Arc::clone(&event_hub),
+                ))
+                .expect("send connection handler");
+        }
+    });
+
+    ready_rx
+        .recv_timeout(Duration::from_secs(10))
+        .expect("daemon listener started");
+
+    let client_a = crate::client::DaemonRpcClient::new();
+    let client_b = crate::client::DaemonRpcClient::new();
+    let timeout = Duration::from_secs(10);
+
+    // Establish both independently authenticated request clients before
+    // the vault switch; the listener stays available for legitimate retries.
+    let connected_b = client_b
+        .call_with_timeout(RpcRequest::new(904, RpcMethod::Ping), timeout)
+        .expect("client B establishes its authenticated connection");
+    assert!(
+        matches!(connected_b.result, RpcResult::Ok(RpcPayload::Pong { .. })),
+        "client B must authenticate before vault changes: {:?}",
+        connected_b.result
+    );
+
+    let opened_a = client_a
+        .call_with_timeout(
+            RpcRequest::new(
+                905,
+                RpcMethod::OpenVault {
+                    path: vault_a.path().display().to_string(),
+                },
+            ),
+            timeout,
+        )
+        .expect("client A opens its vault");
+    let id_a = match opened_a.result {
+        RpcResult::Ok(RpcPayload::VaultOpened { vault_id, .. }) => vault_id,
+        other => panic!("client A could not open vault: {other:?}"),
+    };
+
+    let initial = client_a
+        .call_with_timeout(
+            RpcRequest::new(
+                906,
+                RpcMethod::GitStatus {
+                    expected_vault_id: id_a.clone(),
+                },
+            ),
+            timeout,
+        )
+        .expect("client A reads its originating vault");
+    assert!(
+        matches!(initial.result, RpcResult::Ok(RpcPayload::GitStatus { .. })),
+        "client A must read its vault before another client switches: {:?}",
+        initial.result
+    );
+
+    let opened_b = client_b
+        .call_with_timeout(
+            RpcRequest::new(
+                907,
+                RpcMethod::OpenVault {
+                    path: vault_b.path().display().to_string(),
+                },
+            ),
+            timeout,
+        )
+        .expect("client B switches daemon vault");
+    let id_b = match opened_b.result {
+        RpcResult::Ok(RpcPayload::VaultOpened { vault_id, .. }) => vault_id,
+        other => panic!("client B could not switch vault: {other:?}"),
+    };
+    assert_ne!(id_a, id_b, "the two clients must use distinct vault IDs");
+
+    let stale = client_a
+        .call_with_timeout(
+            RpcRequest::new(
+                908,
+                RpcMethod::GitStatus {
+                    expected_vault_id: id_a,
+                },
+            ),
+            timeout,
+        )
+        .expect("client A receives an explicit denial, not a transport error");
+    assert!(
+        format!("{:?}", stale.result).contains("Git status vault identity mismatch"),
+        "client A must never receive vault B's status after the switch: {:?}",
+        stale.result
+    );
+
+    let current = client_b
+        .call_with_timeout(
+            RpcRequest::new(
+                909,
+                RpcMethod::GitStatus {
+                    expected_vault_id: id_b,
+                },
+            ),
+            timeout,
+        )
+        .expect("client B reads its newly active vault");
+    assert!(
+        matches!(current.result, RpcResult::Ok(RpcPayload::GitStatus { .. })),
+        "current vault identity must remain usable: {:?}",
+        current.result
+    );
+
+    client_a.reset();
+    client_b.reset();
+    teardown_rpc_session();
+    // Unblock accept() with a final local connection, then join every handler
+    // (including any legitimate reconnects) instead of assuming exactly two.
+    stop_accepts.store(true, Ordering::Release);
+    let wake = connect_client().expect("wake authenticated test listener for shutdown");
+    drop(wake);
+    server.join().expect("daemon listener joins");
+    for handle in handle_rx {
+        handle.join().expect("authenticated handler exits");
+    }
+    pipe_guard.disarm();
+}
+
+#[test]
+fn outside_lock_git_preview_reads_reject_stale_and_missing_vault_identity() {
+    let vault = tempfile::tempdir().expect("temporary vault");
+    std::fs::write(vault.path().join("private.md"), "# Private\n")
+        .expect("create a note that must not be read for another vault");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let current_id = session.descriptor.id.clone();
+    let state = Arc::new(Mutex::new(DaemonState {
+        session: Some(session),
+        ..DaemonState::default()
+    }));
+    let event_hub = EventHub::new();
+
+    for command in ["git_read_conflict_markers_cmd", "git_show_head_file_cmd"] {
+        for payload in [
+            serde_json::json!({"path":"private.md"}),
+            serde_json::json!({"path":"private.md", "expected_vault_id": ""}),
+            serde_json::json!({"path":"private.md", "expected_vault_id": "stale-vault"}),
+            serde_json::json!({"path":"private.md", "expectedVaultId": "stale-vault"}),
+        ] {
+            let response = dispatch_invoke_outside_lock(
+                &state,
+                1813,
+                command,
+                &payload.to_string(),
+                &event_hub,
+            );
+            let observed = format!("{:?}", response.result);
+            assert!(
+                observed.contains("Git status vault identity"),
+                "{command} must deny a missing/stale initiating vault before any native read: {observed}"
+            );
+        }
+    }
+
+    let allowed = dispatch_invoke_outside_lock(
+        &state,
+        1814,
+        "git_read_conflict_markers_cmd",
+        &serde_json::json!({
+            "path": "private.md",
+            "expected_vault_id": current_id,
+        })
+        .to_string(),
+        &event_hub,
+    );
+    assert!(
+        matches!(allowed.result, RpcResult::Ok(RpcPayload::Json { .. })),
+        "matching vault identity must still permit a read-only preview: {:?}",
+        allowed.result
+    );
 }

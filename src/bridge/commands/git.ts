@@ -6,9 +6,12 @@ import { authorizeSensitiveOperation } from './authorization.ts'
 
 export type GitPullStrategy = 'fast-forward' | 'merge' | 'rebase'
 
-export async function gitStatus(): Promise<GitStatus> {
+export async function gitStatus(expectedVaultId: string): Promise<GitStatus> {
   requireNative()
-  return invoke<GitStatus>('git_status_cmd')
+  if (!expectedVaultId?.trim()) {
+    throw new Error('A vault identity is required before reading Git status.')
+  }
+  return invoke<GitStatus>('git_status_cmd', { expectedVaultId })
 }
 
 export async function gitCommit(
@@ -53,17 +56,26 @@ export async function gitApplyMergedConflict(
   return invoke('git_apply_merged_conflict_cmd', { path, mergedMarkdown, authorizationToken })
 }
 
-export async function gitReadConflictMarkers(path: string): Promise<string[]> {
-  requireNative()
-  return invoke<string[]>('git_read_conflict_markers_cmd', { path })
+function requireGitPreviewVault(expectedVaultId: string): void {
+  if (!expectedVaultId?.trim()) {
+    throw new Error('An initiating vault identity is required before reading Git conflict history.')
+  }
 }
 
-export async function gitShowHeadFile(path: string): Promise<string | null> {
+export async function gitReadConflictMarkers(path: string, expectedVaultId: string): Promise<string[]> {
   requireNative()
-  return invoke<string | null>('git_show_head_file_cmd', { path })
+  requireGitPreviewVault(expectedVaultId)
+  return invoke<string[]>('git_read_conflict_markers_cmd', { path, expectedVaultId })
 }
 
-export async function gitShowMergeBaseFile(path: string): Promise<string | null> {
+export async function gitShowHeadFile(path: string, expectedVaultId: string): Promise<string | null> {
   requireNative()
-  return invoke<string | null>('git_show_merge_base_file_cmd', { path })
+  requireGitPreviewVault(expectedVaultId)
+  return invoke<string | null>('git_show_head_file_cmd', { path, expectedVaultId })
+}
+
+export async function gitShowMergeBaseFile(path: string, expectedVaultId: string): Promise<string | null> {
+  requireNative()
+  requireGitPreviewVault(expectedVaultId)
+  return invoke<string | null>('git_show_merge_base_file_cmd', { path, expectedVaultId })
 }
