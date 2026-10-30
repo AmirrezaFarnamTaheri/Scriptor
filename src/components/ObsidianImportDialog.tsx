@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, useState } from 'react'
+import { useCallback, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { CheckCircle2, FolderOpen, ShieldAlert, X } from 'lucide-react'
 
 import { vaultDetectObsidian, vaultImportObsidian } from '../bridge/commands/vault.ts'
@@ -9,9 +9,12 @@ import { useFocusTrap } from '../hooks/useFocusTrap'
 interface ObsidianImportDialogProps {
   onClose: () => void
   onImported?: (result: ObsidianImportResult) => void
+  vaultId: string | null
+  /** The overlay owner persists this claim across same-vault dialog remounts. */
+  importInFlightByVault: RefObject<Set<string>>
 }
 
-export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDialogProps) {
+export function ObsidianImportDialog({ onClose, onImported, vaultId, importInFlightByVault }: ObsidianImportDialogProps) {
   const dialogRef = useRef<HTMLFormElement>(null)
   const pathId = useId()
   const titleId = useId()
@@ -27,6 +30,17 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
   const [result, setResult] = useState<ObsidianImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const checkGeneration = useRef(0)
+  const importInFlightRef = useRef(false)
+  const importLifecycleRef = useRef(0)
+
+  useLayoutEffect(() => {
+    const lifecycle = ++importLifecycleRef.current
+    return () => {
+      // A closed or remounted dialog cannot publish an earlier native reply.
+      if (importLifecycleRef.current === lifecycle) importLifecycleRef.current += 1
+      checkGeneration.current += 1
+    }
+  }, [])
 
   useEscapeToClose(true, onClose)
   useFocusTrap(dialogRef, { active: true, initialFocus: false })
@@ -52,13 +66,17 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
   const handleValidate = useCallback(() => void validateSource(sourcePath), [sourcePath, validateSource])
 
   const handleBrowse = useCallback(async () => {
+    // The native folder picker can outlive the dialog that opened it.
+    // Never reopen a picker or validate its result for a destroyed overlay.
+    const lifecycle = importLifecycleRef.current
     const { open } = await import('@tauri-apps/plugin-dialog')
+    if (importLifecycleRef.current !== lifecycle) return
     const selection = await open({
       directory: true,
       multiple: false,
       title: 'Select Obsidian Vault',
     })
-    if (!selection) return
+    if (!selection || importLifecycleRef.current !== lifecycle) return
     const path = Array.isArray(selection) ? selection[0] : selection
     setSourcePath(path)
     setIsValid(null)
@@ -69,24 +87,45 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
   }, [validateSource])
 
   const handleImport = useCallback(async () => {
-    if (!sourcePath.trim()) return
+    // React busy state updates on a later render. Claim this dialog's native
+    // mutation synchronously so a second submit cannot request authorization.
+    if (importInFlightRef.current || !sourcePath.trim()) return
+    if (!vaultId) {
+      setError('Open a vault before importing.')
+      return
+    }
+    if (importInFlightByVault.current.has(vaultId)) {
+      setError('An import is already running for this vault. It can finish after the dialog closes.')
+      return
+    }
+    importInFlightByVault.current.add(vaultId)
+    importInFlightRef.current = true
+    const lifecycle = importLifecycleRef.current
+    const ownsDialog = () => importLifecycleRef.current === lifecycle
     setIsImporting(true)
     setError(null)
     setResult(null)
     try {
-      const importResult = await vaultImportObsidian(sourcePath.trim(), {
+      const importResult = await vaultImportObsidian(sourcePath.trim(), vaultId, {
         convertWikilinks,
         importAttachments,
         preserveFrontmatter,
       })
+      // A native import can complete even after this overlay closes. It must
+      // not notify a subsequently selected vault or mutate an unmounted form.
+      if (!ownsDialog()) return
       setResult(importResult)
       onImported?.(importResult)
     } catch (caught) {
-      setError(String(caught))
+      if (ownsDialog()) setError(String(caught))
     } finally {
-      setIsImporting(false)
+      // Native settlement releases the shared vault claim, not dialog teardown.
+      // The original native operation may still be running after an unmount.
+      importInFlightByVault.current.delete(vaultId)
+      importInFlightRef.current = false
+      if (ownsDialog()) setIsImporting(false)
     }
-  }, [sourcePath, convertWikilinks, importAttachments, preserveFrontmatter, onImported])
+  }, [sourcePath, convertWikilinks, importAttachments, preserveFrontmatter, onImported, vaultId, importInFlightByVault])
 
   const validationMessage = isValid === true
     ? 'Obsidian vault detected'
