@@ -22,3 +22,10 @@ Status results do not prove a mutation completed. The original per-vault cache, 
 - [x] Correct the versioned Pong variant match in the existing two-client native regression without changing the daemon's vault-identity contract.
 - [x] Compiler diagnostic and why it does not prove the cross-client security scenario are recorded in [the MAT-008 verification record](../../docs/VERIFICATION.md#mat-008--git-status-read-provenance-draft-pr-213).
 - [ ] Require exact-head Clippy, daemon two-client suite and installed multiprocess/restart acceptance; retain the unresolved CodeRabbit daemon thread until evidence exists.
+
+## Hosted real-process restart regression (authored; pending CI)
+
+- A dedicated Rust example (`crates/daemon/examples/vault_status_probe.rs`) operates as a minimal authenticated RPC test client. Two distinct OS processes retain separate live `DaemonRpcClient` connections and do not expose note contents or credentials.
+- The GitHub-hosted validation runner (`scripts/validation/daemon-git-vault-multiprocess.mjs`) launches an actual daemon binary, opens A and B in separate clients, proves stale A denial/current B success, restarts the daemon with a fresh authenticated endpoint nonce, reconnects both clients, and repeats stale/current checks in both directions.
+- The existing `Frontend, accessibility, TUI, and daemon smoke` CI lane runs this regression following its daemon smoke. Results and the exact source revision must be recorded after execution. This source change is **not** evidence of a passing test or of an installed Tauri desktop package.
+- The outstanding CodeRabbit thread remains unresolved until the hosted binary smoke passes and the release-staged/installed desktop, restart, and multiprocess evidence is independently established.

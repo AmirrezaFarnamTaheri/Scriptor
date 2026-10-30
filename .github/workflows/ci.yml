@@ -528,6 +528,10 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Run daemon IPC smoke" -FilePath "pnpm" -ArgumentList @("check:daemon") -TimeoutSeconds 900
 
+      - name: Run MAT-008 authenticated daemon multiprocess restart smoke
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run MAT-008 authenticated daemon multiprocess restart smoke" -FilePath "node" -ArgumentList @("scripts/validation/daemon-git-vault-multiprocess.mjs") -TimeoutSeconds 900
+
       - name: Capture frontend validation failure context
         if: failure()
         shell: pwsh
