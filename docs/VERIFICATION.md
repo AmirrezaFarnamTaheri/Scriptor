@@ -332,6 +332,18 @@ The implementation restricts command registration to available owner callbacks, 
 - A view revision and loaded-scope key now invalidate old rows, projections, edit authority and stale query errors, and discard old query completion; native authorization, expected hash, source-editor coordination and 200-candidate/32-MiB budgets stay unchanged.
 - Test-only `b9ed54c` additionally covers late native query rejection after switching filters; its hosted RED was not observed at the time the guarded catch was committed.
 - Repeat exact-head source/browser/Rust/Windows/visual checks after integration with the latest main. Installed-client concurrency acceptance remains outstanding. MAT-009 complete native projections/pagination and MAT-010 schema/batch edits remain unimplemented.
+## MAT-005 Saved Views query ownership — October 29, 2026
+
+[PR #218](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/218) is an independent renderer read-freshness slice. Native Saved Views filtering and vault permissions are unchanged.
+
+| Source / environment | Observed result | Classification |
+|---|---|---|
+| Test-only `687bd7e` · [CI #40779293100](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40779293100) | Three real-hook assertions failed in `saved-views-query-ownership.test.mjs`: test 345 old Alpha query overwrote Beta; test 346 vault A's path remained on vault B; test 347 new vault's result was absent with unchanged filter. | **Three observed behavioral RED failures**, not test setup or compile failures |
+| Implementation following the test-only commit | One shared generation between manual and debounced queries; render-visible results are keyed to vault/filter identity; stale success/error callbacks are ignored; effect cleanup invalidates outstanding operations. | **Implemented — hosted exact-head CI verified on `929619d`** |
+
+A mocked native query is not proof of installed-client vault changes or remote data integrity. Broader MAT-005 mutation acceptance and desktop restart tests remain open.
+
+Exact-head [CI #40784067680](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067680), [Visual #40784067783](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067783) and [Docs #40784067709](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067709) completed successfully before merging current main. Fresh exact-head validation remains required.
 ## Canonical history gate
 
 Run from a full canonical clone:
