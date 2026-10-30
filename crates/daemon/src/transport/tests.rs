@@ -1095,7 +1095,8 @@ fn outside_lock_git_preview_reads_reject_stale_and_missing_vault_identity() {
         &serde_json::json!({
             "path": "private.md",
             "expected_vault_id": current_id,
-        }).to_string(),
+        })
+        .to_string(),
         &event_hub,
     );
     assert!(
