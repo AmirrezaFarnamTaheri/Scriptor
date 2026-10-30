@@ -16,6 +16,8 @@
 
 ### Fixed
 
+- Provide a reviewed, non-destructive note-history recovery option that saves a retained revision to a different Markdown path using the native atomic create-only precondition; source and existing destination notes are never replaced.
+
 - Prevent delayed Git commit, pull and push failures from overwriting the error state of a different active vault, without dropping operation audit entries.
 
 - Keep Git commit, pull and push completions from refreshing a different vault, including after navigating away and back; preserve authoritative native results while excluding stale UI refreshes.
