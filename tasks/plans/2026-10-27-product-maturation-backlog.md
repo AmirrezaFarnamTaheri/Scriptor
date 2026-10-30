@@ -5,6 +5,7 @@
 > Scope excludes release-only, CI-only and dependency-only work. This branch is the initial functional slice, **not** completion of this backlog.
 
 ## Working rules
+- MAT-006–024 acceptance has a distinct [execution-evidence register](2026-10-30-mat-006-024-acceptance-register.md). Each issue remains open until its own exact-head, installed/runtime, and consent gates are documented; source PRs do not graduate unrelated features.
 - Preserve Markdown and local bibliography files as source of truth; do not create parallel mutable editors, workspace managers, or permission brokers.
 - Native validation, vault ownership, expected hashes, and authorization remain authoritative.
 - A failed transport call does not establish that a native operation rolled back.
