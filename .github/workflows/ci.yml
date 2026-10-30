@@ -675,6 +675,10 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Exercise hermetic daemon and release smoke" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/release/smoke.ps1", "-SkipExportDiscover", "-CommandTimeoutSeconds", "180") -TimeoutSeconds 1800 -HeartbeatSeconds 20
 
+      - name: Verify MAT-008 authenticated two-process vault switching on Windows
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Verify MAT-008 authenticated two-process vault switching on Windows" -FilePath "node" -ArgumentList @("scripts/validation/daemon-git-vault-multiprocess.mjs") -TimeoutSeconds 900 -HeartbeatSeconds 20
+
       - name: Enforce 1k vault scan performance gate
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Enforce 1k vault scan performance gate" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/release/perf-gate.ps1", "-Size", "1k") -TimeoutSeconds 1200
