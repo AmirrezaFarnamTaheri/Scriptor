@@ -65,6 +65,7 @@ struct TuiApp {
     use_daemon: bool,
     daemon_seq: u64,
     daemon_opened: bool,
+    daemon_vault_id: Option<String>,
     session: Option<VaultSession>,
     notes: Vec<TuiNote>,
     selected: usize,
@@ -92,6 +93,7 @@ impl TuiApp {
             use_daemon,
             daemon_seq: 0,
             daemon_opened: false,
+            daemon_vault_id: None,
             session: None,
             notes: Vec::new(),
             selected: 0,
@@ -143,7 +145,8 @@ impl TuiApp {
             },
         ))?;
         match response.result {
-            RpcResult::Ok(RpcPayload::VaultOpened { .. }) => {
+            RpcResult::Ok(RpcPayload::VaultOpened { vault_id, .. }) => {
+                self.daemon_vault_id = Some(vault_id);
                 self.daemon_opened = true;
                 Ok(())
             }
@@ -241,7 +244,14 @@ impl TuiApp {
     fn refresh_footer_meta(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if self.use_daemon {
             self.ensure_daemon_vault()?;
-            let git = rpc_call(RpcRequest::new(self.next_rpc_id(), RpcMethod::GitStatus))?;
+            let expected_vault_id = self
+                .daemon_vault_id
+                .clone()
+                .ok_or("daemon vault identity unavailable")?;
+            let git = rpc_call(RpcRequest::new(
+                self.next_rpc_id(),
+                RpcMethod::GitStatus { expected_vault_id },
+            ))?;
             self.git_footer = match git.result {
                 RpcResult::Ok(RpcPayload::GitStatus { json }) => summarize_git_json(&json),
                 RpcResult::Error(error) => format!("git: {error}"),
@@ -921,6 +931,7 @@ mod tests {
             use_daemon: false,
             daemon_seq: 0,
             daemon_opened: false,
+            daemon_vault_id: None,
             session: None,
             notes: vec![TuiNote {
                 title: "Alpha".into(),

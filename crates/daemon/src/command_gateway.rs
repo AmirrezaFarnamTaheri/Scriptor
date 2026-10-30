@@ -623,8 +623,10 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         }
         "set_headless_engine" => Ok(Value::Null),
         "git_status_cmd" => {
-            let session = state.require_session()?;
-            to_value(git_status(session.root.root()).map_err(|e| e.to_string())?)
+            let expected_vault_id = require_str(payload, "expected_vault_id")
+                .or_else(|_| require_str(payload, "expectedVaultId"))?;
+            let root = state.git_status_root(&expected_vault_id)?;
+            to_value(git_status(&root).map_err(|e| e.to_string())?)
         }
         "git_commit_cmd" => {
             require_git_commit_vault_identity(state, payload)?;
@@ -660,6 +662,9 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             )
         }
         "git_read_conflict_markers_cmd" => {
+            let expected_vault_id = require_str(payload, "expected_vault_id")
+                .or_else(|_| require_str(payload, "expectedVaultId"))?;
+            state.git_status_root(&expected_vault_id)?;
             let session = state.require_session()?;
             let path = require_str(payload, "path")?;
             let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
@@ -670,6 +675,9 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             to_value(read_conflict_markers(&file_path).map_err(|e| e.to_string())?)
         }
         "git_show_head_file_cmd" => {
+            let expected_vault_id = require_str(payload, "expected_vault_id")
+                .or_else(|_| require_str(payload, "expectedVaultId"))?;
+            state.git_status_root(&expected_vault_id)?;
             let session = state.require_session()?;
             let path = require_str(payload, "path")?;
             let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;

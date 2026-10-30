@@ -1520,7 +1520,7 @@ export const OPERATION_CATALOG = {
       "owner": "crates/ipc/src/lib.rs",
       "authorizationClass": "local-ipc",
       "mutationClass": "read-only",
-      "scope": null,
+      "scope": "expected-vault",
       "schemaKind": "typed-rust",
       "inputType": "RpcMethod::GitStatus",
       "maxInputBytes": 2097152,
@@ -3044,7 +3044,7 @@ export const OPERATION_CATALOG = {
       "owner": "apps/desktop/src-tauri/src/commands/daemon.rs",
       "authorizationClass": "read-only",
       "mutationClass": "read-only",
-      "scope": null,
+      "scope": "expected-vault",
       "authorizationVariant": null,
       "schemaKind": "native-rust",
       "outcomePolicy": [
@@ -3544,7 +3544,7 @@ export const OPERATION_CATALOG = {
       "owner": "apps/desktop/src-tauri/src/commands/git.rs",
       "authorizationClass": "read-only",
       "mutationClass": "read-only",
-      "scope": null,
+      "scope": "expected-vault",
       "authorizationVariant": null,
       "schemaKind": "native-rust",
       "outcomePolicy": [

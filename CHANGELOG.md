@@ -36,6 +36,10 @@
 
 - Keep Saved Views search results attached to their originating vault and filter, discarding late manual and automatic query responses instead of showing stale results after edits or vault switches.
 
+- Bind daemon Git status RPC and Invoke reads to the originating vault identity; desktop, CLI and TUI now forward the identity returned by `OpenVault` so a concurrent vault switch cannot silently redirect a pending status request.
+
+- Bind Git status reads to the originating vault at the controller, renderer bridge and native Tauri boundary, including headless daemon-backed reads; reject missing or stale vault IDs before returning status for the wrong workspace.
+
 - Reject daemon Git commits with a missing or stale originating-vault ID before acquiring a native GitQueue, both through the regular command gateway and the transport's outside-lock execution path.
 
 - Keep Health Dashboard open until the existing workspace leaf/editor approves note navigation, preserving the initiating panel on refused dirty-note transitions and reporting native read failures without silently dismissing the panel.
