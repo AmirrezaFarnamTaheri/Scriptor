@@ -98,8 +98,7 @@ test('a rejected native restore reply keeps the editor frozen until reopen', () 
 })
 
 test('unconfirmed restore never silently closes a suspended draft or switches vaults', () => {
-  // MAT-001 CodeRabbit: suspended flush must fail closed for rename and
-  // every other mutation caller. Explicit discard is allowed for close only.
+  // Frozen draft exit approval must not be accepted as save permission.
   const flushStart = workspaceEditor.indexOf('const flushAllPendingSaves = useCallback')
   const flushEnd = workspaceEditor.indexOf('const scheduleSave = useCallback', flushStart)
   assert.ok(flushStart > 0 && flushEnd > flushStart)
@@ -128,6 +127,15 @@ test('indeterminate restore blocks repeated backup mutations in affected vault',
   assert.match(backupSettings, /Restart Scriptor and reopen the vault/)
 })
 
+test('backup restore exposes vault-scoped receipts without replacing native outcomes', () => {
+  const status = useVaultBackup.indexOf('const disposition = classifyVaultRestoreStatus(result.status)')
+  const receipt = useVaultBackup.indexOf('setRestoreReceipt(buildRestoreOperationReceipt(', status)
+  assert.ok(status >= 0 && receipt > status)
+  assert.match(useVaultBackup, /const lastRestoreReceipt = visibleOperationReceipt\(restoreReceipt, ownedVaultId, settings\.backupPath\)/)
+  assert.match(useVaultBackup, /outcome: \{ kind: 'reply-missing' \}/)
+  assert.match(useVaultBackup, /outcome: \{ kind: 'not-submitted' \}/)
+  assert.match(useVaultBackup, /outcome: \{ kind: 'post-commit-refresh-failed'/)
+})
 test('confirmed native reopen-required status and post-commit refresh failure quarantine the vault', () => {
   const nativeBranch = useVaultBackup.indexOf('if (!disposition.refreshWorkspace)')
   const refreshBranch = useVaultBackup.indexOf('// Reload authoritative', nativeBranch)
