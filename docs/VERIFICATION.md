@@ -237,6 +237,12 @@ Production now reuses the existing vault lifecycle guard on the three `setError(
 - **Implementation awaiting exact-head checks:** require the initiating vault in the TypeScript bridge and native Tauri commit command, enforce it before GitQueue, and test native denied/accepted outcomes plus the browser mock.
 - **Still pending:** source GREEN, Rust/Windows/Browser E2E/visual/docs, installed-client delayed-invoke acceptance, and daemon/CLI/MCP parity under issue #188. This slice does not complete MAT-008.
 
+## MAT-008 — Daemon Git commit identity (draft PR #212)
+
+- **Observed failing-first:** [CI #40657380487](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40657380487), Rust workspace test lane at test-only commit `eb26a20db7b064ee312397cc579b7455cf71cf29`. Both `command_gateway::tests::git_commit_gateway_rejects_stale_and_missing_vault_before_queueing` and `transport::tests::outside_lock_git_commit_rejects_stale_and_missing_vault_before_queueing` failed because an invalid request reached GitQueue and returned `not a git repository` instead of a vault-identity error.
+- **Implementation:** the command gateway owns one session-identity guard requiring nonblank `expected_vault_id` and exact match with the active vault. Both daemon execution paths check it while holding their existing daemon-state lock and before creating/enqueuing a queue. Existing queue serialization and IPC authorization are unchanged.
+- **Required verification:** current-head source/Rustfmt/Clippy/Rust tests, Linux/Windows/Browser and applicable visual gates, plus an installed authenticated daemon IPC session switch/restart test. No installed-client acceptance has yet been established; MAT-008 remains open.
+
 ## RUSTSEC-2026-0414 — pulldown-cmark advisory remediation
 
 - **Failure observed:** [CI #40661251859](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40661251859) at MAT-008 daemon head `eb19fcb42014531026dac9c4d88f01300f223dc8`. Cargo deny rejected `pulldown-cmark 0.13.4` with advisory RUSTSEC-2026-0414: crafted `[[a|]]` input may cause exponential event growth when `ENABLE_WIKILINKS` is on.
@@ -312,12 +318,48 @@ The implementation restricts command registration to available owner callbacks, 
 - **Next failing-first stage:** test-only commit `32f525d` adds real-hook regressions for stale pull/commit completion refreshing a different vault, including switch-away-and-back. No source fix has been applied and **RED remains unobserved** until hosted source tests execute.
 - **Pending:** exact-head hosted source, TypeScript, browser, Rust, Windows, and visual acceptance; installed-client duplicate-submit, vault switch, crash/restart and native failure acceptance. This is one MAT-005 slice, not checklist completion.
 
+## MAT-016 — ambiguous Google Tasks mirroring (PR #230)
+
+- **Follow-up ownership case:** test-only `02fe5719` adds two real-hook cases for a remote record shared by scoped A/B owner markers, or by an exact legacy A owner and scoped B owner. The native batch must not update either record. The corresponding renderer guard rejects current-vault claims on records also marked for a different vault. This new patch is **not yet exact-head hosted green**; source tests were written first, but the hosted RED was not observed when implementation began. Live-provider and installed-client acceptance remain pending.
+
+- **RED confirmed:** test-only `12334132dad4e71fc7d54e09543be263f344443a`, hosted [CI #40883180912](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40883180912), source regression suite. Of 685 tests, 683 passed and exactly two new cases failed: duplicate scoped remote markers prepared a provider mutation (1 instead of 0), and duplicate stable IDs from two local notes likewise prepared a provider mutation (1 instead of 0).
+- **Implementation:** preflight duplicate local IDs and duplicate current-vault provider ownership markers before `googleCalendarApplyTaskSync`. Ambiguous ownership now produces an actionable review-required error in the existing Tasks panel. No provider write, new permission owner, or automatic duplicate reconciliation is introduced.
+- **Extension:** test-only `dd5601a8` added four real-hook cases for multiple scoped local owners on one remote record, two matching legacy markers across records, repeated provider IDs with differing markers, and empty scoped ownership. This test commit was pushed before the implementation; a hosted failing-first result was **not observed** at the time the fix was prepared. The subsequent fix preflights those cases before any approved mutation. No independent Google authorization or task-ID reconciler was added.
+- **Further test-first evidence:** `0e1af9f` adds legacy/scoped cross-record collision and blank local-ID regressions before the source guard. No hosted behavioral RED was observed for that intermediate head; do not report a confirmed RED for these six additional cases. The implementation rejects both before native batch admission.
+- **Pending:** exact-head GREEN source, frontend/TypeScript, Rust, browser, Windows, visual and docs verification for the final implementation. Real Google provider and installed-desktop collision/restart acceptance remain unavailable. This is one MAT-016 slice, not completion of the 24-item program.
+
+## MAT-009 Database Studio view-result ownership — October 30, 2026
+- **CI failure observed:** [CI #40970375883](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40970375883) failed the fast lint job with `react-hooks/set-state-in-effect`, `react-hooks/refs`, and exhaustive-deps warnings. The fix removes new synchronous state updates from the vault effect, replaces render-time ref reads with a stored immutable view/vault/preset identity, and memoizes visible rows/columns. The query cancellation and stale-edit guards still use the ref only in callbacks/effects, where it is valid.
+- **Hosted GREEN at `15a1f2f4`:** [CI #41024144641](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41024144641), [Visual #41024144551](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41024144551) and [Docs #41024144556](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41024144556) completed successfully, including the formerly failing Browser E2E layout case.
+
+
+- A view change could leave previous rows, aggregates and editable callbacks on screen. A pending query could later repopulate rows from a prior view.
+- Test-first `02692a0` adds two actual-TSX harness regressions for stale rows/edit callbacks and late query settlement. Hosted behavioral RED was not observed at the time of implementation.
+- A view revision and loaded-scope key now invalidate old rows, projections, edit authority and stale query errors, and discard old query completion; native authorization, expected hash, source-editor coordination and 200-candidate/32-MiB budgets stay unchanged.
+- Test-only `b9ed54c` additionally covers late native query rejection after switching filters; its hosted RED was not observed at the time the guarded catch was committed.
+- Repeat exact-head source/browser/Rust/Windows/visual checks after integration with the latest main. Installed-client concurrency acceptance remains outstanding. MAT-009 complete native projections/pagination and MAT-010 schema/batch edits remain unimplemented.
+## MAT-005 Saved Views query ownership — October 29, 2026
+
+[PR #218](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/218) is an independent renderer read-freshness slice. Native Saved Views filtering and vault permissions are unchanged.
+
+| Source / environment | Observed result | Classification |
+|---|---|---|
+| Test-only `687bd7e` · [CI #40779293100](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40779293100) | Three real-hook assertions failed in `saved-views-query-ownership.test.mjs`: test 345 old Alpha query overwrote Beta; test 346 vault A's path remained on vault B; test 347 new vault's result was absent with unchanged filter. | **Three observed behavioral RED failures**, not test setup or compile failures |
+| Implementation following the test-only commit | One shared generation between manual and debounced queries; render-visible results are keyed to vault/filter identity; stale success/error callbacks are ignored; effect cleanup invalidates outstanding operations. | **Implemented — hosted exact-head CI verified on `929619d`** |
+
+A mocked native query is not proof of installed-client vault changes or remote data integrity. Broader MAT-005 mutation acceptance and desktop restart tests remain open.
+
+Exact-head [CI #40784067680](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067680), [Visual #40784067783](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067783) and [Docs #40784067709](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067709) completed successfully before merging current main. Fresh exact-head validation remains required.
 ## MAT-006 — Health Dashboard note navigation approval (PR #233)
 
 - **Failing-first source test authored:** [`d3e2a68`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/d3e2a688edd8dc1dfefd8ddcd74c167d9c77148e) asserts that `App.tsx` does not close Health Dashboard before awaited note navigation. The legacy implementation closed eagerly. Hosted RED is **not yet confirmed**.
 - **Behavioral source implementation:** `openNoteBeforeDismissingPanel` awaits the existing workspace-leaf navigation outcome; dismissal occurs only after `true`. A refusal or blank target leaves the panel open; thrown source errors remain identifiable and the App handler reports them through the existing toast service.
 - **Tests authored:** four actual TypeScript helper tests cover delayed approval, dirty-editor refusal, native read rejection, and blank targets. The source-shaped App regression also guards the real handler wiring.
-- **Pending:** exact-head source suite, TypeScript, lint, Browser E2E, Rust/Windows, docs, visual and installed-client dirty close/restart/vault switch/keyboard/RTL/200% zoom acceptance. This is only a MAT-006 code slice and does not graduate the feature.## Canonical history gate
+- **Pending:** exact-head source suite, TypeScript, lint, Browser E2E, Rust/Windows, docs, visual and installed-client dirty close/restart/vault switch/keyboard/RTL/200% zoom acceptance. This is only a MAT-006 code slice and does not graduate the feature.
+
+- **Head-specific source results:** [CI #41041583823](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41041583823), [Visual #41041583796](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41041583796), and [Docs #41041566586](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41041566586) passed on `324ea154`. This does not certify the newly reconciled integration head or installed-client workflows.
+
+## Canonical history gate
 
 Run from a full canonical clone:
 

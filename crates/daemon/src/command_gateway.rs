@@ -55,6 +55,25 @@ pub(crate) use support::{
 mod catalog;
 pub use catalog::{is_outside_lock_command, list_commands, requires_desktop_authorization};
 
+/// A daemon Git commit must target the vault selected when it was requested.
+/// The check precedes GitQueue admission; the daemon lock is held at call sites
+/// so the observed session and queue root belong to the same vault.
+pub(crate) fn require_git_commit_vault_identity(
+    state: &DaemonState,
+    payload: &Value,
+) -> Result<(), String> {
+    let expected = payload
+        .get("expected_vault_id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| "Git commit vault identity is required".to_string())?;
+    let active = &state.require_session()?.descriptor.id;
+    if expected != active {
+        return Err("Git commit vault identity does not match the active vault".to_string());
+    }
+    Ok(())
+}
+
 pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Result<Value, String> {
     match command {
         "health_check" => Ok(json!("ok")),
@@ -608,6 +627,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             to_value(git_status(session.root.root()).map_err(|e| e.to_string())?)
         }
         "git_commit_cmd" => {
+            require_git_commit_vault_identity(state, payload)?;
             let files: Vec<String> = require_deserialize(payload, "files")?;
             let message = require_str(payload, "message")?;
             to_value(
@@ -833,87 +853,4 @@ pub fn rebuild_index_command(state: &DaemonState) -> Result<Value, String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn list_commands_meets_minimum() {
-        assert!(list_commands().len() >= 85);
-    }
-
-    #[test]
-    fn dispatch_health_check_works() {
-        let mut state = DaemonState::default();
-        let result = dispatch(&mut state, "health_check", &json!({})).expect("health_check");
-        assert_eq!(result, json!("ok"));
-    }
-
-    #[test]
-    fn require_bytes_accepts_valid_byte_array() {
-        let payload = json!({ "data": [0, 1, 127, 255] });
-        assert_eq!(require_bytes(&payload, "data"), Ok(vec![0, 1, 127, 255]));
-    }
-
-    #[test]
-    fn require_bytes_rejects_out_of_range_and_non_integer_values() {
-        assert!(require_bytes(&json!({ "data": [0, 256] }), "data").is_err());
-        assert!(require_bytes(&json!({ "data": [1, -1] }), "data").is_err());
-        assert!(require_bytes(&json!({ "data": [1, 1.5] }), "data").is_err());
-        assert!(require_bytes(&json!({ "data": [1, "2"] }), "data").is_err());
-        assert!(require_bytes(&json!({ "data": "abc" }), "data").is_err());
-        assert!(require_bytes(&json!({}), "data").is_err());
-    }
-
-    #[test]
-    fn read_only_whole_vault_scans_run_outside_lock_and_mutations_do_not() {
-        for command in [
-            "vault_rename_dry_run",
-            "vault_rename_tag_dry_run",
-            "vault_rename_section_dry_run",
-            "vault_rename_block_dry_run",
-            "vault_health",
-        ] {
-            assert!(
-                is_outside_lock_command(command),
-                "{command} reads the whole vault and must be dispatched outside the daemon lock"
-            );
-        }
-        for command in ["vault_rename_apply", "vault_lint_fix", "vault_save_note"] {
-            assert!(
-                !is_outside_lock_command(command),
-                "{command} mutates notes and must stay serialized by the daemon lock"
-            );
-        }
-    }
-
-    #[test]
-    fn read_only_outside_lock_command_serves_rename_preview_from_cloned_session() {
-        let vault = tempfile::tempdir().expect("vault dir");
-        fs::write(vault.path().join("alpha.md"), "# Alpha\n").expect("write note");
-        let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
-        let json = run_read_only_vault_command(
-            &session,
-            None,
-            "vault_rename_dry_run",
-            &json!({
-                "from_path": "alpha.md",
-                "to_path": "beta.md",
-                "update_links": false,
-            }),
-        )
-        .expect("rename dry run");
-        assert!(
-            json.contains("\"affected_files\"") && json.contains("alpha.md"),
-            "preview should report the affected source note: {json}"
-        );
-    }
-
-    #[test]
-    fn read_only_outside_lock_health_requires_index_cache() {
-        let vault = tempfile::tempdir().expect("vault dir");
-        let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
-        let error = run_read_only_vault_command(&session, None, "vault_health", &json!({}))
-            .expect_err("vault_health needs the index cache");
-        assert_eq!(error, "no index cache is open; call OpenVault first");
-    }
-}
+mod tests;
