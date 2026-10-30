@@ -710,3 +710,19 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-select { min-
   .topbar-plugins-entry { display: none; }
 }
 html[data-ui-reflow='mobile'] .topbar-plugins-entry { display: none; }
+
+
+/* A collapsed desktop rail setting must not hide the independently selected
+   Vault pane after the UI switches to mobile navigation, including app zoom. */
+@media (max-width: 820px) {
+  .workspace-grid[data-mobile-pane='vault'][data-vault-collapsed='true'] > .vault-panel {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+  }
+}
+html[data-ui-reflow='mobile'] .workspace-grid[data-mobile-pane='vault'][data-vault-collapsed='true'] > .vault-panel {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
