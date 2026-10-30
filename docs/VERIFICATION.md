@@ -67,7 +67,6 @@ The importer now calls the existing atomic vault writer with `EXPECTED_MISSING_C
 | Follow-up test-fixture correction | Keep the authenticated listener accepting valid client reconnects until both clients finish, signal shutdown using a local wake connection and join all handler threads; retain stale denial and matching-ID assertions | **Authored; new exact-head Rust execution required** |
 
 The current CodeRabbit cross-client thread remains open. The hosted test is not packaged desktop multi-process/restart or real operational acceptance, even if it passes.
-
 ## PR #160 remediation evidence — October 11, 2026
 
 This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.
@@ -181,6 +180,12 @@ creating missing-baseline failures. Documentation screenshots mirror reviewed Wi
 with the platform suffix removed; regenerate them with `scripts/screenshots/capture.ps1`.
 
 
+### MAT-005 Git mutation stale-error scope — October 29, 2026
+
+[PR #210](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/210) adds four real-hook checks: a failed Git commit, pull or push submitted in vault A must not replace vault B's workspace-wide error state; an A→B→A switch must not revive the first session. Test-first detached commit `397cc6a` preceded the implementation; **a failing-first hosted run was not observed**, so this is not claimed as a completed red-green test cycle.
+
+Production now reuses the existing vault lifecycle guard on the three `setError(detail)` completion paths. Original native failure and activity logging remain intact, and the synchronous mutation busy state still settles. Full exact-head CI and installed desktop acceptance are pending.
+
 ## Release and recovery gate
 
 - Build every installer from the exact audited tag.
@@ -246,13 +251,11 @@ The test's ephemeral listener accepts exactly two connections before closing. Th
 - **Pending:** exact-head Rustfmt/Clippy/Rust, IPC bindings, TypeScript, Browser E2E, Windows and visual acceptance; installed authenticated IPC concurrency, restart and reopening. This is one MAT-008 slice and not mutation receipt proof.
 
 - **New authenticated IPC regression authored on PR #213:** two independent daemon clients open A then switch the active daemon to B; a subsequent GitStatus originating from A must fail with identity mismatch, while B's read remains available. Exact-head hosted execution pending; this does not replace installed multi-process/restart acceptance.
-
 ## MAT-008 — Daemon Git commit identity (draft PR #212)
 
 - **Observed failing-first:** [CI #40657380487](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40657380487), Rust workspace test lane at test-only commit `eb26a20db7b064ee312397cc579b7455cf71cf29`. Both `command_gateway::tests::git_commit_gateway_rejects_stale_and_missing_vault_before_queueing` and `transport::tests::outside_lock_git_commit_rejects_stale_and_missing_vault_before_queueing` failed because an invalid request reached GitQueue and returned `not a git repository` instead of a vault-identity error.
 - **Implementation:** the command gateway owns one session-identity guard requiring nonblank `expected_vault_id` and exact match with the active vault. Both daemon execution paths check it while holding their existing daemon-state lock and before creating/enqueuing a queue. Existing queue serialization and IPC authorization are unchanged.
 - **Required verification:** current-head source/Rustfmt/Clippy/Rust tests, Linux/Windows/Browser and applicable visual gates, plus an installed authenticated daemon IPC session switch/restart test. No installed-client acceptance has yet been established; MAT-008 remains open.
-
 ## RUSTSEC-2026-0414 — pulldown-cmark advisory remediation
 
 - **Failure observed:** [CI #40661251859](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40661251859) at MAT-008 daemon head `eb19fcb42014531026dac9c4d88f01300f223dc8`. Cargo deny rejected `pulldown-cmark 0.13.4` with advisory RUSTSEC-2026-0414: crafted `[[a|]]` input may cause exponential event growth when `ENABLE_WIKILINKS` is on.
@@ -317,6 +320,16 @@ The implementation restricts command registration to available owner callbacks, 
 
 
 - **Main integration:** latest main contains PR #217 Database Studio write coordination and PR #231 Kanban geometry regression. No previous-head CI result certifies this integration head; repeat source, browser, visual, docs gates.
+
+## MAT-005 — Git mutation single-flight (draft PR #210)
+- **Further observed RED:** [CI #40675186002](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40675186002) failed three new source tests at `f8ba9be6`: old pull refreshed new vault, old commit refreshed another vault's status, and A→B→A revived an earlier refresh. The implementation introduces a generation-scoped UI refresh guard; current-head GREEN and installed-client proof remain pending.
+
+- **Observed RED:** test-only head `6182df80b78b81c8043f3c5364735db3f741839b`, [CI #40585634586](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40585634586), `Run source regression suite`. A repeat commit reached native Git twice (expected one, observed two); a pending pull ceased showing busy after switching vaults (expected true, observed false).
+- The initial error-path test failed on a VM cross-realm `Error` prefix, not production behavior. The harness supplies the host `Error` constructor in the implementation commit; this is a test-fixture correction, not a changed product expectation.
+- **Implementation:** a synchronous, shared in-flight ref gates all three Git mutation entry points; React state remains the busy indicator and is no longer hidden on vault navigation. Native GitQueue, authorization, command signatures and per-vault status slots remain unchanged.
+- **Prior exact-head hosted GREEN:** commit `186a3b3` passed source, Rust, Browser E2E, Windows, frontend, container, docs and visual workflows in [CI #40586771173](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40586771173) and [Visual #40586771362](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40586771362); it does not certify later heads.
+- **Next failing-first stage:** test-only commit `32f525d` adds real-hook regressions for stale pull/commit completion refreshing a different vault, including switch-away-and-back. No source fix has been applied and **RED remains unobserved** until hosted source tests execute.
+- **Pending:** exact-head hosted source, TypeScript, browser, Rust, Windows, and visual acceptance; installed-client duplicate-submit, vault switch, crash/restart and native failure acceptance. This is one MAT-005 slice, not checklist completion.
 
 ## Canonical history gate
 
