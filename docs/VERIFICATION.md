@@ -80,6 +80,69 @@ PR [#219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219) addresses r
 A closed dialog does **not** cancel, roll back or establish the outcome of an already submitted native import. It only prevents late renderer feedback.
 
 Source acceptance (October 29, 2026): [CI #40881174514](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174514), [visual #40881174519](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174519), and [docs #40881174543](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174543) passed at exact branch head `c088066`. This establishes hosted source verification, not installed-client vault-switch, restart or lost-response reconciliation acceptance. The initial test-only RED was not observed.
+## MAT-001–MAT-003 recovery work — October 27, 2026
+
+The parent-to-child review stack is [PR #180](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/180) → [PR #186](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/186) → [PR #205](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/205). This section records **execution evidence**, distinct from the implementation checklist in [the MAT-003 plan](../tasks/plans/2026-10-27-mat-003-restore-status-preview.md). A pass at an older source commit does not certify a newer head.
+
+| Source / environment | Observed result | Evidence classification and limits |
+|---|---|---|
+| Initial MAT-003 presenter; isolated Node 22 harness | Seven expected assertion failures with an absent presenter, then 7 passed / 0 failed after mapping seven restore outcomes | Focused red/green **isolated harness** only; not a full checkout, native restore or installed desktop |
+| MAT-003 note-history availability; isolated Node 22 harness | Six behavior assertions: five expected failures and one pass before the guard, then 6/6 passed after it | **Isolated harness**; not evidence of native note-history navigation, focus restoration, or installed-client behavior |
+| MAT-005 backup confirmation scope; isolated Node 22.16.0 harness | Missing-scope-guard red followed by 6/6 passing tests for vault/folder/name scope | **Isolated harness**; source contract authored separately, no installed-client restore |
+| [`c89698d`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/c89698d00dba00ffc879e8757440b32530e45157) · GitHub CI | Source regression suite **734/735 passed**, with the old name-only expectation failing; frontend build failed with TypeScript **TS18047** for nullable `pendingAction` | **Failed**; both regressions subsequently corrected in [`fac0faa`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/fac0faad76cb91fd75163f4c845132846ee3401a) |
+| [`a1f3761`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/a1f37616f0d5c102475fbf5a5d5eff1bf2d2dbbe) · GitHub-hosted | [Browser E2E](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40514532907), frontend, source contracts, container and Windows smoke jobs passed; [Visual review](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40514532797) and [workflow screenshots](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40514533136) passed. Rust dependency installation initially exceeded its 900-second runner deadline; a reattempt was requested, but the later parent-branch update superseded current-head certification. | **Mixed historical evidence**; runner `apt-get` timeout was not a Rust assertion failure, and no packaged-client acceptance is shown |
+| Latest stacked branches, including PR #205 at the time of this evidence record | New exact-head CI and visuals are linked from the pull requests, and must be checked independently | **Pending** for subsequent source heads; actual lost-reply, restart, journal, recovery, keyboard, RTL and screen-reader acceptance remains unverified |
+
+The source regression and TypeScript correction preserve the stronger scoped confirmation, rather than restoring the unsafe name-only approval. Browser fixtures simulate native responses and therefore cannot establish installed Windows/macOS/Linux restore or journal-recovery behavior. The MAT-003 checkbox remains unchecked pending the broader Recovery Center inventory and platform acceptance.
+
+
+## MAT-005 failed-create backup inventory settlement — October 27, 2026
+
+Draft [PR #208](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/208) is stacked on #206. This is a renderer-only listing reconciliation, not a new permission or backup-write authority.
+
+| Source/environment | Result | Evidence classification |
+|---|---|---|
+| Test-only commit `1dcc6f3`, [CI #40560278013](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40560278013) | **740 passed, 1 failed** in the source suite. The only failure was `MAT-005 denied backup creation schedules a read-only list reconciliation`: no replacement read in the failed-create branch | **Observed source-contract red**; browser red and actual native-disk fault were not observed |
+| Fix commit `c9c5069` | After a backup create failure, check current vault/folder, preserve error and await an existing read-only `listBackups()` call; no repeat `vaultCreateBackup` call | Implemented, **exact-head green pending** |
+
+The original pending list was invalidated at mutation start. The new read must settle the loading state without accepting the stale response or hiding the authorization failure. Packaged-client acceptance and other MAT-005 owners remain open.
+## MAT-005 Canvas explicit-flush ownership — October 27, 2026
+
+[PR #207](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/207) originated as an independent Canvas lifecycle fix and has now been integrated into [PR #209](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/209) alongside same-vault board-list ordering. This integration does not complete MAT-005.
+
+| Source | Observed result | Classification |
+|---|---|---|
+| Test-only `b3ebaeb` · [CI #40556426344](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40556426344) | Real-hook tests 182 and 183 both failed, expecting `New board ready.` but receiving `Canvas saved.` for old-vault and newer-edit cases | **Two observed behavioral red assertions** |
+| Implementation after `b3ebaeb` | Explicit flush checks origin lifecycle, same document object and mount status before accepting any UI completion; keeps native serialized saves and successful durability results | **Implemented; exact-head hosted green and packaged acceptance pending** |
+| `c2acae9` · [CI #40558029426](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40558029426) | 684/685 source tests passed; regression 183 failed because the originating explicit flush also submitted a subsequent pending `New unsaved revision`. Other CI lanes passed, including Browser E2E, Rust, frontend, Windows, supply-chain and container smoke | **Observed post-implementation behavioral failure; not a green MAT-005 gate** |
+| `1aa05b2` | Explicit flush now bounds its submitted payload/retry to the request's captured sequence and observes only the in-flight save present at invocation. New edits remain independently debounced or explicitly flushable | **Source fix pushed; exact-head GREEN later verified on PR #207, installed-client acceptance pending** |
+
+[PR #207 CI #40584936590](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40584936590) and [visual #40584936811](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40584936811) passed on `7a4578a`; those runs do not verify this **combined** #209 head. Mocks do not certify an installed client's crash/restart recovery. No new native command, permission scope, or file format was introduced.
+
+## MAT-005 Canvas board-list response ordering — October 27, 2026
+
+Draft [PR #209](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/209) is a sibling of #208, stacked on #206. It addresses **derived Canvas inventory freshness**, not native file persistence, conflict resolution or complete MAT-005 maturity.
+
+| Source and environment | Result | Evidence limit |
+|---|---|---|
+| Test-only `79e4723`, [CI #40562214281](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40562214281) | **Observed behavioral red** in `canvas-persistence-flush.test.mjs`: the slow initial list changed the latest inventory from `fresh-board` to `old-board`; `AssertionError` at line 637 | Uses the actual transpiled Canvas hook with controlled native list/save calls; not a packaged client |
+| Fix `5ea8ef4` | Added a separate `OperationGuard` for Canvas list publication, invalidated on vault change, preserving `isCurrent` checks and native result | **Passed on `8503393` in [CI #40762396787](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40762396787); combined head re-verification pending** |
+
+The active document identity guard remained intact; only board inventory could become stale. The fix does not introduce storage, permissions, write retries or new native calls. Full MAT-005 and installed-client evidence remain open.
+
+## MAT-005 backup inventory request ordering — October 27, 2026
+
+PR [#206](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/206) is a bounded mutation-lifecycle slice stacked on #205. Its request-epoch guard is renderer-only; it neither overrides native vault ownership nor replaces backup authorization.
+
+| Source/environment | Result | Classification |
+|---|---|---|
+| Test-only PR #206 head `1c5c475` · [CI #40523633550](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40523633550) | `Run source regression suite` failed the newly added `MAT-005 backup listing rejects stale same-vault, same-folder completions` assertion: request epoch absent | **Observed failing-first source test**, not browser proof |
+| Implementation `213a0c2` followed by parent synchronization `2747f16` | Request epoch added to effect/explicit list paths and mutation boundaries, guarding both success and error updates | **Implemented; current-head hosted green not yet recorded** |
+| `3c5374a` · [CI #40528678913](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40528678913) | Browser E2E failed **both** new fixtures at `getByText(backupName)` because it resolved the success notification and inventory row (Playwright strict-mode collision). All other executable CI jobs, visual review and screenshots passed. | **Failed browser assertions before exercising stale responses**; fix narrows selectors to actual `.backup-entry` rows, with no production change |
+| Functional Playwright fixtures `e2e/backup-list-race.spec.ts` | Hold old same-scope response, publish newer manual-backup inventory, then release stale success/error; fresh row must remain visible | **Authored; browser execution pending on current head** |
+
+The PR remains draft. This is not proof for editor, Canvas, imports, database, tasks, rename, provider effects, installed desktop recovery or the remaining MAT-005 acceptance scenarios.
+
 ## MAT-008 authenticated multi-client Git status CI — October 28, 2026
 
 [PR #213](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/213) retains the daemon's expected-vault identity guard across the typed RPC, handler, and gateway. The authenticated two-client regression must finish without transport errors before it can certify stale-vault denial.
@@ -389,6 +452,15 @@ The implementation restricts command registration to available owner callbacks, 
 A mocked native query is not proof of installed-client vault changes or remote data integrity. Broader MAT-005 mutation acceptance and desktop restart tests remain open.
 
 Exact-head [CI #40784067680](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067680), [Visual #40784067783](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067783) and [Docs #40784067709](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067709) completed successfully before merging current main. Fresh exact-head validation remains required.
+## MAT-006 — Health Dashboard note navigation approval (PR #233)
+
+- **Failing-first source test authored:** [`d3e2a68`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/d3e2a688edd8dc1dfefd8ddcd74c167d9c77148e) asserts that `App.tsx` does not close Health Dashboard before awaited note navigation. The legacy implementation closed eagerly. Hosted RED is **not yet confirmed**.
+- **Behavioral source implementation:** `openNoteBeforeDismissingPanel` awaits the existing workspace-leaf navigation outcome; dismissal occurs only after `true`. A refusal or blank target leaves the panel open; thrown source errors remain identifiable and the App handler reports them through the existing toast service.
+- **Tests authored:** four actual TypeScript helper tests cover delayed approval, dirty-editor refusal, native read rejection, and blank targets. The source-shaped App regression also guards the real handler wiring.
+- **Pending:** exact-head source suite, TypeScript, lint, Browser E2E, Rust/Windows, docs, visual and installed-client dirty close/restart/vault switch/keyboard/RTL/200% zoom acceptance. This is only a MAT-006 code slice and does not graduate the feature.
+
+- **Head-specific source results:** [CI #41041583823](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41041583823), [Visual #41041583796](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41041583796), and [Docs #41041566586](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41041566586) passed on `324ea154`. This does not certify the newly reconciled integration head or installed-client workflows.
+
 ## Canonical history gate
 
 Run from a full canonical clone:

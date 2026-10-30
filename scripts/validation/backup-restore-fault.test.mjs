@@ -14,6 +14,10 @@ const useVaultBackup = readFileSync(
   new URL('../../src/hooks/useVaultBackup.ts', import.meta.url),
   'utf8',
 )
+const vaultBridge = readFileSync(
+  new URL('../../src/bridge/commands/vault.ts', import.meta.url),
+  'utf8',
+)
 const useVaultWorkspace = readFileSync(
   new URL('../../src/hooks/useVaultWorkspace.ts', import.meta.url),
   'utf8',
@@ -80,4 +84,147 @@ test('restore lifecycle freezes persistence before replacement and refreshes der
   assert.ok(useVaultWorkspace.includes('setNoteSummaries([])'))
   assert.ok(useVaultWorkspace.includes('refreshVaultConfig()'))
   assert.ok(useVaultWorkspace.includes('refreshVaultSnippets()'))
+})
+
+test('a rejected native restore reply keeps the editor frozen until reopen', () => {
+  assert.match(vaultBridge, /return runVaultRestoreWithOutcomeBoundary\(/)
+  assert.match(vaultBridge, /validateVaultRestoreResult\(await invoke<unknown>/)
+  assert.match(useVaultBackup, /classifyVaultRestoreFailure\(caught, restoreApplied\)/)
+  const freeze = useVaultBackup.indexOf("if (failure === 'freeze-and-reopen')")
+  const resume = useVaultBackup.indexOf("if (failure === 'safe-to-resume')", freeze)
+  assert.ok(freeze > 0 && resume > freeze)
+  assert.match(useVaultBackup.slice(freeze, resume), /editing remains paused/)
+  assert.doesNotMatch(useVaultBackup.slice(freeze, resume), /scriptor:vault-restore-aborted/)
+})
+
+test('unconfirmed restore never silently closes a suspended draft or switches vaults', () => {
+  // Frozen draft exit approval must not be accepted as save permission.
+  const flushStart = workspaceEditor.indexOf('const flushAllPendingSaves = useCallback')
+  const flushEnd = workspaceEditor.indexOf('const scheduleSave = useCallback', flushStart)
+  assert.ok(flushStart > 0 && flushEnd > flushStart)
+  const flush = workspaceEditor.slice(flushStart, flushEnd)
+  assert.match(flush, /if \(persistenceSuspendedRef\.current\) return false/)
+  assert.doesNotMatch(flush, /requestFrozenDraftExit\(/)
+  const closeStart = workspaceEditor.indexOf('appWindow.onCloseRequested(')
+  const closeEnd = workspaceEditor.indexOf('await appWindow.destroy()', closeStart)
+  assert.ok(closeStart > 0 && closeEnd > closeStart)
+  const close = workspaceEditor.slice(closeStart, closeEnd)
+  assert.match(close, /persistenceSuspendedRef\.current\s*\?\s*await requestFrozenDraftExitRef\.current\(\)\s*:\s*await flushAllPendingSavesRef\.current\(\)/)
+  assert.match(workspaceEditor, /const requestFrozenDraftExitRef = useRef\(requestFrozenDraftExit\)/)
+  assert.match(workspaceEditor, /return persistenceSuspendedRef\.current \|\| activeDirty/)
+  assert.match(workspaceEditor, /Vault switching is blocked while a restore outcome is unknown/)
+  assert.match(useVaultWorkspace, /if \(isEditorPersistenceSuspended\(\)\) \{/)
+  assert.match(workspaceEditor, /Discard and close/)
+})
+
+test('indeterminate restore blocks repeated backup mutations in affected vault', () => {
+  assert.match(useVaultBackup, /isVaultRestoreQuarantined\(recoveryHoldRef\.current, ownedVaultId\)/)
+  assert.match(useVaultBackup, /recoveryHoldRef\.current\.add\(id\)/)
+  assert.match(useVaultBackup, /quarantineRestore\(requestedVault\)/)
+  assert.match(useVaultBackup, /recoveryRequired,/)
+  const backupSettings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  assert.match(backupSettings, /disabled=\{isBusy \|\| recoveryRequired\}/)
+  assert.match(backupSettings, /Restart Scriptor and reopen the vault/)
+})
+
+test('backup restore exposes vault-scoped receipts without replacing native outcomes', () => {
+  const status = useVaultBackup.indexOf('const disposition = classifyVaultRestoreStatus(result.status)')
+  const receipt = useVaultBackup.indexOf('setRestoreReceipt(buildRestoreOperationReceipt(', status)
+  assert.ok(status >= 0 && receipt > status)
+  assert.match(useVaultBackup, /const lastRestoreReceipt = visibleOperationReceipt\(restoreReceipt, ownedVaultId, settings\.backupPath\)/)
+  assert.match(useVaultBackup, /outcome: \{ kind: 'reply-missing' \}/)
+  assert.match(useVaultBackup, /outcome: \{ kind: 'not-submitted' \}/)
+  assert.match(useVaultBackup, /outcome: \{ kind: 'post-commit-refresh-failed'/)
+})
+test('confirmed native reopen-required status and post-commit refresh failure quarantine the vault', () => {
+  const nativeBranch = useVaultBackup.indexOf('if (!disposition.refreshWorkspace)')
+  const refreshBranch = useVaultBackup.indexOf('// Reload authoritative', nativeBranch)
+  assert.ok(nativeBranch >= 0 && refreshBranch > nativeBranch)
+  assert.match(useVaultBackup.slice(nativeBranch, refreshBranch), /quarantineRestore\(requestedVault\)/)
+
+  const postCommitComment = useVaultBackup.indexOf('durable operation as failed')
+  const postCommitError = useVaultBackup.indexOf('Vault files were restored, but workspace resynchronization failed', postCommitComment)
+  assert.ok(postCommitComment > 0 && postCommitError > postCommitComment)
+  assert.match(useVaultBackup.slice(postCommitComment, postCommitError), /quarantineRestore\(requestedVault\)/)
+})
+
+test('recovery hold warning does not falsely assert a lost native reply', () => {
+  const backupSettings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  assert.match(backupSettings, /This vault needs recovery before backup operations can continue/)
+  assert.doesNotMatch(backupSettings, /An earlier restore did not return a confirmed result/)
+})
+
+test('backup Restore and Delete confirmations cannot transfer between vaults or folders', () => {
+  const settings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  const parent = readFileSync(new URL('../../src/components/SettingsPanel.tsx', import.meta.url), 'utf8')
+  assert.match(settings, /matchesBackupActionScope\(pendingAction, backupScope, entry\.name\)/)
+  assert.match(settings, /setPendingAction\(createPendingBackupAction\(backupScope, entry\.name, 'restore'\)\)/)
+  assert.match(settings, /setPendingAction\(createPendingBackupAction\(backupScope, entry\.name, 'delete'\)\)/)
+  assert.match(settings, /if \(!matchesBackupActionScope\(selected, backupScope, entry\.name\)/)
+  assert.match(settings, /setPendingAction\(null\)[\s\S]*setSettings\(\{ backupPath: event\.target\.value \}\)/)
+  assert.match(parent, /<VaultBackupSettings key=\{vaultId \?\? 'closed'\}/)
+})
+
+test('older retained backups have an explicit bounded disclosure and cannot reuse hidden approvals', () => {
+  const source = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  assert.match(source, /backups\.slice\(0, visibleBackupCount\)/)
+  assert.match(source, /Show .*older backups/)
+  assert.match(source, /'Show 1 older backup'/)
+  assert.match(source, /aria-expanded=\{visibleBackupCount > BACKUP_PAGE_SIZE\}/)
+  assert.match(source, /Show fewer backups/)
+  assert.match(source, /setPendingAction\(null\)[\s\S]*setVisibleBackupCount\(BACKUP_PAGE_SIZE\)/)
+  assert.doesNotMatch(source, /backups\.slice\(0, 10\)/)
+})
+
+test('a backup with failed native integrity verification cannot enter the Restore confirmation', () => {
+  const settings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  assert.match(settings, /disabled=\{isBusy \|\| recoveryRequired \|\| !entry\.verified\}/)
+  assert.match(settings, /aria-describedby=\{!entry\.verified \?/)
+  assert.match(settings, /This backup could not be verified, so it cannot be restored/)
+  assert.match(settings, /Delete backup/)
+})
+
+
+test('MAT-005 backup listing rejects stale same-vault, same-folder completions', () => {
+  // A current vault + directory check alone cannot distinguish two overlapping
+  // requests for the same location. A monotonic request epoch is also required.
+  assert.match(useVaultBackup, /const backupListRequestEpochRef = useRef\(0\)/)
+  const acceptChecks = [...useVaultBackup.matchAll(/requestEpoch === backupListRequestEpochRef\.current/g)]
+  assert.ok(acceptChecks.length >= 2, 'both refresh and effect requests must reject stale completions')
+})
+
+test('MAT-005 backup inventory invalidates pending reads at mutation boundaries', () => {
+  const start = useVaultBackup.indexOf('const beginOperation = useCallback')
+  const end = useVaultBackup.indexOf('const finishOperation', start)
+  assert.ok(start >= 0 && end > start)
+  assert.match(useVaultBackup.slice(start, end), /backupListRequestEpochRef\.current \+= 1/)
+  const createStart = useVaultBackup.indexOf('const triggerBackup = useCallback')
+  const createEnd = useVaultBackup.indexOf('const triggerBackupRef', createStart)
+  assert.ok(createStart >= 0 && createEnd > createStart)
+  assert.match(useVaultBackup.slice(createStart, createEnd), /backupListRequestEpochRef\.current \+= 1[\s\S]*setBackups\(sorted\.filter/)
+})
+
+test('MAT-005 backup inventory gates both successful reads and stale errors', () => {
+  const directStart = useVaultBackup.indexOf('const listBackups = useCallback')
+  const directEnd = useVaultBackup.indexOf('const triggerBackup = useCallback', directStart)
+  const effectStart = useVaultBackup.indexOf('let cancelled = false\n    const requestEpoch', directEnd)
+  assert.ok(directStart >= 0 && directEnd > directStart && effectStart > directEnd)
+  const direct = useVaultBackup.slice(directStart, directEnd)
+  const effect = useVaultBackup.slice(effectStart, useVaultBackup.indexOf('return () => {', effectStart))
+  assert.equal((direct.match(/requestEpoch === backupListRequestEpochRef\.current/g) ?? []).length, 2)
+  assert.equal((effect.match(/requestEpoch === backupListRequestEpochRef\.current/g) ?? []).length, 2)
+})
+
+test('MAT-005 denied backup creation schedules a read-only list reconciliation', () => {
+  const start = useVaultBackup.indexOf('const triggerBackup = useCallback')
+  const end = useVaultBackup.indexOf('const triggerBackupRef', start)
+  assert.ok(start >= 0 && end > start, 'backup trigger block must be present')
+  const trigger = useVaultBackup.slice(start, end)
+  const failed = trigger.indexOf('} catch (caught) {')
+  const finished = trigger.indexOf('} finally {', failed)
+  assert.ok(failed > 0 && finished > failed)
+  assert.match(trigger.slice(failed, finished), /await listBackups\(\)/,
+    'a failed create must replace invalidated inventory read with a scoped read-only refresh')
+  assert.equal((trigger.match(/await vaultCreateBackup\(/g) ?? []).length, 1,
+    'the failure path must never resubmit the backup write')
 })

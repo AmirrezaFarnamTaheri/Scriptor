@@ -7,7 +7,9 @@ import {
   vaultListBackups,
   vaultRestoreBackup,
 } from '../bridge/commands'
-import type { VaultBackupEntry } from '../bridge/commands'
+import type { VaultBackupEntry, VaultRestoreStatus } from '../bridge/commands'
+import { buildRestoreOperationReceipt, visibleOperationReceipt, type OperationReceipt } from '../lib/workspace/operationReceipt'
+import { classifyVaultRestoreStatus, classifyVaultRestoreFailure, isVaultRestoreQuarantined } from '../lib/restoreOutcome'
 import { backupRetentionCandidates, DEFAULT_VAULT_BACKUP_SETTINGS, validateVaultBackupSettings, type VaultBackupSettings } from '../lib/vaultBackupPolicy'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
@@ -55,7 +57,14 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const [backupView, setBackupView] = useState<{vaultId: string | null; path: string; value: VaultBackupEntry[]; error: string | null; loading: boolean}>({vaultId: ownedVaultId, path: settings.backupPath, value: [], error: null, loading: true})
   const [errorView, setErrorView] = useState<{vaultId: string | null; path: string; value: string | null}>({vaultId: ownedVaultId, path: settings.backupPath, value: null})
   const [messageView, setMessageView] = useState<{vaultId: string | null; path: string; value: string | null}>({vaultId: ownedVaultId, path: settings.backupPath, value: null})
+  // Observational, renderer-owned receipt; native transaction state stays authoritative.
+  const [restoreReceipt, setRestoreReceipt] = useState<OperationReceipt | null>(null)
   const [isBusy, setIsBusy] = useState(false)
+  // A lost native restore reply can hide already-promoted files. Keep this
+  // affected vaults quarantined for the remainder of this app session, even if
+  // several vaults encounter uncertain results. A full restart clears them.
+  const [recoveryHoldVaultIds, setRecoveryHoldVaultIds] = useState<ReadonlySet<string>>(() => new Set())
+  const recoveryRequired = isVaultRestoreQuarantined(recoveryHoldVaultIds, ownedVaultId)
   // Hide a previous vault's data on the very first render after switching.
   // React forbids synchronous setState in effects; owner-keyed state needs no reset effect.
   // Backups are identified by both vault and destination directory. Never
@@ -66,12 +75,20 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const backupListLoading = !visibleBackups || visibleBackups.loading
   const lastError = errorView.vaultId === ownedVaultId && errorView.path === settings.backupPath ? errorView.value : null
   const lastMessage = messageView.vaultId === ownedVaultId && messageView.path === settings.backupPath ? messageView.value : null
+  const lastRestoreReceipt = visibleOperationReceipt(restoreReceipt, ownedVaultId, settings.backupPath)
   const setBackups = useCallback((value: VaultBackupEntry[]) => setBackupView({vaultId: ownedVaultId, path: settings.backupPath, value, error: null, loading: false}), [ownedVaultId, settings.backupPath])
   const setBackupListError = useCallback(() => setBackupView({vaultId: ownedVaultId, path: settings.backupPath, value: [], error: 'Could not load backups from this location. Check its path and access permissions.', loading: false}), [ownedVaultId, settings.backupPath])
   const setLastError = useCallback((value: string | null) => setErrorView({vaultId: ownedVaultId, path: settings.backupPath, value}), [ownedVaultId, settings.backupPath])
   const setLastMessage = useCallback((value: string | null) => setMessageView({vaultId: ownedVaultId, path: settings.backupPath, value}), [ownedVaultId, settings.backupPath])
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const operationBusyRef = useRef(false)
+  // Reject older same-vault, same-folder inventory replies, including failures.
+  const backupListRequestEpochRef = useRef(0)
+  const recoveryHoldRef = useRef<Set<string>>(new Set())
+  const quarantineRestore = useCallback((id: string) => {
+    recoveryHoldRef.current.add(id)
+    setRecoveryHoldVaultIds(new Set(recoveryHoldRef.current))
+  }, [])
   const currentVaultRef = useRef<string | null>(ownedVaultId)
   const currentBackupPathRef = useRef(settings.backupPath)
 
@@ -87,11 +104,13 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   // A scheduled backup, manual backup, restore and deletion must not overlap.
   // State alone is not a mutex: two invocations may race before React renders.
   const beginOperation = useCallback(() => {
-    if (operationBusyRef.current) return false
+    if (operationBusyRef.current || isVaultRestoreQuarantined(recoveryHoldRef.current, ownedVaultId)) return false
+    // No read started before a native mutation may later publish inventory.
+    backupListRequestEpochRef.current += 1
     operationBusyRef.current = true
     setIsBusy(true)
     return true
-  }, [])
+  }, [ownedVaultId])
   const finishOperation = useCallback(() => {
     operationBusyRef.current = false
     setIsBusy(false)
@@ -106,6 +125,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   }, [])
 
   const listBackups = useCallback(async () => {
+    const requestEpoch = ++backupListRequestEpochRef.current
     if (!ownedVaultId) {
       setBackups([])
       return
@@ -114,9 +134,13 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
     const requestedPath = settings.backupPath
     try {
       const list = await vaultListBackups(requestedPath || undefined)
-      if (ownsBackupScope(requestedVault, requestedPath)) setBackups(list || [])
+      if (ownsBackupScope(requestedVault, requestedPath) && requestEpoch === backupListRequestEpochRef.current) {
+        setBackups(list || [])
+      }
     } catch {
-      if (ownsBackupScope(requestedVault, requestedPath)) setBackupListError()
+      if (ownsBackupScope(requestedVault, requestedPath) && requestEpoch === backupListRequestEpochRef.current) {
+        setBackupListError()
+      }
     }
   }, [ownedVaultId, settings.backupPath, ownsBackupScope, setBackups, setBackupListError])
 
@@ -150,16 +174,24 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
           failedDeletes.push(old.name)
         }
       }
+      // This native mutation's final inventory supersedes any read that
+      // began before the create/retention sequence finished.
+      backupListRequestEpochRef.current += 1
       setBackups(sorted.filter((backup) => !deleted.has(backup.name)))
       if (failedDeletes.length > 0) {
         setLastError(`Could not delete ${failedDeletes.length} old backup(s): ${failedDeletes.join(', ')}`)
       }
     } catch (caught) {
-      if (ownsBackupScope(requestedVault, requestedPath)) setLastError(caught instanceof Error ? caught.message : 'Backup failed')
+      if (ownsBackupScope(requestedVault, requestedPath)) {
+        // The mutation invalidated the old list read. Reconcile with a fresh
+        // read-only request, never another native backup submission.
+        setLastError(caught instanceof Error ? caught.message : 'Backup failed')
+        await listBackups()
+      }
     } finally {
       finishOperation()
     }
-  }, [ownedVaultId, settings.backupPath, settings.maxSnapshots, beginOperation, finishOperation, ownsBackupScope, setBackups, setLastError, setLastMessage])
+  }, [ownedVaultId, settings.backupPath, settings.maxSnapshots, beginOperation, finishOperation, ownsBackupScope, listBackups, setBackups, setLastError, setLastMessage])
 
   const triggerBackupRef = useRef(triggerBackup)
   useEffect(() => {
@@ -170,9 +202,13 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
     async (backupName: string, onRestored?: () => void) => {
       if (!ownedVaultId || !beginOperation()) return
       const requestedVault = ownedVaultId
+      const requestedPath = settings.backupPath
+      const operationId = crypto.randomUUID()
       setLastError(null)
       setLastMessage(null)
+      setRestoreReceipt(null)
       let restoreApplied = false
+      let lastNativeStatus: VaultRestoreStatus | null = null
       try {
         // Flush acknowledged edits, then freeze editor persistence before the
         // native transaction starts replacing authoritative vault files.
@@ -183,10 +219,13 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         // Only an explicitly rolled-back restore is safe to resume editor
         // persistence over. Every other status means vault files were already
         // replaced, so resuming the superseded draft would overwrite them.
-        restoreApplied = result.status !== 'rolled-back'
+        const disposition = classifyVaultRestoreStatus(result.status)
+        lastNativeStatus = result.status
+        restoreApplied = disposition.filesChanged
+        setRestoreReceipt(buildRestoreOperationReceipt({ operationId, vaultId: requestedVault, backupName, backupPath: requestedPath, outcome: { kind: 'native-result', status: result.status } }))
         if (!ownsVault(requestedVault)) return
 
-        if (result.status === 'rolled-back') {
+        if (disposition.resumeOldDraft) {
           // Native replacement never mutated vault files, or promoted nothing
           // and rolled back cleanly. Resume the original editor persistence
           // generation and re-arm any still-dirty in-memory draft.
@@ -200,7 +239,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
           return
         }
 
-        if (result.status !== 'committed-ready') {
+        if (!disposition.refreshWorkspace) {
           // `committed-needs-reopen` and `recovery-required` both leave the
           // pre-restore session in place: it never ran rename-transaction
           // recovery on the restored tree. The replacement is authoritative,
@@ -208,6 +247,7 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
           // index rebuild must not run against that session. The native
           // message already tells the user to reopen the vault, which
           // reconciles the journal and reloads everything.
+          quarantineRestore(requestedVault)
           setLastError(result.message)
           return
         }
@@ -236,11 +276,19 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       } catch (caught) {
         if (!ownsVault(requestedVault)) return
         const message = caught instanceof Error ? caught.message : 'Restore failed'
-        if (!restoreApplied) {
-          // The invoke rejected before a committed outcome was returned: a
-          // transport error, or a pre-transaction failure such as authorization
-          // or manifest verification. Nothing on disk was replaced, so it is
-          // safe to resume the original editor persistence generation.
+        const failure = classifyVaultRestoreFailure(caught, restoreApplied)
+        if (failure === 'freeze-and-reopen') {
+          setRestoreReceipt(buildRestoreOperationReceipt({ operationId, vaultId: requestedVault, backupName, backupPath: requestedPath, outcome: { kind: 'reply-missing' } }))
+          // The native transaction may have committed before its reply was lost.
+          // Do not resume an old draft or silently retry this restore.
+          quarantineRestore(requestedVault)
+          setLastError('The restore result could not be confirmed. Vault files may have changed; editing remains paused. Restart Scriptor and reopen this vault before saving or attempting another restore.')
+          return
+        }
+        if (failure === 'safe-to-resume') {
+          setRestoreReceipt(buildRestoreOperationReceipt({ operationId, vaultId: requestedVault, backupName, backupPath: requestedPath, outcome: { kind: 'not-submitted' } }))
+          // This failure is known to precede native restore submission. Only
+          // such a failure, or an authoritative rolled-back result, may resume.
           try {
             await dispatchVaultLifecycleEvent('scriptor:vault-restore-aborted', { backupName })
           } catch (resumeError) {
@@ -249,16 +297,19 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
           }
           setLastError(message)
         } else {
+          if (lastNativeStatus) setRestoreReceipt(buildRestoreOperationReceipt({ operationId, vaultId: requestedVault, backupName, backupPath: requestedPath, outcome: { kind: 'post-commit-refresh-failed', status: lastNativeStatus } }))
           // The filesystem restore is already authoritative. Never label that
           // durable operation as failed merely because UI/index resynchronizing
-          // encountered an error afterward.
+          // encountered an error afterward. Do not allow another backup mutation
+          // until the committed tree has been reconciled by an app restart.
+          quarantineRestore(requestedVault)
           setLastError(`Vault files were restored, but workspace resynchronization failed: ${message}`)
         }
       } finally {
         finishOperation()
       }
     },
-    [ownedVaultId, settings.backupPath, beginOperation, finishOperation, ownsVault, setLastError, setLastMessage],
+    [ownedVaultId, settings.backupPath, beginOperation, finishOperation, ownsVault, setLastError, setLastMessage, quarantineRestore],
   )
 
   const deleteBackup = useCallback(
@@ -283,12 +334,15 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
     const requestedVault = ownedVaultId
     const requestedPath = settings.backupPath
     let cancelled = false
+    const requestEpoch = ++backupListRequestEpochRef.current
     void vaultListBackups(requestedPath || undefined)
       .then((entries) => {
-        if (!cancelled && ownsBackupScope(requestedVault, requestedPath)) setBackups(entries || [])
+        if (!cancelled && ownsBackupScope(requestedVault, requestedPath) &&
+          requestEpoch === backupListRequestEpochRef.current) setBackups(entries || [])
       })
       .catch(() => {
-        if (!cancelled && ownsBackupScope(requestedVault, requestedPath)) setBackupListError()
+        if (!cancelled && ownsBackupScope(requestedVault, requestedPath) &&
+          requestEpoch === backupListRequestEpochRef.current) setBackupListError()
       })
     return () => {
       cancelled = true
@@ -326,13 +380,15 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       backupListError,
       backupListLoading,
       isBusy,
+      recoveryRequired,
       lastError,
       lastMessage,
+      lastRestoreReceipt,
       triggerBackup,
       restoreBackup,
       deleteBackup,
       listBackups,
     }),
-    [settings, setSettings, backups, backupListError, backupListLoading, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup, listBackups],
+    [settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, lastRestoreReceipt, triggerBackup, restoreBackup, deleteBackup, listBackups],
   )
 }
