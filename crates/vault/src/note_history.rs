@@ -79,6 +79,25 @@ pub fn list_note_history(
     Ok(manifest.revisions)
 }
 
+/// Check that the bytes approved in the revision timeline are still the bytes
+/// about to be restored. A caller-supplied manifest hash alone is not authority.
+pub fn validate_reviewed_history_revision(
+    markdown: &str,
+    expected_hash: &str,
+) -> Result<(), VaultError> {
+    if expected_hash.trim().is_empty() {
+        return Err(VaultError::InvalidConfig {
+            message: "Missing reviewed revision hash. Review the revision again.".to_string(),
+        });
+    }
+    if crate::hash::content_hash(markdown) != expected_hash {
+        return Err(VaultError::InvalidConfig {
+            message: "Historical revision changed since preview. Review it again.".to_string(),
+        });
+    }
+    Ok(())
+}
+
 pub fn read_note_history_revision(
     root: &VaultRoot,
     note_path: &str,
@@ -281,6 +300,25 @@ mod tests {
 
     fn write_note(dir: &std::path::Path, body: &str) {
         std::fs::write(dir.join("note.md"), body).unwrap();
+    }
+
+    #[test]
+    fn reviewed_revision_hash_accepts_exact_original_bytes() {
+        let markdown = "# Saved body\n";
+        assert!(validate_reviewed_history_revision(markdown, &crate::hash::content_hash(markdown)).is_ok());
+    }
+
+    #[test]
+    fn reviewed_revision_hash_rejects_modified_source() {
+        let source = "# Saved body\n";
+        let tampered = "# Different body\n";
+        let result = validate_reviewed_history_revision(tampered, &crate::hash::content_hash(source));
+        assert!(result.unwrap_err().to_string().contains("changed"));
+    }
+
+    #[test]
+    fn reviewed_revision_hash_rejects_unverified_blank_identity() {
+        assert!(validate_reviewed_history_revision("# Saved body\n", "").is_err());
     }
 
     #[test]
