@@ -46,3 +46,31 @@ pub fn vault_restore_note_history_revision(
     )
     .map_err(|error| error.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::validate_reviewed_revision_hash;
+    use scriptor_vault::content_hash;
+
+    #[test]
+    fn reviewed_revision_exact_hash_is_accepted() {
+        let markdown = "# Original note\n";
+        let hash = content_hash(markdown);
+        assert!(validate_reviewed_revision_hash(markdown, &hash).is_ok());
+    }
+
+    #[test]
+    fn changed_revision_bytes_are_refused_before_restore() {
+        let previously_reviewed = "# Original note\n";
+        let changed = "# Tampered note\n";
+        let hash = content_hash(previously_reviewed);
+        let result = validate_reviewed_revision_hash(changed, &hash);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("changed"));
+    }
+
+    #[test]
+    fn missing_reviewed_hash_cannot_authorize_restore() {
+        assert!(validate_reviewed_revision_hash("# Note\n", "").is_err());
+    }
+}
