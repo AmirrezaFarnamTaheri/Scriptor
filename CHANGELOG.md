@@ -15,6 +15,8 @@
 
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
 
+- Reject desktop Git commits whose initiating vault no longer matches the native active session, including missing vault IDs. Bind the renderer request to its originating vault before entering GitQueue rather than committing against a newly selected vault.
+
 - Upgrade `webpki-roots` and `webpki-root-certs` to 1.0.10 and `rustls-webpki` to 0.103.16 to fix RUSTSEC-2026-0381, RUSTSEC-2026-0382 and RUSTSEC-2026-0383, which affected the bundled root certificates by trusting distrusted emSign intermediates and by accepting certificate paths through distrusted intermediates.
 
 - Apply the native `(?i)` case-insensitive directive without depending on runtime-specific regular-expression features, so a path filter using the directive matches the same notes on every supported runtime instead of silently dropping them on the ones that lack the scoped flag form.
