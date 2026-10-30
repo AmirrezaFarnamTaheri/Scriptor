@@ -57,6 +57,29 @@ Draft [PR #228](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/228) adds 
 
 The importer now calls the existing atomic vault writer with `EXPECTED_MISSING_CONTENT_HASH` rather than a missing precondition. An existing destination note is skipped and reported with a path-specific explanation; new notes still import. No parallel writer, file-existence race, authorization change or silent merge is introduced. **Implementation-head Rust, Clippy, source, desktop, visual and installed-client evidence are pending**, so no release claim follows from this source patch. See `tasks/plans/2026-10-29-obsidian-create-only.md`.
 
+## MAT-005 Obsidian import initiating-vault guard — October 29, 2026
+
+Stacked draft [PR #227](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/227) builds on [PR #219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219). A delayed approval could otherwise bind an old dialog's request to the newly active vault. The TypeScript bridge now requires and forwards the originating vault ID; the native import command checks it against the active session **before** consuming the sensitive-operation token or writing files. This adds an admission guard, not a new permission authority or importer.
+
+The test-only source commit [`4208e00`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/4208e0091f22867b433ef32a39443c8246267c3a) includes bridge and native-order regressions. [Test-only CI #40855794851](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40855794851) was queued at implementation time, so **RED has not been observed**. The related real-dialog JSX harness also verifies forwarding the initiating vault. **Exact implementation-head CI, Rust/Windows/browser/visual and installed-client switch-during-approval acceptance are unverified**; do not merge, publish or graduate MAT-005 based on source inspection. Implementation record: [`tasks/plans/2026-10-29-mat-005-obsidian-import-vault-identity.md`](../tasks/plans/2026-10-29-mat-005-obsidian-import-vault-identity.md).
+
+Hosted source verification: [CI #40881320884](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881320884), [desktop #40881320881](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881320881), [visual #40881320887](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881320887), and [docs #40881320900](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881320900) passed on old source head `263c6a2`. The current integration merge head requires its own CI, and packaged-client vault-switch/authorization/restart acceptance remains pending.
+
+## MAT-005 Obsidian import lifecycle — October 29, 2026
+
+PR [#219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219) addresses renderer-level lifecycle defects in the Obsidian import overlay. Native `ImportVault` authorization and file writes are unchanged.
+
+| Source | Observation | Evidence class |
+|---|---|---|
+| Test-only head `69a8c3a`, [CI #40783884097](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40783884097) | Three real-dialog JSX behavioral tests were authored; at the time of the fix, hosted CI was queued | **No observed failing-first run**; do not claim TDD RED |
+| Implemented follow-up | Synchronous import single-flight, mount-generation check before post-await state/callbacks; failure releases in-flight claim for an explicit user retry | **Authored, not yet verified GREEN** |
+| Required acceptance | Current-head source regression, browser, TypeScript, native/Rust, Windows/desktop, visual and clean installed-client import/vault-switch scenarios | **Pending** |
+| `54655e6` test-only follow-up · [CI #40850992642](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40850992642) | Real-JSX test covers a native folder chooser resolving after layout cleanup; the originating dialog must not validate the result or update React state after close | **Test authored first; no hosted RED observed before fix**, so browser/native acceptance remains pending |
+| Subsequent Browse guard | Capture dialog lifecycle before awaiting plugin-module loading and native picker; ignore selection if that owner has unmounted | **Implemented; exact-head source/functional checks pending** |
+
+A closed dialog does **not** cancel, roll back or establish the outcome of an already submitted native import. It only prevents late renderer feedback.
+
+Source acceptance (October 29, 2026): [CI #40881174514](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174514), [visual #40881174519](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174519), and [docs #40881174543](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174543) passed at exact branch head `c088066`. This establishes hosted source verification, not installed-client vault-switch, restart or lost-response reconciliation acceptance. The initial test-only RED was not observed.
 ## PR #160 remediation evidence — October 11, 2026
 
 This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.
@@ -294,8 +317,7 @@ The implementation restricts command registration to available owner callbacks, 
 - **Failing-first source test authored:** [`d3e2a68`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/d3e2a688edd8dc1dfefd8ddcd74c167d9c77148e) asserts that `App.tsx` does not close Health Dashboard before awaited note navigation. The legacy implementation closed eagerly. Hosted RED is **not yet confirmed**.
 - **Behavioral source implementation:** `openNoteBeforeDismissingPanel` awaits the existing workspace-leaf navigation outcome; dismissal occurs only after `true`. A refusal or blank target leaves the panel open; thrown source errors remain identifiable and the App handler reports them through the existing toast service.
 - **Tests authored:** four actual TypeScript helper tests cover delayed approval, dirty-editor refusal, native read rejection, and blank targets. The source-shaped App regression also guards the real handler wiring.
-- **Pending:** exact-head source suite, TypeScript, lint, Browser E2E, Rust/Windows, docs, visual and installed-client dirty close/restart/vault switch/keyboard/RTL/200% zoom acceptance. This is only a MAT-006 code slice and does not graduate the feature.
-## Canonical history gate
+- **Pending:** exact-head source suite, TypeScript, lint, Browser E2E, Rust/Windows, docs, visual and installed-client dirty close/restart/vault switch/keyboard/RTL/200% zoom acceptance. This is only a MAT-006 code slice and does not graduate the feature.## Canonical history gate
 
 Run from a full canonical clone:
 
