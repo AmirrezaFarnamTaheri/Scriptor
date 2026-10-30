@@ -36,6 +36,8 @@
 
 - Keep Saved Views search results attached to their originating vault and filter, discarding late manual and automatic query responses instead of showing stale results after edits or vault switches.
 
+- Reject daemon Git commits with a missing or stale originating-vault ID before acquiring a native GitQueue, both through the regular command gateway and the transport's outside-lock execution path.
+
 - Disable Restore for backup copies that fail native integrity verification, with a clear explanation; reviewed Delete remains available for cleanup.
 
 - Require pending Restore/Delete confirmations to match the current vault, backup destination and backup name; clear outdated approvals rather than applying them to an identically named backup elsewhere.

@@ -252,6 +252,12 @@ Production now reuses the existing vault lifecycle guard on the three `setError(
 - **Implementation awaiting exact-head checks:** require the initiating vault in the TypeScript bridge and native Tauri commit command, enforce it before GitQueue, and test native denied/accepted outcomes plus the browser mock.
 - **Still pending:** source GREEN, Rust/Windows/Browser E2E/visual/docs, installed-client delayed-invoke acceptance, and daemon/CLI/MCP parity under issue #188. This slice does not complete MAT-008.
 
+## MAT-008 — Daemon Git commit identity (draft PR #212)
+
+- **Observed failing-first:** [CI #40657380487](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40657380487), Rust workspace test lane at test-only commit `eb26a20db7b064ee312397cc579b7455cf71cf29`. Both `command_gateway::tests::git_commit_gateway_rejects_stale_and_missing_vault_before_queueing` and `transport::tests::outside_lock_git_commit_rejects_stale_and_missing_vault_before_queueing` failed because an invalid request reached GitQueue and returned `not a git repository` instead of a vault-identity error.
+- **Implementation:** the command gateway owns one session-identity guard requiring nonblank `expected_vault_id` and exact match with the active vault. Both daemon execution paths check it while holding their existing daemon-state lock and before creating/enqueuing a queue. Existing queue serialization and IPC authorization are unchanged.
+- **Required verification:** current-head source/Rustfmt/Clippy/Rust tests, Linux/Windows/Browser and applicable visual gates, plus an installed authenticated daemon IPC session switch/restart test. No installed-client acceptance has yet been established; MAT-008 remains open.
+
 ## RUSTSEC-2026-0414 — pulldown-cmark advisory remediation
 
 - **Failure observed:** [CI #40661251859](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40661251859) at MAT-008 daemon head `eb19fcb42014531026dac9c4d88f01300f223dc8`. Cargo deny rejected `pulldown-cmark 0.13.4` with advisory RUSTSEC-2026-0414: crafted `[[a|]]` input may cause exponential event growth when `ENABLE_WIKILINKS` is on.
