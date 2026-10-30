@@ -613,6 +613,15 @@ html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
   pointer-events: none;
 }
 
+/* Zero-width rails with opacity:0 can still leave their descendants in the
+   tab order. Hide the desktop vault rail from keyboard/accessibility navigation,
+   while keeping the independently selected mobile Vault pane available. */
+@media (min-width: 821px) {
+  html:not([data-ui-reflow='mobile']) .workspace-grid[data-vault-collapsed='true'] > .vault-panel {
+    visibility: hidden;
+  }
+}
+
 .vault-recent-notes {
   padding: 8px 12px 0;
 }
