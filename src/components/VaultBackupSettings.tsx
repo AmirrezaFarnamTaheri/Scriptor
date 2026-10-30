@@ -28,7 +28,7 @@ function formatDate(iso: string): string {
 }
 
 export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }: VaultBackupSettingsProps) {
-  const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup } =
+  const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup } =
     backup
 
   const [pendingAction, setPendingAction] = useState<{ name: string; action: 'restore' | 'delete' } | null>(null)
@@ -42,7 +42,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
       <p className="health-subtitle">A recovery copy inside the vault cannot protect you if that folder is lost. Save important backups on another drive or backup location.</p>
 
       <div className="settings-actions">
-        <button type="button" className="primary-button" disabled={isBusy} onClick={() => void triggerBackup()}>
+        <button type="button" className="primary-button" disabled={isBusy || recoveryRequired} onClick={() => void triggerBackup()}>
           {isBusy ? 'Backing up…' : 'Back up now'}
         </button>
       </div>
@@ -85,7 +85,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
           Backup folder outside this vault
           <input
             value={settings.backupPath}
-            disabled={isBusy}
+            disabled={isBusy || recoveryRequired}
             placeholder="Leave empty to keep recovery copies in this vault"
             onChange={(event) => setSettings({ backupPath: event.target.value })}
           />
@@ -93,8 +93,9 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
         </div>
       </details>
 
+      {recoveryRequired ? <p className="settings-status warn" role="alert">An earlier restore did not return a confirmed result. Backup, restore and delete are paused for this vault. Restart Scriptor and reopen the vault to reconcile its files safely.</p> : null}
       {lastMessage ? <p className="settings-status ok">{lastMessage}</p> : null}
-      {lastError ? <p className="settings-status warn">{lastError}</p> : null}
+      {lastError ? <p className="settings-status warn" role="alert">{lastError}</p> : null}
       {backupListError ? <p className="settings-status warn" role="alert">{backupListError}</p> : null}
 
       {backups.length > 0 ? (
@@ -111,7 +112,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
                   <button
                     type="button"
                     className="toolbar-button"
-                    disabled={isBusy}
+                    disabled={isBusy || recoveryRequired}
                     aria-label={`Restore backup ${entry.name}`}
                     onClick={() => setPendingAction({ name: entry.name, action: 'restore' })}
                   >
@@ -120,7 +121,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
                   <button
                     type="button"
                     className="toolbar-button danger"
-                    disabled={isBusy}
+                    disabled={isBusy || recoveryRequired}
                     aria-label={`Delete backup ${entry.name}`}
                     onClick={() => setPendingAction({ name: entry.name, action: 'delete' })}
                   >
@@ -140,7 +141,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }:
                     if (action === 'restore') void restoreBackup(entry.name)
                     else void deleteBackup(entry.name)
                   }}
-                  busy={isBusy}
+                  busy={isBusy || recoveryRequired}
                 /> : null}
               </li>
             ))}

@@ -28,6 +28,12 @@
 
 - Keep Health Dashboard open until the existing workspace leaf/editor approves note navigation, preserving the initiating panel on refused dirty-note transitions and reporting native read failures without silently dismissing the panel.
 
+- Keep paused drafts safe when a backup restore outcome is unknown: closing requires explicit discard approval for unsaved edits, never flushes those edits over restored files, and blocks vault switching with restart instructions until recovery.
+
+- Reject malformed or unrecognized native restore results as indeterminate, keeping the previous editor draft frozen until the vault can be reopened. Typed Tauri invocation responses are now validated after submission, with failing-first regression coverage.
+
+- Keep editor drafts paused if a native backup-restore reply is lost after submission. Distinguish pre-submission authorization rejection from an indeterminate transaction outcome, preserve native terminal statuses, and quarantine repeated backup/restore/delete actions for every affected vault until Scriptor is restarted and the vault reopened.
+
 - Make Vault search keyboard access select the mobile Vault pane and expand a collapsed desktop Vault sidebar before moving focus, from both the command palette and the global shortcut.
 
 - Exclude the collapsed desktop Vault sidebar from keyboard focus instead of only making it transparent; keep the independently selected mobile Vault pane accessible and restore palette-to-search focus when the rail reopens.

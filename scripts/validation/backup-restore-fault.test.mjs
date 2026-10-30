@@ -14,6 +14,10 @@ const useVaultBackup = readFileSync(
   new URL('../../src/hooks/useVaultBackup.ts', import.meta.url),
   'utf8',
 )
+const vaultBridge = readFileSync(
+  new URL('../../src/bridge/commands/vault.ts', import.meta.url),
+  'utf8',
+)
 const useVaultWorkspace = readFileSync(
   new URL('../../src/hooks/useVaultWorkspace.ts', import.meta.url),
   'utf8',
@@ -80,4 +84,58 @@ test('restore lifecycle freezes persistence before replacement and refreshes der
   assert.ok(useVaultWorkspace.includes('setNoteSummaries([])'))
   assert.ok(useVaultWorkspace.includes('refreshVaultConfig()'))
   assert.ok(useVaultWorkspace.includes('refreshVaultSnippets()'))
+})
+
+test('a rejected native restore reply keeps the editor frozen until reopen', () => {
+  assert.match(vaultBridge, /return runVaultRestoreWithOutcomeBoundary\(/)
+  assert.match(vaultBridge, /validateVaultRestoreResult\(await invoke<unknown>/)
+  assert.match(useVaultBackup, /classifyVaultRestoreFailure\(caught, restoreApplied\)/)
+  const freeze = useVaultBackup.indexOf("if (failure === 'freeze-and-reopen')")
+  const resume = useVaultBackup.indexOf("if (failure === 'safe-to-resume')", freeze)
+  assert.ok(freeze > 0 && resume > freeze)
+  assert.match(useVaultBackup.slice(freeze, resume), /editing remains paused/)
+  assert.doesNotMatch(useVaultBackup.slice(freeze, resume), /scriptor:vault-restore-aborted/)
+})
+
+test('unconfirmed restore never silently closes a suspended draft or switches vaults', () => {
+  // MAT-001 CodeRabbit: suspended flush must fail closed for rename and
+  // every other mutation caller. Explicit discard is allowed for close only.
+  const flushStart = workspaceEditor.indexOf('const flushAllPendingSaves = useCallback')
+  const flushEnd = workspaceEditor.indexOf('const scheduleSave = useCallback', flushStart)
+  assert.ok(flushStart > 0 && flushEnd > flushStart)
+  const flush = workspaceEditor.slice(flushStart, flushEnd)
+  assert.match(flush, /if \(persistenceSuspendedRef\.current\) return false/)
+  assert.doesNotMatch(flush, /requestFrozenDraftExit\(/)
+  const closeStart = workspaceEditor.indexOf('appWindow.onCloseRequested(')
+  const closeEnd = workspaceEditor.indexOf('await appWindow.destroy()', closeStart)
+  assert.ok(closeStart > 0 && closeEnd > closeStart)
+  const close = workspaceEditor.slice(closeStart, closeEnd)
+  assert.match(close, /persistenceSuspendedRef\.current\s*\?\s*await requestFrozenDraftExitRef\.current\(\)\s*:\s*await flushAllPendingSavesRef\.current\(\)/)
+  assert.match(workspaceEditor, /const requestFrozenDraftExitRef = useRef\(requestFrozenDraftExit\)/)
+  assert.match(workspaceEditor, /return persistenceSuspendedRef\.current \|\| activeDirty/)
+  assert.match(workspaceEditor, /Vault switching is blocked while a restore outcome is unknown/)
+  assert.match(useVaultWorkspace, /if \(isEditorPersistenceSuspended\(\)\) \{/)
+  assert.match(workspaceEditor, /Discard and close/)
+})
+
+test('indeterminate restore blocks repeated backup mutations in affected vault', () => {
+  assert.match(useVaultBackup, /isVaultRestoreQuarantined\(recoveryHoldRef\.current, ownedVaultId\)/)
+  assert.match(useVaultBackup, /recoveryHoldRef\.current\.add\(id\)/)
+  assert.match(useVaultBackup, /quarantineRestore\(requestedVault\)/)
+  assert.match(useVaultBackup, /recoveryRequired,/)
+  const backupSettings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  assert.match(backupSettings, /disabled=\{isBusy \|\| recoveryRequired\}/)
+  assert.match(backupSettings, /Restart Scriptor and reopen the vault/)
+})
+
+test('confirmed native reopen-required status and post-commit refresh failure quarantine the vault', () => {
+  const nativeBranch = useVaultBackup.indexOf('if (!disposition.refreshWorkspace)')
+  const refreshBranch = useVaultBackup.indexOf('// Reload authoritative', nativeBranch)
+  assert.ok(nativeBranch >= 0 && refreshBranch > nativeBranch)
+  assert.match(useVaultBackup.slice(nativeBranch, refreshBranch), /quarantineRestore\(requestedVault\)/)
+
+  const postCommitComment = useVaultBackup.indexOf('durable operation as failed')
+  const postCommitError = useVaultBackup.indexOf('Vault files were restored, but workspace resynchronization failed', postCommitComment)
+  assert.ok(postCommitComment > 0 && postCommitError > postCommitComment)
+  assert.match(useVaultBackup.slice(postCommitComment, postCommitError), /quarantineRestore\(requestedVault\)/)
 })
