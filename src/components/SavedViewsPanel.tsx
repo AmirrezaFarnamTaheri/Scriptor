@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Bookmark, Search, X } from 'lucide-react'
 
 import { vaultListViewNotes } from '../bridge/commands'
@@ -130,15 +130,18 @@ export const SavedViewsPanel = memo(function SavedViewsPanel({
   runSourceNoteMutation,
   promptText,
 }: SavedViewsPanelProps) {
-  const canQuery = vaultOpen && isNativeBridgeAvailable()
+  const canQuery = vaultOpen && Boolean(vaultId) && isNativeBridgeAvailable()
   const [studioOpen, setStudioOpen] = useState(false)
   const [titleContains, setTitleContains] = useState('')
   const [tagHas, setTagHas] = useState('')
   const [pathMatches, setPathMatches] = useState('')
   const [modifiedWithinDays, setModifiedWithinDays] = useState('')
   const [inboxOnly, setInboxOnly] = useState(false)
-  const [results, setResults] = useState<ViewNoteHit[]>([])
-  const [status, setStatus] = useState('Build a filter and run search.')
+  const [queryState, setQueryState] = useState<{ scope: string; results: ViewNoteHit[]; status: string }>({
+    scope: '', results: [], status: 'Build a filter and run search.',
+  })
+  // Both explicit and debounced searches share one ordering authority.
+  const queryRequestIdRef = useRef(0)
   const [presets, setPresets] = useState<SavedViewPreset[]>(() => loadPresets())
 
   useEffect(() => {
@@ -166,40 +169,61 @@ export const SavedViewsPanel = memo(function SavedViewsPanel({
     [inboxOnly, modifiedWithinDays, pathMatches, tagHas, titleContains],
   )
 
-  const runQuery = useCallback(async () => {
-    if (!canQuery) return
-    setStatus('Searching…')
+  // The vault and filters own the visible rows. Mask the previous scope
+  // immediately on render, before a new effect can schedule its native read.
+  const queryScope = useMemo(
+    () => JSON.stringify([vaultId, canQuery, filterJson]),
+    [vaultId, canQuery, filterJson],
+  )
+  const results = queryState.scope === queryScope ? queryState.results : []
+  const status = queryState.scope === queryScope ? queryState.status : 'Searching…'
+
+  const readCurrentQuery = useCallback(async (requestId: number, scope: string) => {
     try {
       const hits = await vaultListViewNotes(filterJson)
-      setResults(hits)
-      setStatus(`${hits.length} note${hits.length === 1 ? '' : 's'} match this view`)
+      if (requestId !== queryRequestIdRef.current) return
+      setQueryState({
+        scope, results: hits,
+        status: `${hits.length} note${hits.length === 1 ? '' : 's'} match this view`,
+      })
     } catch (error) {
-      setResults([])
-      setStatus(error instanceof Error ? error.message : 'Could not run this saved search')
+      if (requestId !== queryRequestIdRef.current) return
+      setQueryState({
+        scope, results: [],
+        status: error instanceof Error ? error.message : 'Could not run this saved search',
+      })
     }
-  }, [canQuery, filterJson])
+  }, [filterJson])
+
+  const runQuery = useCallback(async () => {
+    if (!canQuery) return
+    const requestId = ++queryRequestIdRef.current
+    setQueryState({ scope: queryScope, results: [], status: 'Searching…' })
+    await readCurrentQuery(requestId, queryScope)
+  }, [canQuery, queryScope, readCurrentQuery])
 
   useEffect(() => {
-    if (!canQuery) return
+    // Invalidate both earlier manual and automatic reads at a scope change.
+    const requestId = ++queryRequestIdRef.current
+    if (!canQuery) {
+      setQueryState({ scope: queryScope, results: [], status: 'Build a filter and run search.' })
+      return
+    }
+    setQueryState({ scope: queryScope, results: [], status: 'Searching…' })
     let cancelled = false
     const timer = setTimeout(() => {
-      void vaultListViewNotes(filterJson)
-        .then((hits) => {
-          if (cancelled) return
-          setResults(hits)
-          setStatus(`${hits.length} note${hits.length === 1 ? '' : 's'} match this view`)
-        })
-        .catch((error: unknown) => {
-          if (cancelled) return
-          setResults([])
-          setStatus(error instanceof Error ? error.message : 'Could not run this saved search')
-        })
+      // A later manual submission supersedes this debounce as well.
+      if (!cancelled && requestId === queryRequestIdRef.current) {
+        void readCurrentQuery(requestId, queryScope)
+      }
     }, 150)
     return () => {
       cancelled = true
       clearTimeout(timer)
+      // Also prevent late manual results from setting state after unmount.
+      queryRequestIdRef.current += 1
     }
-  }, [canQuery, filterJson])
+  }, [canQuery, filterJson, vaultId, queryScope, readCurrentQuery])
 
   const applyPreset = (preset: SavedViewPreset) => {
     setTitleContains(preset.titleContains)
