@@ -43,6 +43,19 @@ pub struct ImportResult {
     pub imported_paths: Vec<String>,
 }
 
+// Own a completed or partially written attachment staging file. On Windows,
+// unlinking an open file can fail, so close its handle before removing it.
+struct StagedAttachment {
+    path: std::path::PathBuf,
+    file: Option<fs::File>,
+}
+impl Drop for StagedAttachment {
+    fn drop(&mut self) {
+        drop(self.file.take());
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
 const OBSIDIAN_DIR: &str = ".obsidian";
 
 const ATTACHMENT_EXTENSIONS: &[&str] = &[
@@ -66,6 +79,18 @@ pub fn import_obsidian_vault(
                 "Not an Obsidian vault (missing .obsidian/ directory): {}",
                 obsidian_path.display()
             ),
+        });
+    }
+
+    // The destination must not live inside the source tree: WalkDir could
+    // otherwise discover new _attachments files while this import creates
+    // them and repeatedly import the files it just wrote.
+    let source_root = obsidian_path
+        .canonicalize()
+        .map_err(|error| VaultError::io(obsidian_path, error))?;
+    if root.root().starts_with(&source_root) {
+        return Err(VaultError::InvalidConfig {
+            message: "The Scriptor destination is inside the Obsidian source folder; choose a separate destination to avoid importing generated files".into(),
         });
     }
 
@@ -106,6 +131,16 @@ pub fn import_obsidian_vault(
         if entry.file_type().is_dir() {
             continue;
         }
+        // WalkDir does not descend into symlinks, but its iterator still
+        // includes symlinked files. Do not import outside-source file contents
+        // through them (or read from a FIFO/device by treating it as a file).
+        if !entry.file_type().is_file() {
+            skipped_files += 1;
+            if entry.file_type().is_symlink() {
+                errors.push(format!("{}: symbolic links are not imported", relative_str));
+            }
+            continue;
+        }
 
         let extension = absolute
             .extension()
@@ -119,14 +154,32 @@ pub fn import_obsidian_vault(
                     notes_imported += 1;
                     imported_paths.push(path);
                 }
+                Err(VaultError::HashMismatch { expected, .. })
+                    if expected == crate::write::EXPECTED_MISSING_CONTENT_HASH =>
+                {
+                    // The writer owns the atomic create-only check. An
+                    // existing note must not be replaced by an import.
+                    skipped_files += 1;
+                    errors.push(format!(
+                        "{}: destination note already exists; original content preserved",
+                        relative_str
+                    ));
+                }
                 Err(e) => {
                     errors.push(format!("{}: {}", relative_str, e));
                 }
             }
         } else if options.import_attachments && is_attachment(&extension) {
-            match import_attachment(root, obsidian_path, relative, &attachments_dir) {
+            match import_attachment(root, obsidian_path, relative) {
                 Ok(_) => {
                     attachments_imported += 1;
+                }
+                Err(VaultError::NoteExists(_)) => {
+                    skipped_files += 1;
+                    errors.push(format!(
+                        "{}: destination attachment already exists; original content preserved",
+                        relative_str
+                    ));
                 }
                 Err(e) => {
                     errors.push(format!("{}: {}", relative_str, e));
@@ -168,37 +221,118 @@ fn import_note(
     let target_rel = format_path(relative);
     let target = RelativeVaultPath::parse(&target_rel)?;
 
-    save_note(vault_id, root, &target, &markdown, None)?;
+    // Use the vault writer's atomic create-only CAS; checking path.exists()
+    // first would race another editor or import writing the same destination.
+    save_note(
+        vault_id,
+        root,
+        &target,
+        &markdown,
+        Some(crate::write::EXPECTED_MISSING_CONTENT_HASH),
+    )?;
     Ok(target_rel)
 }
 
 fn import_attachment(
-    _root: &VaultRoot,
+    root: &VaultRoot,
     obsidian_root: &Path,
     relative: &Path,
-    attachments_dir: &Path,
 ) -> Result<(), VaultError> {
     let source = obsidian_root.join(relative);
+    // WalkDir's original file type is checked by the caller. Recheck at the
+    // read boundary in case an outside process replaced the entry.
+    let source_type = fs::symlink_metadata(&source)
+        .map_err(|error| VaultError::io(&source, error))?
+        .file_type();
+    if !source_type.is_file() {
+        return Err(VaultError::InvalidConfig {
+            message: "Obsidian attachment is no longer a regular file".into(),
+        });
+    }
     let relative_str = format_path(relative);
-    let safe_relative = RelativeVaultPath::parse(&relative_str)?;
-    let dest = attachments_dir.join(
-        safe_relative
-            .as_str()
-            .replace('/', std::path::MAIN_SEPARATOR_STR),
-    );
-    if dest.exists() {
-        return Err(VaultError::NoteExists(format!(
-            "_attachments/{}",
-            safe_relative.as_str()
-        )));
+    let destination_relative = RelativeVaultPath::parse(&format!("_attachments/{relative_str}"))?;
+    let destination = root.resolve_relative(&destination_relative)?;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| VaultError::InvalidConfig {
+            message: "Cannot determine attachment directory".into(),
+        })?;
+    fs::create_dir_all(parent).map_err(|error| VaultError::io(parent, error))?;
+
+    // Validate every newly created prefix; joining a separately verified
+    // _attachments directory would permit nested symlinks to escape the vault.
+    let destination = root.resolve_relative(&destination_relative)?;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| VaultError::InvalidConfig {
+            message: "Cannot determine attachment directory".into(),
+        })?;
+    // A quick duplicate check avoids copying large files on repeated imports.
+    // It is not an authority: hard-link publication below is still create-only.
+    match fs::symlink_metadata(&destination) {
+        Ok(_) => return Err(VaultError::NoteExists(destination_relative.to_string())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(VaultError::io(&destination, error)),
     }
 
-    let parent = dest.parent().ok_or_else(|| VaultError::InvalidConfig {
-        message: "Cannot determine parent directory".to_string(),
-    })?;
-    fs::create_dir_all(parent).map_err(|source_err| VaultError::io(parent, source_err))?;
+    // Build an entire attachment in the final directory before making it
+    // visible. The existing PDF export uses the same atomic hard-link publish
+    // pattern: rename or fs::copy at the final path could replace a new file.
+    let staging = parent.join(format!(".scriptor-{}.tmp", uuid::Uuid::new_v4()));
+    let mut source_file =
+        fs::File::open(&source).map_err(|error| VaultError::io(&source, error))?;
+    let staging_file = crate::fs::create_private_file(&staging)?;
+    // Arm cleanup only after we exclusively own the staging path. The guard
+    // also owns the handle so error-path cleanup works on Windows.
+    let mut staged = StagedAttachment {
+        path: staging.clone(),
+        file: Some(staging_file),
+    };
+    std::io::copy(
+        &mut source_file,
+        staged.file.as_mut().expect("staging file is open"),
+    )
+    .map_err(|error| VaultError::io(&staging, error))?;
+    staged
+        .file
+        .as_ref()
+        .expect("staging file is open")
+        .sync_all()
+        .map_err(|error| VaultError::io(&staging, error))?;
+    drop(staged.file.take());
 
-    fs::copy(&source, &dest).map_err(|source_err| VaultError::io(&source, source_err))?;
+    // Serialize publication against other Scriptor mutations, while keeping
+    // the potentially long copy outside that lock.
+    let _lock = crate::fs::lock_vault_mutation(root.root())?;
+    if root.root().join(".scriptor/rename-txn.json").is_file() {
+        return Err(VaultError::InvalidConfig {
+            message: "Vault rename transaction is pending; retry import after recovery".into(),
+        });
+    }
+    let publish_path = root.resolve_relative(&destination_relative)?;
+    if publish_path.parent() != Some(parent) {
+        return Err(VaultError::InvalidConfig {
+            message: "Attachment directory changed during import; no file published".into(),
+        });
+    }
+    fs::hard_link(&staging, &publish_path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::AlreadyExists {
+            VaultError::NoteExists(destination_relative.to_string())
+        } else {
+            VaultError::io(&publish_path, error)
+        }
+    })?;
+    // Content and publication are complete; cleanup removes only our staging
+    // path. An interrupted pre-publication copy can never expose partial data.
+    #[cfg(unix)]
+    if let Err(error) = fs::File::open(parent).and_then(|directory| directory.sync_all()) {
+        tracing::warn!(
+            target: "scriptor_vault::importers::obsidian",
+            %error,
+            path = %publish_path.display(),
+            "attachment is published but directory durability sync failed"
+        );
+    }
     Ok(())
 }
 
@@ -339,6 +473,181 @@ fn is_attachment(extension: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn partial_attachment_staging_cleanup_closes_handle_before_removal() {
+        use std::io::Write;
+
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(".scriptor-partial.tmp");
+        let file = crate::fs::create_private_file(&path).unwrap();
+        let mut staged = StagedAttachment {
+            path: path.clone(),
+            file: Some(file),
+        };
+        staged
+            .file
+            .as_mut()
+            .unwrap()
+            .write_all(b"incomplete asset")
+            .unwrap();
+        drop(staged);
+        assert!(
+            !path.exists(),
+            "staging must be removed even after an incomplete write"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn import_does_not_follow_source_attachment_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        let external = tempfile::tempdir().unwrap();
+        let outside_image = external.path().join("private.png");
+        fs::write(&outside_image, b"outside-vault-data").unwrap();
+        symlink(&outside_image, source.path().join("linked.png")).unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        let root = VaultRoot::open(target.path()).unwrap();
+        let result = import_obsidian_vault(
+            "test-vault",
+            &root,
+            source.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(result.attachments_imported, 0);
+        assert_eq!(result.skipped_files, 1);
+        assert!(
+            !target.path().join("_attachments/linked.png").exists(),
+            "an import must not copy an external file through a source symlink"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn import_does_not_escape_through_nested_attachment_destination_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        fs::create_dir_all(source.path().join("assets")).unwrap();
+        fs::write(source.path().join("assets/photo.png"), b"picture").unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        fs::create_dir_all(target.path().join("_attachments")).unwrap();
+        symlink(outside.path(), target.path().join("_attachments/assets")).unwrap();
+        let root = VaultRoot::open(target.path()).unwrap();
+        let result = import_obsidian_vault(
+            "test-vault",
+            &root,
+            source.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(result.attachments_imported, 0);
+        assert!(
+            !outside.path().join("photo.png").exists(),
+            "importing a nested attachment must not write through a symlink outside the target vault"
+        );
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|message| message.contains("assets/photo.png")),
+            "the rejected attachment must appear in the import error details"
+        );
+    }
+
+    #[test]
+    fn importer_rejects_its_own_source_as_destination_without_side_effects() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        let root = VaultRoot::open(source.path()).unwrap();
+
+        let error = import_obsidian_vault(
+            "test-vault",
+            &root,
+            source.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .expect_err("source and destination must not overlap");
+        assert!(error.to_string().contains("inside the Obsidian source"));
+        assert!(
+            !source.path().join("_attachments").exists(),
+            "refuse the import before creating destination files"
+        );
+    }
+
+    #[test]
+    fn importer_rejects_target_nested_in_source_before_writing() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        let target_path = source.path().join("scriptor-target");
+        fs::create_dir_all(&target_path).unwrap();
+        let root = VaultRoot::open(&target_path).unwrap();
+
+        let error = import_obsidian_vault(
+            "test-vault",
+            &root,
+            source.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .expect_err("destination within source must be rejected");
+        assert!(error.to_string().contains("inside the Obsidian source"));
+        assert!(!target_path.join("_attachments").exists());
+    }
+
+    #[test]
+    fn repeated_attachment_import_preserves_edits_and_leaves_no_staging_file() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        fs::create_dir_all(source.path().join("assets")).unwrap();
+        fs::write(source.path().join("assets/diagram.png"), b"original import").unwrap();
+
+        let destination = tempfile::tempdir().unwrap();
+        let root = VaultRoot::open(destination.path()).unwrap();
+        let options = ImportObsidianOptions::default();
+
+        let first = import_obsidian_vault("test-vault", &root, source.path(), &options).unwrap();
+        assert_eq!(first.attachments_imported, 1);
+        assert!(first.errors.is_empty());
+
+        let imported = destination.path().join("_attachments/assets/diagram.png");
+        fs::write(&imported, b"local edits after import").unwrap();
+        let second = import_obsidian_vault("test-vault", &root, source.path(), &options).unwrap();
+
+        assert_eq!(second.attachments_imported, 0);
+        assert_eq!(second.skipped_files, 1);
+        assert_eq!(
+            fs::read(&imported).unwrap(),
+            b"local edits after import",
+            "a repeated import cannot replace an edited attachment"
+        );
+        assert!(
+            second.errors.iter().any(|error| {
+                error.contains("assets/diagram.png") && error.contains("already exists")
+            }),
+            "an attachment collision must be visible in the import report: {:?}",
+            second.errors
+        );
+        for entry in fs::read_dir(imported.parent().unwrap()).unwrap() {
+            let entry = entry.unwrap();
+            assert!(
+                !entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(".scriptor-"),
+                "completed or rejected imports must clean temporary attachment files"
+            );
+        }
+    }
 
     #[test]
     fn test_detect_obsidian_vault() {
@@ -510,6 +819,97 @@ mod tests {
         assert_eq!(
             convert_callouts("before\n> [!\nafter"),
             "before\n> [!\nafter"
+        );
+    }
+
+    #[test]
+    fn import_preserves_existing_local_note_and_reports_collision() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        fs::create_dir_all(source.path().join("notes")).unwrap();
+        fs::write(
+            source.path().join("notes/shared.md"),
+            "# Incoming replacement\n",
+        )
+        .unwrap();
+        fs::write(
+            source.path().join("notes/new.md"),
+            "# Fresh imported note\n",
+        )
+        .unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        fs::create_dir_all(target.path().join("notes")).unwrap();
+        fs::write(
+            target.path().join("notes/shared.md"),
+            "# Local work to preserve\n",
+        )
+        .unwrap();
+        let root = VaultRoot::open(target.path()).unwrap();
+
+        let result = import_obsidian_vault(
+            "test-vault",
+            &root,
+            source.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            fs::read_to_string(target.path().join("notes/shared.md")).unwrap(),
+            "# Local work to preserve\n",
+            "an Obsidian import must never overwrite a note already in the destination vault"
+        );
+        assert_eq!(
+            fs::read_to_string(target.path().join("notes/new.md")).unwrap(),
+            // The existing Obsidian callout converter normalizes the terminal newline.
+            // The collision safety contract is about preserving local notes.
+            "# Fresh imported note"
+        );
+        assert_eq!(result.notes_imported, 1, "only the new note was imported");
+        assert_eq!(
+            result.skipped_files, 1,
+            "the collided note is counted as skipped"
+        );
+        assert_eq!(result.imported_paths, vec!["notes/new.md"]);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|message| message.contains("notes/shared.md")
+                    && message.contains("already exists")),
+            "the import report must explain which existing note was preserved: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn repeated_obsidian_import_does_not_replace_prior_imported_note() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join(".obsidian")).unwrap();
+        fs::write(source.path().join("daily.md"), "# Original import\n").unwrap();
+
+        let target = tempfile::tempdir().unwrap();
+        let root = VaultRoot::open(target.path()).unwrap();
+        let options = ImportObsidianOptions::default();
+        let first = import_obsidian_vault("test-vault", &root, source.path(), &options).unwrap();
+        assert_eq!(first.notes_imported, 1);
+        fs::write(
+            target.path().join("daily.md"),
+            "# Edited locally after import\n",
+        )
+        .unwrap();
+
+        let second = import_obsidian_vault("test-vault", &root, source.path(), &options).unwrap();
+        assert_eq!(
+            second.notes_imported, 0,
+            "repeat imports must not reapply existing notes"
+        );
+        assert_eq!(second.skipped_files, 1);
+        assert_eq!(
+            fs::read_to_string(target.path().join("daily.md")).unwrap(),
+            "# Edited locally after import\n",
+            "repeat import must preserve subsequent user edits"
         );
     }
 
