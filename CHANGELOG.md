@@ -38,6 +38,8 @@
 
 - Reject daemon Git commits with a missing or stale originating-vault ID before acquiring a native GitQueue, both through the regular command gateway and the transport's outside-lock execution path.
 
+- Keep Health Dashboard open until the existing workspace leaf/editor approves note navigation, preserving the initiating panel on refused dirty-note transitions and reporting native read failures without silently dismissing the panel.
+
 - Disable Restore for backup copies that fail native integrity verification, with a clear explanation; reviewed Delete remains available for cleanup.
 
 - Require pending Restore/Delete confirmations to match the current vault, backup destination and backup name; clear outdated approvals rather than applying them to an identically named backup elsewhere.

@@ -95,6 +95,7 @@ The parent-to-child review stack is [PR #180](https://github.com/AmirrezaFarnamT
 
 The source regression and TypeScript correction preserve the stronger scoped confirmation, rather than restoring the unsafe name-only approval. Browser fixtures simulate native responses and therefore cannot establish installed Windows/macOS/Linux restore or journal-recovery behavior. The MAT-003 checkbox remains unchecked pending the broader Recovery Center inventory and platform acceptance.
 
+
 ## PR #160 remediation evidence — October 11, 2026
 
 This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.
@@ -365,6 +366,15 @@ The implementation restricts command registration to available owner callbacks, 
 A mocked native query is not proof of installed-client vault changes or remote data integrity. Broader MAT-005 mutation acceptance and desktop restart tests remain open.
 
 Exact-head [CI #40784067680](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067680), [Visual #40784067783](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067783) and [Docs #40784067709](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067709) completed successfully before merging current main. Fresh exact-head validation remains required.
+## MAT-006 — Health Dashboard note navigation approval (PR #233)
+
+- **Failing-first source test authored:** [`d3e2a68`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/d3e2a688edd8dc1dfefd8ddcd74c167d9c77148e) asserts that `App.tsx` does not close Health Dashboard before awaited note navigation. The legacy implementation closed eagerly. Hosted RED is **not yet confirmed**.
+- **Behavioral source implementation:** `openNoteBeforeDismissingPanel` awaits the existing workspace-leaf navigation outcome; dismissal occurs only after `true`. A refusal or blank target leaves the panel open; thrown source errors remain identifiable and the App handler reports them through the existing toast service.
+- **Tests authored:** four actual TypeScript helper tests cover delayed approval, dirty-editor refusal, native read rejection, and blank targets. The source-shaped App regression also guards the real handler wiring.
+- **Pending:** exact-head source suite, TypeScript, lint, Browser E2E, Rust/Windows, docs, visual and installed-client dirty close/restart/vault switch/keyboard/RTL/200% zoom acceptance. This is only a MAT-006 code slice and does not graduate the feature.
+
+- **Head-specific source results:** [CI #41041583823](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41041583823), [Visual #41041583796](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41041583796), and [Docs #41041566586](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41041566586) passed on `324ea154`. This does not certify the newly reconciled integration head or installed-client workflows.
+
 ## Canonical history gate
 
 Run from a full canonical clone:
