@@ -1052,3 +1052,55 @@ fn authenticated_clients_keep_git_status_bound_after_another_client_switches_vau
     }
     pipe_guard.disarm();
 }
+
+#[test]
+fn outside_lock_git_preview_reads_reject_stale_and_missing_vault_identity() {
+    let vault = tempfile::tempdir().expect("temporary vault");
+    std::fs::write(vault.path().join("private.md"), "# Private\n")
+        .expect("create a note that must not be read for another vault");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let current_id = session.descriptor.id.clone();
+    let state = Arc::new(Mutex::new(DaemonState {
+        session: Some(session),
+        ..DaemonState::default()
+    }));
+    let event_hub = EventHub::new();
+
+    for command in ["git_read_conflict_markers_cmd", "git_show_head_file_cmd"] {
+        for payload in [
+            serde_json::json!({"path":"private.md"}),
+            serde_json::json!({"path":"private.md", "expected_vault_id": ""}),
+            serde_json::json!({"path":"private.md", "expected_vault_id": "stale-vault"}),
+            serde_json::json!({"path":"private.md", "expectedVaultId": "stale-vault"}),
+        ] {
+            let response = dispatch_invoke_outside_lock(
+                &state,
+                1813,
+                command,
+                &payload.to_string(),
+                &event_hub,
+            );
+            let observed = format!("{:?}", response.result);
+            assert!(
+                observed.contains("Git status vault identity"),
+                "{command} must deny a missing/stale initiating vault before any native read: {observed}"
+            );
+        }
+    }
+
+    let allowed = dispatch_invoke_outside_lock(
+        &state,
+        1814,
+        "git_read_conflict_markers_cmd",
+        &serde_json::json!({
+            "path": "private.md",
+            "expected_vault_id": current_id,
+        }).to_string(),
+        &event_hub,
+    );
+    assert!(
+        matches!(allowed.result, RpcResult::Ok(RpcPayload::Json { .. })),
+        "matching vault identity must still permit a read-only preview: {:?}",
+        allowed.result
+    );
+}
