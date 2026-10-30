@@ -170,6 +170,12 @@ creating missing-baseline failures. Documentation screenshots mirror reviewed Wi
 with the platform suffix removed; regenerate them with `scripts/screenshots/capture.ps1`.
 
 
+### MAT-005 Git mutation stale-error scope — October 29, 2026
+
+[PR #210](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/210) adds four real-hook checks: a failed Git commit, pull or push submitted in vault A must not replace vault B's workspace-wide error state; an A→B→A switch must not revive the first session. Test-first detached commit `397cc6a` preceded the implementation; **a failing-first hosted run was not observed**, so this is not claimed as a completed red-green test cycle.
+
+Production now reuses the existing vault lifecycle guard on the three `setError(detail)` completion paths. Original native failure and activity logging remain intact, and the synchronous mutation busy state still settles. Full exact-head CI and installed desktop acceptance are pending.
+
 ## Release and recovery gate
 
 - Build every installer from the exact audited tag.
@@ -273,13 +279,22 @@ The implementation restricts command registration to available owner callbacks, 
 
 - **Main integration:** latest main contains PR #217 Database Studio write coordination and PR #231 Kanban geometry regression. No previous-head CI result certifies this integration head; repeat source, browser, visual, docs gates.
 
+## MAT-005 — Git mutation single-flight (draft PR #210)
+- **Further observed RED:** [CI #40675186002](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40675186002) failed three new source tests at `f8ba9be6`: old pull refreshed new vault, old commit refreshed another vault's status, and A→B→A revived an earlier refresh. The implementation introduces a generation-scoped UI refresh guard; current-head GREEN and installed-client proof remain pending.
+
+- **Observed RED:** test-only head `6182df80b78b81c8043f3c5364735db3f741839b`, [CI #40585634586](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40585634586), `Run source regression suite`. A repeat commit reached native Git twice (expected one, observed two); a pending pull ceased showing busy after switching vaults (expected true, observed false).
+- The initial error-path test failed on a VM cross-realm `Error` prefix, not production behavior. The harness supplies the host `Error` constructor in the implementation commit; this is a test-fixture correction, not a changed product expectation.
+- **Implementation:** a synchronous, shared in-flight ref gates all three Git mutation entry points; React state remains the busy indicator and is no longer hidden on vault navigation. Native GitQueue, authorization, command signatures and per-vault status slots remain unchanged.
+- **Prior exact-head hosted GREEN:** commit `186a3b3` passed source, Rust, Browser E2E, Windows, frontend, container, docs and visual workflows in [CI #40586771173](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40586771173) and [Visual #40586771362](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40586771362); it does not certify later heads.
+- **Next failing-first stage:** test-only commit `32f525d` adds real-hook regressions for stale pull/commit completion refreshing a different vault, including switch-away-and-back. No source fix has been applied and **RED remains unobserved** until hosted source tests execute.
+- **Pending:** exact-head hosted source, TypeScript, browser, Rust, Windows, and visual acceptance; installed-client duplicate-submit, vault switch, crash/restart and native failure acceptance. This is one MAT-005 slice, not checklist completion.
+
 ## MAT-006 — Health Dashboard note navigation approval (PR #233)
 
 - **Failing-first source test authored:** [`d3e2a68`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/d3e2a688edd8dc1dfefd8ddcd74c167d9c77148e) asserts that `App.tsx` does not close Health Dashboard before awaited note navigation. The legacy implementation closed eagerly. Hosted RED is **not yet confirmed**.
 - **Behavioral source implementation:** `openNoteBeforeDismissingPanel` awaits the existing workspace-leaf navigation outcome; dismissal occurs only after `true`. A refusal or blank target leaves the panel open; thrown source errors remain identifiable and the App handler reports them through the existing toast service.
 - **Tests authored:** four actual TypeScript helper tests cover delayed approval, dirty-editor refusal, native read rejection, and blank targets. The source-shaped App regression also guards the real handler wiring.
 - **Pending:** exact-head source suite, TypeScript, lint, Browser E2E, Rust/Windows, docs, visual and installed-client dirty close/restart/vault switch/keyboard/RTL/200% zoom acceptance. This is only a MAT-006 code slice and does not graduate the feature.
-
 ## Canonical history gate
 
 Run from a full canonical clone:
