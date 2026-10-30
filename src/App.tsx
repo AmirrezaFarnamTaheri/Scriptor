@@ -4,6 +4,7 @@ import { useWorkspaceComposition } from './hooks/useWorkspaceComposition'
 import { createPluginWorkspaceHandlers } from './lib/pluginWorkspaceHandlers'
 import type { PluginRuntimePolicy } from '@scriptor/plugin-api'
 import { usePaletteNoteNavigation } from './hooks/usePaletteNoteNavigation'
+import { openNoteBeforeDismissingPanel } from './lib/workspace/featurePanelNavigation'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
 import { useVisualBlockRenderer } from './hooks/useVisualBlockRenderer'
@@ -716,21 +717,20 @@ function App() {
 
   const handleCloseGit = useCallback(() => setGitPanelOpen(false), [setGitPanelOpen])
   const handleRefreshGit = useCallback(() => { void refreshGit() }, [refreshGit])
-  const handleCommitGit = useCallback((files: string[], message: string) => {
-    void commitFiles(files, message)
-  }, [commitFiles])
-  const handlePullGit = useCallback((strategy: GitPullStrategy) => {
-    void pullRemote(strategy)
-  }, [pullRemote])
+  const handleCommitGit = useCallback((files: string[], message: string) => { void commitFiles(files, message) }, [commitFiles])
+  const handlePullGit = useCallback((strategy: GitPullStrategy) => { void pullRemote(strategy) }, [pullRemote])
   const handlePushGit = useCallback(() => { void pushRemote() }, [pushRemote])
   const handleResolveConflictGit = useCallback((path: string) => setConflictPath(path), [setConflictPath])
   const handleOpenNoteFromGit = useCallback((path: string) => { void openNote(path) }, [openNote])
 
   const handleCloseHealthDashboard = useCallback(() => setHealthDashboardOpen(false), [setHealthDashboardOpen])
   const handleOpenIssueFromHealth = useCallback((path: string) => {
-    void openNote(path)
-    setHealthDashboardOpen(false)
-  }, [openNote, setHealthDashboardOpen])
+    void openNoteBeforeDismissingPanel(path, openNote, () => setHealthDashboardOpen(false))
+      .catch((error: unknown) => {
+        const detail = error instanceof Error ? error.message : String(error)
+        showToast(`Could not open note: ${detail.slice(0, 200)}`)
+      })
+  }, [openNote, setHealthDashboardOpen, showToast])
   const handleRebuildIndexFromHealth = useCallback(() => { void rebuildIndex() }, [rebuildIndex])
   const handleFixVaultLintFromHealth = useCallback(() => { void fixVaultLint() }, [fixVaultLint])
   const handleOpenWorkbenchFromHealth = useCallback(() => {
