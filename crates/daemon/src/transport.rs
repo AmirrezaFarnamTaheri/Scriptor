@@ -542,9 +542,24 @@ fn dispatch_invoke_outside_lock(
         }
         "git_read_conflict_markers_cmd" => {
             let path = require_invoke_str(&payload, "path");
-            let root = { lock_recover(state).session().cloned() };
-            match (path, root) {
-                (Ok(path), Some(session)) => scriptor_vault::RelativeVaultPath::parse(&path)
+            // Validate the request's originating vault while holding the
+            // daemon session lock, before cloning the root for a native read.
+            let session = (|| {
+                let expected = payload
+                    .get("expected_vault_id")
+                    .or_else(|| payload.get("expectedVaultId"))
+                    .and_then(serde_json::Value::as_str)
+                    .filter(|id| !id.trim().is_empty())
+                    .ok_or_else(|| "Git status vault identity is required".to_string())?;
+                let guard = lock_recover(state);
+                guard.git_status_root(expected)?;
+                guard
+                    .session()
+                    .cloned()
+                    .ok_or_else(|| "no vault is open; call OpenVault first".to_string())
+            })();
+            match (path, session) {
+                (Ok(path), Ok(session)) => scriptor_vault::RelativeVaultPath::parse(&path)
                     .map_err(|error| error.to_string())
                     .and_then(|relative| {
                         session
@@ -560,14 +575,29 @@ fn dispatch_invoke_outside_lock(
                         serde_json::to_string(&value).map_err(|error| error.to_string())
                     }),
                 (Err(error), _) => Err(error),
-                (_, None) => Err("no vault is open; call OpenVault first".into()),
+                (_, Err(error)) => Err(error),
             }
         }
         "git_show_head_file_cmd" => {
             let path = require_invoke_str(&payload, "path");
-            let session = { lock_recover(state).session().cloned() };
+            // Validate the request's originating vault while holding the
+            // daemon session lock, before cloning the root for a native read.
+            let session = (|| {
+                let expected = payload
+                    .get("expected_vault_id")
+                    .or_else(|| payload.get("expectedVaultId"))
+                    .and_then(serde_json::Value::as_str)
+                    .filter(|id| !id.trim().is_empty())
+                    .ok_or_else(|| "Git status vault identity is required".to_string())?;
+                let guard = lock_recover(state);
+                guard.git_status_root(expected)?;
+                guard
+                    .session()
+                    .cloned()
+                    .ok_or_else(|| "no vault is open; call OpenVault first".to_string())
+            })();
             match (path, session) {
-                (Ok(path), Some(session)) => scriptor_vault::RelativeVaultPath::parse(&path)
+                (Ok(path), Ok(session)) => scriptor_vault::RelativeVaultPath::parse(&path)
                     .map_err(|error| error.to_string())
                     .and_then(|relative| {
                         session
@@ -589,7 +619,7 @@ fn dispatch_invoke_outside_lock(
                         serde_json::to_string(&value).map_err(|error| error.to_string())
                     }),
                 (Err(error), _) => Err(error),
-                (_, None) => Err("no vault is open; call OpenVault first".into()),
+                (_, Err(error)) => Err(error),
             }
         }
         "indexer_resolve_wikilink" => {
