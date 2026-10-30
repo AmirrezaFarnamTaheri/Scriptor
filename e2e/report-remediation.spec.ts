@@ -25,15 +25,23 @@ test('desktop kanban columns use the available board width', async ({ page }) =>
   await runCommand(page, 'Open kanban')
   const board = page.locator('.kanban-board')
   await expect(board).toBeVisible()
-  const bounds = await board.evaluate(element => {
-    const style = getComputedStyle(element)
-    const available = element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
-    const columns = Array.from(element.querySelectorAll('.kanban-column'))
-    const first = columns[0].getBoundingClientRect()
-    const last = columns.at(-1)!.getBoundingClientRect()
-    return { available, used: last.right - first.left }
-  })
-  expect(bounds.used).toBeGreaterThanOrEqual(bounds.available - 8)
+  // The unified panel animates with transform: scale(.95 -> 1). clientWidth
+  // is an unscaled layout size, while getBoundingClientRect is transformed;
+  // mixing those units makes a correct full-width board fail during animation.
+  // Compare both dimensions in layout CSS pixels instead of relaxing coverage.
+  for (const transform of ['', 'scale(0.95)']) {
+    await board.evaluate((element, value) => { (element as HTMLElement).style.transform = value }, transform)
+    const bounds = await board.evaluate(element => {
+      const style = getComputedStyle(element)
+      const available = element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+      const columns = Array.from(element.querySelectorAll<HTMLElement>('.kanban-column'))
+      const first = columns[0]
+      const last = columns.at(-1)
+      if (!first || !last) throw new Error('Kanban board has no columns to measure.')
+      return { available, used: last.offsetLeft + last.offsetWidth - first.offsetLeft }
+    })
+    expect(bounds.used).toBeGreaterThanOrEqual(bounds.available - 8)
+  }
 })
 
 test('canvas selection uses a readable count instead of internal identifiers', async ({ page }) => {
