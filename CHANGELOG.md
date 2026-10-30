@@ -24,6 +24,8 @@
 
 - Keep Saved Views search results attached to their originating vault and filter, discarding late manual and automatic query responses instead of showing stale results after edits or vault switches.
 
+- Reject daemon Git commits with a missing or stale originating-vault ID before acquiring a native GitQueue, both through the regular command gateway and the transport's outside-lock execution path.
+
 - Make Vault search keyboard access select the mobile Vault pane and expand a collapsed desktop Vault sidebar before moving focus, from both the command palette and the global shortcut.
 
 - Exclude the collapsed desktop Vault sidebar from keyboard focus instead of only making it transparent; keep the independently selected mobile Vault pane accessible and restore palette-to-search focus when the rail reopens.
