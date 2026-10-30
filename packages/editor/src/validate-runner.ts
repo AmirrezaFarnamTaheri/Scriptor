@@ -1,3 +1,4 @@
+import './mat-007-semantic-fixtures.test.ts'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
