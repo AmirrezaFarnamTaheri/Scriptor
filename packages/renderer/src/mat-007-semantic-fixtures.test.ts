@@ -23,6 +23,9 @@ test('MAT-007 shared fixture renders GFM, extended tasks, citations, math and sa
   assert.match(html, /footnotes/i)
   assert.match(html, /katex/i)
   assert.match(html, /class="mermaid"/)
-  assert.match(html, /<em>Safe emphasis<\/em>/)
+  assert.match(html, /<em\b[^>]*>Safe emphasis<\/em>/)
+  // The renderer intentionally disables single-dollar inline math in this profile.
+  // This authored text must survive unchanged while fenced/block math renders.
+  assert.match(html, /Equation \$x\^2 \+ 1\$\./)
   assert.doesNotMatch(html, /<script\b|onerror\s*=|javascript:/i)
 })
