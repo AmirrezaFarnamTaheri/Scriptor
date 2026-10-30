@@ -80,6 +80,12 @@ PR [#219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219) addresses r
 A closed dialog does **not** cancel, roll back or establish the outcome of an already submitted native import. It only prevents late renderer feedback.
 
 Source acceptance (October 29, 2026): [CI #40881174514](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174514), [visual #40881174519](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174519), and [docs #40881174543](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174543) passed at exact branch head `c088066`. This establishes hosted source verification, not installed-client vault-switch, restart or lost-response reconciliation acceptance. The initial test-only RED was not observed.
+## MAT-004 — Reviewed historical revision copy (initial slice, October 30, 2026)
+
+A new review-only Note History action writes a selected retained revision to a user-chosen new Markdown path. It uses the existing vault-owned revision reader and native create-only note writer with the "<missing>" expected-content hash, not the destructive restore command. The originating vault must match at native admission, a changed revision preview is rejected, and a collision is reported without retry or overwrite. The default control is collapsed; the chosen destination and consequences are explicitly confirmed.
+
+Focused local Node 22 tests were observed red before the module existed, then seven passed and zero failed. The published source suite, native filesystem collision test, browser E2E, installed multi-vault/restart and accessibility/zoom evidence must be verified at the PR head. This is not full MAT-004 acceptance; issue #183 remains open.
+
 ## PR #160 remediation evidence — October 11, 2026
 
 This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.

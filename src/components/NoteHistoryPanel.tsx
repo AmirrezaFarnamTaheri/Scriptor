@@ -12,6 +12,7 @@ import { diffLines } from '../lib/lineDiff'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { revisionHeatmap, vocabularyMetrics } from '../lib/researchStudio'
 import { VocabularyEvolution } from './history/VocabularyEvolution'
+import { RevisionCopyForm } from './RevisionCopyForm'
 import '../styles/components/research-studio.css'
 
 export interface NoteHistoryRevision {
@@ -269,6 +270,16 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
                 Restore revision
               </button>
             </header>
+            {vaultId && path && selectedId && previewReady && currentReady ? (
+              <RevisionCopyForm
+                key={vaultId + ':' + path + ':' + selectedId}
+                vaultId={vaultId}
+                sourcePath={path}
+                revisionId={selectedId}
+                reviewedMarkdown={preview}
+                disabled={busy}
+              />
+            ) : null}
             {confirmRestore && selectedRevision ? (
               <MutationConfirmation
                 ariaLabel="Confirm revision restore"
