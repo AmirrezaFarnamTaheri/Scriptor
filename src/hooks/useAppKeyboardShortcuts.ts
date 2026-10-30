@@ -9,6 +9,8 @@ interface UseAppKeyboardShortcutsOptions {
   activePath: string | null
   chooseVaultFolder: () => Promise<unknown> | unknown
   setSidebarView: (view: 'vault' | 'inbox') => void
+  setMobilePane: (pane: 'vault') => void
+  vaultSidebarCollapsed: boolean
   createDailyNote: () => Promise<unknown> | unknown
   loadGraph: (path: string | null) => Promise<unknown> | unknown
   reopenClosedTab: () => void
@@ -43,6 +45,8 @@ export function useAppKeyboardShortcuts({
   activePath,
   chooseVaultFolder,
   setSidebarView,
+  setMobilePane,
+  vaultSidebarCollapsed,
   createDailyNote,
   loadGraph,
   reopenClosedTab,
@@ -75,7 +79,15 @@ export function useAppKeyboardShortcuts({
         return true
       }
 
-      if (run('focus-search', () => document.querySelector<HTMLInputElement>('.vault-search input')?.focus())) return
+      if (run('focus-search', () => {
+        setSidebarView('vault')
+        setMobilePane('vault')
+        if (vaultSidebarCollapsed) toggleVaultSidebar()
+        // State-driven panes/rails need to render before the field can receive focus.
+        window.requestAnimationFrame(() => {
+          document.querySelector<HTMLInputElement>('.vault-search input')?.focus()
+        })
+      })) return
       if (run('open-note-history', openNoteHistory)) return
       if (run('open-vault', () => void chooseVaultFolder())) return
       if (run('open-inbox', () => setSidebarView('inbox'))) return
@@ -132,6 +144,8 @@ export function useAppKeyboardShortcuts({
     openTemplates,
     reopenClosedTab,
     setSidebarView,
+    setMobilePane,
+    vaultSidebarCollapsed,
     toggleInspector,
     toggleDistractionFree,
     toggleTypewriter,
