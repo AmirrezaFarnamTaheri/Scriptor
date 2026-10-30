@@ -1,4 +1,3 @@
-import './mat-007-semantic-fixtures.test.ts'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -22,6 +21,8 @@ import { removeListMarkers } from './gfm-commands.ts'
 import { htmlToMarkdown, nodeToMarkdown } from './paste-handler.ts'
 import { MERMAID_SNIPPETS, MATH_SNIPPETS } from './snippet-catalogs.ts'
 import { normalizeSnippetCatalog, parseSnippetCatalogJson } from './snippet-catalog.ts'
+import './roundtrip-source-fidelity.test.ts'
+import './mat-007-semantic-fixtures.test.ts'
 import {
   expandSnippetTemplate,
   looksLikeSnippetTemplate,
