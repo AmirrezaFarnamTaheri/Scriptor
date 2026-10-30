@@ -610,9 +610,12 @@ pub fn vault_import_obsidian(
     convert_wikilinks: Option<bool>,
     import_attachments: Option<bool>,
     preserve_frontmatter: Option<bool>,
+    expected_vault_id: String,
     authorization_token: String,
 ) -> Result<ImportResult, String> {
     let session = active_session(&state)?;
+    // Check the initiating vault before consuming authorization or writing files.
+    validate_expected_vault(&session.descriptor.id, Some(&expected_vault_id))?;
     require_sensitive_operation(
         &state,
         &authorization_token,
