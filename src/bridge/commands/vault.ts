@@ -464,8 +464,14 @@ export async function vaultDetectObsidian(obsidianPath: string): Promise<boolean
 
 export async function vaultImportObsidian(
   obsidianPath: string,
+  expectedVaultId: string,
   options?: ObsidianImportOptions,
 ): Promise<ObsidianImportResult> {
+  // A queued authorization can resume after the user switches vaults.
+  // Never authorize or dispatch an import without its initiating owner.
+  if (typeof expectedVaultId !== 'string' || !expectedVaultId.trim()) {
+    throw new Error('Open a vault before importing.')
+  }
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('import_vault', obsidianPath)
   return invoke<ObsidianImportResult>('vault_import_obsidian', {
@@ -474,6 +480,7 @@ export async function vaultImportObsidian(
     importAttachments: options?.importAttachments ?? true,
     preserveFrontmatter: options?.preserveFrontmatter ?? true,
     authorizationToken,
+    expectedVaultId,
   })
 }
 

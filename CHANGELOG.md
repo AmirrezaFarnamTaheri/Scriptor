@@ -10,6 +10,20 @@
 
 - Prevent overlapping workspace Git commits, pulls and pushes before React renders a busy state, and retain a truthful busy indicator while navigating between vaults during an active native Git mutation.
 
+- Bind Obsidian import authorization and native write admission to the vault that opened the dialog; reject empty or changed vault identity before import, even if approval was delayed.
+
+- Ignore a late Obsidian source-folder picker result after its import dialog closes, rather than triggering validation or updating an unmounted dialog.
+
+- Keep Obsidian import single-flight across same-vault dialog reopen until the original native request settles, and invalidate stale dialog responses during React commit-phase cleanup.
+
+- Prevent duplicate Obsidian import submissions before React rerenders; late import responses from closed dialogs no longer update another workspace, while an explicit retry remains available after failure.
+
+- Fail closed before Google Tasks mirroring when local identities, provider record IDs, current-vault markers or migratable legacy markers are duplicated or ambiguous. Reject malformed owners, multiple local tasks on one remote record and provider tasks claimed by different vaults before approving any create/update/completion; display a review-required explanation instead of guessing ownership.
+
+- In Database Studio, invalidate rows, totals and edit authority when the query, filters, columns or vault change, and ignore late prior-scope queries; presentation-only layout and view-name changes preserve loaded results.
+
+- Keep Saved Views search results attached to their originating vault and filter, discarding late manual and automatic query responses instead of showing stale results after edits or vault switches.
+
 - Bind daemon Git status RPC and Invoke reads to the originating vault identity; desktop, CLI and TUI now forward the identity returned by `OpenVault` so a concurrent vault switch cannot silently redirect a pending status request.
 
 - Bind Git status reads to the originating vault at the controller, renderer bridge and native Tauri boundary, including headless daemon-backed reads; reject missing or stale vault IDs before returning status for the wrong workspace.
