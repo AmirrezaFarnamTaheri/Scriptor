@@ -162,6 +162,14 @@ The PR remains draft. This is not proof for editor, Canvas, imports, database, t
 
 The current CodeRabbit cross-client thread remains open. The hosted test is not packaged desktop multi-process/restart or real operational acceptance, even if it passes.
 
+## MAT-004 — Reviewed historical revision hash guard (October 31, 2026)
+
+[PR #241](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/241) is stacked on PR #240. The native history reader returns file bytes without proving they match the retained revision the user just reviewed. This independent source-integrity gap matters even when vault ID, sensitive-operation authorization and destination optimistic locking all pass.
+
+The requested `expectedRevisionHash` is required at the TypeScript bridge, obtained from `selectedRevision.content_hash` in Note History, and forwarded as native `expected_revision_hash`. The native restore computes the hash of `historical_markdown` using the existing `scriptor_vault::content_hash` and rejects an empty or mismatched reviewed hash before `save_note_with_options`. It does not invent a second hash, transaction, authorization, or fallback.
+
+Tests were committed before the implementation: three Rust guard cases (exact, changed, missing) and two TypeScript/Rust source wiring assertions. These are **authored test-first**, not a proven hosted RED until a test-only hosted execution is observed. Full exact-head GitHub CI/Clippy/Rust/Windows/Browser/visual/docs are required, along with installed mutation/corrupt-revision denial and restart acceptance. Neither PR completes MAT-004 issue #183.
+
 ## MAT-004 — Initiating-vault identity for destructive note-history restore (October 31, 2026)
 
 [PR #240](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/240) addresses a separate authorization race from the create-only copy in PR #235. The Note History restore bridge previously did not send an initiating vault ID. If an awaiting call crossed an A→B vault switch, its native handler used the currently active vault with a freshly requested authorization token rather than proving the originating note belonged to B.
