@@ -201,6 +201,13 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - The release upload boundary excludes unpacked bundle internals and CI evidence.
 - Checksums and attestations cover installers, while target trust records remain separately verified release metadata.
 
+
+## MAT-008 — Git commit expected-vault binding (draft PR #211)
+
+- **Hosted RED:** test-only `06a3a4e482b432238b11621807d01e730162bd70`, [CI #40595869204](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40595869204), source regression: 683 pass, 2 expected failures. The Git commit invocation omitted `expectedVaultId`; an empty vault identity was not rejected.
+- **Implementation awaiting exact-head checks:** require the initiating vault in the TypeScript bridge and native Tauri commit command, enforce it before GitQueue, and test native denied/accepted outcomes plus the browser mock.
+- **Still pending:** source GREEN, Rust/Windows/Browser E2E/visual/docs, installed-client delayed-invoke acceptance, and daemon/CLI/MCP parity under issue #188. This slice does not complete MAT-008.
+
 ## RUSTSEC-2026-0414 — pulldown-cmark advisory remediation
 
 - **Failure observed:** [CI #40661251859](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40661251859) at MAT-008 daemon head `eb19fcb42014531026dac9c4d88f01300f223dc8`. Cargo deny rejected `pulldown-cmark 0.13.4` with advisory RUSTSEC-2026-0414: crafted `[[a|]]` input may cause exponential event growth when `ENABLE_WIKILINKS` is on.
@@ -213,6 +220,58 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - **Source correction:** [`3708b1c`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/3708b1cb197caa399016e530992ae49a36e49b8a) removes the deprecated split and detached disconnect-probe thread. The authenticated nonblocking stream now checks for EOF/unexpected client data before each event-receive interval, and reuses the same stream for deadline-bounded event writes. Endpoint nonce checks, event encoding, rate limits and the original subscription poll interval are unchanged.
 - **Hosted exact-head verification:** [CI #40862620166](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40862620166), plus desktop compile and Visual review, were queued/in progress when this record was authored; no green result is claimed here. The existing daemon event subscription and reconnection Rust tests must pass after the dependency bump.
 - **Not yet established:** installed-client disconnect/reconnect and multiprocess shutdown behavior. The source change is not proof of release acceptance.
+
+## MAT-005 / MAT-010 Database Studio source-editor coordination — October 29, 2026
+
+[PR #217](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/217) guards the mutation boundary between Database Studio and the one writable Markdown source editor. It is a focused safety slice, not full MAT-005, MAT-009 or MAT-010 implementation.
+
+| Source or environment | Result | Classification |
+|---|---|---|
+| Test-only `8bd17fc`, [CI #40776875924](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40776875924) | Two real-component tests authored before the fix. Hosted source-suite outcome not observed when production code was published. | **Observed failing-first result not yet established** |
+| Follow-up code to `DatabaseStudioPanel.editCell` | Direct native fallback removed. Without `runSourceNoteMutation`, loaded cells are read-only and direct calls reject; with a coordinator, expected-hash and initiating-vault checks remain. | **Source implementation; current-head green pending** |
+
+No installed-client unsaved-draft, vault-switch, or restart acceptance is asserted. A browser mock cannot certify native rollback or durable success.
+
+
+## MAT-018 command palette availability — main integration pending hosted checks
+
+### MAT-018 collapsed-rail focus visibility — October 29, 2026
+
+- **Observed RED:** [CI #40769827862](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40769827862), head `802051d`, Browser E2E: 147/148 passed; `e2e/command-palette-focus.spec.ts` failed on `expect(search).not.toBeVisible()` after **Hide vault sidebar**. [Workflow screenshots #40769827908](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40769827908) failed on the same assertion. The underlying desktop rail used `opacity:0` and zero-width grid columns; the input still remained visible to the browser visibility check and was not removed from keyboard navigation.
+- **Implementation (new exact-head checks required):** hide the collapsed desktop rail with `visibility:hidden`, retaining the pre-existing opacity/grid animation. Exclude mobile-pane navigation and restore the Vault pane's interactivity at actual mobile width and zoom reflow. Keep the original palette open/close/focus test and add a mobile-pane regression.
+- **Verification pending:** exact-head Browser E2E, populated screenshot, frontend/TypeScript, visual, RTL/200% zoom and installed-client keyboard/screen-reader acceptance. These are not satisfied by editing CSS or by the historical failed CI run.
+
+
+
+### MAT-018 palette focus after closing dialog — October 29, 2026
+
+- **Source defect:** `focus-search` called `input.focus()` while the command palette's `useFocusTrap` was still active. Its `focusin` listener reclaims focus outside the dialog; if the sidebar is collapsed the target may not be visible at all.
+- **Test-only head `0394cf8`:** two Playwright cases require the palette to close and focus the visible vault search, including after hiding the sidebar. The [test-only CI #40769455505](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40769455505) had not reached the browser lane before implementation. **No observed failing-first result.**
+- **Implementation:** use the existing Vault sidebar view/toggle owner and defer focus by one animation frame until after modal teardown; a collapsed sidebar without a reopening owner does not advertise the command.
+- **Pending:** exact-head browser focus tests, TypeScript, source lint, narrow/mobile/RTL and 200% zoom, and installed-client keyboard acceptance. No MAT-018 graduation claim.
+
+
+
+### MAT-018 note-search test harness coverage — October 29, 2026
+
+- CodeRabbit identified a valid gap: the JSX component test did not execute `useEffect`, so it could not detect a native note search incorrectly starting without an `onOpenNote` callback. The test harness now commits the real effect callbacks with deterministic timers and records `searchNotes` calls, asserting no work without an opener and preserved scheduling when one exists.
+- **Scope/evidence:** test-only improvement, not a new application behavior fix and not an observed behavioral red. Require a passing exact-head source run before claiming regression coverage green.
+
+### MAT-018 note result availability — October 29, 2026
+
+[PR #216](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/216) adds a second callback-availability regression to the command palette. In its test-only head `8ab1b67`, the real JSX component harness renders a selectable note result despite missing `onOpenNote`; its selection calls an optional callback and closes without opening any note.
+
+A narrow guard now requires both a note-search function **and** an opener before note-result queries or selectable note results can be presented; the existing positive click-through test remains. **No hosted failing-first result was observed before the implementation commit:** CI [#40763493567](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40763493567) was still queued. Exact-head source/TypeScript/browser and installed-client keyboard/RTL/zoom acceptance remain pending. This is not a MAT-018 completion certificate.
+
+
+The test-only PR #216 head `d12f1a55454592a3e1d1364b0d2a73d08dc30eb8` established failing-first behavior in [CI #40677971239](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40677971239): the palette advertised a missing knowledge-workbench callback and showed a closed-tab restore action with zero closed tabs. The two new tests fail by assertion (683 of 685 source tests passed), not because of import or runner failure.
+
+The implementation restricts command registration to available owner callbacks, an actual active note for organization/history, and a positive closed-tab count with a reopen callback. It preserves available command handlers, keyboard shortcuts, and native authorization boundaries.
+
+**Pending:** exact-head source, TypeScript, browser, accessibility, visual, and installed-client acceptance at 200% zoom/narrow widths. This is a bounded MAT-018 slice, not completion of centralized capability/Help availability.
+
+
+- **Main integration:** latest main contains PR #217 Database Studio write coordination and PR #231 Kanban geometry regression. No previous-head CI result certifies this integration head; repeat source, browser, visual, docs gates.
 
 ## MAT-016 — ambiguous Google Tasks mirroring (PR #230)
 

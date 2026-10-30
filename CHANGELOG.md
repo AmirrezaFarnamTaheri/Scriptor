@@ -6,6 +6,18 @@
 
 - Fail closed before Google Tasks mirroring when local identities, provider record IDs, current-vault markers or migratable legacy markers are duplicated or ambiguous. Reject malformed owners, multiple local tasks on one remote record and provider tasks claimed by different vaults before approving any create/update/completion; display a review-required explanation instead of guessing ownership.
 
+- Make Vault search keyboard access select the mobile Vault pane and expand a collapsed desktop Vault sidebar before moving focus, from both the command palette and the global shortcut.
+
+- Exclude the collapsed desktop Vault sidebar from keyboard focus instead of only making it transparent; keep the independently selected mobile Vault pane accessible and restore palette-to-search focus when the rail reopens.
+
+- Make the command palette's **Focus vault search** action reveal the Vault sidebar when needed and move keyboard focus after the palette closes, instead of losing focus to the still-active modal trap.
+
+- Hide note-search results in the command palette unless the current surface can actually open a note, rather than offering a selectable result that merely closes the palette.
+
+- Hide command palette actions when their optional launcher is unavailable, when there is no active note to organize, or when no closed tab can be reopened. Preserve available commands and their native permission boundaries.
+
+- Make Database Studio metadata edits read-only when the source-editor mutation coordinator is absent. Never bypass an unsaved editor draft with a direct frontmatter write; retain note viewing and guarded coordinated edits.
+
 - Refuse source attachment symlinks and nested destination symlink escapes on Obsidian import; stage complete files and publish using create-only hard links, retaining existing attachments and cleaning up staging files after collisions.
 - Reject Obsidian imports when the destination vault is inside the source folder, preventing recursive discovery of files created by the importer itself.
 
@@ -14,6 +26,8 @@
 - Keep daemon event subscriptions working with the updated `interprocess` crate by polling nonblocking socket disconnects in the existing event loop instead of using deprecated stream halves and a detached reader thread.
 
 - Upgrade `pulldown-cmark` to 0.13.5 across the Rust workspace to resolve RUSTSEC-2026-0414, which could exponentially expand parser events for crafted empty-display wikilinks when the wikilink option is enabled. Keep the feature configuration and dependencies unchanged.
+
+- Reject desktop Git commits whose initiating vault no longer matches the native active session, including missing vault IDs. Bind the renderer request to its originating vault before entering GitQueue rather than committing against a newly selected vault.
 
 - Upgrade `webpki-roots` and `webpki-root-certs` to 1.0.10 and `rustls-webpki` to 0.103.16 to fix RUSTSEC-2026-0381, RUSTSEC-2026-0382 and RUSTSEC-2026-0383, which affected the bundled root certificates by trusting distrusted emSign intermediates and by accepting certificate paths through distrusted intermediates.
 
