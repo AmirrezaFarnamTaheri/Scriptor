@@ -41,6 +41,14 @@ enforcement applies to maintained product and contributor documentation.
 Provenance-sensitive audit records under `docs/validation/` and archived
 documents remain exempt; active user guides do not.
 
+## CI — deterministic vault-loading skeleton coverage (October 30, 2026)
+
+**Observed RED on an existing test (not a new product regression):** [MAT-004 PR #235 CI run #41063694528](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41063694528), initial attempt on `a25d8c2d715c4b82d0c8f045dc4e339d8e83dcad`, failed the Windows Playwright `visual-coverage-matrix.spec.ts:285` loading-skeleton assertion. The fixture previously resolved `vault_open` on a 2.5-second wall-clock timer. Under a delayed CI browser startup, the temporary loading skeleton can legitimately disappear before the 5-second visibility assertion executes; this cannot prove an application loading fault. The other 511 functional Playwright tests on that run were not reported failed.
+
+**Test-only remediation:** both `e2e/visual-coverage-matrix.spec.ts` and `e2e/workspace.spec.ts` now use the existing `e2e:hold-vault-open` fixture (already used by `visual-review.spec.ts`). This keeps the native open request pending while verifying skeleton visibility and viewport bounds; the tests then explicitly dispatch `e2e:release-vault-open`, await workspace readiness and, in the coverage matrix, assert skeleton removal. The assertions and production code are not weakened or changed. The first failed job was retried for independent evidence; a passing retry by itself would not fix the timer race.
+
+**Acceptance:** source and Browser E2E exact-head CI are pending for this isolated test-only branch; do not infer a released app change or repaired vault startup behavior from the fixture adjustment.
+
 ## MAT-005 Obsidian attachment path and publication safety — October 29, 2026
 
 Stacked draft [PR #229](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/229) addresses two attachment paths beyond the Markdown-only changes in #228. Test-only commit [`de6af81`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/de6af818f83eebd2599b59ce4c26fda9219623fe) adds real Unix filesystem regressions for source attachment symlinks and a destination nested symlink to outside the vault. `WalkDir.follow_links(false)` still yields symlink entries; the previous importer did not reject them and joined paths under `_attachments` without revalidating the nested prefix.

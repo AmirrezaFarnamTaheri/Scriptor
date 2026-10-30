@@ -287,10 +287,16 @@ test.describe('visual coverage matrix', () => {
     await page.addInitScript(() => {
       window.localStorage.setItem('scriptor:onboarding-complete', 'true')
       window.sessionStorage.setItem('e2e:slow-vault', '1')
+      // Keep the loading state observable until the test releases the native-open fixture.
+      window.sessionStorage.setItem('e2e:hold-vault-open', '1')
     })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await expect(page.locator('.vault-skeleton-row').first()).toBeVisible({ timeout: 5_000 })
     await expectNoHorizontalOverflow(page)
+    await page.evaluate(() => {
+      window.sessionStorage.removeItem('e2e:hold-vault-open')
+      window.dispatchEvent(new Event('e2e:release-vault-open'))
+    })
     await waitForWorkspace(page)
     await expect(page.locator('.vault-skeleton-row')).toHaveCount(0)
   })
