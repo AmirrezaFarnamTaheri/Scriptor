@@ -30,7 +30,11 @@ fn main() -> io::Result<()> {
         let input: Value = match serde_json::from_str(&line?) {
             Ok(value) => value,
             Err(error) => {
-                writeln!(stdout, "{}", json!({"kind": "probe_error", "message": error.to_string()}))?;
+                writeln!(
+                    stdout,
+                    "{}",
+                    json!({"kind": "probe_error", "message": error.to_string()})
+                )?;
                 stdout.flush()?;
                 continue;
             }
@@ -48,28 +52,34 @@ fn main() -> io::Result<()> {
             let method: Result<RpcMethod, String> = match action {
                 "ping" => Ok(RpcMethod::Ping),
                 "open" => required_string(&input, "path").map(|path| RpcMethod::OpenVault { path }),
-                "status" => required_string(&input, "expected_vault_id").map(|expected_vault_id| {
-                    RpcMethod::GitStatus { expected_vault_id }
-                }),
+                "status" => required_string(&input, "expected_vault_id")
+                    .map(|expected_vault_id| RpcMethod::GitStatus { expected_vault_id }),
                 _ => Err(format!("unsupported probe action: {action}")),
             };
             match method {
                 Err(message) => json!({"kind": "probe_error", "message": message}),
                 Ok(method) => {
                     next_id = next_id.saturating_add(1);
-                    match client.call_with_timeout(RpcRequest::new(next_id, method), Duration::from_secs(12)) {
+                    match client.call_with_timeout(
+                        RpcRequest::new(next_id, method),
+                        Duration::from_secs(12),
+                    ) {
                         Ok(reply) => match reply.result {
                             RpcResult::Ok(RpcPayload::Pong { .. }) => json!({"kind": "pong"}),
                             RpcResult::Ok(RpcPayload::VaultOpened { vault_id, .. }) => {
                                 json!({"kind": "opened", "vault_id": vault_id})
                             }
-                            RpcResult::Ok(RpcPayload::GitStatus { .. }) => json!({"kind": "status_ok"}),
+                            RpcResult::Ok(RpcPayload::GitStatus { .. }) => {
+                                json!({"kind": "status_ok"})
+                            }
                             RpcResult::Error(error) => {
                                 json!({"kind": "rpc_error", "message": error.to_string()})
                             }
                             _ => json!({"kind": "unexpected_payload"}),
                         },
-                        Err(error) => json!({"kind": "transport_error", "message": error.to_string()}),
+                        Err(error) => {
+                            json!({"kind": "transport_error", "message": error.to_string()})
+                        }
                     }
                 }
             }
