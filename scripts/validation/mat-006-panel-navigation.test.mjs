@@ -8,11 +8,11 @@ import test from 'node:test'
 const app = readFileSync(new URL('../../src/App.tsx', import.meta.url), 'utf8')
 
 test('MAT-006 Health Dashboard dismissal waits for approved note navigation', () => {
-  const handler = app.match(/const handleOpenIssueFromHealth = useCallback\\([\\s\\S]*?\\n  \\}, \\[openNote, setHealthDashboardOpen[^\\]]*\\]\\)/)?.[0]
+  const handler = app.match(/const handleOpenIssueFromHealth = useCallback\([\s\S]*?\n  \}, \[openNote, setHealthDashboardOpen[^\]]*\]\)/)?.[0]
   assert.ok(handler, 'Health Dashboard navigation handler exists')
   assert.doesNotMatch(
     handler,
-    /void openNote\\(path\\)\\s*setHealthDashboardOpen\\(false\\)/,
+    /void openNote\(path\)\s*setHealthDashboardOpen\(false\)/,
     'closing before the async leaf/editor approval loses the panel on a blocked dirty navigation',
   )
   assert.match(
