@@ -10,6 +10,20 @@
 
 - Prevent overlapping workspace Git commits, pulls and pushes before React renders a busy state, and retain a truthful busy indicator while navigating between vaults during an active native Git mutation.
 
+- Bind Obsidian import authorization and native write admission to the vault that opened the dialog; reject empty or changed vault identity before import, even if approval was delayed.
+
+- Ignore a late Obsidian source-folder picker result after its import dialog closes, rather than triggering validation or updating an unmounted dialog.
+
+- Keep Obsidian import single-flight across same-vault dialog reopen until the original native request settles, and invalidate stale dialog responses during React commit-phase cleanup.
+
+- Prevent duplicate Obsidian import submissions before React rerenders; late import responses from closed dialogs no longer update another workspace, while an explicit retry remains available after failure.
+
+- Fail closed before Google Tasks mirroring when local identities, provider record IDs, current-vault markers or migratable legacy markers are duplicated or ambiguous. Reject malformed owners, multiple local tasks on one remote record and provider tasks claimed by different vaults before approving any create/update/completion; display a review-required explanation instead of guessing ownership.
+
+- In Database Studio, invalidate rows, totals and edit authority when the query, filters, columns or vault change, and ignore late prior-scope queries; presentation-only layout and view-name changes preserve loaded results.
+
+- Keep Saved Views search results attached to their originating vault and filter, discarding late manual and automatic query responses instead of showing stale results after edits or vault switches.
+
 - Reject daemon Git commits with a missing or stale originating-vault ID before acquiring a native GitQueue, both through the regular command gateway and the transport's outside-lock execution path.
 
 - Make Vault search keyboard access select the mobile Vault pane and expand a collapsed desktop Vault sidebar before moving focus, from both the command palette and the global shortcut.

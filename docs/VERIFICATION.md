@@ -57,6 +57,29 @@ Draft [PR #228](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/228) adds 
 
 The importer now calls the existing atomic vault writer with `EXPECTED_MISSING_CONTENT_HASH` rather than a missing precondition. An existing destination note is skipped and reported with a path-specific explanation; new notes still import. No parallel writer, file-existence race, authorization change or silent merge is introduced. **Implementation-head Rust, Clippy, source, desktop, visual and installed-client evidence are pending**, so no release claim follows from this source patch. See `tasks/plans/2026-10-29-obsidian-create-only.md`.
 
+## MAT-005 Obsidian import initiating-vault guard — October 29, 2026
+
+Stacked draft [PR #227](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/227) builds on [PR #219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219). A delayed approval could otherwise bind an old dialog's request to the newly active vault. The TypeScript bridge now requires and forwards the originating vault ID; the native import command checks it against the active session **before** consuming the sensitive-operation token or writing files. This adds an admission guard, not a new permission authority or importer.
+
+The test-only source commit [`4208e00`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/4208e0091f22867b433ef32a39443c8246267c3a) includes bridge and native-order regressions. [Test-only CI #40855794851](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40855794851) was queued at implementation time, so **RED has not been observed**. The related real-dialog JSX harness also verifies forwarding the initiating vault. **Exact implementation-head CI, Rust/Windows/browser/visual and installed-client switch-during-approval acceptance are unverified**; do not merge, publish or graduate MAT-005 based on source inspection. Implementation record: [`tasks/plans/2026-10-29-mat-005-obsidian-import-vault-identity.md`](../tasks/plans/2026-10-29-mat-005-obsidian-import-vault-identity.md).
+
+Hosted source verification: [CI #40881320884](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881320884), [desktop #40881320881](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881320881), [visual #40881320887](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881320887), and [docs #40881320900](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881320900) passed on old source head `263c6a2`. The current integration merge head requires its own CI, and packaged-client vault-switch/authorization/restart acceptance remains pending.
+
+## MAT-005 Obsidian import lifecycle — October 29, 2026
+
+PR [#219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219) addresses renderer-level lifecycle defects in the Obsidian import overlay. Native `ImportVault` authorization and file writes are unchanged.
+
+| Source | Observation | Evidence class |
+|---|---|---|
+| Test-only head `69a8c3a`, [CI #40783884097](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40783884097) | Three real-dialog JSX behavioral tests were authored; at the time of the fix, hosted CI was queued | **No observed failing-first run**; do not claim TDD RED |
+| Implemented follow-up | Synchronous import single-flight, mount-generation check before post-await state/callbacks; failure releases in-flight claim for an explicit user retry | **Authored, not yet verified GREEN** |
+| Required acceptance | Current-head source regression, browser, TypeScript, native/Rust, Windows/desktop, visual and clean installed-client import/vault-switch scenarios | **Pending** |
+| `54655e6` test-only follow-up · [CI #40850992642](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40850992642) | Real-JSX test covers a native folder chooser resolving after layout cleanup; the originating dialog must not validate the result or update React state after close | **Test authored first; no hosted RED observed before fix**, so browser/native acceptance remains pending |
+| Subsequent Browse guard | Capture dialog lifecycle before awaiting plugin-module loading and native picker; ignore selection if that owner has unmounted | **Implemented; exact-head source/functional checks pending** |
+
+A closed dialog does **not** cancel, roll back or establish the outcome of an already submitted native import. It only prevents late renderer feedback.
+
+Source acceptance (October 29, 2026): [CI #40881174514](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174514), [visual #40881174519](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174519), and [docs #40881174543](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174543) passed at exact branch head `c088066`. This establishes hosted source verification, not installed-client vault-switch, restart or lost-response reconciliation acceptance. The initial test-only RED was not observed.
 ## PR #160 remediation evidence — October 11, 2026
 
 This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.
@@ -219,6 +242,7 @@ Production now reuses the existing vault lifecycle guard on the three `setError(
 - **Observed failing-first:** [CI #40657380487](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40657380487), Rust workspace test lane at test-only commit `eb26a20db7b064ee312397cc579b7455cf71cf29`. Both `command_gateway::tests::git_commit_gateway_rejects_stale_and_missing_vault_before_queueing` and `transport::tests::outside_lock_git_commit_rejects_stale_and_missing_vault_before_queueing` failed because an invalid request reached GitQueue and returned `not a git repository` instead of a vault-identity error.
 - **Implementation:** the command gateway owns one session-identity guard requiring nonblank `expected_vault_id` and exact match with the active vault. Both daemon execution paths check it while holding their existing daemon-state lock and before creating/enqueuing a queue. Existing queue serialization and IPC authorization are unchanged.
 - **Required verification:** current-head source/Rustfmt/Clippy/Rust tests, Linux/Windows/Browser and applicable visual gates, plus an installed authenticated daemon IPC session switch/restart test. No installed-client acceptance has yet been established; MAT-008 remains open.
+
 ## RUSTSEC-2026-0414 — pulldown-cmark advisory remediation
 
 - **Failure observed:** [CI #40661251859](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40661251859) at MAT-008 daemon head `eb19fcb42014531026dac9c4d88f01300f223dc8`. Cargo deny rejected `pulldown-cmark 0.13.4` with advisory RUSTSEC-2026-0414: crafted `[[a|]]` input may cause exponential event growth when `ENABLE_WIKILINKS` is on.
@@ -294,6 +318,38 @@ The implementation restricts command registration to available owner callbacks, 
 - **Next failing-first stage:** test-only commit `32f525d` adds real-hook regressions for stale pull/commit completion refreshing a different vault, including switch-away-and-back. No source fix has been applied and **RED remains unobserved** until hosted source tests execute.
 - **Pending:** exact-head hosted source, TypeScript, browser, Rust, Windows, and visual acceptance; installed-client duplicate-submit, vault switch, crash/restart and native failure acceptance. This is one MAT-005 slice, not checklist completion.
 
+## MAT-016 — ambiguous Google Tasks mirroring (PR #230)
+
+- **Follow-up ownership case:** test-only `02fe5719` adds two real-hook cases for a remote record shared by scoped A/B owner markers, or by an exact legacy A owner and scoped B owner. The native batch must not update either record. The corresponding renderer guard rejects current-vault claims on records also marked for a different vault. This new patch is **not yet exact-head hosted green**; source tests were written first, but the hosted RED was not observed when implementation began. Live-provider and installed-client acceptance remain pending.
+
+- **RED confirmed:** test-only `12334132dad4e71fc7d54e09543be263f344443a`, hosted [CI #40883180912](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40883180912), source regression suite. Of 685 tests, 683 passed and exactly two new cases failed: duplicate scoped remote markers prepared a provider mutation (1 instead of 0), and duplicate stable IDs from two local notes likewise prepared a provider mutation (1 instead of 0).
+- **Implementation:** preflight duplicate local IDs and duplicate current-vault provider ownership markers before `googleCalendarApplyTaskSync`. Ambiguous ownership now produces an actionable review-required error in the existing Tasks panel. No provider write, new permission owner, or automatic duplicate reconciliation is introduced.
+- **Extension:** test-only `dd5601a8` added four real-hook cases for multiple scoped local owners on one remote record, two matching legacy markers across records, repeated provider IDs with differing markers, and empty scoped ownership. This test commit was pushed before the implementation; a hosted failing-first result was **not observed** at the time the fix was prepared. The subsequent fix preflights those cases before any approved mutation. No independent Google authorization or task-ID reconciler was added.
+- **Further test-first evidence:** `0e1af9f` adds legacy/scoped cross-record collision and blank local-ID regressions before the source guard. No hosted behavioral RED was observed for that intermediate head; do not report a confirmed RED for these six additional cases. The implementation rejects both before native batch admission.
+- **Pending:** exact-head GREEN source, frontend/TypeScript, Rust, browser, Windows, visual and docs verification for the final implementation. Real Google provider and installed-desktop collision/restart acceptance remain unavailable. This is one MAT-016 slice, not completion of the 24-item program.
+
+## MAT-009 Database Studio view-result ownership — October 30, 2026
+- **CI failure observed:** [CI #40970375883](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40970375883) failed the fast lint job with `react-hooks/set-state-in-effect`, `react-hooks/refs`, and exhaustive-deps warnings. The fix removes new synchronous state updates from the vault effect, replaces render-time ref reads with a stored immutable view/vault/preset identity, and memoizes visible rows/columns. The query cancellation and stale-edit guards still use the ref only in callbacks/effects, where it is valid.
+- **Hosted GREEN at `15a1f2f4`:** [CI #41024144641](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41024144641), [Visual #41024144551](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41024144551) and [Docs #41024144556](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41024144556) completed successfully, including the formerly failing Browser E2E layout case.
+
+
+- A view change could leave previous rows, aggregates and editable callbacks on screen. A pending query could later repopulate rows from a prior view.
+- Test-first `02692a0` adds two actual-TSX harness regressions for stale rows/edit callbacks and late query settlement. Hosted behavioral RED was not observed at the time of implementation.
+- A view revision and loaded-scope key now invalidate old rows, projections, edit authority and stale query errors, and discard old query completion; native authorization, expected hash, source-editor coordination and 200-candidate/32-MiB budgets stay unchanged.
+- Test-only `b9ed54c` additionally covers late native query rejection after switching filters; its hosted RED was not observed at the time the guarded catch was committed.
+- Repeat exact-head source/browser/Rust/Windows/visual checks after integration with the latest main. Installed-client concurrency acceptance remains outstanding. MAT-009 complete native projections/pagination and MAT-010 schema/batch edits remain unimplemented.
+## MAT-005 Saved Views query ownership — October 29, 2026
+
+[PR #218](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/218) is an independent renderer read-freshness slice. Native Saved Views filtering and vault permissions are unchanged.
+
+| Source / environment | Observed result | Classification |
+|---|---|---|
+| Test-only `687bd7e` · [CI #40779293100](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40779293100) | Three real-hook assertions failed in `saved-views-query-ownership.test.mjs`: test 345 old Alpha query overwrote Beta; test 346 vault A's path remained on vault B; test 347 new vault's result was absent with unchanged filter. | **Three observed behavioral RED failures**, not test setup or compile failures |
+| Implementation following the test-only commit | One shared generation between manual and debounced queries; render-visible results are keyed to vault/filter identity; stale success/error callbacks are ignored; effect cleanup invalidates outstanding operations. | **Implemented — hosted exact-head CI verified on `929619d`** |
+
+A mocked native query is not proof of installed-client vault changes or remote data integrity. Broader MAT-005 mutation acceptance and desktop restart tests remain open.
+
+Exact-head [CI #40784067680](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067680), [Visual #40784067783](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067783) and [Docs #40784067709](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40784067709) completed successfully before merging current main. Fresh exact-head validation remains required.
 ## Canonical history gate
 
 Run from a full canonical clone:
