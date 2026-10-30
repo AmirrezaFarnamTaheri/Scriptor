@@ -313,7 +313,8 @@ mod tests {
     fn reviewed_revision_hash_rejects_modified_source() {
         let source = "# Saved body\n";
         let tampered = "# Different body\n";
-        let result = validate_reviewed_history_revision(tampered, &crate::hash::content_hash(source));
+        let original_hash = crate::hash::content_hash(source);
+        let result = validate_reviewed_history_revision(tampered, &original_hash);
         assert!(result.unwrap_err().to_string().contains("changed"));
     }
 
