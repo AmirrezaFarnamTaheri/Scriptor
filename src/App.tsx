@@ -737,10 +737,7 @@ function App() {
     setHealthDashboardOpen(false)
     openKnowledgeWorkbench('repair')
   }, [openKnowledgeWorkbench, setHealthDashboardOpen])
-  const handleGenerateLinkReferencesFromHealth = useCallback(() => {
-    generateLinkReferences()
-    setStatusDockTab('problems')
-  }, [generateLinkReferences, setStatusDockTab])
+  const handleGenerateLinkReferencesFromHealth = useCallback(() => { generateLinkReferences(); setStatusDockTab('problems') }, [generateLinkReferences, setStatusDockTab])
 
   const handleCloseKnowledgeWorkbench = useCallback(() => setKnowledgeWorkbenchOpen(false), [setKnowledgeWorkbenchOpen])
   const handleOpenNoteFromWorkbench = useCallback((path: string) => { void openNote(path) }, [openNote])
@@ -1755,6 +1752,7 @@ function App() {
           onRefreshDaemon={handleRefreshDaemon}
           onStartDaemon={handleStartDaemon}
           activePath={workspace.activePath}
+          onOpenNoteHistory={() => { setSettingsOpen(false); setNoteHistoryOpen(true) }}
           onConfigSaved={handleSettingsConfigSaved}
           onClose={handleCloseSettings}
           workspaceMode={workspaceMode}

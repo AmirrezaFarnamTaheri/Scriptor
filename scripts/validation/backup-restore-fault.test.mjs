@@ -147,3 +147,39 @@ test('confirmed native reopen-required status and post-commit refresh failure qu
   assert.ok(postCommitComment > 0 && postCommitError > postCommitComment)
   assert.match(useVaultBackup.slice(postCommitComment, postCommitError), /quarantineRestore\(requestedVault\)/)
 })
+
+test('recovery hold warning does not falsely assert a lost native reply', () => {
+  const backupSettings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  assert.match(backupSettings, /This vault needs recovery before backup operations can continue/)
+  assert.doesNotMatch(backupSettings, /An earlier restore did not return a confirmed result/)
+})
+
+test('backup Restore and Delete confirmations cannot transfer between vaults or folders', () => {
+  const settings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  const parent = readFileSync(new URL('../../src/components/SettingsPanel.tsx', import.meta.url), 'utf8')
+  assert.match(settings, /matchesBackupActionScope\(pendingAction, backupScope, entry\.name\)/)
+  assert.match(settings, /setPendingAction\(createPendingBackupAction\(backupScope, entry\.name, 'restore'\)\)/)
+  assert.match(settings, /setPendingAction\(createPendingBackupAction\(backupScope, entry\.name, 'delete'\)\)/)
+  assert.match(settings, /if \(!matchesBackupActionScope\(selected, backupScope, entry\.name\)/)
+  assert.match(settings, /setPendingAction\(null\)[\s\S]*setSettings\(\{ backupPath: event\.target\.value \}\)/)
+  assert.match(parent, /<VaultBackupSettings key=\{vaultId \?\? 'closed'\}/)
+})
+
+test('older retained backups have an explicit bounded disclosure and cannot reuse hidden approvals', () => {
+  const source = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  assert.match(source, /backups\.slice\(0, visibleBackupCount\)/)
+  assert.match(source, /Show .*older backups/)
+  assert.match(source, /'Show 1 older backup'/)
+  assert.match(source, /aria-expanded=\{visibleBackupCount > BACKUP_PAGE_SIZE\}/)
+  assert.match(source, /Show fewer backups/)
+  assert.match(source, /setPendingAction\(null\)[\s\S]*setVisibleBackupCount\(BACKUP_PAGE_SIZE\)/)
+  assert.doesNotMatch(source, /backups\.slice\(0, 10\)/)
+})
+
+test('a backup with failed native integrity verification cannot enter the Restore confirmation', () => {
+  const settings = readFileSync(new URL('../../src/components/VaultBackupSettings.tsx', import.meta.url), 'utf8')
+  assert.match(settings, /disabled=\{isBusy \|\| recoveryRequired \|\| !entry\.verified\}/)
+  assert.match(settings, /aria-describedby=\{!entry\.verified \?/)
+  assert.match(settings, /This backup could not be verified, so it cannot be restored/)
+  assert.match(settings, /Delete backup/)
+})

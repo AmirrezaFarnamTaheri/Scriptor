@@ -4,6 +4,12 @@
 
 ### Improved
 
+- Reveal older retained backups progressively in sets of ten instead of hiding every backup beyond the first ten. Paging or changing destinations discards outstanding Restore/Delete approval, and the native backup order remains unchanged.
+
+- Offer a safe path from Backup settings to the current note's existing revision history. Disallow the navigation when no note is selected, Settings has unsaved changes, or the vault is paused for restore recovery; opening history performs no mutation.
+
+- Explain the latest restore attempt in Backup settings using vault-scoped, session-only read-only receipt evidence. Preserve clear distinctions between confirmed rollback, completed replacement, incomplete recovery and lost native replies; this is not a persisted recovery inventory or a new restore authority.
+
 - Do not classify a native `recovery-required` restore as a completed commit in operation receipts. Distinguish an unreconciled journal from a durable `committed-needs-reopen` result, and refuse impossible post-commit refresh evidence before it can generate a false completion claim.
 
 - Introduce read-only, vault-scoped restore operation receipts with explicit native confirmation, uncertain effects, retry safety and reopen requirements; retain unknown paths and revisions as unknown rather than inventing native evidence. The receipts are an internal foundation for future recovery UI, not an expanded restore authority.
@@ -33,6 +39,10 @@
 - Reject daemon Git commits with a missing or stale originating-vault ID before acquiring a native GitQueue, both through the regular command gateway and the transport's outside-lock execution path.
 
 - Keep Health Dashboard open until the existing workspace leaf/editor approves note navigation, preserving the initiating panel on refused dirty-note transitions and reporting native read failures without silently dismissing the panel.
+
+- Disable Restore for backup copies that fail native integrity verification, with a clear explanation; reviewed Delete remains available for cleanup.
+
+- Require pending Restore/Delete confirmations to match the current vault, backup destination and backup name; clear outdated approvals rather than applying them to an identically named backup elsewhere.
 
 - Keep paused drafts safe when a backup restore outcome is unknown: closing requires explicit discard approval for unsaved edits, never flushes those edits over restored files, and blocks vault switching with restart instructions until recovery.
 
