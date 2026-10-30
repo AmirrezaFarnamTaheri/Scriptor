@@ -53,7 +53,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
 
   const noteCommands = useMemo<PaletteCommand[]>(
     () =>
-      (noteSearch.query === normalizedQuery ? noteSearch.hits : []).map((hit) => ({
+      (onOpenNote && noteSearch.query === normalizedQuery ? noteSearch.hits : []).map((hit) => ({
         id: `note:${hit.path}`,
         label: hit.title,
         category: t('commandPalette.noteCategory'),
@@ -70,13 +70,13 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
       .map(({ cmd }) => ({ ...cmd, group: 'command' as const }))
-    if (!searchNotes || normalizedQuery.length < 2) return scored
+    if (!searchNotes || !onOpenNote || normalizedQuery.length < 2) return scored
     return [...scored, ...noteCommands]
-  }, [commands, helpCommand, noteCommands, normalizedQuery, searchNotes])
+  }, [commands, helpCommand, noteCommands, normalizedQuery, searchNotes, onOpenNote])
 
   useEffect(() => {
     const generation = ++searchGeneration.current
-    if (!searchNotes || normalizedQuery.length < 2) return
+    if (!searchNotes || !onOpenNote || normalizedQuery.length < 2) return
 
     const requestQuery = normalizedQuery
     searchTimer.current = window.setTimeout(() => {
@@ -103,7 +103,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
         searchTimer.current = null
       }
     }
-  }, [normalizedQuery, searchNotes])
+  }, [normalizedQuery, searchNotes, onOpenNote])
 
   useEffect(() => {
     if (!isKeyboardNav.current) return
@@ -151,7 +151,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
         </div>
         <p className="command-palette-scope-hint">
           <span>{t('commandPalette.scopeHint')}</span>
-          {searchNotes ? (
+          {searchNotes && onOpenNote ? (
             <span
               className={`command-palette-search-status${isSearchingNotes ? ' is-active' : ''}`}
               aria-live="polite"
