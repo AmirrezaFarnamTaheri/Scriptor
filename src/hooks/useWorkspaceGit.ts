@@ -88,7 +88,7 @@ export function useWorkspaceGit({
       const lifecycle = vaultLifecycleRef.current.generation
       setError(null)
       try {
-        await gitCommit(files, message)
+        await gitCommit(files, message, targetVaultId)
         if (isCurrentVaultLifecycle(targetVaultId, lifecycle)) {
           await controller.refresh(targetVaultId)
         }

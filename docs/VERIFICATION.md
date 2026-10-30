@@ -207,6 +207,13 @@ Production now reuses the existing vault lifecycle guard on the three `setError(
 - The release upload boundary excludes unpacked bundle internals and CI evidence.
 - Checksums and attestations cover installers, while target trust records remain separately verified release metadata.
 
+
+## MAT-008 — Git commit expected-vault binding (draft PR #211)
+
+- **Hosted RED:** test-only `06a3a4e482b432238b11621807d01e730162bd70`, [CI #40595869204](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40595869204), source regression: 683 pass, 2 expected failures. The Git commit invocation omitted `expectedVaultId`; an empty vault identity was not rejected.
+- **Implementation awaiting exact-head checks:** require the initiating vault in the TypeScript bridge and native Tauri commit command, enforce it before GitQueue, and test native denied/accepted outcomes plus the browser mock.
+- **Still pending:** source GREEN, Rust/Windows/Browser E2E/visual/docs, installed-client delayed-invoke acceptance, and daemon/CLI/MCP parity under issue #188. This slice does not complete MAT-008.
+
 ## RUSTSEC-2026-0414 — pulldown-cmark advisory remediation
 
 - **Failure observed:** [CI #40661251859](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40661251859) at MAT-008 daemon head `eb19fcb42014531026dac9c4d88f01300f223dc8`. Cargo deny rejected `pulldown-cmark 0.13.4` with advisory RUSTSEC-2026-0414: crafted `[[a|]]` input may cause exponential event growth when `ENABLE_WIKILINKS` is on.
@@ -219,6 +226,18 @@ Production now reuses the existing vault lifecycle guard on the three `setError(
 - **Source correction:** [`3708b1c`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/3708b1cb197caa399016e530992ae49a36e49b8a) removes the deprecated split and detached disconnect-probe thread. The authenticated nonblocking stream now checks for EOF/unexpected client data before each event-receive interval, and reuses the same stream for deadline-bounded event writes. Endpoint nonce checks, event encoding, rate limits and the original subscription poll interval are unchanged.
 - **Hosted exact-head verification:** [CI #40862620166](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40862620166), plus desktop compile and Visual review, were queued/in progress when this record was authored; no green result is claimed here. The existing daemon event subscription and reconnection Rust tests must pass after the dependency bump.
 - **Not yet established:** installed-client disconnect/reconnect and multiprocess shutdown behavior. The source change is not proof of release acceptance.
+
+## MAT-005 / MAT-010 Database Studio source-editor coordination — October 29, 2026
+
+[PR #217](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/217) guards the mutation boundary between Database Studio and the one writable Markdown source editor. It is a focused safety slice, not full MAT-005, MAT-009 or MAT-010 implementation.
+
+| Source or environment | Result | Classification |
+|---|---|---|
+| Test-only `8bd17fc`, [CI #40776875924](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40776875924) | Two real-component tests authored before the fix. Hosted source-suite outcome not observed when production code was published. | **Observed failing-first result not yet established** |
+| Follow-up code to `DatabaseStudioPanel.editCell` | Direct native fallback removed. Without `runSourceNoteMutation`, loaded cells are read-only and direct calls reject; with a coordinator, expected-hash and initiating-vault checks remain. | **Source implementation; current-head green pending** |
+
+No installed-client unsaved-draft, vault-switch, or restart acceptance is asserted. A browser mock cannot certify native rollback or durable success.
+
 
 ## MAT-005 — Git mutation single-flight (draft PR #210)
 - **Further observed RED:** [CI #40675186002](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40675186002) failed three new source tests at `f8ba9be6`: old pull refreshed new vault, old commit refreshed another vault's status, and A→B→A revived an earlier refresh. The implementation introduces a generation-scoped UI refresh guard; current-head GREEN and installed-client proof remain pending.

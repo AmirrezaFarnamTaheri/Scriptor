@@ -71,6 +71,15 @@ function harness() {
   return { render, options, calls, commands }
 }
 
+test('single-flight Git commit preserves the initiating vault ID through native submission', async () => {
+  const h = harness()
+  const original = h.render().commitFiles(['notes/one.md'], 'Change in A')
+  h.options.vaultId = 'vault-beta'
+  h.render()
+  await original
+  assert.deepEqual(h.calls.commits[0], [['notes/one.md'], 'Change in A', 'vault-alpha'], 'native commit must be scoped to the originating vault')
+})
+
 test('two commits submitted before rerender issue only one native mutation', async () => {
   const h = harness()
   const writing = deferred()
