@@ -10,6 +10,14 @@
 
 - Prevent overlapping workspace Git commits, pulls and pushes before React renders a busy state, and retain a truthful busy indicator while navigating between vaults during an active native Git mutation.
 
+- Bind Obsidian import authorization and native write admission to the vault that opened the dialog; reject empty or changed vault identity before import, even if approval was delayed.
+
+- Ignore a late Obsidian source-folder picker result after its import dialog closes, rather than triggering validation or updating an unmounted dialog.
+
+- Keep Obsidian import single-flight across same-vault dialog reopen until the original native request settles, and invalidate stale dialog responses during React commit-phase cleanup.
+
+- Prevent duplicate Obsidian import submissions before React rerenders; late import responses from closed dialogs no longer update another workspace, while an explicit retry remains available after failure.
+
 - Make Vault search keyboard access select the mobile Vault pane and expand a collapsed desktop Vault sidebar before moving focus, from both the command palette and the global shortcut.
 
 - Exclude the collapsed desktop Vault sidebar from keyboard focus instead of only making it transparent; keep the independently selected mobile Vault pane accessible and restore palette-to-search focus when the rail reopens.
