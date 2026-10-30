@@ -159,7 +159,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
     previewError?.path === path && previewError.revisionId === selectedId ? previewError.message : null
   const currentErrorMessage = currentError?.path === path ? currentError.message : null
   const canRestore = Boolean(
-    vaultId && selectedId && previewReady && currentReady && !previewErrorMessage && !currentErrorMessage,
+    vaultId && selectedRevision && selectedId && previewReady && currentReady && !previewErrorMessage && !currentErrorMessage,
   )
 
   // The diff needs both sides in hand. It is derived from the two texts already
@@ -171,7 +171,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
   )
 
   const restore = async () => {
-    if (!path || !selectedId || !canRestore || !vaultId) return
+    if (!path || !selectedId || !selectedRevision || !canRestore || !vaultId) return
     setBusy(true)
     setStatus('Restoring revision…')
     try {
@@ -181,7 +181,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
         setConfirmRestore(false)
         throw new Error('The current note changed. Compare the updated content before restoring.')
       }
-      await vaultRestoreNoteHistoryRevision(path, selectedId, vaultId)
+      await vaultRestoreNoteHistoryRevision(path, selectedId, vaultId, selectedRevision.content_hash)
       setCurrentState({ path, markdown: preview })
       setStatus('Revision restored.')
       setConfirmRestore(false)
