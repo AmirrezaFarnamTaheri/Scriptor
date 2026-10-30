@@ -4,6 +4,7 @@ import { useWorkspaceComposition } from './hooks/useWorkspaceComposition'
 import { createPluginWorkspaceHandlers } from './lib/pluginWorkspaceHandlers'
 import type { PluginRuntimePolicy } from '@scriptor/plugin-api'
 import { usePaletteNoteNavigation } from './hooks/usePaletteNoteNavigation'
+import { openNoteBeforeDismissingPanel } from './lib/workspace/featurePanelNavigation'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
 import { useVisualBlockRenderer } from './hooks/useVisualBlockRenderer'
@@ -728,9 +729,12 @@ function App() {
 
   const handleCloseHealthDashboard = useCallback(() => setHealthDashboardOpen(false), [setHealthDashboardOpen])
   const handleOpenIssueFromHealth = useCallback((path: string) => {
-    void openNote(path)
-    setHealthDashboardOpen(false)
-  }, [openNote, setHealthDashboardOpen])
+    void openNoteBeforeDismissingPanel(path, openNote, () => setHealthDashboardOpen(false))
+      .catch((error: unknown) => {
+        const detail = error instanceof Error ? error.message : String(error)
+        showToast(`Could not open note: ${detail.slice(0, 200)}`)
+      })
+  }, [openNote, setHealthDashboardOpen, showToast])
   const handleRebuildIndexFromHealth = useCallback(() => { void rebuildIndex() }, [rebuildIndex])
   const handleFixVaultLintFromHealth = useCallback(() => { void fixVaultLint() }, [fixVaultLint])
   const handleOpenWorkbenchFromHealth = useCallback(() => {

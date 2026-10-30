@@ -233,6 +233,13 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 No installed-client unsaved-draft, vault-switch, or restart acceptance is asserted. A browser mock cannot certify native rollback or durable success.
 
 
+## MAT-006 — Health Dashboard note navigation approval (PR #233)
+
+- **Failing-first source test authored:** [`d3e2a68`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/d3e2a688edd8dc1dfefd8ddcd74c167d9c77148e) asserts that `App.tsx` does not close Health Dashboard before awaited note navigation. The legacy implementation closed eagerly. Hosted RED is **not yet confirmed**.
+- **Behavioral source implementation:** `openNoteBeforeDismissingPanel` awaits the existing workspace-leaf navigation outcome; dismissal occurs only after `true`. A refusal or blank target leaves the panel open; thrown source errors remain identifiable and the App handler reports them through the existing toast service.
+- **Tests authored:** four actual TypeScript helper tests cover delayed approval, dirty-editor refusal, native read rejection, and blank targets. The source-shaped App regression also guards the real handler wiring.
+- **Pending:** exact-head source suite, TypeScript, lint, Browser E2E, Rust/Windows, docs, visual and installed-client dirty close/restart/vault switch/keyboard/RTL/200% zoom acceptance. This is only a MAT-006 code slice and does not graduate the feature.
+
 ## Canonical history gate
 
 Run from a full canonical clone:

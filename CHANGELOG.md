@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Keep Health Dashboard open until the existing workspace leaf/editor approves note navigation, preserving the initiating panel on refused dirty-note transitions and reporting native read failures without silently dismissing the panel.
+
 - Make Database Studio metadata edits read-only when the source-editor mutation coordinator is absent. Never bypass an unsaved editor draft with a direct frontmatter write; retain note viewing and guarded coordinated edits.
 
 - Refuse source attachment symlinks and nested destination symlink escapes on Obsidian import; stage complete files and publish using create-only hard links, retaining existing attachments and cleaning up staging files after collisions.
