@@ -41,6 +41,14 @@ enforcement applies to maintained product and contributor documentation.
 Provenance-sensitive audit records under `docs/validation/` and archived
 documents remain exempt; active user guides do not.
 
+## CI — deterministic vault-loading skeleton coverage (October 30, 2026)
+
+**Observed RED on an existing test (not a new product regression):** [MAT-004 PR #235 CI run #41063694528](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41063694528), initial attempt on `a25d8c2d715c4b82d0c8f045dc4e339d8e83dcad`, failed the Windows Playwright `visual-coverage-matrix.spec.ts:285` loading-skeleton assertion. The fixture previously resolved `vault_open` on a 2.5-second wall-clock timer. Under a delayed CI browser startup, the temporary loading skeleton can legitimately disappear before the 5-second visibility assertion executes; this cannot prove an application loading fault. The other 511 functional Playwright tests on that run were not reported failed.
+
+**Test-only remediation:** both `e2e/visual-coverage-matrix.spec.ts` and `e2e/workspace.spec.ts` now use the existing `e2e:hold-vault-open` fixture (already used by `visual-review.spec.ts`). This keeps the native open request pending while verifying skeleton visibility and viewport bounds; the tests then explicitly dispatch `e2e:release-vault-open`, await workspace readiness and, in the coverage matrix, assert skeleton removal. The assertions and production code are not weakened or changed. The first failed job was retried for independent evidence; a passing retry by itself would not fix the timer race.
+
+**Acceptance:** source and Browser E2E exact-head CI are pending for this isolated test-only branch; do not infer a released app change or repaired vault startup behavior from the fixture adjustment.
+
 ## MAT-005 Obsidian attachment path and publication safety — October 29, 2026
 
 Stacked draft [PR #229](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/229) addresses two attachment paths beyond the Markdown-only changes in #228. Test-only commit [`de6af81`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/de6af818f83eebd2599b59ce4c26fda9219623fe) adds real Unix filesystem regressions for source attachment symlinks and a destination nested symlink to outside the vault. `WalkDir.follow_links(false)` still yields symlink entries; the previous importer did not reject them and joined paths under `_attachments` without revalidating the nested prefix.
@@ -142,6 +150,17 @@ PR [#206](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/206) is a bounde
 | Functional Playwright fixtures `e2e/backup-list-race.spec.ts` | Hold old same-scope response, publish newer manual-backup inventory, then release stale success/error; fresh row must remain visible | **Authored; browser execution pending on current head** |
 
 The PR remains draft. This is not proof for editor, Canvas, imports, database, tasks, rename, provider effects, installed desktop recovery or the remaining MAT-005 acceptance scenarios.
+
+## MAT-008 authenticated multi-client Git status CI — October 28, 2026
+
+[PR #213](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/213) retains the daemon's expected-vault identity guard across the typed RPC, handler, and gateway. The authenticated two-client regression must finish without transport errors before it can certify stale-vault denial.
+
+| Head and environment | Evidence | Classification |
+|---|---|---|
+| `26f024bc`, [CI #40776353451](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40776353451) Linux Rust workspace tests | `authenticated_clients_keep_git_status_bound_after_another_client_switches_vault` failed at `transport/tests.rs:916`: client A `OpenVault` returned `Io(NotFound)` before identity rejection was exercised; other 63 daemon tests passed | **Failed test-harness transport setup, not security denial proof** |
+| Follow-up test-fixture correction | Keep the authenticated listener accepting valid client reconnects until both clients finish, signal shutdown using a local wake connection and join all handler threads; retain stale denial and matching-ID assertions | **Authored; new exact-head Rust execution required** |
+
+The current CodeRabbit cross-client thread remains open. The hosted test is not packaged desktop multi-process/restart or real operational acceptance, even if it passes.
 
 ## MAT-004 — Reviewed historical revision copy (initial slice, October 30, 2026)
 
@@ -304,6 +323,34 @@ Production now reuses the existing vault lifecycle guard on the three `setError(
 - **Hosted RED:** test-only `06a3a4e482b432238b11621807d01e730162bd70`, [CI #40595869204](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40595869204), source regression: 683 pass, 2 expected failures. The Git commit invocation omitted `expectedVaultId`; an empty vault identity was not rejected.
 - **Implementation awaiting exact-head checks:** require the initiating vault in the TypeScript bridge and native Tauri commit command, enforce it before GitQueue, and test native denied/accepted outcomes plus the browser mock.
 - **Still pending:** source GREEN, Rust/Windows/Browser E2E/visual/docs, installed-client delayed-invoke acceptance, and daemon/CLI/MCP parity under issue #188. This slice does not complete MAT-008.
+
+## MAT-008 — Git status read provenance (draft PR #213)
+
+### Authenticated socket Ping contract and compilation — October 29, 2026
+
+- **Observed failed CI on head `a570403`:** [CI #40770292720](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40770292720) failed `cargo clippy --locked --workspace --all-targets -- -D warnings` at `crates/daemon/src/transport/tests.rs:901` with **E0533**. The newly added test treated `RpcPayload::Pong` as a unit variant, but the IPC protocol defines the struct variant `Pong { version: String }`. It failed at compile time, **before the authenticated two-client wrong-vault security assertion**.
+- **Minimal correction:** match `RpcPayload::Pong { .. }` and leave the authenticated B-before-A socket fixture, old-vault denial and current-vault success assertions intact. No product Git status authorization or daemon transport behavior changes.
+- **Acceptance:** exact-head Rust/Clippy CI and two-client test, plus packaged authenticated multiprocess and restart evidence, remain mandatory. Compiler repair is not evidence of daemon-vault isolation or MAT-008 completion.
+
+### Two authenticated socket clients — current test-harness correction (2026-10-29)
+
+The exact-head [CI #40762865932](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40762865932) ran the new daemon test `transport::tests::authenticated_clients_keep_git_status_bound_after_another_client_switches_vault`. The daemon crate reported **63 passed, 1 failed**, exit 101. Client B failed to establish transport at `crates/daemon/src/transport/tests.rs:935` with `Io(NotFound)` before the stale vault-status denial was asserted. The other existing daemon status identity tests passed. **This is test-harness socket-admission failure, not evidence of a vault data leak or a passing cross-client isolation case.**
+
+The test's ephemeral listener accepts exactly two connections before closing. The minimal fixture correction establishes client B's authenticated socket through a `Ping` before A opens vault A, reserving the second client connection and leaving the required A→B vault-switch/status-denial assertions unchanged. This is a **hypothesized harness correction pending exact-head Rust green verification**, not a product-security acceptance claim. The parent CodeRabbit daemon-boundary thread must remain open pending exact-head evidence and installed multiprocess/restart acceptance.
+
+
+- **Observed behavioral RED:** test-only head `caf63390bbbeaa8893af446169c5995a920777cc`, [CI #40599461753](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40599461753), three source regressions: native Git status was invoked without the initiating vault ID, a blank origin was accepted, and the controller did not pass the captured vault ID to its fetcher.
+- **Implementation pending exact-head GREEN:** the controller forwards the immutable vault ID, the typed Tauri bridge requires it, native Tauri checks the active session, and headless daemon-backed reads validate under the vault-switch lock. The separately exposed `daemon_git_status` Tauri command and its TypeScript bridge now require the same initiating identity; Browser fixtures refuse mismatched IDs.
+- **Outstanding:** current-head source/Rust/Windows/browser/visual checks, installed desktop delayed-read/vault-switch acceptance, and broader daemon/CLI/MCP parity. Read provenance does not imply a committed mutation.
+
+## MAT-008 — Daemon Git status RPC provenance (draft PR #215)
+
+- **Rust lint regression (2026-10-28):** exact-head CI #40671152135 failed `cargo clippy --locked --workspace --all-targets -- -D warnings` because the superseded `daemon_client::open_vault` wrapper became unused at `crates/cli/src/daemon_client.rs:300` when status callers adopted `ensure_vault_open_with_id`. The follow-up deletes this unused wrapper rather than suppressing `dead_code`; fresh exact-head validation is required.
+- **Observed RED:** test-only head `d51b0e3`, [CI #40666737446](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40666737446), failed `transport::tests::unscoped_git_status_is_rejected_before_native_read_on_both_daemon_routes` (61 passing daemon tests, 1 failing). The unbound request reached the native Git read.
+- **Implementation:** typed `RpcMethod::GitStatus` requires `expected_vault_id`. The daemon's direct handler, outside-lock transport, and Invoke paths verify the same authoritative session before resolving a native Git root. Desktop, CLI and TUI use the ID returned by daemon `OpenVault`. Missing or stale identities fail closed.
+- **Pending:** exact-head Rustfmt/Clippy/Rust, IPC bindings, TypeScript, Browser E2E, Windows and visual acceptance; installed authenticated IPC concurrency, restart and reopening. This is one MAT-008 slice and not mutation receipt proof.
+
+- **New authenticated IPC regression authored on PR #213:** two independent daemon clients open A then switch the active daemon to B; a subsequent GitStatus originating from A must fail with identity mismatch, while B's read remains available. Exact-head hosted execution pending; this does not replace installed multi-process/restart acceptance.
 
 ## MAT-008 — Daemon Git commit identity (draft PR #212)
 

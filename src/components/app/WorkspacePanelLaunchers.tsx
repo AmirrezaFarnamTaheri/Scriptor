@@ -140,12 +140,15 @@ function WorkspacePanelLaunchersImpl({
   const gmailEnabled = plugins.activePlugins.some((plugin) => plugin.manifest.id === 'scriptor.gmail-manager')
 
   const gitReadHead = useCallback(async (path: string) => {
+    const originatingVaultId = workspace.vault?.id
+    if (!originatingVaultId) return null
     try {
-      return await gitShowHeadFile(path)
+      const contents = await gitShowHeadFile(path, originatingVaultId)
+      return currentVaultId.current === originatingVaultId ? contents : null
     } catch {
       return null
     }
-  }, [])
+  }, [workspace.vault?.id])
 
   const gitActivePath = workspace.activePath
   const gitDraftMarkdown = workspace.draftMarkdown

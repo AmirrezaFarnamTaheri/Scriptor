@@ -523,6 +523,10 @@ export function installE2eBridge(): void {
       case 'vault_list_view_notes':
         return []
       case 'git_status_cmd': {
+        const { expectedVaultId } = payload as { expectedVaultId?: string }
+        if (expectedVaultId !== SCREENSHOT_VAULT.id) {
+          throw new Error('Git status target vault does not match the opened vault.')
+        }
         if (window.sessionStorage.getItem('e2e:git-status-failure') === '1') {
           throw new Error('E2E Git bridge unavailable')
         }

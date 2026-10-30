@@ -89,7 +89,9 @@ pub enum RpcMethod {
     RebuildIndex,
     HealthReport,
     HealthDiagnostics,
-    GitStatus,
+    GitStatus {
+        expected_vault_id: String,
+    },
     Backlinks {
         path: String,
     },

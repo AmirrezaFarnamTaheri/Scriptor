@@ -21,6 +21,7 @@ interface KeyedValue<T> {
 }
 
 interface ConflictData {
+  vaultId: string
   path: string
   source: string
   basePreview: string | null
@@ -125,12 +126,13 @@ export function useWorkspaceAuxiliaryData({
   }, [activePath, vaultKey])
 
   useEffect(() => {
-    if (!nativeReady || !conflictPath) return
+    if (!vaultKey || !conflictPath) return
     let cancelled = false
-    void Promise.allSettled([vaultReadNote(conflictPath), gitShowMergeBaseFile(conflictPath)]).then(
+    void Promise.allSettled([vaultReadNote(conflictPath), gitShowMergeBaseFile(conflictPath, vaultKey)]).then(
       ([noteResult, baseResult]) => {
         if (cancelled) return
         setConflictState({
+          vaultId: vaultKey,
           path: conflictPath,
           source: noteResult.status === 'fulfilled' ? noteResult.value.markdown : '',
           basePreview: baseResult.status === 'fulfilled' ? baseResult.value : null,
@@ -140,7 +142,7 @@ export function useWorkspaceAuxiliaryData({
     return () => {
       cancelled = true
     }
-  }, [conflictPath, nativeReady])
+  }, [conflictPath, vaultKey])
 
   useEffect(() => {
     if (!nativeReady || !settingsOpen) return
@@ -163,8 +165,8 @@ export function useWorkspaceAuxiliaryData({
       bibliographyRaw: bibliographyState?.key === indexKey ? bibliographyState.value : [],
       vaultTags: tagsState?.key === indexKey ? tagsState.value : [],
       recentNotes: recentState?.key === recentKey ? recentState.value : [],
-      conflictSource: conflictState?.path === conflictPath ? conflictState.source : '',
-      conflictBasePreview: conflictState?.path === conflictPath ? conflictState.basePreview : null,
+      conflictSource: conflictState?.vaultId === vaultKey && conflictState.path === conflictPath ? conflictState.source : '',
+      conflictBasePreview: conflictState?.vaultId === vaultKey && conflictState.path === conflictPath ? conflictState.basePreview : null,
       systemInfo: nativeReady && settingsOpen ? systemInfoState : null,
       refreshBibliography,
     }),
@@ -172,6 +174,7 @@ export function useWorkspaceAuxiliaryData({
       bibliographyState,
       conflictPath,
       conflictState,
+      vaultKey,
       indexKey,
       nativeReady,
       recentKey,
