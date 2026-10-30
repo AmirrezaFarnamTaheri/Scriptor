@@ -117,13 +117,14 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
   }
 
   const editCell = async (row: DatabaseRow, key: string, value: CellValue) => {
+    if (!runSourceNoteMutation) throw new Error('A source editor coordinator is required to edit note properties safely. Open the note in the editor to make this change.')
     if (!native || !vaultId || busy || operationPending.current) throw new Error('Open the vault and finish the current operation before editing.')
     operationPending.current=true
     const request = generation.current
     setBusy(true); setError(null)
     try {
       const mutation=async()=>{const fresh=await vaultReadNote(row.note.metadata.path);if(request!==generation.current||fresh.metadata.vault_id!==vaultId)throw new Error('Vault changed before editing.');if(fresh.metadata.content_hash!==row.note.metadata.content_hash)throw new Error('Source note changed since this view was loaded. Reload the notes and review the cell before saving.');await vaultFrontmatterSet(row.note.metadata.path,key,formatScalarCell(value),row.note.metadata.content_hash,vaultId)}
-      if(runSourceNoteMutation){if(!await runSourceNoteMutation(row.note.metadata.path,mutation))throw new Error('The source editor could not save its draft.')}else await vaultFrontmatterSet(row.note.metadata.path, key, formatScalarCell(value), row.note.metadata.content_hash, vaultId)
+      if (!await runSourceNoteMutation(row.note.metadata.path, mutation)) throw new Error('The source editor could not save its draft.')
       const note = await vaultReadNote(row.note.metadata.path)
       if (request !== generation.current || note.metadata.vault_id !== vaultId) return
       setRows((current) => current.map((item) => item.note.metadata.path === note.metadata.path ? { note, values: scalarFields(note.markdown) } : item))
@@ -142,7 +143,8 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
       <div className="database-studio-actions"><button type="button" disabled={!native || busy} onClick={() => void load()}>Load notes</button><button type="button" disabled={!vaultId || busy || presetLoadFailed} onClick={() => void saveView()}>Save view</button><button type="button" disabled={busy} onClick={() => setView({ ...defaultDatabaseView(), id: crypto.randomUUID(), label: 'New view' })}>New view</button>{busy ? <button type="button" onClick={() => { generation.current += 1; if(presetState.current==='loading'){presetState.current='failed';setPresetLoadFailed(true);setError('Saved view loading was stopped. Reload saved views before saving.')}setBusy(false); setStatus('Stopped waiting. Any submitted save may still finish; reload to check its result.') }}>Stop waiting</button> : null}</div>
       {!native ? <p>Open a folder of notes in the desktop app to view and edit note properties. Saved views stay on this device.</p> : null}
       {error ? <p role="alert">{error}</p> : null}{presetLoadFailed?<><p>Review the loading error, repair the stored view file if needed, then reload before saving.</p><button type="button" disabled={busy} onClick={()=>setReloadPresets(value=>value+1)}>Reload saved views</button></>:null}<p role="status">{status}</p>
-      <DatabaseStudioResults rows={rows} columns={loadedColumns} values={values} mode={view.mode} busy={busy} onOpenNote={onOpenNote} onEdit={editCell} />
+      {native && !runSourceNoteMutation && rows.length > 0 ? <p>Note properties are read-only until the source editor is available. Open a note from the results to edit it safely.</p> : null}
+      <DatabaseStudioResults rows={rows} columns={loadedColumns} values={values} mode={view.mode} busy={busy || !runSourceNoteMutation} onOpenNote={onOpenNote} onEdit={editCell} />
       {rows.length ? <details><summary>Totals for loaded notes</summary><dl>{loadedColumns.map((column,index) => <div key={column.key}><dt>{column.label}</dt><dd>Numeric count {aggregates[index].count}; sum {aggregates[index].sum ?? '—'}; average {aggregates[index].average ?? '—'}; min {aggregates[index].min ?? '—'}; max {aggregates[index].max ?? '—'}</dd></div>)}</dl></details> : null}
     </div>
   </>
