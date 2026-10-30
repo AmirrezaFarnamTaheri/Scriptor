@@ -312,6 +312,16 @@ The implementation restricts command registration to available owner callbacks, 
 - **Next failing-first stage:** test-only commit `32f525d` adds real-hook regressions for stale pull/commit completion refreshing a different vault, including switch-away-and-back. No source fix has been applied and **RED remains unobserved** until hosted source tests execute.
 - **Pending:** exact-head hosted source, TypeScript, browser, Rust, Windows, and visual acceptance; installed-client duplicate-submit, vault switch, crash/restart and native failure acceptance. This is one MAT-005 slice, not checklist completion.
 
+## MAT-016 — ambiguous Google Tasks mirroring (PR #230)
+
+- **Follow-up ownership case:** test-only `02fe5719` adds two real-hook cases for a remote record shared by scoped A/B owner markers, or by an exact legacy A owner and scoped B owner. The native batch must not update either record. The corresponding renderer guard rejects current-vault claims on records also marked for a different vault. This new patch is **not yet exact-head hosted green**; source tests were written first, but the hosted RED was not observed when implementation began. Live-provider and installed-client acceptance remain pending.
+
+- **RED confirmed:** test-only `12334132dad4e71fc7d54e09543be263f344443a`, hosted [CI #40883180912](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40883180912), source regression suite. Of 685 tests, 683 passed and exactly two new cases failed: duplicate scoped remote markers prepared a provider mutation (1 instead of 0), and duplicate stable IDs from two local notes likewise prepared a provider mutation (1 instead of 0).
+- **Implementation:** preflight duplicate local IDs and duplicate current-vault provider ownership markers before `googleCalendarApplyTaskSync`. Ambiguous ownership now produces an actionable review-required error in the existing Tasks panel. No provider write, new permission owner, or automatic duplicate reconciliation is introduced.
+- **Extension:** test-only `dd5601a8` added four real-hook cases for multiple scoped local owners on one remote record, two matching legacy markers across records, repeated provider IDs with differing markers, and empty scoped ownership. This test commit was pushed before the implementation; a hosted failing-first result was **not observed** at the time the fix was prepared. The subsequent fix preflights those cases before any approved mutation. No independent Google authorization or task-ID reconciler was added.
+- **Further test-first evidence:** `0e1af9f` adds legacy/scoped cross-record collision and blank local-ID regressions before the source guard. No hosted behavioral RED was observed for that intermediate head; do not report a confirmed RED for these six additional cases. The implementation rejects both before native batch admission.
+- **Pending:** exact-head GREEN source, frontend/TypeScript, Rust, browser, Windows, visual and docs verification for the final implementation. Real Google provider and installed-desktop collision/restart acceptance remain unavailable. This is one MAT-016 slice, not completion of the 24-item program.
+
 ## Canonical history gate
 
 Run from a full canonical clone:

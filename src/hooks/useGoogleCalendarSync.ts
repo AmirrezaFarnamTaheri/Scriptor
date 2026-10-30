@@ -471,6 +471,84 @@ export function useGoogleCalendarSync({
     let skipped = 0
 
     try {
+      // Both local and provider ownership must be unambiguous before any
+      // approved native Google Tasks batch is prepared.
+      const localIds = new Set<string>()
+      for (const note of vaultNotes) {
+        for (const task of note.tasks) {
+          if (!task.id?.trim()) {
+            throw new Error('Missing vault task identity. Review or reindex the source note before syncing Google Tasks.')
+          }
+          if (localIds.has(task.id)) {
+            throw new Error('Duplicate vault task identity. Review or reindex the source notes before syncing Google Tasks.')
+          }
+          localIds.add(task.id)
+        }
+      }
+
+      // An interrupted prior mirror can leave two remote records claiming
+      // the same vault task. Choosing the first would wrongly complete the
+      // other as a deleted task. Fail the entire batch before native writes.
+      const ownedPrefix = vaultSourcePrefix(vaultId)
+      const anyVaultPrefix = `${SOURCE_MARKER_PREFIX} vault:`
+      const legacyPrefix = `${SOURCE_MARKER_PREFIX} `
+      const remoteOwners = new Set<string>()
+      const legacyOwners = new Set<string>()
+      const claimedTaskIds = new Set<string>()
+      const remoteIds = new Set<string>()
+      for (const remoteTask of tasks) {
+        if (!remoteTask.id.trim() || remoteIds.has(remoteTask.id)) {
+          throw new Error('Duplicate or missing Google Task identity. Refresh and review the Tasks list before syncing.')
+        }
+        remoteIds.add(remoteTask.id)
+
+        // The same remote task cannot own two different local tasks. Legacy
+        // markers only participate when their exact ID exists in this vault;
+        // unscoped markers from other vaults do not authorize a rebind.
+        const claimedLocalIds = new Set<string>()
+        let hasForeignVaultOwner = false
+        const markerLines = new Set((remoteTask.notes ?? '').split('\n'))
+        for (const marker of markerLines) {
+          if (marker.startsWith(ownedPrefix)) {
+            const taskId = marker.slice(ownedPrefix.length)
+            if (!taskId.trim()) {
+              throw new Error('Invalid Google Tasks ownership marker. Review this record before syncing.')
+            }
+            claimedLocalIds.add(taskId)
+            if (remoteOwners.has(marker)) {
+              throw new Error('Duplicate Google Tasks ownership marker. Review duplicate Google Tasks before syncing.')
+            }
+            remoteOwners.add(marker)
+          } else if (marker.startsWith(anyVaultPrefix)) {
+            // Never rebind a shared provider record across vaults, even when
+            // one of its other ownership claims is an exact legacy task ID.
+            hasForeignVaultOwner = true
+          } else if (marker.startsWith(legacyPrefix)) {
+            const taskId = marker.slice(legacyPrefix.length)
+            if (!localIds.has(taskId)) continue
+            claimedLocalIds.add(taskId)
+            if (legacyOwners.has(marker)) {
+              throw new Error('Ambiguous legacy Google Tasks ownership. Review duplicates before syncing.')
+            }
+            legacyOwners.add(marker)
+          }
+        }
+        if (claimedLocalIds.size > 1) {
+          throw new Error('Ambiguous Google Tasks ownership. One Google Task claims multiple vault tasks; review before syncing.')
+        }
+        if (hasForeignVaultOwner && claimedLocalIds.size > 0) {
+          throw new Error('A Google Task is claimed by multiple vaults. Review ownership before syncing.')
+        }
+        // A legacy and a scoped marker on different provider records still
+        // claim the same local identity. Never choose one by list order.
+        for (const taskId of claimedLocalIds) {
+          if (claimedTaskIds.has(taskId)) {
+            throw new Error('Ambiguous Google Tasks ownership. Multiple Google Tasks claim one vault task; review before syncing.')
+          }
+          claimedTaskIds.add(taskId)
+        }
+      }
+
       for (const note of vaultNotes) {
         for (const task of note.tasks) {
           const marker = sourceMarker(vaultId, task.id)
