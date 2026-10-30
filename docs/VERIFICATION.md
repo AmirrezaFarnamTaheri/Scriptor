@@ -322,6 +322,16 @@ The implementation restricts command registration to available owner callbacks, 
 - **Further test-first evidence:** `0e1af9f` adds legacy/scoped cross-record collision and blank local-ID regressions before the source guard. No hosted behavioral RED was observed for that intermediate head; do not report a confirmed RED for these six additional cases. The implementation rejects both before native batch admission.
 - **Pending:** exact-head GREEN source, frontend/TypeScript, Rust, browser, Windows, visual and docs verification for the final implementation. Real Google provider and installed-desktop collision/restart acceptance remain unavailable. This is one MAT-016 slice, not completion of the 24-item program.
 
+## MAT-009 Database Studio view-result ownership — October 30, 2026
+- **CI failure observed:** [CI #40970375883](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40970375883) failed the fast lint job with `react-hooks/set-state-in-effect`, `react-hooks/refs`, and exhaustive-deps warnings. The fix removes new synchronous state updates from the vault effect, replaces render-time ref reads with a stored immutable view/vault/preset identity, and memoizes visible rows/columns. The query cancellation and stale-edit guards still use the ref only in callbacks/effects, where it is valid.
+- **Hosted GREEN at `15a1f2f4`:** [CI #41024144641](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41024144641), [Visual #41024144551](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41024144551) and [Docs #41024144556](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41024144556) completed successfully, including the formerly failing Browser E2E layout case.
+
+
+- A view change could leave previous rows, aggregates and editable callbacks on screen. A pending query could later repopulate rows from a prior view.
+- Test-first `02692a0` adds two actual-TSX harness regressions for stale rows/edit callbacks and late query settlement. Hosted behavioral RED was not observed at the time of implementation.
+- A view revision and loaded-scope key now invalidate old rows, projections, edit authority and stale query errors, and discard old query completion; native authorization, expected hash, source-editor coordination and 200-candidate/32-MiB budgets stay unchanged.
+- Test-only `b9ed54c` additionally covers late native query rejection after switching filters; its hosted RED was not observed at the time the guarded catch was committed.
+- Repeat exact-head source/browser/Rust/Windows/visual checks after integration with the latest main. Installed-client concurrency acceptance remains outstanding. MAT-009 complete native projections/pagination and MAT-010 schema/batch edits remain unimplemented.
 ## Canonical history gate
 
 Run from a full canonical clone:
