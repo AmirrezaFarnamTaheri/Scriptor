@@ -305,7 +305,8 @@ mod tests {
     #[test]
     fn reviewed_revision_hash_accepts_exact_original_bytes() {
         let markdown = "# Saved body\n";
-        assert!(validate_reviewed_history_revision(markdown, &crate::hash::content_hash(markdown)).is_ok());
+        let hash = crate::hash::content_hash(markdown);
+        assert!(validate_reviewed_history_revision(markdown, &hash).is_ok());
     }
 
     #[test]
