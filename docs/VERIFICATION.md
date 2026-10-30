@@ -41,6 +41,22 @@ enforcement applies to maintained product and contributor documentation.
 Provenance-sensitive audit records under `docs/validation/` and archived
 documents remain exempt; active user guides do not.
 
+## MAT-005 Obsidian attachment path and publication safety — October 29, 2026
+
+Stacked draft [PR #229](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/229) addresses two attachment paths beyond the Markdown-only changes in #228. Test-only commit [`de6af81`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/de6af818f83eebd2599b59ce4c26fda9219623fe) adds real Unix filesystem regressions for source attachment symlinks and a destination nested symlink to outside the vault. `WalkDir.follow_links(false)` still yields symlink entries; the previous importer did not reject them and joined paths under `_attachments` without revalidating the nested prefix.
+
+Implementation: skip source symlink/nonregular entries, resolve every destination via `VaultRoot::resolve_relative` after creating parents, copy into a unique create-only staging file, then use atomic `fs::hard_link` publication while holding the existing vault mutation lock. This follows the established offline-PDF publication pattern, not a new authority. Existing destination attachments are reported as skips; staging is removed automatically. The copy may be long, so it runs outside the mutation lock. A source path changed by an adversarial external process after its filesystem-type check is not covered by these ordinary filesystem tests.
+
+Additional filesystem regressions reject the same folder or a nested folder as a destination before any _attachments directory is created; canonical source-path containment is validated before the importer starts walking or writing.
+
+**Verification is pending on the implementation head.** Test-only CI may be queued/canceled and cannot be treated as observed RED; Rustfmt, Clippy, full native tests, browser/desktop/visual and installed-client acceptance are required before merge.
+
+## MAT-005 Obsidian import collision safety — October 29, 2026
+
+Draft [PR #228](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/228) adds two real, filesystem-backed Rust regression cases: an incoming note colliding with authored local content, and repeating an import after editing the previously imported note. The test-only commit [`d8aa3c9`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/d8aa3c9be9342b83bed379f98f1f149a8c099900) predates the implementation; its [CI run #40863276455](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40863276455) was queued, so **no observed failing-first Rust assertion is claimed**.
+
+The importer now calls the existing atomic vault writer with `EXPECTED_MISSING_CONTENT_HASH` rather than a missing precondition. An existing destination note is skipped and reported with a path-specific explanation; new notes still import. No parallel writer, file-existence race, authorization change or silent merge is introduced. **Implementation-head Rust, Clippy, source, desktop, visual and installed-client evidence are pending**, so no release claim follows from this source patch. See `tasks/plans/2026-10-29-obsidian-create-only.md`.
+
 ## PR #160 remediation evidence — October 11, 2026
 
 This is the authoritative execution/evidence record for the Canvas, provider Markdown, accessibility and dependency consolidation. All results below are **historical and revision-specific**. They do not certify a newer head or packaged release. The [Canvas engineering analysis](validation/SCRIPTOR-ENGINEERING-AUDIT-2026-10-11.md) and [provider boundary analysis](validation/FORENSIC-REVIEW-2026-10-11.md) contain causes and engineering decisions, not separate outcome ledgers.
@@ -185,11 +201,37 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 - The release upload boundary excludes unpacked bundle internals and CI evidence.
 - Checksums and attestations cover installers, while target trust records remain separately verified release metadata.
 
+
+## MAT-008 — Git commit expected-vault binding (draft PR #211)
+
+- **Hosted RED:** test-only `06a3a4e482b432238b11621807d01e730162bd70`, [CI #40595869204](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40595869204), source regression: 683 pass, 2 expected failures. The Git commit invocation omitted `expectedVaultId`; an empty vault identity was not rejected.
+- **Implementation awaiting exact-head checks:** require the initiating vault in the TypeScript bridge and native Tauri commit command, enforce it before GitQueue, and test native denied/accepted outcomes plus the browser mock.
+- **Still pending:** source GREEN, Rust/Windows/Browser E2E/visual/docs, installed-client delayed-invoke acceptance, and daemon/CLI/MCP parity under issue #188. This slice does not complete MAT-008.
+
 ## RUSTSEC-2026-0414 — pulldown-cmark advisory remediation
 
 - **Failure observed:** [CI #40661251859](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40661251859) at MAT-008 daemon head `eb19fcb42014531026dac9c4d88f01300f223dc8`. Cargo deny rejected `pulldown-cmark 0.13.4` with advisory RUSTSEC-2026-0414: crafted `[[a|]]` input may cause exponential event growth when `ENABLE_WIKILINKS` is on.
 - **Patch:** raise direct workspace minimums to `0.13.5` and update the single Cargo.lock entry. The crates.io index confirms checksum `278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb`; both versions have the same normal dependency set and feature flags. No security ignore is introduced and no application parser feature is disabled.
 - **Pending:** exact-head cargo-deny, Cargo.lock parity, Rust tests, production builds, browser and package acceptance. This is an independent dependency fix and does not certify MAT-008.
+
+## PR #222 — local-socket subscription compatibility (October 29, 2026)
+
+- **Observed failure:** [CI #40852302352](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40852302352), exact dependency-upgrade head `8c13a68e1f063712af8c2979830623bab79e7fab`: `Contracts, automation, lint, and Rust tests` failed at `Clippy workspace checks` because `interprocess::local_socket::traits::Stream::split` is deprecated. Other executable jobs and standalone Visual/Desktop workflows passed on that old head. This is a dependency compatibility blocker, not a demonstrated application data regression.
+- **Source correction:** [`3708b1c`](https://github.com/AmirrezaFarnamTaheri/Scriptor/commit/3708b1cb197caa399016e530992ae49a36e49b8a) removes the deprecated split and detached disconnect-probe thread. The authenticated nonblocking stream now checks for EOF/unexpected client data before each event-receive interval, and reuses the same stream for deadline-bounded event writes. Endpoint nonce checks, event encoding, rate limits and the original subscription poll interval are unchanged.
+- **Hosted exact-head verification:** [CI #40862620166](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40862620166), plus desktop compile and Visual review, were queued/in progress when this record was authored; no green result is claimed here. The existing daemon event subscription and reconnection Rust tests must pass after the dependency bump.
+- **Not yet established:** installed-client disconnect/reconnect and multiprocess shutdown behavior. The source change is not proof of release acceptance.
+
+## MAT-005 / MAT-010 Database Studio source-editor coordination — October 29, 2026
+
+[PR #217](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/217) guards the mutation boundary between Database Studio and the one writable Markdown source editor. It is a focused safety slice, not full MAT-005, MAT-009 or MAT-010 implementation.
+
+| Source or environment | Result | Classification |
+|---|---|---|
+| Test-only `8bd17fc`, [CI #40776875924](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40776875924) | Two real-component tests authored before the fix. Hosted source-suite outcome not observed when production code was published. | **Observed failing-first result not yet established** |
+| Follow-up code to `DatabaseStudioPanel.editCell` | Direct native fallback removed. Without `runSourceNoteMutation`, loaded cells are read-only and direct calls reject; with a coordinator, expected-hash and initiating-vault checks remain. | **Source implementation; current-head green pending** |
+
+No installed-client unsaved-draft, vault-switch, or restart acceptance is asserted. A browser mock cannot certify native rollback or durable success.
+
 
 ## Canonical history gate
 
