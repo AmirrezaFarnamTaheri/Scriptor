@@ -21,7 +21,7 @@ test('MAT-004 native revision preview rejects a missing or wrong vault before so
   assert.match(fn, /expected_vault_id:\s*String\s*,/, 'a missing vault identity must not be accepted as an Option')
   assert.match(fn, /Some\(&expected_vault_id\)/, 'native validation must use the supplied vault identity')
   const check = fn.indexOf('validate_expected_vault(')
-  const read = fn.indexOf('read_note_history_revision(')
+  const read = fn.indexOf('read_note_history_revision(&session.root')
   assert.ok(check > -1 && read > check, 'native must check the identity before opening revision bytes')
 })
 
