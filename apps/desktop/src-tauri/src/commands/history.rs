@@ -1,5 +1,5 @@
 use scriptor_vault::{
-    RelativeVaultPath, SaveNoteOptions, SaveNoteOutput, read_note, read_note_history_revision,
+    RelativeVaultPath, SaveNoteOptions, SaveNoteOutput, read_note_history_revision,
     save_note_with_options,
 };
 
@@ -12,9 +12,9 @@ fn validate_reviewed_revision_hash(markdown: &str, expected_hash: &str) -> Resul
     scriptor_vault::validate_reviewed_history_revision(markdown, expected_hash)
         .map_err(|error| error.to_string())
 }
-/// Restore a historical revision only if the note has not changed since this
-/// command observed its current content hash. A concurrent save between the
-/// read and write is rejected by the vault's optimistic-concurrency guard.
+/// Restore a historical revision only if the destination still has the content
+/// hash reviewed by the user before authorization. A concurrent edit during
+/// authorization or between revision read and write is rejected atomically.
 #[tauri::command]
 pub fn vault_restore_note_history_revision(
     state: tauri::State<AppState>,
@@ -23,6 +23,7 @@ pub fn vault_restore_note_history_revision(
     authorization_token: String,
     expected_vault_id: String,
     expected_revision_hash: String,
+    expected_current_hash: String,
 ) -> Result<SaveNoteOutput, String> {
     let session = active_session(&state)?;
     // Reject a vault switch before consuming sensitive authorization or reading files.
@@ -38,18 +39,19 @@ pub fn vault_restore_note_history_revision(
         Some(&session.descriptor.id),
     )?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
-    let current = read_note(&session.descriptor.id, &session.root, &relative)
-        .map_err(|error| error.to_string())?;
     let historical_markdown = read_note_history_revision(&session.root, &path, &revision_id)
         .map_err(|error| error.to_string())?;
     validate_reviewed_revision_hash(&historical_markdown, &expected_revision_hash)?;
+    if expected_current_hash.trim().is_empty() {
+        return Err("Missing reviewed destination hash. Compare the current note again.".into());
+    }
 
     save_note_with_options(
         &session.descriptor.id,
         &session.root,
         &relative,
         &historical_markdown,
-        Some(&current.metadata.content_hash),
+        Some(&expected_current_hash),
         SaveNoteOptions { dry_run: false },
     )
     .map_err(|error| error.to_string())
