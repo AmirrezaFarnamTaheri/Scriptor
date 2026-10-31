@@ -373,3 +373,25 @@ test('automatic kickoff tracks canonical VERSION and only follows successful pus
   )
   assert.match(kickoff, /needs\.validate-release\.outputs\.eligible == 'true'/)
 })
+
+test('immutable release tags are created only after a passing same-commit pre-tag quality suite', () => {
+  const workflow = read('.github/workflows/release-kickoff.yml')
+  const validation = workflow.split('\n  validate-release:\n')[1]?.split('\n  tag-and-dispatch:\n')[0]
+  const publication = workflow.split('\n  tag-and-dispatch:\n')[1]
+  assert.ok(validation && publication, 'release kickoff must separate read-only validation from publication')
+
+  const versionCheck = validation.indexOf('Validate synchronized version contract')
+  const qualityCheck = validation.indexOf('Run source-bound pre-tag release quality gate')
+  assert.ok(qualityCheck > versionCheck && versionCheck >= 0,
+    'full release quality must pass on the exact validated commit before tags are created')
+  assert.match(validation, /timeout-minutes:\s*100/, 'validation must have time for the full release gate')
+  assert.match(validation, /pnpm install --frozen-lockfile/)
+  assert.match(validation, /pnpm exec playwright install --with-deps chromium/)
+  assert.match(validation, /node scripts\/release\/verify-changelog\.mjs/)
+  assert.match(validation, /run: node scripts\/release\/run-release-quality\.mjs/)
+  assert.match(validation, /if: steps\.eligibility\.outputs\.eligible == 'true'/)
+  assert.match(validation, /permissions:\n\s+contents: read\n\s+actions: read/)
+  assert.doesNotMatch(validation, /contents: write|actions: write/)
+  assert.match(publication, /needs: validate-release/)
+  assert.match(publication, /git tag -a/, 'only the succeeding downstream job can create an immutable tag')
+})
