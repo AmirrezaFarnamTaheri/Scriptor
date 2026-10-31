@@ -164,7 +164,6 @@ fn history_preview_rejects_missing_and_stale_vault_identity_before_revision_read
     }
 }
 
-
 #[test]
 fn direct_gateway_cannot_restore_retained_revision_without_desktop_authorization() {
     let vault = tempfile::tempdir().expect("temporary vault");
@@ -208,12 +207,8 @@ fn direct_gateway_cannot_restore_retained_revision_without_desktop_authorization
         "denial must occur before any history read or filesystem mutation: {error}"
     );
     let session = state.require_session().expect("vault remains open");
-    let after = scriptor_vault::read_note(
-        &session.descriptor.id,
-        &session.root,
-        &relative,
-    )
-    .expect("read unchanged note");
+    let after = scriptor_vault::read_note(&session.descriptor.id, &session.root, &relative)
+        .expect("read unchanged note");
     assert_eq!(after.markdown, "# Newer note must survive\n");
 }
 
@@ -230,7 +225,10 @@ fn direct_gateway_dispatch_rejects_every_desktop_only_command_before_arguments()
         "pdf_translate",
         "plantuml_render",
     ] {
-        assert!(requires_desktop_authorization(command), "{command} must stay restricted");
+        assert!(
+            requires_desktop_authorization(command),
+            "{command} must stay restricted"
+        );
         let error = dispatch(&mut state, command, &json!({}))
             .expect_err("restricted operation must fail at the gateway boundary");
         assert!(
