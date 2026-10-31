@@ -392,6 +392,15 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         }
         "vault_read_note_history_revision" => {
             let session = state.require_session()?;
+            let expected_vault_id = require_str(payload, "expectedVaultId")
+                .or_else(|_| require_str(payload, "expected_vault_id"))
+                .map_err(|_| "History read vault identity is required".to_string())?;
+            if expected_vault_id.trim().is_empty() {
+                return Err("History read vault identity is required".to_string());
+            }
+            if expected_vault_id.as_str() != session.descriptor.id.as_str() {
+                return Err("History read vault identity does not match the active vault".to_string());
+            }
             let path = require_str(payload, "path")?;
             let revision_id = require_str(payload, "revisionId")?;
             Ok(json!(
