@@ -74,9 +74,11 @@ export const WorkspacePortalOverlays = memo(function WorkspacePortalOverlays({
               vaultId={workspace.vault?.id??null}
               path={workspace.activePath}
               onClose={onCloseNoteHistory}
-              onRestored={() => {
-                void workspace.reloadActiveNoteFromDisk()
-                onCloseNoteHistory()
+              canRestoreActiveNote={workspace.canRestoreNoteHistory}
+              onRestored={async () => {
+                const reloaded = await workspace.reloadActiveNoteFromDisk()
+                if (reloaded) onCloseNoteHistory()
+                return reloaded
               }}
             />
           </Suspense>
