@@ -45,9 +45,9 @@ export async function vaultScan(): Promise<ScannedEntry[]> {
   return invoke<ScannedEntry[]>('vault_scan')
 }
 
-export async function vaultReadNote(path: string): Promise<NoteDocument> {
+export async function vaultReadNote(path: string, expectedVaultId?: string | null): Promise<NoteDocument> {
   requireNative()
-  return invoke<NoteDocument>('vault_read_note', { path })
+  return invoke<NoteDocument>('vault_read_note', { path, expectedVaultId: expectedVaultId ?? null })
 }
 
 export async function vaultSaveNote(
@@ -318,9 +318,9 @@ export interface NoteHistoryRevision {
   preview: string
 }
 
-export async function vaultListNoteHistory(path: string): Promise<NoteHistoryRevision[]> {
+export async function vaultListNoteHistory(path: string, expectedVaultId?: string | null): Promise<NoteHistoryRevision[]> {
   requireNative()
-  return invoke<NoteHistoryRevision[]>('vault_list_note_history', { path })
+  return invoke<NoteHistoryRevision[]>('vault_list_note_history', { path, expectedVaultId: expectedVaultId ?? null })
 }
 
 export async function vaultReadNoteHistoryRevision(path: string, revisionId: string, expectedVaultId?: string | null): Promise<string> {
