@@ -364,16 +364,28 @@ export function useWorkspaceEditor({
       && !hasPendingSave(path, vaultId)
   }, [activeNoteRef, activePathRef, hasPendingSave, isSavingRef])
 
-  const reloadActiveNoteFromDisk = useCallback(async (): Promise<boolean> => {
+  const reloadActiveNoteFromDisk = useCallback(async (options?: { requireClean?: boolean }): Promise<boolean> => {
     const path = activePathRef.current
     const vaultId = activeNoteRef.current?.metadata.vault_id
-    // Never cancel pending autosave or discard a draft while refreshing a restored note.
-    if (!path || !vaultId || !canRestoreNoteHistory(path, vaultId)) return false
+    if (!path || !vaultId || persistenceSuspendedRef.current) return false
+    const requireClean = options?.requireClean ?? false
+    // History restore must never discard an unsaved draft. An explicit
+    // external-change reload remains user-controlled and may discard edits.
+    if (requireClean && !canRestoreNoteHistory(path, vaultId)) return false
     const navigationGeneration = ++navigationGenerationRef.current
     const draftRevision = draftRevisionRef.current
     const isCurrent = () => navigationGeneration === navigationGenerationRef.current
       && draftRevision === draftRevisionRef.current
-      && canRestoreNoteHistory(path, vaultId)
+      && activePathRef.current === path
+      && activeNoteRef.current?.metadata.vault_id === vaultId
+      && !persistenceSuspendedRef.current
+      && (!requireClean || canRestoreNoteHistory(path, vaultId))
+    if (!requireClean) {
+      discardPendingDocumentSave(path, vaultId)
+      const inFlight = inFlightSavesByDocRef.current.get(`${vaultId}:${path}`)
+      if (inFlight) await inFlight
+    }
+    if (!isCurrent()) return false
     const document = await vaultReadNote(path, vaultId)
     if (!isCurrent() || document.metadata.vault_id !== vaultId) return false
     saveOverwriteRef.current = false
@@ -390,7 +402,7 @@ export function useWorkspaceEditor({
     void loadBacklinks(path)
     logActivity('info', 'Reloaded note from disk', path)
     return true
-  }, [activeNoteRef, activePathRef, canRestoreNoteHistory, draftMarkdownRef, loadBacklinks, logActivity])
+  }, [activeNoteRef, activePathRef, canRestoreNoteHistory, discardPendingDocumentSave, draftMarkdownRef, loadBacklinks, logActivity])
 
   const finishVaultReplacement = useCallback(async () => {
     savedHashesRef.current.clear()
