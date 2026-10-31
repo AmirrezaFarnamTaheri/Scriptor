@@ -123,7 +123,6 @@ fn git_commit_gateway_accepts_originating_vault_identity() {
         .expect("matching vault identity must be admitted");
 }
 
-
 #[test]
 fn history_preview_rejects_missing_and_stale_vault_identity_before_revision_read() {
     let vault_a = tempfile::tempdir().expect("vault A");
