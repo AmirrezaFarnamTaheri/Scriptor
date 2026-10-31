@@ -193,7 +193,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
         setConfirmRestore(false)
         throw new Error('The current note changed. Compare the updated content before restoring.')
       }
-      await vaultRestoreNoteHistoryRevision(path, selectedId, vaultId, selectedRevision.content_hash)
+      await vaultRestoreNoteHistoryRevision(path, selectedId, vaultId, selectedRevision.content_hash, latest.metadata.content_hash)
       setCurrentState({ path, vaultId, markdown: preview })
       setStatus('Revision restored.')
       setConfirmRestore(false)
