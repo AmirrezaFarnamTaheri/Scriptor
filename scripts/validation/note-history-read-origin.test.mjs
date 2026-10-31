@@ -27,7 +27,7 @@ test('MAT-004 native revision preview rejects a missing or wrong vault before so
 
 test('MAT-004 daemon revision preview requires current initiating vault identity before reading', () => {
   const start = daemon.indexOf('"vault_read_note_history_revision" => {')
-  const end = daemon.indexOf('"vault_restore_note_history_revision" => {', start)
+  const end = daemon.indexOf('"indexer_rebuild" =>', start)
   assert.ok(start >= 0 && end > start, 'daemon read route remains addressable and bounded')
   const route = daemon.slice(start, end)
   assert.match(route, /expected_vault_id|expectedVaultId/, 'read route must validate an origin')
