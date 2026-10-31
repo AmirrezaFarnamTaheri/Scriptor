@@ -143,8 +143,9 @@ fn history_preview_rejects_missing_and_stale_vault_identity_before_revision_read
         json!({ "path": "notes/research.md", "revisionId": "old", "expectedVaultId": stale_id }),
         json!({ "path": "notes/research.md", "revisionId": "old", "expected_vault_id": "" }),
     ] {
-        let err = dispatch(&mut state, "vault_read_note_history_revision", &payload)
-            .expect_err("a missing, blank or stale origin must not open the active vault's revision");
+        let err = dispatch(&mut state, "vault_read_note_history_revision", &payload).expect_err(
+            "a missing, blank or stale origin must not open the active vault's revision",
+        );
         assert!(
             err.to_lowercase().contains("vault identity"),
             "preview must fail at the identity boundary, not the filesystem: {err}"
