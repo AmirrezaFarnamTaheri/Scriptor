@@ -32,28 +32,33 @@ interface NoteHistoryPanelProps {
 
 interface RevisionState {
   path: string
+  vaultId: string
   rows: NoteHistoryRevision[]
 }
 
 interface PreviewState {
   path: string
+  vaultId: string
   revisionId: string
   markdown: string
 }
 
 interface CurrentNoteState {
   path: string
+  vaultId: string
   markdown: string
 }
 
 interface PreviewErrorState {
   path: string
+  vaultId: string
   revisionId: string
   message: string
 }
 
 interface CurrentErrorState {
   path: string
+  vaultId: string
   message: string
 }
 
@@ -80,31 +85,33 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
   const [showDiff, setShowDiff] = useState(true)
 
   useEffect(() => {
-    if (!path) return
+    if (!path || !vaultId) return
     let cancelled = false
     const requestedPath = path
+    const requestedVaultId = vaultId
     void Promise.allSettled([
-      vaultListNoteHistory(requestedPath),
-      vaultReadNote(requestedPath),
+      vaultListNoteHistory(requestedPath, requestedVaultId),
+      vaultReadNote(requestedPath, requestedVaultId),
     ]).then(([historyResult, currentResult]) => {
       if (cancelled) return
       if (historyResult.status === 'fulfilled') {
         const rows = historyResult.value
-        setRevisionState({ path: requestedPath, rows })
+        setRevisionState({ path: requestedPath, vaultId: requestedVaultId, rows })
         setSelectedId(rows[0]?.id ?? null)
         setStatus('')
       } else {
-        setRevisionState({ path: requestedPath, rows: [] })
+        setRevisionState({ path: requestedPath, vaultId: requestedVaultId, rows: [] })
         setStatus(historyResult.reason instanceof Error ? historyResult.reason.message : 'Could not load note history')
       }
 
       if (currentResult.status === 'fulfilled') {
-        setCurrentState({ path: requestedPath, markdown: currentResult.value.markdown })
+        setCurrentState({ path: requestedPath, vaultId: requestedVaultId, markdown: currentResult.value.markdown })
         setCurrentError(null)
       } else {
         setCurrentState(null)
         setCurrentError({
           path: requestedPath,
+          vaultId: requestedVaultId,
           message: currentResult.reason instanceof Error ? currentResult.reason.message : 'Could not read the current note',
         })
       }
@@ -113,19 +120,20 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
     return () => {
       cancelled = true
     }
-  }, [path])
+  }, [path, vaultId])
 
   const loadedHistoryPath = revisionState?.path ?? null
+  const loadedHistoryVaultId = revisionState?.vaultId ?? null
 
   useEffect(() => {
-    if (!path || !selectedId || loadedHistoryPath !== path || !vaultId) return
+    if (!path || !selectedId || loadedHistoryPath !== path || loadedHistoryVaultId !== vaultId || !vaultId) return
     let cancelled = false
     const requestedPath = path
     const requestedRevision = selectedId
     void vaultReadNoteHistoryRevision(requestedPath, requestedRevision, vaultId)
       .then((markdown) => {
         if (!cancelled) {
-          setPreviewState({ path: requestedPath, revisionId: requestedRevision, markdown })
+          setPreviewState({ path: requestedPath, vaultId, revisionId: requestedRevision, markdown })
           setPreviewError(null)
         }
       })
@@ -134,6 +142,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
           setPreviewState(null)
           setPreviewError({
             path: requestedPath,
+            vaultId,
             revisionId: requestedRevision,
             message: error instanceof Error ? error.message : 'Could not load this revision',
           })
@@ -142,13 +151,16 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
     return () => {
       cancelled = true
     }
-  }, [loadedHistoryPath, path, selectedId, vaultId])
+  }, [loadedHistoryPath, loadedHistoryVaultId, path, selectedId, vaultId])
 
-  const revisions = useMemo(() => loadedHistoryPath === path ? revisionState?.rows ?? [] : [], [loadedHistoryPath, path, revisionState])
+  const revisions = useMemo(
+    () => loadedHistoryPath === path && loadedHistoryVaultId === vaultId ? revisionState?.rows ?? [] : [],
+    [loadedHistoryPath, loadedHistoryVaultId, path, vaultId, revisionState],
+  )
   const activity = useMemo(() => revisionHeatmap(revisions), [revisions])
   const selectedRevision = revisions.find((revision) => revision.id === selectedId) ?? null
-  const previewReady = previewState?.path === path && previewState.revisionId === selectedId
-  const currentReady = currentState?.path === path
+  const previewReady = previewState?.path === path && previewState.vaultId === vaultId && previewState.revisionId === selectedId
+  const currentReady = currentState?.path === path && currentState.vaultId === vaultId
   const preview = previewReady ? previewState.markdown : ''
   const currentMarkdown = currentReady ? currentState.markdown : ''
   const vocabulary = useMemo(() => {
@@ -156,8 +168,8 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
     return { current: vocabularyMetrics(currentMarkdown), revision: vocabularyMetrics(preview) }
   }, [previewReady, currentReady, preview, currentMarkdown])
   const previewErrorMessage =
-    previewError?.path === path && previewError.revisionId === selectedId ? previewError.message : null
-  const currentErrorMessage = currentError?.path === path ? currentError.message : null
+    previewError?.path === path && previewError.vaultId === vaultId && previewError.revisionId === selectedId ? previewError.message : null
+  const currentErrorMessage = currentError?.path === path && currentError.vaultId === vaultId ? currentError.message : null
   const canRestore = Boolean(
     vaultId && selectedRevision && selectedId && previewReady && currentReady && !previewErrorMessage && !currentErrorMessage,
   )
@@ -175,14 +187,14 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
     setBusy(true)
     setStatus('Restoring revision…')
     try {
-      const latest = await vaultReadNote(path)
+      const latest = await vaultReadNote(path, vaultId)
       if (latest.markdown !== currentMarkdown) {
-        setCurrentState({ path, markdown: latest.markdown })
+        setCurrentState({ path, vaultId, markdown: latest.markdown })
         setConfirmRestore(false)
         throw new Error('The current note changed. Compare the updated content before restoring.')
       }
       await vaultRestoreNoteHistoryRevision(path, selectedId, vaultId, selectedRevision.content_hash)
-      setCurrentState({ path, markdown: preview })
+      setCurrentState({ path, vaultId, markdown: preview })
       setStatus('Revision restored.')
       setConfirmRestore(false)
       onRestored?.()
