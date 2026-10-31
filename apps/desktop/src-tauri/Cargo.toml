@@ -1,6 +1,6 @@
 [package]
 name = "scriptor-desktop"
-version = "1.3.3"
+version = "1.3.4"
 description = "Scriptor desktop shell"
 authors = ["Scriptor"]
 edition = "2024"
