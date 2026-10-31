@@ -6,6 +6,31 @@ This document defines the evidence required to verify Scriptor. A result must
 identify its exact source commit, environment, target architecture and artifacts.
 Results from an older commit cannot certify a newer implementation.
 
+## MAT-004 — read-side Note History vault identity (PR #242)
+
+This is a separate read-only provenance slice stacked on the destructive-restore
+vault binding in [PR #240](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/240)
+and the reviewed-revision hash validation in
+[PR #241](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/241).
+
+- **Initial regression:** `scripts/validation/history-read-vault-scope.test.mjs`
+  asserts that history-list and current-note native commands check the
+  initiating vault ID *before* file access, the TypeScript bridge forwards
+  it, and Note History scopes the initial comparison and final restore
+  preflight to that identity. The source-contract tests were committed first
+  on `dff6fbef4c9c080ec68cc5d1d463c1d31dedffef`. Hosted RED is not
+  claimed unless the corresponding job actually reports failed assertions.
+- **Implementation:** reuse existing native `validate_expected_vault`;
+  optional read-command parameters preserve legacy callers, whereas the
+  Note History UI always supplies its origin ID. Timeline, revision preview,
+  current-note and displayed error state are keyed by vault as well as
+  relative path; the final preflight read also carries the origin.
+- **Verification pending:** exact-head CI (Node, TS, Rust/Clippy, Windows,
+  Browser E2E), visual and documentation; then installed vault A-to-B
+  same-path reads, delayed approval, restart and corrupt-source tests.
+  Native read binding does not establish full MAT-004, MAT-008 or
+  installed-app acceptance. Keep issues #183 and #188 open.
+
 ## Evidence and current status
 
 All executable verification for the current review runs on GitHub-hosted workers.
