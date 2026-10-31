@@ -136,7 +136,7 @@ jobs:
         with:
           name: scriptor-pretag-release-quality
           path: artifacts/release-quality/*
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
 
   tag-and-dispatch:
