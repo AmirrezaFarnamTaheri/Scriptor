@@ -347,22 +347,21 @@ test('hash mismatch fixture fails only the first qualifying save', () => {
 
 test('automatic kickoff tracks canonical VERSION and only follows successful push CI on the same default-branch commit', () => {
   const kickoff = read('.github/workflows/release-kickoff.yml')
+  const eligibility = read('scripts/release/kickoff-eligibility.sh')
   const version = read('VERSION').trim()
   assert.match(kickoff, /workflow_run:/)
   assert.match(kickoff, /workflows: \["CI"\]/)
   assert.match(kickoff, /github\.event\.workflow_run\.conclusion == 'success'/)
   assert.match(kickoff, /github\.event\.workflow_run\.event == 'push'/)
-  assert.match(kickoff, /\$GITHUB_SHA" != "\$SOURCE_SHA/)
+  assert.ok(eligibility.includes('${GITHUB_SHA:-}" != "${SOURCE_SHA:-}'))
   assert.match(version, /^\d+\.\d+\.\d+$/)
-  // An immutable tag is checked against the current VERSION at runtime,
-  // not a version literal embedded in the workflow source.
   assert.ok(
-    kickoff.includes('version=$(tr -d \'[:space:]\' < VERSION)'),
+    eligibility.includes("version=$(tr -d '[:space:]' < VERSION)"),
     'automatic kickoff must read the canonical VERSION',
   )
   assert.ok(
-    kickoff.includes('git ls-remote origin "refs/tags/v$version"'),
-    'automatic kickoff must avoid reusing the existing canonical version tag',
+    eligibility.includes('git ls-remote origin "refs/tags/$tag^{}"'),
+    'automatic kickoff must check the immutable canonical version tag',
   )
   assert.ok(
     kickoff.includes('SCRIPTOR_RELEASE_VERSION="v$version" node scripts/release/version.mjs check'),
