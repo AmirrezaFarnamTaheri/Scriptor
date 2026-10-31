@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import vm from 'node:vm'
+import ts from 'typescript'
 
 const bridge = readFileSync(new URL('../../src/bridge/commands/vault.ts', import.meta.url), 'utf8')
 const native = readFileSync(new URL('../../apps/desktop/src-tauri/src/commands/history.rs', import.meta.url), 'utf8')
@@ -51,4 +53,37 @@ test('MAT-004 restores only against the destination bytes reviewed before author
   assert.match(nativeRestore, /expected_current_hash:\s*String/)
   assert.match(nativeRestore, /Some\(&expected_current_hash\)/, 'atomic writer must check the reviewed hash, never the newly read hash')
   assert.doesNotMatch(nativeRestore, /Some\(&current\.metadata\.content_hash\)/, 'do not silently renew approval after an intervening edit')
+})
+
+test('MAT-004 an edit during sensitive authorization aborts before the native restore', async () => {
+  const transpiled = ts.transpileModule(bridge, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText
+  const invocations = []
+  let grant
+  let draftUnchanged = true
+  const module = { exports: {} }
+  vm.runInNewContext(transpiled, {
+    module,
+    exports: module.exports,
+    require: (id) => {
+      if (id === '@tauri-apps/api/core') return { invoke: async (command, args) => {
+        invocations.push({ command, args })
+        return {}
+      } }
+      if (id.includes('authorization')) return {
+        authorizeSensitiveOperation: () => new Promise(resolve => { grant = resolve }),
+      }
+      if (id.includes('native')) return { requireNative: () => {} }
+      return {}
+    },
+  })
+  const restoring = module.exports.vaultRestoreNoteHistoryRevision(
+    'note.md', 'revision-1', 'vault-alpha', 'reviewed-revision-hash',
+    'reviewed-destination-hash', () => draftUnchanged,
+  )
+  draftUnchanged = false
+  grant('authorization-token')
+  await assert.rejects(restoring, /editor changed|save.*before|review.*again|cancelled/i)
+  assert.equal(invocations.length, 0, 'native command must not run after an editor change during authorization')
 })
