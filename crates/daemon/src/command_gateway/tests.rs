@@ -163,3 +163,79 @@ fn history_preview_rejects_missing_and_stale_vault_identity_before_revision_read
         );
     }
 }
+
+
+#[test]
+fn direct_gateway_cannot_restore_retained_revision_without_desktop_authorization() {
+    let vault = tempfile::tempdir().expect("temporary vault");
+    let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+    let vault_id = session.descriptor.id.clone();
+    let relative = RelativeVaultPath::parse("note.md").expect("note path");
+    let current = scriptor_vault::save_note(
+        &vault_id,
+        &session.root,
+        &relative,
+        "# Newer note must survive\n",
+        None,
+    )
+    .expect("write current note");
+    let historical = "# Older reviewed content\n";
+    let revision = scriptor_vault::append_note_history(
+        &session.root,
+        "note.md",
+        historical,
+        &scriptor_vault::content_hash(historical),
+    )
+    .expect("retain historical note");
+
+    let mut state = DaemonState {
+        session: Some(session),
+        ..DaemonState::default()
+    };
+    // This payload mimics a fully reviewed desktop restore. Authorization is
+    // still native-only: a daemon caller must not be able to perform the write.
+    let payload = json!({
+        "path": "note.md",
+        "revisionId": revision.id,
+        "expectedVaultId": vault_id,
+        "expectedRevisionHash": scriptor_vault::content_hash(historical),
+        "expectedCurrentHash": current.metadata.content_hash,
+    });
+    let error = dispatch(&mut state, "vault_restore_note_history_revision", &payload)
+        .expect_err("daemon dispatch must reject desktop-only recovery");
+    assert!(
+        error.contains("desktop authorization"),
+        "denial must occur before any history read or filesystem mutation: {error}"
+    );
+    let session = state.require_session().expect("vault remains open");
+    let after = scriptor_vault::read_note(
+        &session.descriptor.id,
+        &session.root,
+        &relative,
+    )
+    .expect("read unchanged note");
+    assert_eq!(after.markdown, "# Newer note must survive\n");
+}
+
+#[test]
+fn direct_gateway_dispatch_rejects_every_desktop_only_command_before_arguments() {
+    let mut state = DaemonState::default();
+    for command in [
+        "vault_delete_note",
+        "vault_lint_fix",
+        "vault_restore_note_history_revision",
+        "git_pull_cmd",
+        "git_push_cmd",
+        "git_resolve_conflict_cmd",
+        "pdf_translate",
+        "plantuml_render",
+    ] {
+        assert!(requires_desktop_authorization(command), "{command} must stay restricted");
+        let error = dispatch(&mut state, command, &json!({}))
+            .expect_err("restricted operation must fail at the gateway boundary");
+        assert!(
+            error.contains("desktop authorization"),
+            "{command} must reject before attempting session, paths, or side effects: {error}"
+        );
+    }
+}
