@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 1.3.4 — 2026-10-31
+
+### Fixed
+
+- Reject cross-vault Note History previews, comparisons, and restores when a different vault becomes active; require the originating vault identity at the native and daemon read boundaries.
+- Verify the exact historical revision bytes against the reviewed revision hash before any destructive restore.
+- Compare restored destinations against their pre-authorization reviewed hashes inside the native atomic writer, preventing changes made during approval from being overwritten.
+- Preserve unsaved editor drafts and pending autosaves during history refresh, while retaining the explicitly confirmed external-conflict reload workflow.
+- Make automatic release kickoff detect immutable tag conflicts and safely retry a release only when an unpublished tag points to the same exact CI-validated commit.
+
+
 ### Improved
 
 - Reveal older retained backups progressively in sets of ten instead of hiding every backup beyond the first ten. Paging or changing destinations discards outstanding Restore/Delete approval, and the native backup order remains unchanged.
