@@ -27,7 +27,8 @@ interface NoteHistoryPanelProps {
   path: string | null
   vaultId?: string | null
   onClose: () => void
-  onRestored?: () => void
+  canRestoreActiveNote?: (path: string, vaultId: string) => boolean
+  onRestored?: () => Promise<boolean> | boolean
 }
 
 interface RevisionState {
@@ -71,7 +72,7 @@ function formatRevisionDate(value: string) {
 }
 
 /** Browses local note revisions and requires an explicit current-vs-revision comparison before restore. */
-export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=null, onClose, onRestored }: NoteHistoryPanelProps) {
+export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=null, onClose, canRestoreActiveNote, onRestored }: NoteHistoryPanelProps) {
   const [revisionState, setRevisionState] = useState<RevisionState | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [previewState, setPreviewState] = useState<PreviewState | null>(null)
@@ -187,17 +188,40 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
     setBusy(true)
     setStatus('Restoring revision…')
     try {
+      const isDraftSafe = () => !canRestoreActiveNote || canRestoreActiveNote(path, vaultId)
+      if (!isDraftSafe()) {
+        throw new Error('Save the active note and wait for pending edits to finish before restoring history. Your draft was preserved.')
+      }
       const latest = await vaultReadNote(path, vaultId)
       if (latest.markdown !== currentMarkdown) {
         setCurrentState({ path, vaultId, markdown: latest.markdown })
         setConfirmRestore(false)
         throw new Error('The current note changed. Compare the updated content before restoring.')
       }
-      await vaultRestoreNoteHistoryRevision(path, selectedId, vaultId, selectedRevision.content_hash, latest.metadata.content_hash)
+      if (!isDraftSafe()) {
+        throw new Error('The editor changed while checking the note. Save it and review the revision again.')
+      }
+      await vaultRestoreNoteHistoryRevision(
+        path,
+        selectedId,
+        vaultId,
+        selectedRevision.content_hash,
+        latest.metadata.content_hash,
+        isDraftSafe,
+      )
       setCurrentState({ path, vaultId, markdown: preview })
-      setStatus('Revision restored.')
       setConfirmRestore(false)
-      onRestored?.()
+      // Native restore is already durable. A refresh failure must not be
+      // displayed as a failed restore or silently discard a newer draft.
+      try {
+        const reloaded = await onRestored?.()
+        setStatus(reloaded === false
+          ? 'Revision restored on disk. New unsaved editor edits were preserved; save or reconcile them before reloading.'
+          : 'Revision restored.')
+      } catch (error) {
+        setStatus('Revision restored on disk, but the editor could not refresh: ' +
+          (error instanceof Error ? error.message : String(error)))
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Restore failed')
     } finally {
