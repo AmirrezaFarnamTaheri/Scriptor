@@ -587,10 +587,11 @@ pub fn vault_read_note_history_revision(
     state: tauri::State<AppState>,
     path: String,
     revision_id: String,
-    expected_vault_id: Option<String>,
+    expected_vault_id: String,
 ) -> Result<String, String> {
     let session = active_session(&state)?;
-    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
+    // A missing origin is no longer a permitted preview; deny stale A-to-B reads.
+    validate_expected_vault(&session.descriptor.id, Some(&expected_vault_id))?;
     read_note_history_revision(&session.root, &path, &revision_id)
         .map_err(|error| error.to_string())
 }
