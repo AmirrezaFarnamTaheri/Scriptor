@@ -328,7 +328,7 @@ export async function vaultReadNoteHistoryRevision(path: string, revisionId: str
   return invoke<string>('vault_read_note_history_revision', { path, revisionId, expectedVaultId: expectedVaultId??null })
 }
 
-export async function vaultRestoreNoteHistoryRevision(path: string, revisionId: string, expectedVaultId: string): Promise<SaveNoteOutput> {
+export async function vaultRestoreNoteHistoryRevision(path: string, revisionId: string, expectedVaultId: string, expectedRevisionHash: string): Promise<SaveNoteOutput> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('restore_history', path)
   return invoke<SaveNoteOutput>('vault_restore_note_history_revision', {
@@ -336,6 +336,7 @@ export async function vaultRestoreNoteHistoryRevision(path: string, revisionId: 
     revisionId,
     authorizationToken,
     expectedVaultId,
+    expectedRevisionHash,
   })
 }
 

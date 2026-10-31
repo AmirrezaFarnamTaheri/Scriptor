@@ -27,7 +27,7 @@ test('MAT-004 native history restore denies stale vault before consuming approva
 })
 
 test('MAT-004 note history passes originating vault identity through approved restore', () => {
-  assert.match(panel, /vaultRestoreNoteHistoryRevision\(path,\s*selectedId,\s*vaultId\)/)
+  assert.match(panel, /vaultRestoreNoteHistoryRevision\(path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash\)/, 'restore supplies the originating vault and exact reviewed revision hash')
   assert.match(panel, /const canRestore = Boolean\([\s\S]{0,150}vaultId/, 'restore is disabled without originating vault identity')
 })
 
