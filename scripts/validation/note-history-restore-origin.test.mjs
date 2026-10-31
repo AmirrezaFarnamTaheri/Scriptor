@@ -34,3 +34,21 @@ test('MAT-004 note history passes originating vault identity through approved re
 test('MAT-004 revision preview read remains bound to original vault on delayed responses', () => {
   assert.match(panel, /vaultReadNoteHistoryRevision\(requestedPath,\s*requestedRevision,\s*vaultId\)/)
 })
+
+test('MAT-004 restores only against the destination bytes reviewed before authorization', () => {
+  const panelRestore = panel.match(/const restore = async \(\) => \{[\s\S]*?\n  \}/)?.[0]
+  assert.ok(panelRestore, 'history restore UI remains present')
+  assert.match(panelRestore, /latest\.metadata\.content_hash/, 'reviewed disk hash must be captured before requesting authorization')
+  assert.match(panelRestore, /vaultRestoreNoteHistoryRevision\(path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash,\s*latest\.metadata\.content_hash\)/)
+
+  const bridgeRestore = bridge.match(/export async function vaultRestoreNoteHistoryRevision\([\s\S]*?\n\}/)?.[0]
+  assert.ok(bridgeRestore)
+  assert.match(bridgeRestore, /expectedCurrentHash:\s*string/)
+  assert.match(bridgeRestore, /expectedCurrentHash\s*,/, 'reviewed destination hash must cross asynchronous user authorization')
+
+  const nativeRestore = native.match(/pub fn vault_restore_note_history_revision\([\s\S]*?\n\}/)?.[0]
+  assert.ok(nativeRestore)
+  assert.match(nativeRestore, /expected_current_hash:\s*String/)
+  assert.match(nativeRestore, /Some\(&expected_current_hash\)/, 'atomic writer must check the reviewed hash, never the newly read hash')
+  assert.doesNotMatch(nativeRestore, /Some\(&current\.metadata\.content_hash\)/, 'do not silently renew approval after an intervening edit')
+})
