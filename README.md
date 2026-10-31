@@ -79,7 +79,7 @@ planning and Gmail workflows, including recovery and support limits.
 
 ## Get Scriptor
 
-Production installers are published as GitHub Release assets. The current version is **1.3.3** in source; published installers and their release status are listed on GitHub Releases.
+Production installers are published as GitHub Release assets. The current version is **1.3.4** in source; published installers and their release status are listed on GitHub Releases.
 
 - **Windows x86_64** — `.msi` and `.exe` (NSIS)
 - **macOS Apple Silicon (aarch64)** — `.dmg`
