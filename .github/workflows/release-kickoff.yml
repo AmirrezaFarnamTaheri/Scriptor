@@ -51,20 +51,8 @@ jobs:
         shell: bash
         env:
           SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          set -euo pipefail
-          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
-            if [ "$GITHUB_SHA" != "$SOURCE_SHA" ]; then
-              echo "::notice::CI succeeded on another commit; skip stale release kickoff."
-              exit 0
-            fi
-            version=$(tr -d '[:space:]' < VERSION)
-            if git ls-remote origin "refs/tags/v$version" | grep -q .; then
-              echo "::notice::v$version already tagged; no repeat dispatch."
-              exit 0
-            fi
-          fi
-          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/release/kickoff-eligibility.sh
 
       - name: Validate synchronized version contract
         if: steps.eligibility.outputs.eligible == 'true'

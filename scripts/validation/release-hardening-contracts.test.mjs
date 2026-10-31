@@ -131,9 +131,13 @@ test('release kickoff keeps write permissions out of validation', () => {
 
 test('automatic release follows canonical VERSION while preserving immutable tags', () => {
   const kickoff = read('.github/workflows/release-kickoff.yml')
-  assert.ok(kickoff.includes("version=$(tr -d '[:space:]' < VERSION)"))
-  assert.ok(kickoff.includes('git ls-remote origin "refs/tags/v$version"'))
+  const eligibility = read('scripts/release/kickoff-eligibility.sh')
+  assert.ok(kickoff.includes('bash scripts/release/kickoff-eligibility.sh'))
   assert.ok(kickoff.includes('if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && ! test "$version" = "$EXPECTED_VERSION"; then'))
+  assert.ok(eligibility.includes("version=$(tr -d '[:space:]' < VERSION)"))
+  assert.ok(eligibility.includes('git ls-remote origin "refs/tags/$tag^{}"'))
+  assert.match(eligibility, /Immutable version tag conflict/)
+  assert.match(eligibility, /release_status/)
   assert.doesNotMatch(kickoff, /Automatic release is only enabled for v\d+/)
   assert.doesNotMatch(kickoff, /EXPECTED_VERSION:.*'1\.3\.2'/)
 })
@@ -343,22 +347,21 @@ test('hash mismatch fixture fails only the first qualifying save', () => {
 
 test('automatic kickoff tracks canonical VERSION and only follows successful push CI on the same default-branch commit', () => {
   const kickoff = read('.github/workflows/release-kickoff.yml')
+  const eligibility = read('scripts/release/kickoff-eligibility.sh')
   const version = read('VERSION').trim()
   assert.match(kickoff, /workflow_run:/)
   assert.match(kickoff, /workflows: \["CI"\]/)
   assert.match(kickoff, /github\.event\.workflow_run\.conclusion == 'success'/)
   assert.match(kickoff, /github\.event\.workflow_run\.event == 'push'/)
-  assert.match(kickoff, /\$GITHUB_SHA" != "\$SOURCE_SHA/)
+  assert.ok(eligibility.includes('${GITHUB_SHA:-}" != "${SOURCE_SHA:-}'))
   assert.match(version, /^\d+\.\d+\.\d+$/)
-  // An immutable tag is checked against the current VERSION at runtime,
-  // not a version literal embedded in the workflow source.
   assert.ok(
-    kickoff.includes('version=$(tr -d \'[:space:]\' < VERSION)'),
+    eligibility.includes("version=$(tr -d '[:space:]' < VERSION)"),
     'automatic kickoff must read the canonical VERSION',
   )
   assert.ok(
-    kickoff.includes('git ls-remote origin "refs/tags/v$version"'),
-    'automatic kickoff must avoid reusing the existing canonical version tag',
+    eligibility.includes('git ls-remote origin "refs/tags/$tag^{}"'),
+    'automatic kickoff must check the immutable canonical version tag',
   )
   assert.ok(
     kickoff.includes('SCRIPTOR_RELEASE_VERSION="v$version" node scripts/release/version.mjs check'),
