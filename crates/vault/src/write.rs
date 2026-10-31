@@ -369,6 +369,47 @@ mod tests {
     }
 
     #[test]
+    fn history_restore_precondition_preserves_concurrent_destination_edits() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let path = RelativeVaultPath::parse("note.md").unwrap();
+
+        let reviewed = save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Reviewed current note\n",
+            None,
+        )
+        .unwrap();
+        let reviewed_hash = reviewed.metadata.content_hash;
+
+        // An autosave or external editor wrote after the user compared the
+        // destination, but before sensitive history-restore approval completed.
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Newer edit must survive\n",
+            Some(&reviewed_hash),
+        )
+        .unwrap();
+
+        let denied = save_note_with_options(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Historical revision\n",
+            Some(&reviewed_hash),
+            SaveNoteOptions { dry_run: false },
+        )
+        .unwrap_err();
+        assert!(matches!(denied, VaultError::HashMismatch { .. }));
+        let current = read_note(&session.descriptor.id, &session.root, &path).unwrap();
+        assert_eq!(current.markdown, "# Newer edit must survive\n");
+    }
+
+    #[test]
     fn dry_run_does_not_write_file() {
         let dir = tempdir().unwrap();
         let session = open_vault(dir.path()).unwrap();

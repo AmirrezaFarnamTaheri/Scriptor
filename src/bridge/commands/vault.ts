@@ -45,9 +45,9 @@ export async function vaultScan(): Promise<ScannedEntry[]> {
   return invoke<ScannedEntry[]>('vault_scan')
 }
 
-export async function vaultReadNote(path: string): Promise<NoteDocument> {
+export async function vaultReadNote(path: string, expectedVaultId?: string | null): Promise<NoteDocument> {
   requireNative()
-  return invoke<NoteDocument>('vault_read_note', { path })
+  return invoke<NoteDocument>('vault_read_note', { path, expectedVaultId: expectedVaultId ?? null })
 }
 
 export async function vaultSaveNote(
@@ -318,25 +318,41 @@ export interface NoteHistoryRevision {
   preview: string
 }
 
-export async function vaultListNoteHistory(path: string): Promise<NoteHistoryRevision[]> {
+export async function vaultListNoteHistory(path: string, expectedVaultId?: string | null): Promise<NoteHistoryRevision[]> {
   requireNative()
-  return invoke<NoteHistoryRevision[]>('vault_list_note_history', { path })
+  return invoke<NoteHistoryRevision[]>('vault_list_note_history', { path, expectedVaultId: expectedVaultId ?? null })
 }
 
-export async function vaultReadNoteHistoryRevision(path: string, revisionId: string, expectedVaultId?: string | null): Promise<string> {
+export async function vaultReadNoteHistoryRevision(path: string, revisionId: string, expectedVaultId: string): Promise<string> {
   requireNative()
-  return invoke<string>('vault_read_note_history_revision', { path, revisionId, expectedVaultId: expectedVaultId??null })
+  if (!expectedVaultId?.trim()) {
+    throw new Error('History read vault identity is required')
+  }
+  return invoke<string>('vault_read_note_history_revision', { path, revisionId, expectedVaultId })
 }
 
-export async function vaultRestoreNoteHistoryRevision(path: string, revisionId: string, expectedVaultId: string, expectedRevisionHash: string): Promise<SaveNoteOutput> {
+export async function vaultRestoreNoteHistoryRevision(
+  path: string,
+  revisionId: string,
+  expectedVaultId: string,
+  expectedRevisionHash: string,
+  expectedCurrentHash: string,
+  isRestoreStillSafe?: () => boolean,
+): Promise<SaveNoteOutput> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('restore_history', path)
+  // The user can keep editing while the OS authorization dialog is open.
+  // Never start a destructive native operation using approval from an older draft.
+  if (isRestoreStillSafe && !isRestoreStillSafe()) {
+    throw new Error('The active note changed during authorization. Save your draft and review the revision again.')
+  }
   return invoke<SaveNoteOutput>('vault_restore_note_history_revision', {
     path,
     revisionId,
     authorizationToken,
     expectedVaultId,
     expectedRevisionHash,
+    expectedCurrentHash,
   })
 }
 

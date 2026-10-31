@@ -16,6 +16,8 @@
 
 ### Fixed
 
+- Bind Note History timeline and current-note comparison reads to the initiating vault, including the final restore preflight. A delayed read from vault A cannot silently display vault B's same relative path; displayed revision, preview and error states are scoped to vault identity.
+
 - Reject a destructive Note History restore when the retained revision bytes have changed since review: require the timeline's content hash at native admission and verify the re-read source before writing the destination note, without weakening vault or destination-hash checks.
 
 - Reject Note History revision restores when a vault switch changes the active vault after the operation was initiated; pass the originating vault ID through the renderer bridge and validate it before native authorization or filesystem reads, and scope revision previews to that vault.

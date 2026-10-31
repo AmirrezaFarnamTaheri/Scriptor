@@ -11,7 +11,8 @@ test('MAT-004 source revision hash travels from reviewed timeline to native rest
   assert.ok(fn)
   assert.match(fn, /expectedRevisionHash:\s*string/)
   assert.match(fn, /expectedRevisionHash\s*,/)
-  assert.match(history, /vaultRestoreNoteHistoryRevision\(path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash\)/)
+  assert.match(history, /vaultRestoreNoteHistoryRevision\(\s*path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash,\s*latest\.metadata\.content_hash,\s*isDraftSafe,\s*\)/, 'reviewed revision, originating vault, and destination hash must all reach native restore')
+  assert.match(fn, /expectedCurrentHash:\s*string/, 'destination CAS must be an explicit required argument')
 })
 
 test('MAT-004 native restore refuses changed retained bytes before any destination write', () => {

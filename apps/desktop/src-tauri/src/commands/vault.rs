@@ -79,8 +79,10 @@ pub fn vault_scan(state: tauri::State<AppState>) -> Result<Vec<ScannedEntry>, St
 pub fn vault_read_note(
     state: tauri::State<AppState>,
     path: String,
+    expected_vault_id: Option<String>,
 ) -> Result<scriptor_vault::NoteDocument, String> {
     let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
     read_note(&session.descriptor.id, &session.root, &relative).map_err(|error| error.to_string())
 }
@@ -577,8 +579,10 @@ pub fn vault_health(state: tauri::State<AppState>) -> Result<String, String> {
 pub fn vault_list_note_history(
     state: tauri::State<AppState>,
     path: String,
+    expected_vault_id: Option<String>,
 ) -> Result<Vec<NoteHistoryEntry>, String> {
     let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     list_note_history(&session.root, &path).map_err(|error| error.to_string())
 }
 
@@ -587,10 +591,11 @@ pub fn vault_read_note_history_revision(
     state: tauri::State<AppState>,
     path: String,
     revision_id: String,
-    expected_vault_id: Option<String>,
+    expected_vault_id: String,
 ) -> Result<String, String> {
     let session = active_session(&state)?;
-    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
+    // A missing origin is no longer a permitted preview; deny stale A-to-B reads.
+    validate_expected_vault(&session.descriptor.id, Some(&expected_vault_id))?;
     read_note_history_revision(&session.root, &path, &revision_id)
         .map_err(|error| error.to_string())
 }

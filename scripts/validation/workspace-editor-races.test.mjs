@@ -30,7 +30,7 @@ function harness({ native = false } = {}) {
   }
   const pending = []
   const commands = {
-    vaultReadNote: (path) => new Promise((resolve, reject) => pending.push({ path, resolve, reject })),
+    vaultReadNote: (path, expectedVaultId) => new Promise((resolve, reject) => pending.push({ path, expectedVaultId, resolve, reject })),
     vaultRecordRecentNote: async () => {},
     indexerRecordRecentAccess: async () => {},
   }
@@ -427,4 +427,55 @@ test('closing a tab retains newer edits made while its save was pending', async 
   assert.equal(h.render().activePath, 'a.md')
   assert.equal(h.render().draftMarkdown, 'newer edit')
   assert.equal(h.render().openTabs.length, 1)
+})
+
+test('history restore eligibility requires the exact active vault and a fully saved draft', async () => {
+  const h = harness()
+  await h.open('a.md', 'vault-alpha')
+  assert.equal(h.render().canRestoreNoteHistory('a.md', 'vault-alpha'), true)
+  assert.equal(h.render().canRestoreNoteHistory('a.md', 'vault-beta'), false)
+  assert.equal(h.render().canRestoreNoteHistory('b.md', 'vault-alpha'), false)
+
+  h.render().updateDraft('unsaved history conflict')
+  assert.equal(h.render().canRestoreNoteHistory('a.md', 'vault-alpha'), false)
+  h.commands.vaultSaveNote = async (path, markdown) => h.document(path, markdown, 'vault-alpha')
+  h.commands.indexerUpdateNote = async () => {}
+  assert.equal(await h.render().saveActiveNoteNow(), true)
+  assert.equal(h.render().canRestoreNoteHistory('a.md', 'vault-alpha'), true)
+})
+
+test('history reload never discards a dirty draft or its pending autosave', async () => {
+  const h = harness()
+  await h.open('a.md')
+  h.render().updateDraft('draft that must survive')
+  const reload = h.render().reloadActiveNoteFromDisk({ requireClean: true })
+  assert.equal(h.pending.length, 0, 'must not issue a disk read while the editor is dirty')
+  assert.equal(await reload, false, 'reload must report a non-destructive refusal')
+  assert.equal(h.render().draftMarkdown, 'draft that must survive')
+  assert.equal(h.render().isNoteDirty, true)
+})
+
+test('history reload binds the disk read to the initiating vault identity', async () => {
+  const h = harness()
+  await h.open('a.md', 'vault-alpha')
+  const reload = h.render().reloadActiveNoteFromDisk({ requireClean: true })
+  const read = h.pending.shift()
+  assert.equal(read.path, 'a.md')
+  assert.equal(read.expectedVaultId, 'vault-alpha')
+  read.resolve(h.document('a.md', 'restored', 'vault-alpha'))
+  assert.equal(await reload, true)
+  assert.equal(h.render().draftMarkdown, 'restored')
+})
+
+test('explicit external-conflict reload retains its user-approved discard behavior', async () => {
+  const h = harness()
+  await h.open('a.md')
+  h.render().updateDraft('local conflicting draft')
+  // This action is only called after the user explicitly chooses the disk version.
+  const reload = h.render().reloadActiveNoteFromDisk()
+  const read = h.pending.shift()
+  assert.ok(read, 'an explicit reload must remain available for conflict resolution')
+  read.resolve(h.document('a.md', 'user-selected disk version'))
+  assert.equal(await reload, true)
+  assert.equal(h.render().draftMarkdown, 'user-selected disk version')
 })

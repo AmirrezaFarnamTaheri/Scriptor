@@ -355,10 +355,23 @@ export function useWorkspaceEditor({
     isSavingRef.current = isSaving
   }, [isSaving, isSavingRef])
 
-  const reloadActiveNoteFromDisk = useCallback(async () => {
+  /** A history restore may only replace a fully persisted draft in its original vault. */
+  const canRestoreNoteHistory = useCallback((path: string, vaultId: string): boolean => {
+    if (!path || !vaultId || persistenceSuspendedRef.current || isSavingRef.current) return false
+    const note = activeNoteRef.current
+    return activePathRef.current === path
+      && note?.metadata.vault_id === vaultId
+      && !hasPendingSave(path, vaultId)
+  }, [activeNoteRef, activePathRef, hasPendingSave, isSavingRef])
+
+  const reloadActiveNoteFromDisk = useCallback(async (options?: { requireClean?: boolean }): Promise<boolean> => {
     const path = activePathRef.current
-    if (!path || persistenceSuspendedRef.current) return
     const vaultId = activeNoteRef.current?.metadata.vault_id
+    if (!path || !vaultId || persistenceSuspendedRef.current) return false
+    const requireClean = options?.requireClean ?? false
+    // History restore must never discard an unsaved draft. An explicit
+    // external-change reload remains user-controlled and may discard edits.
+    if (requireClean && !canRestoreNoteHistory(path, vaultId)) return false
     const navigationGeneration = ++navigationGenerationRef.current
     const draftRevision = draftRevisionRef.current
     const isCurrent = () => navigationGeneration === navigationGenerationRef.current
@@ -366,13 +379,15 @@ export function useWorkspaceEditor({
       && activePathRef.current === path
       && activeNoteRef.current?.metadata.vault_id === vaultId
       && !persistenceSuspendedRef.current
-    discardPendingDocumentSave(path, vaultId)
-    const docKey = vaultId ? `${vaultId}:${path}` : null
-    const inFlight = docKey ? inFlightSavesByDocRef.current.get(docKey) : null
-    if (inFlight) await inFlight
-    if (!isCurrent()) return
-    const document = await vaultReadNote(path)
-    if (!isCurrent() || document.metadata.vault_id !== vaultId) return
+      && (!requireClean || canRestoreNoteHistory(path, vaultId))
+    if (!requireClean) {
+      discardPendingDocumentSave(path, vaultId)
+      const inFlight = inFlightSavesByDocRef.current.get(`${vaultId}:${path}`)
+      if (inFlight) await inFlight
+    }
+    if (!isCurrent()) return false
+    const document = await vaultReadNote(path, vaultId)
+    if (!isCurrent() || document.metadata.vault_id !== vaultId) return false
     saveOverwriteRef.current = false
     setExternalChangeConflict(null)
     docVaultsRef.current.set(path, document.metadata.vault_id)
@@ -386,7 +401,8 @@ export function useWorkspaceEditor({
       : tab))
     void loadBacklinks(path)
     logActivity('info', 'Reloaded note from disk', path)
-  }, [activeNoteRef, activePathRef, discardPendingDocumentSave, draftMarkdownRef, loadBacklinks, logActivity])
+    return true
+  }, [activeNoteRef, activePathRef, canRestoreNoteHistory, discardPendingDocumentSave, draftMarkdownRef, loadBacklinks, logActivity])
 
   const finishVaultReplacement = useCallback(async () => {
     savedHashesRef.current.clear()
@@ -1154,6 +1170,7 @@ export function useWorkspaceEditor({
     applyEditorTypography,
     saveActiveNoteNow,
     runNoteMutation,
+    canRestoreNoteHistory,
     reloadActiveNoteFromDisk,
     keepEditingAfterExternalChange,
     syncActiveNoteContent,
