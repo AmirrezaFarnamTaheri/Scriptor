@@ -162,6 +162,14 @@ The PR remains draft. This is not proof for editor, Canvas, imports, database, t
 
 The current CodeRabbit cross-client thread remains open. The hosted test is not packaged desktop multi-process/restart or real operational acceptance, even if it passes.
 
+## MAT-004 — Initiating-vault identity for destructive note-history restore (October 31, 2026)
+
+[PR #240](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/240) addresses a separate authorization race from the create-only copy in PR #235. The Note History restore bridge previously did not send an initiating vault ID. If an awaiting call crossed an A→B vault switch, its native handler used the currently active vault with a freshly requested authorization token rather than proving the originating note belonged to B.
+
+The new API requires `expectedVaultId`; the native command validates it against the active session **before** consuming `RestoreHistory` authorization or reading and writing notes. The panel disables destructive restore without a vault ID and supplies the same ID to revision-preview reads. Existing content-hash concurrency, authorization, and native save transactions remain unchanged.
+
+Four source-contract tests in `scripts/validation/note-history-restore-origin.test.mjs` cover bridge propagation, pre-authorization native ordering, panel admission, and preview provenance. A local source-excerpt probe showed the missing guards and the changed shape, but **only GitHub-hosted exact-head results are accepted as executable evidence**. CI, Clippy, Rust tests, Browser E2E, Windows visual, and installed A→B same-relative-path stale-restore refusal must be recorded independently. This patch does not complete MAT-004 or MAT-008; issues #183 and #188 remain open.
+
 ## MAT-004 — Reviewed historical revision copy (initial slice, October 30, 2026)
 
 A new review-only Note History action writes a selected retained revision to a user-chosen new Markdown path. It uses the existing vault-owned revision reader and native create-only note writer with the "<missing>" expected-content hash, not the destructive restore command. The originating vault must match at native admission, a changed revision preview is rejected, and a collision is reported without retry or overwrite. The default control is collapsed; the chosen destination and consequences are explicitly confirmed.

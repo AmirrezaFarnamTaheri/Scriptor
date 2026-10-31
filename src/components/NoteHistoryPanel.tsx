@@ -118,11 +118,11 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
   const loadedHistoryPath = revisionState?.path ?? null
 
   useEffect(() => {
-    if (!path || !selectedId || loadedHistoryPath !== path) return
+    if (!path || !selectedId || loadedHistoryPath !== path || !vaultId) return
     let cancelled = false
     const requestedPath = path
     const requestedRevision = selectedId
-    void vaultReadNoteHistoryRevision(requestedPath, requestedRevision)
+    void vaultReadNoteHistoryRevision(requestedPath, requestedRevision, vaultId)
       .then((markdown) => {
         if (!cancelled) {
           setPreviewState({ path: requestedPath, revisionId: requestedRevision, markdown })
@@ -142,7 +142,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
     return () => {
       cancelled = true
     }
-  }, [loadedHistoryPath, path, selectedId])
+  }, [loadedHistoryPath, path, selectedId, vaultId])
 
   const revisions = useMemo(() => loadedHistoryPath === path ? revisionState?.rows ?? [] : [], [loadedHistoryPath, path, revisionState])
   const activity = useMemo(() => revisionHeatmap(revisions), [revisions])
@@ -159,7 +159,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
     previewError?.path === path && previewError.revisionId === selectedId ? previewError.message : null
   const currentErrorMessage = currentError?.path === path ? currentError.message : null
   const canRestore = Boolean(
-    selectedId && previewReady && currentReady && !previewErrorMessage && !currentErrorMessage,
+    vaultId && selectedId && previewReady && currentReady && !previewErrorMessage && !currentErrorMessage,
   )
 
   // The diff needs both sides in hand. It is derived from the two texts already
@@ -171,7 +171,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
   )
 
   const restore = async () => {
-    if (!path || !selectedId || !canRestore) return
+    if (!path || !selectedId || !canRestore || !vaultId) return
     setBusy(true)
     setStatus('Restoring revision…')
     try {
@@ -181,7 +181,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
         setConfirmRestore(false)
         throw new Error('The current note changed. Compare the updated content before restoring.')
       }
-      await vaultRestoreNoteHistoryRevision(path, selectedId)
+      await vaultRestoreNoteHistoryRevision(path, selectedId, vaultId)
       setCurrentState({ path, markdown: preview })
       setStatus('Revision restored.')
       setConfirmRestore(false)
