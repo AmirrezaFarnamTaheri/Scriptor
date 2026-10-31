@@ -38,7 +38,7 @@ test('MAT-004 revision preview read remains bound to original vault on delayed r
 })
 
 test('MAT-004 restores only against the destination bytes reviewed before authorization', () => {
-  const panelRestore = panel.match(/const restore = async \(\) => \{[\s\S]*?\n  \}/)?.[0]
+  const panelRestore = panel.match(/const restore = async \(\) => \{[\s\S]*?\n\s{2}\}/)?.[0]
   assert.ok(panelRestore, 'history restore UI remains present')
   assert.match(panelRestore, /latest\.metadata\.content_hash/, 'reviewed disk hash must be captured before requesting authorization')
   assert.match(panelRestore, /vaultRestoreNoteHistoryRevision\(\s*path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash,\s*latest\.metadata\.content_hash,\s*isDraftSafe,\s*\)/)
