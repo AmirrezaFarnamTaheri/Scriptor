@@ -328,9 +328,21 @@ export async function vaultReadNoteHistoryRevision(path: string, revisionId: str
   return invoke<string>('vault_read_note_history_revision', { path, revisionId, expectedVaultId: expectedVaultId??null })
 }
 
-export async function vaultRestoreNoteHistoryRevision(path: string, revisionId: string, expectedVaultId: string, expectedRevisionHash: string, expectedCurrentHash: string): Promise<SaveNoteOutput> {
+export async function vaultRestoreNoteHistoryRevision(
+  path: string,
+  revisionId: string,
+  expectedVaultId: string,
+  expectedRevisionHash: string,
+  expectedCurrentHash: string,
+  isRestoreStillSafe?: () => boolean,
+): Promise<SaveNoteOutput> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('restore_history', path)
+  // The user can keep editing while the OS authorization dialog is open.
+  // Never start a destructive native operation using approval from an older draft.
+  if (isRestoreStillSafe && !isRestoreStillSafe()) {
+    throw new Error('The active note changed during authorization. Save your draft and review the revision again.')
+  }
   return invoke<SaveNoteOutput>('vault_restore_note_history_revision', {
     path,
     revisionId,
