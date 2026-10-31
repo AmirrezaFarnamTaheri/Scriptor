@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.3.4 — 2026-10-31
+
+### Fixed
+
+- Preserve reviewed note-history revisions across vault switching, authorization delays, concurrent writes and unsaved editor drafts. Reject stale or changed recovery inputs without overwriting newer notes.
+- Fail visibly on immutable version-tag conflicts and distinguish unpublished same-commit releases from already published releases.
+
 ### Improved
 
 - Reveal older retained backups progressively in sets of ten instead of hiding every backup beyond the first ten. Paging or changing destinations discards outstanding Restore/Delete approval, and the native backup order remains unchanged.
