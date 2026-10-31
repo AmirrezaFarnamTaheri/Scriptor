@@ -29,7 +29,7 @@ test('MAT-004 native history restore denies stale vault before consuming approva
 })
 
 test('MAT-004 note history passes originating vault identity through approved restore', () => {
-  assert.match(panel, /vaultRestoreNoteHistoryRevision\(path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash\)/, 'restore supplies the originating vault and exact reviewed revision hash')
+  assert.match(panel, /vaultRestoreNoteHistoryRevision\(\s*path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash,\s*latest\.metadata\.content_hash,\s*isDraftSafe,\s*\)/, 'restore supplies the originating vault and exact reviewed revision hash')
   assert.match(panel, /const canRestore = Boolean\([\s\S]{0,150}vaultId/, 'restore is disabled without originating vault identity')
 })
 
@@ -41,7 +41,7 @@ test('MAT-004 restores only against the destination bytes reviewed before author
   const panelRestore = panel.match(/const restore = async \(\) => \{[\s\S]*?\n  \}/)?.[0]
   assert.ok(panelRestore, 'history restore UI remains present')
   assert.match(panelRestore, /latest\.metadata\.content_hash/, 'reviewed disk hash must be captured before requesting authorization')
-  assert.match(panelRestore, /vaultRestoreNoteHistoryRevision\(path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash,\s*latest\.metadata\.content_hash\)/)
+  assert.match(panelRestore, /vaultRestoreNoteHistoryRevision\(\s*path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash,\s*latest\.metadata\.content_hash,\s*isDraftSafe,\s*\)/)
 
   const bridgeRestore = bridge.match(/export async function vaultRestoreNoteHistoryRevision\([\s\S]*?\n\}/)?.[0]
   assert.ok(bridgeRestore)
@@ -53,6 +53,7 @@ test('MAT-004 restores only against the destination bytes reviewed before author
   assert.match(nativeRestore, /expected_current_hash:\s*String/)
   assert.match(nativeRestore, /Some\(&expected_current_hash\)/, 'atomic writer must check the reviewed hash, never the newly read hash')
   assert.doesNotMatch(nativeRestore, /Some\(&current\.metadata\.content_hash\)/, 'do not silently renew approval after an intervening edit')
+  assert.match(panelRestore, /if \(!isDraftSafe\(\)\)/, 'draft is validated before the native call')
 })
 
 test('MAT-004 an edit during sensitive authorization aborts before the native restore', async () => {
