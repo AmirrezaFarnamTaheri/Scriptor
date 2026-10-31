@@ -76,7 +76,7 @@ export const WorkspacePortalOverlays = memo(function WorkspacePortalOverlays({
               onClose={onCloseNoteHistory}
               canRestoreActiveNote={workspace.canRestoreNoteHistory}
               onRestored={async () => {
-                const reloaded = await workspace.reloadActiveNoteFromDisk()
+                const reloaded = await workspace.reloadActiveNoteFromDisk({ requireClean: true })
                 if (reloaded) onCloseNoteHistory()
                 return reloaded
               }}
