@@ -323,9 +323,12 @@ export async function vaultListNoteHistory(path: string, expectedVaultId?: strin
   return invoke<NoteHistoryRevision[]>('vault_list_note_history', { path, expectedVaultId: expectedVaultId ?? null })
 }
 
-export async function vaultReadNoteHistoryRevision(path: string, revisionId: string, expectedVaultId?: string | null): Promise<string> {
+export async function vaultReadNoteHistoryRevision(path: string, revisionId: string, expectedVaultId: string): Promise<string> {
   requireNative()
-  return invoke<string>('vault_read_note_history_revision', { path, revisionId, expectedVaultId: expectedVaultId??null })
+  if (!expectedVaultId?.trim()) {
+    throw new Error('History read vault identity is required')
+  }
+  return invoke<string>('vault_read_note_history_revision', { path, revisionId, expectedVaultId })
 }
 
 export async function vaultRestoreNoteHistoryRevision(

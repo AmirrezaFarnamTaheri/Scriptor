@@ -122,3 +122,44 @@ fn git_commit_gateway_accepts_originating_vault_identity() {
     super::require_git_commit_vault_identity(&state, &json!({ "expected_vault_id": active_id }))
         .expect("matching vault identity must be admitted");
 }
+
+#[test]
+fn history_preview_rejects_missing_and_stale_vault_identity_before_revision_read() {
+    let vault_a = tempfile::tempdir().expect("vault A");
+    let vault_b = tempfile::tempdir().expect("vault B");
+    let session_a = scriptor_vault::open_vault(vault_a.path()).expect("open vault A");
+    let session_b = scriptor_vault::open_vault(vault_b.path()).expect("open vault B");
+    assert_ne!(session_a.descriptor.id, session_b.descriptor.id);
+
+    let stale_id = session_a.descriptor.id;
+    let active_id = session_b.descriptor.id.clone();
+    let mut state = DaemonState {
+        session: Some(session_b),
+        ..DaemonState::default()
+    };
+
+    for payload in [
+        json!({ "path": "notes/research.md", "revisionId": "old" }),
+        json!({ "path": "notes/research.md", "revisionId": "old", "expectedVaultId": stale_id }),
+        json!({ "path": "notes/research.md", "revisionId": "old", "expected_vault_id": "" }),
+    ] {
+        let err = dispatch(&mut state, "vault_read_note_history_revision", &payload).expect_err(
+            "a missing, blank or stale origin must not open the active vault's revision",
+        );
+        assert!(
+            err.to_lowercase().contains("vault identity"),
+            "preview must fail at the identity boundary, not the filesystem: {err}"
+        );
+    }
+
+    for key in ["expectedVaultId", "expected_vault_id"] {
+        let mut payload = json!({ "path": "notes/research.md", "revisionId": "old" });
+        payload[key] = json!(active_id);
+        let err = dispatch(&mut state, "vault_read_note_history_revision", &payload)
+            .expect_err("this test deliberately uses an absent revision");
+        assert!(
+            !err.to_lowercase().contains("vault identity"),
+            "matching origin must advance to the real revision read: {err}"
+        );
+    }
+}
