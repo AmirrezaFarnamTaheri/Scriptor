@@ -21,7 +21,7 @@ test('MAT-004 native history restore denies stale vault before consuming approva
   assert.match(fn, /expected_vault_id:\s*String/, 'native restore requires an initiating identity')
   const check = fn.indexOf('validate_expected_vault(')
   const authorization = fn.indexOf('require_sensitive_operation(')
-  const read = fn.indexOf('read_note(')
+  const read = fn.indexOf('read_note_history_revision(')
   assert.ok(check > -1 && authorization > check && read > authorization, 'native checks initiating vault before approval and filesystem reads')
   assert.match(fn, /Some\(&expected_vault_id\)/)
 })
