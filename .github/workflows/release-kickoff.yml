@@ -31,10 +31,13 @@ jobs:
       contents: read
       actions: read
     runs-on: ubuntu-24.04
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/pretag-release-quality
+      SCRIPTOR_TEST_DAEMON_HMAC_KEY: release-quality-daemon-hmac-key-0000000000000001
     concurrency:
       group: release-kickoff-validation
       cancel-in-progress: true
-    timeout-minutes: 10
+    timeout-minutes: 100
     steps:
       - name: Checkout release commit and tags
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -80,6 +83,61 @@ jobs:
             echo "::error title=CI prerequisite missing::No successful CI push run found for commit $GITHUB_SHA. Wait for the exact-commit main CI to pass before retrying." >&2
             exit 1
           fi
+
+      - name: Configure pinned pnpm for pre-tag quality
+        if: steps.eligibility.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure pinned Rust for pre-tag quality
+        if: steps.eligibility.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
+
+      - name: Cache Rust build artifacts for pre-tag quality
+        if: steps.eligibility.outputs.eligible == 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          cache-all-crates: true
+          key: release-quality-pretag
+
+      - name: Install frozen pnpm dependency graph
+        if: steps.eligibility.outputs.eligible == 'true'
+        shell: bash
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify CHANGELOG entry before immutable tag
+        if: steps.eligibility.outputs.eligible == 'true'
+        shell: bash
+        run: node scripts/release/verify-changelog.mjs
+
+      - name: Install Chromium for pre-tag quality
+        if: steps.eligibility.outputs.eligible == 'true'
+        shell: bash
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run source-bound pre-tag release quality gate
+        if: steps.eligibility.outputs.eligible == 'true'
+        shell: bash
+        run: node scripts/release/run-release-quality.mjs
+
+      - name: Upload pre-tag release quality evidence
+        if: always() && steps.eligibility.outputs.eligible == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scriptor-pretag-release-quality
+          path: artifacts/release-quality/*
+          if-no-files-found: warn
+          retention-days: 14
 
   tag-and-dispatch:
     needs: validate-release
