@@ -399,7 +399,9 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
                 return Err("History read vault identity is required".to_string());
             }
             if expected_vault_id.as_str() != session.descriptor.id.as_str() {
-                return Err("History read vault identity does not match the active vault".to_string());
+                return Err(
+                    "History read vault identity does not match the active vault".to_string(),
+                );
             }
             let path = require_str(payload, "path")?;
             let revision_id = require_str(payload, "revisionId")?;
