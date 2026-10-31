@@ -131,9 +131,13 @@ test('release kickoff keeps write permissions out of validation', () => {
 
 test('automatic release follows canonical VERSION while preserving immutable tags', () => {
   const kickoff = read('.github/workflows/release-kickoff.yml')
-  assert.ok(kickoff.includes("version=$(tr -d '[:space:]' < VERSION)"))
-  assert.ok(kickoff.includes('git ls-remote origin "refs/tags/v$version"'))
+  const eligibility = read('scripts/release/kickoff-eligibility.sh')
+  assert.ok(kickoff.includes('bash scripts/release/kickoff-eligibility.sh'))
   assert.ok(kickoff.includes('if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && ! test "$version" = "$EXPECTED_VERSION"; then'))
+  assert.ok(eligibility.includes("version=$(tr -d '[:space:]' < VERSION)"))
+  assert.ok(eligibility.includes('git ls-remote origin "refs/tags/$tag^{}"'))
+  assert.match(eligibility, /Immutable version tag conflict/)
+  assert.match(eligibility, /release_status/)
   assert.doesNotMatch(kickoff, /Automatic release is only enabled for v\d+/)
   assert.doesNotMatch(kickoff, /EXPECTED_VERSION:.*'1\.3\.2'/)
 })
