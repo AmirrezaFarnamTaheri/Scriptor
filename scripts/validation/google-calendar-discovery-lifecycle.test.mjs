@@ -177,3 +177,9 @@ test('MAT-015: Calendar OAuth expiry clears previously observed account identity
   assert.equal(h.render().tasks.length, 0)
   assert.match(h.render().error ?? '', /authorization expired/)
 })
+
+test('MAT-015: Calendar Settings exposes the existing localized reconnect route for expired sessions', () => {
+  const ui = readFileSync(new URL('../../src/components/GoogleIntegrationSettingsSection.tsx', import.meta.url), 'utf8')
+  assert.match(ui, /calendarSync\.status === 'reconnect-required'/)
+  assert.match(ui, /calendarNeedsReconnect \? t\('integrations\.google\.reconnect'\)/)
+})
