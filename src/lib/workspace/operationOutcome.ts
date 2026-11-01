@@ -33,6 +33,13 @@ export interface TypedOperationOutcome {
   readonly retry: 'review-and-reauthorize' | 'do-not-retry' | 'blocked-until-reconciliation'
   readonly recovery: 'none' | 'reopen-vault'
 }
+/** A receipt may name only normalized vault-relative paths, never an arbitrary host path. */
+function isVaultRelativePath(path: unknown): path is string {
+  return typeof path === 'string' && !!path.trim() && path.length <= 4096 &&
+    !path.startsWith('/') && !path.includes('\\') && !path.includes(':') &&
+    !/[\u0000-\u001F\u007F]/.test(path) &&
+    path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
+}
 export function buildOperationOutcome(scope: MutationScope, evidence: MutationEvidence): TypedOperationOutcome {
   for (const key of ['operationId', 'vaultId', 'operation', 'target'] as const) {
     if (!scope[key].trim()) throw new Error(`Missing mutation ${key}`)
@@ -58,7 +65,7 @@ export function buildOperationOutcome(scope: MutationScope, evidence: MutationEv
       }
       if (evidence.affectedPaths !== undefined &&
           (!Array.isArray(evidence.affectedPaths) ||
-           evidence.affectedPaths.some(path => typeof path !== 'string' || !path || path.length > 4096))) {
+           evidence.affectedPaths.some(path => !isVaultRelativePath(path)))) {
         throw new Error('Invalid native affected paths inventory.')
       }
       return { ...base, affectedPaths: evidence.affectedPaths === undefined ? null : [...evidence.affectedPaths],
