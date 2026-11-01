@@ -5,7 +5,7 @@ import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/google
 
 type Service = 'drive' | 'gmail'
 interface AccountState {
-  status: 'disconnected' | 'checking' | 'authorizing' | 'connected' | 'error'
+  status: 'disconnected' | 'checking' | 'authorizing' | 'connected' | 'error' | 'reconnect-required'
   email: string | null
   error: string | null
   busy: boolean
@@ -37,7 +37,8 @@ export function useGoogleIntegrationAccounts({ vaultId, clientId, persistClientI
       update(service, { ...disconnected, status: email ? 'connected' : 'disconnected', email })
     } catch (error) {
       if (sequence !== generation.current[service]) return
-      update(service, isGoogleAuthRequiredError(error) ? disconnected
+      update(service, isGoogleAuthRequiredError(error)
+        ? { ...disconnected, status: 'reconnect-required', error: googleAuthErrorMessage(error) }
         : { ...disconnected, status: 'error', error: googleAuthErrorMessage(error) })
     }
   }, [gmailEnabled, update])
@@ -95,7 +96,9 @@ export function useGoogleIntegrationAccounts({ vaultId, clientId, persistClientI
       update(service, { ...disconnected, status: email ? 'connected' : 'disconnected', email })
     } catch (error) {
       if (sequence !== generation.current[service]) return
-      update(service, { ...disconnected, status: 'error', email: email ?? previousEmail, error: googleAuthErrorMessage(error) })
+      update(service, isGoogleAuthRequiredError(error)
+        ? { ...disconnected, status: 'reconnect-required', error: googleAuthErrorMessage(error) }
+        : { ...disconnected, status: 'error', email: email ?? previousEmail, error: googleAuthErrorMessage(error) })
     } finally {
       if (running.current[service] === sequence) running.current[service] = 0
     }
