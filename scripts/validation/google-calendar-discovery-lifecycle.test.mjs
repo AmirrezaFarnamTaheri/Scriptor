@@ -199,3 +199,58 @@ test('MAT-015: Task panel renders a localized reconnect label instead of a missi
   assert.match(ui, /calendarSync\.status === 'reconnect-required'\s*\?\s*t\('integrations\.google\.reconnect'\)/)
   assert.match(ui, /calendarStatusLabel/)
 })
+
+test('MAT-015: expired Calendar refresh invalidates every mounted consumer without retry loops', async () => {
+  const h = harness()
+  await h.render(0).refresh()
+  await h.render(1).refresh()
+  const beforeGeneration = h.render(1).accountGeneration
+  let reads = 0
+  h.bridge.googleCalendarListEvents = async () => {
+    reads += 1
+    throw 'GOOGLE_AUTH_REQUIRED: Google authorization expired. Reconnect the account.'
+  }
+  await h.render(0).refresh()
+  assert.equal(h.render(0).status, 'reconnect-required')
+  const other = h.render(1)
+  assert.equal(other.status, 'reconnect-required')
+  assert.equal(other.accountGeneration, beforeGeneration + 1)
+  assert.equal(other.authedEmail, null)
+  assert.equal(other.events.length, 0)
+  assert.equal(other.tasks.length, 0)
+  assert.match(other.error ?? '', /authorization expired/)
+  assert.equal(reads, 1, 'peer must not auto-refresh an expired account in a notification loop')
+})
+
+test('MAT-015: rejected Calendar OAuth in Settings clears remote state in other mounted panels', async () => {
+  const h = harness()
+  await h.render(0).refresh()
+  await h.render(1).refresh()
+  const beforeGeneration = h.render(1).accountGeneration
+  h.bridge.googleCalendarStartAuth = async () => {
+    throw 'GOOGLE_AUTH_REQUIRED: account session expired during reconnect'
+  }
+  assert.equal(await h.render(0).startAuth(), false)
+  const other = h.render(1)
+  assert.equal(other.status, 'reconnect-required')
+  assert.equal(other.accountGeneration, beforeGeneration + 1)
+  assert.equal(other.authedEmail, null)
+  assert.deepEqual(Array.from(other.events), [])
+  assert.deepEqual(Array.from(other.tasks), [])
+  assert.match(other.error ?? '', /session expired/)
+})
+
+test('MAT-015: missing Calendar credentials clear other panels without mislabeling first-time setup', async () => {
+  const h = harness()
+  await h.render(0).refresh()
+  await h.render(1).refresh()
+  h.bridge.googleCalendarListEvents = async () => {
+    throw 'GOOGLE_AUTH_REQUIRED: Google account is not connected.'
+  }
+  await h.render(0).refresh()
+  const other = h.render(1)
+  assert.equal(other.status, 'disconnected')
+  assert.equal(other.authedEmail, null)
+  assert.equal(other.events.length, 0)
+  assert.equal(other.tasks.length, 0)
+})
