@@ -684,7 +684,7 @@ mod tests {
             .cancel_slot(cancelled);
         let outcome = run_process(spec);
         assert!(
-            matches!(outcome, Err(BridgeError::ProcessPolicy { ref message })
+            matches!(&outcome, Err(BridgeError::ProcessPolicy { message })
                 if message == "process cancelled by caller"),
             "A cancelled request must be rejected before executable resolution: {outcome:?}"
         );
