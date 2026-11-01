@@ -39,6 +39,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
   }, [t, vaultId])
   const accounts = useGoogleIntegrationAccounts({ vaultId, clientId, persistClientId, gmailEnabled })
   const calendarBusy = savingConnection || calendarSync.status === 'authorizing' || calendarSync.status === 'syncing'
+  const calendarNeedsReconnect = calendarSync.status === 'reconnect-required'
   const setupBusy = calendarBusy || accounts.drive.busy || accounts.gmail.busy
   const calendarId = sync.google_calendar_id || 'primary'
   const taskListId = sync.google_task_list_id || '@default'
@@ -129,8 +130,8 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
       <div className="settings-subgroup google-integration-fields" role="group" aria-labelledby="google-calendar-heading">
         <h4 id="google-calendar-heading">{t('integrations.google.calendarTasks')}</h4>
           <div className="calendar-sync-actions google-connection-actions">
-            <span role="status">{t(`integrations.google.status.${calendarSync.status}`)}{calendarSync.authedEmail ? ` · ${calendarSync.authedEmail}` : ''}</span>
-            <button type="button" className="primary-button" disabled={calendarBusy} onClick={() => void connectCalendar()}>{t(calendarSync.authedEmail ? 'integrations.google.reconnect' : 'integrations.google.connect')}</button>
+            <span role="status">{calendarNeedsReconnect ? t('integrations.google.reconnect') : t(`integrations.google.status.${calendarSync.status}`)}{calendarSync.authedEmail ? ` · ${calendarSync.authedEmail}` : ''}</span>
+            <button type="button" className="primary-button" disabled={calendarBusy} onClick={() => void connectCalendar()}>{t(calendarSync.authedEmail || calendarNeedsReconnect ? 'integrations.google.reconnect' : 'integrations.google.connect')}</button>
             {calendarSync.authedEmail ? <>
               <button type="button" className="toolbar-button" disabled={calendarBusy} onClick={() => void calendarSync.refresh()}>{t('integrations.google.syncNow')}</button>
               <button type="button" className="toolbar-button" disabled={calendarBusy} onClick={() => void calendarSync.disconnect()}>{t('integrations.google.disconnect')}</button>
