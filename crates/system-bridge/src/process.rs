@@ -178,7 +178,22 @@ pub struct ProcessReceipt {
     pub stderr_truncated: bool,
 }
 
+/// An already-cancelled launch must not resolve, hash or start a process.
+fn reject_pre_cancelled(spec: &ProcessSpec) -> Result<(), BridgeError> {
+    if spec
+        .cancel_slot
+        .as_ref()
+        .is_some_and(|slot| slot.load(Ordering::Relaxed))
+    {
+        return Err(BridgeError::ProcessPolicy {
+            message: "process cancelled by caller".into(),
+        });
+    }
+    Ok(())
+}
+
 pub fn spawn_process(spec: &ProcessSpec) -> Result<SpawnedProcess, BridgeError> {
+    reject_pre_cancelled(spec)?;
     let resolved = resolve_executable(&spec.program, spec.current_dir.as_deref())?;
     let actual_hash = if resolved.is_file() {
         Some(hash_file(&resolved)?)
@@ -223,6 +238,10 @@ pub fn spawn_process(spec: &ProcessSpec) -> Result<SpawnedProcess, BridgeError> 
         .stderr(Stdio::piped());
     configure_process_group(&mut command);
 
+    // A cancellation may arrive during executable hashing/policy preparation.
+    // Check once more at the launch boundary; post-spawn cancellation remains
+    // the responsibility of run_process's process-tree termination loop.
+    reject_pre_cancelled(spec)?;
     let child = command
         .spawn()
         .map_err(|source| BridgeError::ProcessSpawn {
