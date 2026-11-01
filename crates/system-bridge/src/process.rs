@@ -728,6 +728,48 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn cancelled_spawned_process_is_reaped_before_returning() {
+        let directory = tempfile::tempdir().expect("cancel test fixture");
+        let pid_file = directory.path().join("child.pid");
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let requested = cancelled.clone();
+        let pid_path = pid_file.clone();
+        let runner = thread::spawn(move || {
+            run_process(
+                ProcessSpec::new("sh")
+                    .args(["-c", "printf '%s' \"$\" > \"$SCRIPTOR_CHILD_PID_FILE\"; exec sleep 30"])
+                    .env("SCRIPTOR_CHILD_PID_FILE", pid_path.as_os_str())
+                    .cancel_slot(requested)
+                    .timeout(Duration::from_secs(10)),
+            )
+        });
+
+        let begun = Instant::now();
+        let child_pid = loop {
+            if let Ok(s) = std::fs::read_to_string(&pid_file)
+                && let Ok(pid) = s.trim().parse::<u32>()
+            {
+                break pid;
+            }
+            if begun.elapsed() > Duration::from_secs(5) {
+                cancelled.store(true, Ordering::Relaxed);
+                let _ = runner.join();
+                panic!("spawned test child never wrote its PID");
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+        cancelled.store(true, Ordering::Relaxed);
+        let outcome = runner.join().expect("process runner must finish");
+        assert!(matches!(&outcome, Err(BridgeError::ProcessPolicy { message })
+            if message == "process cancelled by caller"), "unexpected cancellation outcome: {outcome:?}");
+        assert!(
+            !process_alive(child_pid),
+            "the cancelled child PID {child_pid} must not survive as a zombie after the broker returns",
+        );
+    }
+
     #[test]
     fn stdout_and_stderr_floods_are_both_drained_and_independently_bounded() {
         const FLOOD_CHILD: &str = "SCRIPTOR_PROCESS_BROKER_FLOOD_CHILD";
