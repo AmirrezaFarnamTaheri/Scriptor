@@ -103,7 +103,8 @@ test('expired credentials clear cached provider data and resource selections', a
   assert.equal(h.render().events.length, 1)
   h.bridge.googleCalendarListEvents = async () => { throw 'GOOGLE_AUTH_REQUIRED: expired' }
   await h.render().refresh()
-  assert.equal(h.render().status, 'disconnected')
+  assert.equal(h.render().status, 'reconnect-required')
+  assert.match(h.render().error ?? '', /expired/)
   assert.equal(h.render().events.length, 0)
   assert.equal(h.render().tasks.length, 0)
   assert.equal(h.render().authedEmail, null)
@@ -162,4 +163,17 @@ test('native OAuth completion notifies surviving consumers after the initiating 
   await Promise.resolve(); await Promise.resolve()
   assert.equal(h.render(1).accountGeneration, 1)
   assert.equal(h.render(1).authedEmail, 'after-close@example.invalid')
+})
+
+test('MAT-015: Calendar OAuth expiry clears previously observed account identity and requires reconnection', async () => {
+  const h = harness()
+  await h.render().refresh()
+  assert.equal(h.render().authedEmail, 'calendar@example.invalid')
+  h.bridge.googleCalendarStartAuth = async () => { throw 'GOOGLE_AUTH_REQUIRED: account authorization expired' }
+  assert.equal(await h.render().startAuth(), false)
+  assert.equal(h.render().status, 'reconnect-required')
+  assert.equal(h.render().authedEmail, null)
+  assert.equal(h.render().events.length, 0)
+  assert.equal(h.render().tasks.length, 0)
+  assert.match(h.render().error ?? '', /authorization expired/)
 })
