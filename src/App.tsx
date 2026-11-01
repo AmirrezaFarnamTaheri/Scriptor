@@ -864,6 +864,7 @@ function App() {
         publishStarlight: nativeReady ? () => void publishStarlight() : undefined,
         promptText,
         pluginCommands: pluginCommandEntries,
+        canExecutePluginCommand,
         runPluginCommand: (entry) => {
           if (!canExecutePluginCommand(entry.pluginId, entry.command.permission)) return
           void runPluginCommand(entry.command, pluginCommandRuntime, {
