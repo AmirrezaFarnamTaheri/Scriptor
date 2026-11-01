@@ -62,6 +62,8 @@ declare global {
     __scriptorE2eRenameApply?: { fromPath: string; toPath: string; updateLinks: boolean }
     /** Serialized canvas documents persisted through the mocked native bridge. */
     __scriptorE2eCanvasSaves?: string[]
+    /** Number of native history restore attempts made in this browser fixture. */
+    __scriptorE2eHistoryRestoreAttempts?: number
   }
 }
 
@@ -688,8 +690,15 @@ export function installE2eBridge(): void {
             preview: '# Previous revision',
           },
         ]
-      case 'vault_restore_note_history_revision':
+      case 'vault_restore_note_history_revision': {
+        window.__scriptorE2eHistoryRestoreAttempts = (window.__scriptorE2eHistoryRestoreAttempts ?? 0) + 1
+        if (window.sessionStorage.getItem('e2e:history-restore-lost-reply') === '1') {
+          // Simulate transport failure after native submission, not an earlier
+          // approval denial: a transaction may already have committed.
+          throw new Error('e2e transport reply lost after native submission')
+        }
         return e2eSaveNote(String((payload as { path?: string }).path ?? 'Research Plan.md'), '# Restored\n')
+      }
       case 'vault_read_workspace_session':
         return {
           version: 1,
