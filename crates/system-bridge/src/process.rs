@@ -734,16 +734,29 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn cancelled_spawned_process_is_reaped_before_returning() {
+        const CHILD_MARKER: &str = "SCRIPTOR_PROCESS_BROKER_CANCEL_CHILD";
+        if let Some(pid_path) = std::env::var_os(CHILD_MARKER) {
+            std::fs::write(pid_path, std::process::id().to_string())
+                .expect("record spawned test child PID");
+            thread::sleep(Duration::from_secs(30));
+            return;
+        }
+
         let directory = tempfile::tempdir().expect("cancel test fixture");
         let pid_file = directory.path().join("child.pid");
         let cancelled = Arc::new(AtomicBool::new(false));
         let requested = cancelled.clone();
         let pid_path = pid_file.clone();
+        let executable = std::env::current_exe().expect("process test executable");
         let runner = thread::spawn(move || {
             run_process(
-                ProcessSpec::new("sh")
-                    .args(["-c", "printf '%s' \"$\" > \"$SCRIPTOR_CHILD_PID_FILE\"; exec sleep 30"])
-                    .env("SCRIPTOR_CHILD_PID_FILE", pid_path.as_os_str())
+                ProcessSpec::new(executable)
+                    .args([
+                        "--exact",
+                        "process::tests::cancelled_spawned_process_is_reaped_before_returning",
+                        "--nocapture",
+                    ])
+                    .env(CHILD_MARKER, pid_path.as_os_str())
                     .cancel_slot(requested)
                     .timeout(Duration::from_secs(10)),
             )
@@ -765,8 +778,11 @@ mod tests {
         };
         cancelled.store(true, Ordering::Relaxed);
         let outcome = runner.join().expect("process runner must finish");
-        assert!(matches!(&outcome, Err(BridgeError::ProcessPolicy { message })
-            if message == "process cancelled by caller"), "unexpected cancellation outcome: {outcome:?}");
+        assert!(
+            matches!(&outcome, Err(BridgeError::ProcessPolicy { message })
+                if message == "process cancelled by caller"),
+            "unexpected cancellation outcome: {outcome:?}"
+        );
         assert!(
             !process_alive(child_pid),
             "the cancelled child PID {child_pid} must not survive as a zombie after the broker returns",
