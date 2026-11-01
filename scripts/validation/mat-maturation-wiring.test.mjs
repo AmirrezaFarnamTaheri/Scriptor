@@ -18,7 +18,7 @@ test('Database Studio must not label the first 200 candidates as full-vault resu
   const code = text('src/components/DatabaseStudioPanel.tsx')
   assert.match(code, /sourceCoverage: 'unverified'/)
   assert.match(code, /evaluateDatabaseQueryCoverage/)
-  assert.match(code, /setStatus\(coverage\.description\)/)
+  assert.match(code, /\$\{coverage\.description\}/)
   assert.match(code, /DATABASE_ROW_LIMIT/)
   assert.match(code, /vaultListViewNotesPage/)
   assert.match(code, /selectDatabasePage/)
