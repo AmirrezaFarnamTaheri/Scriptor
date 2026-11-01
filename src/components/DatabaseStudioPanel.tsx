@@ -9,6 +9,7 @@ import { defaultDatabaseView, validateDatabaseView, databaseFilterJson, scalarFi
 import type { DatabaseView, DatabaseColumn, CellValue } from '../lib/databaseStudio'
 import { DatabaseStudioBuilder } from './database/DatabaseStudioBuilder'
 import { DatabaseStudioResults } from './database/DatabaseStudioResults'
+import { evaluateDatabaseQueryCoverage } from '../lib/databaseQueryCoverage'
 import '../styles/components/database-studio.css'
 
 const PRESET_PATH = '.scriptor/presets/database-studio.md'
@@ -96,12 +97,13 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
       const valid = validateDatabaseView(view)
       const hits = await vaultListViewNotes(databaseFilterJson(valid))
       const selected = hits.slice(0, DATABASE_ROW_LIMIT)
-      const loaded: DatabaseRow[] = []; let bytes = 0; let skipped = 0
+      const loaded: DatabaseRow[] = []; let bytes = 0; let skipped = 0; let examined = 0
       // Four in flight; cumulative content and returned rows both have fixed budgets.
       for (let offset = 0; offset < selected.length; offset += 4) {
         if (request !== generation.current || requestedViewRevision !== viewRevision.current) return
         const batch = await Promise.allSettled(selected.slice(offset, offset + 4).map((hit) => vaultReadNote(hit.path)))
         for (const result of batch) {
+          examined += 1
           if (result.status === 'rejected') { skipped += 1; continue }
           const note = result.value
           if (note.metadata.vault_id !== vaultId) throw new Error('Vault changed during query. Load the current vault again.')
@@ -110,12 +112,16 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
           const fields=scalarFields(note.markdown)
           if(matchesMetadataFilters(valid,fields,{title:note.metadata.title,tags:note.metadata.tags,path:note.metadata.path,modifiedDays:(Date.now()-Date.parse(note.metadata.modified_at))/86400000}))loaded.push({ note, values: fields })
         }
-        if (bytes > 32 * 1024 * 1024) { skipped += selected.length - Math.min(offset + 4, selected.length); break }
+        if (bytes > 32 * 1024 * 1024) break
       }
       if (request !== generation.current || requestedViewRevision !== viewRevision.current) return
       setRows(loaded); setLoadedColumns(valid.columns)
       setLoadedScope({ vaultId, view, native, presetVersion: reloadPresets, revision: requestedViewRevision })
-      setStatus(`Loaded ${loaded.length} notes${hits.length > DATABASE_ROW_LIMIT ? `; examined first ${DATABASE_ROW_LIMIT} of ${hits.length} candidates` : ''}${skipped ? `; ${skipped} unavailable or over the content budget` : ''}. Metadata filters and aggregates cover loaded candidates only.`)
+      const coverage = evaluateDatabaseQueryCoverage({
+        candidatesReported: hits.length, candidatesExamined: examined,
+        loaded: loaded.length, skipped, sourceCoverage: 'unverified',
+      })
+      setStatus(coverage.description)
     } catch (failure) { if (request === generation.current && requestedViewRevision === viewRevision.current) setError(String(failure)) }
     finally { operationPending.current=false;if (request === generation.current) setBusy(false) }
   }

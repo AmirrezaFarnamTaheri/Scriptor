@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### In progress — MAT maturation foundations
+
+- Make native mutation reply loss distinguishable from confirmed commit/rollback in renderer-observed operation receipts; preserve vault-scoped backup receipt semantics.
+- Show a read-only Recovery Center summary without implying that uninspected Canvas or conflict sources are empty, or that an unverified backup is restorable.
+- Label Database Studio's bounded, client-filtered results as non-authoritative for whole-vault counts and aggregates.
+- Expose next steps after reviewed capture and preserve an explicit warning if creation was acknowledged but index refresh failed.
+
+
 ### Improved
 
 - Reveal older retained backups progressively in sets of ten instead of hiding every backup beyond the first ten. Paging or changing destinations discards outstanding Restore/Delete approval, and the native backup order remains unchanged.

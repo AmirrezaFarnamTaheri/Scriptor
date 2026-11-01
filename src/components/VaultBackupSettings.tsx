@@ -4,6 +4,7 @@ import { HardDrive } from 'lucide-react'
 import { createPendingBackupAction, matchesBackupActionScope, type PendingBackupAction } from '../lib/workspace/backupActionScope'
 import { recoveryHistoryAvailability, type RecoveryHistoryReason } from '../lib/workspace/recoveryHistoryAvailability'
 import { describeRestoreReceipt } from '../lib/workspace/restoreReceiptPresentation'
+import { buildRecoveryInventory } from '../lib/workspace/recoveryInventory'
 
 import type { useVaultBackup } from '../hooks/useVaultBackup'
 
@@ -45,6 +46,21 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
   const backupScope = { vaultId, backupPath: settings.backupPath }
   const [backupOptionsOpen, setBackupOptionsOpen] = useState(settings.enabled || Boolean(settings.backupPath))
   const historyAccess = recoveryHistoryAvailability({ vaultId, activePath, recoveryRequired, settingsDirty })
+  // Read-only inventory: missing native sources remain unverified, not empty.
+  const recoveryEntries = buildRecoveryInventory({
+    vaultId, backupPath: settings.backupPath, recoveryRequired,
+    selectedNote: activePath, settingsDirty, lastRestoreReceipt,
+    backups: vaultId ? {
+      vaultId, backupPath: settings.backupPath,
+      state: backupListLoading ? 'loading' : backupListError ? 'error' : 'ready',
+      count: backups.length, verifiedCount: backups.filter(entry => entry.verified).length,
+    } : undefined,
+  })
+  const recoveryLabels: Record<string, string> = {
+    backups: 'Backup snapshots', 'note-history': 'Selected note history',
+    'last-restore': 'Last restore result', canvas: 'Canvas recovery',
+    'external-conflicts': 'External file conflicts',
+  }
   const reasons: Record<Exclude<RecoveryHistoryReason, null>, string> = {
     'open-vault': 'Open a vault to review note history.',
     'restart-vault': 'Restart Scriptor and reopen this vault before reviewing note history.',
@@ -129,6 +145,17 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
         </section>
       ) : null}
 
+      {vaultId ? <section className="backup-recovery-tools" aria-labelledby="recovery-center-title">
+        <h4 id="recovery-center-title" className="settings-subheading">Recovery Center · read-only</h4>
+        <p className="health-subtitle">This overview never restores files. Counts appear only when the current vault's source has been inspected. Unverified sources are not empty.</p>
+        <ul className="backup-list">
+          {recoveryEntries.map(entry => <li key={entry.source} className="backup-entry">
+            <strong>{recoveryLabels[entry.source]}</strong> · {entry.status}
+            {entry.count !== null ? ` · ${entry.count} reported` : null}
+            <p className="backup-meta">{entry.explanation}</p>
+          </li>)}
+        </ul>
+      </section> : null}
       <section className="backup-recovery-tools" aria-label="Other recovery options">
         <h4 className="settings-subheading">Other recovery options</h4>
         <p className="health-subtitle">You can preview earlier revisions of the selected note without replacing the entire vault. Opening history does not modify files; restoring a revision requires separate review and approval.</p>
