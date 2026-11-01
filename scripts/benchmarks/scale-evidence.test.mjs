@@ -122,3 +122,12 @@ test('MAT-023: distinct run IDs with the same UTC start cannot establish indepen
   input.runs = [first, { ...run({ condition: 'warm', replicate: 2 }), startedAt: first.startedAt }]
   assert.throws(() => evaluateScaleEvidence(input), /independent|timestamp|start time/i)
 })
+
+
+test('MAT-023: timestamp precision aliases cannot be counted as separate measurement starts', () => {
+  const input = base()
+  const first = run({ condition: 'warm', replicate: 1 })
+  const second = { ...run({ condition: 'warm', replicate: 2 }), startedAt: '2026-11-01T01:00:00.0000Z' }
+  input.runs = [first, second]
+  assert.throws(() => evaluateScaleEvidence(input), /independent|timestamp|start time/i)
+})
