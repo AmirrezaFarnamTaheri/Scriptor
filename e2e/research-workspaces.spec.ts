@@ -109,7 +109,9 @@ test('database layouts preserve calculated values and scoped aggregate evidence'
   await column.getByRole('textbox',{name:'Operand 2',exact:true}).fill('score')
   await panel.getByRole('button',{name:'Load notes',exact:true}).click()
   await expect(panel.locator('tbody tr')).toHaveCount(2)
-  await expect(panel.locator('tbody tr').first()).toContainText('24')
+  // Native indexed pages use strict path order; row identity, not position, owns calculated values.
+  await expect(panel.locator('tbody tr').filter({ hasText: 'Research Plan' })).toContainText('24')
+  await expect(panel.locator('tbody tr').filter({ hasText: 'Field Notes' })).toContainText('6')
   await panel.getByText('Totals for loaded notes',{exact:true}).click()
   await expect(panel.locator('details')).toContainText('sum 30')
   await panel.getByRole('combobox',{name:'Layout',exact:true}).selectOption('list')
