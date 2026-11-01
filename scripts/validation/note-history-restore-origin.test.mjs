@@ -63,6 +63,7 @@ test('MAT-004 an edit during sensitive authorization aborts before the native re
   const invocations = []
   let grant
   let draftUnchanged = true
+  let submissionNotifications = 0
   const module = { exports: {} }
   vm.runInNewContext(transpiled, {
     module,
@@ -82,11 +83,13 @@ test('MAT-004 an edit during sensitive authorization aborts before the native re
   const restoring = module.exports.vaultRestoreNoteHistoryRevision(
     'note.md', 'revision-1', 'vault-alpha', 'reviewed-revision-hash',
     'reviewed-destination-hash', () => draftUnchanged,
+    () => { submissionNotifications++ },
   )
   draftUnchanged = false
   grant('authorization-token')
   await assert.rejects(restoring, /editor changed|save.*before|review.*again|cancelled/i)
   assert.equal(invocations.length, 0, 'native command must not run after an editor change during authorization')
+  assert.equal(submissionNotifications, 0, 'stale draft guard must not mark an unsubmitted native mutation as uncertain')
 })
 
 test('MAT-004 after native submission, a lost response must mark the operation unconfirmed', async () => {
