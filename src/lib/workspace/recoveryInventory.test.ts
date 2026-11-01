@@ -72,3 +72,40 @@ test('history loading, error, empty, and reopen are distinct and non-destructive
   assert.equal(blocked.route, null)
   assert.equal(blocked.status, 'needs-reopen')
 })
+
+test('MAT-003: scoped Git merge conflicts are reported separately from unknown external file conflicts', () => {
+  const gitConflicts = { vaultId: 'v-a', state: 'ready' as const, count: 2 }
+  const entries = buildRecoveryInventory({ ...input, gitConflicts })
+  const git = entries.find(entry => entry.source === 'git-conflicts')
+  assert.equal(git?.status, 'available')
+  assert.equal(git?.count, 2)
+  assert.equal(git?.route, null)
+  assert.match(git?.explanation ?? '', /Git-tracked/)
+  assert.equal(entries.find(entry => entry.source === 'external-conflicts')?.status, 'unverified')
+  const changed = buildRecoveryInventory({ ...input, vaultId: 'v-b', gitConflicts })
+  assert.equal(changed.find(entry => entry.source === 'git-conflicts')?.count, null)
+})
+
+test('MAT-003: absent, loading, failed, and zero Git inspections have distinct statuses', () => {
+  const entry = (gitConflicts?: { vaultId: string; state: 'ready' | 'loading' | 'error' | 'unverified'; count: number }) =>
+    buildRecoveryInventory({ ...input, gitConflicts }).find(row => row.source === 'git-conflicts')
+  assert.equal(entry()?.status, 'unverified')
+  assert.equal(entry({ vaultId: 'v-a', state: 'loading', count: 0 })?.status, 'loading')
+  assert.equal(entry({ vaultId: 'v-a', state: 'error', count: 0 })?.status, 'unavailable')
+  assert.equal(entry({ vaultId: 'v-a', state: 'unverified', count: 0 })?.status, 'unverified')
+  assert.equal(entry({ vaultId: 'v-a', state: 'ready', count: 0 })?.status, 'empty')
+})
+
+test('MAT-003: a selected-note external mismatch must be labelled as partial, read-only evidence', () => {
+  const externalConflicts = { vaultId: 'v-a', state: 'ready' as const, count: 1 }
+  const entry = buildRecoveryInventory({ ...input, externalConflicts }).find(row => row.source === 'external-conflicts')
+  assert.equal(entry?.status, 'available')
+  assert.equal(entry?.count, 1)
+  assert.equal(entry?.route, null)
+  assert.match(entry?.explanation ?? '', /selected note/i)
+  assert.match(entry?.explanation ?? '', /not a vault-wide/i)
+  const otherVault = buildRecoveryInventory({ ...input, vaultId: 'v-b', externalConflicts })
+    .find(row => row.source === 'external-conflicts')
+  assert.equal(otherVault?.status, 'unverified')
+  assert.equal(otherVault?.count, null)
+})

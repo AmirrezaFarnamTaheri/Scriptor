@@ -5,11 +5,11 @@
 > Scope excludes release-only, CI-only and dependency-only work. This branch is the initial functional slice, **not** completion of this backlog.
 
 ## Working rules
-- MAT-006–024 acceptance has a distinct [execution-evidence register](2026-10-30-mat-006-024-acceptance-register.md). Each issue remains open until its own exact-head, installed/runtime, and consent gates are documented; source PRs do not graduate unrelated features.
+- MAT-006–024 acceptance has a distinct [execution-evidence register](2026-10-30-mat-006-024-acceptance-register.md). Each issue remains open until its full objective and exact-head automated evidence satisfy [the new MAT acceptance contract](../../docs/MAT-AUTOMATED-ACCEPTANCE.md); in-product authorization remains mandatory.
 - Preserve Markdown and local bibliography files as source of truth; do not create parallel mutable editors, workspace managers, or permission brokers.
 - Native validation, vault ownership, expected hashes, and authorization remain authoritative.
 - A failed transport call does not establish that a native operation rolled back.
-- Every deliverable: focused failing regression, minimum implementation, clean exact-head CI, platform proof where required, reviewed screenshots where UI changes, and updated capability ledger only after actual graduation.
+- Every deliverable: focused failing regression, minimum implementation, clean exact-head CI, hosted cross-platform/virtual-runtime checks where applicable, automated accessibility/visual artifacts, and updated capability ledger only after tested graduation.
 - Do not infer that provider mocks prove live Google/Overleaf/Zotero support. Preserve current experimental labels.
 - Work against the current main plus verified dependencies. PR #179 is merged; this branch includes its audited dependency fixes through an explicit merge commit.
 - Mark only individually verified tasks completed. Product behavior, integration and deployment evidence are distinct.
@@ -30,12 +30,12 @@
 - [ ] **MAT-009 — Full-vault Database Studio queries**. Owners: native indexer, `src/lib/databaseStudio.ts`, `DatabaseStudioPanel.tsx`. Preserve existing 200-candidate/32MiB bounds until server-side filtering, pagination and consistent totals are verified; never present a partial aggregate as full-vault. Test 25k-note fixture and deterministic pagination. Depends on MAT-005.
 - [ ] **MAT-010 — Typed schema, view migration and reviewed batch edits**. Preserve original YAML scalar types, detect stale revision, support dry-run preview and per-note results, continue safely on partial failure. No auto-merge. Depends on MAT-009.
 - [ ] **MAT-011 — Evidence provenance records**. Relate captured source, verified passage locator, reference key, literature note and manuscript citation with stable vault-owned references; flag missing or changed sources. Tests: rename, duplicates, stale excerpts, untrusted captures. Depends on MAT-005.
-- [ ] **MAT-012 — Guided research journey**. Compose capture→review→bibliography→literature note→citation→validation→export through existing modules. Explicit checkpoints and clear recovery, no second storage authority. Test one full fixture-driven journey and manual task success. Depends on MAT-011.
+- [ ] **MAT-012 — Guided research journey**. Compose capture→review→bibliography→literature note→citation→validation→export through existing modules. Explicit checkpoints and clear recovery, no second storage authority. Test one full automated fixture-driven journey and measurable task assertions. Depends on MAT-011.
 - [ ] **MAT-013 — Bibliography refresh**. Watch selected Better BibTeX / .bib output; offer reviewed diffs, duplicate/citekey reconciliation and content-hash guard. Never silently overwrite bibliography. Tests: exporter truncation, invalid BibTeX, rename, citation stability.
 - [ ] **MAT-014 — Reproducible research project manifests**. Versioned project definition listing inputs, bibliography, execution permissions, export profiles and artifact hashes; stable output receipts and honest rebuild status. Test a clean project rebuild and changed-input detection. Depends on MAT-007, MAT-011.
 
 ## P1 — connections, tasks and offline behavior
-- [ ] **MAT-015 — Read-only Connections status**. Reuse Google/Overleaf/publishing provider authority; show connected account, authorization vs sync freshness, pending review, last error and recovery route; never merge write scopes. Live-packaged acceptance required for support claims.
+- [ ] **MAT-015 — Read-only Connections status**. Reuse Google/Overleaf/publishing provider authority; show connected account, authorization vs sync freshness, pending review, last error and recovery route; never merge write scopes. Automated provider contract and hosted runtime acceptance required for support claims; no live-account or physical installation gate.
 - [ ] **MAT-016 — Task identity edge-case hardening**. Current task indexer already has semantic stable IDs, paging and remote reconciliation. Target remaining indistinguishable-title reorder and provider mapping ambiguity. Tests: duplicates, reorder, note rename, account change and offline edit; no unexpected remote task creation. Depends on MAT-005.
 - [ ] **MAT-017 — Offline-first acceptance**. With network down or credentials revoked, editing, local search and recovery remain usable. Queued provider effects must not silently commit against stale local revisions; use review and receipts. Test sleep/resume and account expiration. Depends on MAT-015.
 
@@ -44,21 +44,21 @@
 - [ ] **MAT-019 — Consistent permission and action-result UI**. Plugin/MCP/native approval keep separate scopes, but share contextual action consequences and review affordances; no inert controls. Test keyboard/screen-reader semantics, pending, denial, success and revocation.
 - [ ] **MAT-020 — Responsive design-system consolidation**. Shared contracts for panels, scrolling, empty states, dialogs and feedback. Review actual light/dark/RTL images at 320/375/768/1024/1440 widths and 200% zoom; never blindly update goldens.
 - [ ] **MAT-021 — Existing process broker completeness**. Audit LaTeX/Pandoc/Python/Typst/diagram/publishing process cancellation, timeout, sandbox path, bounded logs and process-tree termination. Consolidate policy without granting new execution authority.
-- [ ] **MAT-022 — Evidence-based capability graduation**. Extend `docs/CAPABILITY-MATURITY.md` with ownership, positive/negative/restart/recovery tests, performance, real-provider or packaged evidence, docs and reproducible manual journey results. Start with writing/recovery, Database Studio and capture-to-publication. Do not mark experimental features supported without satisfying all gates.
+- [ ] **MAT-022 — Evidence-based capability graduation**. Verify ownership, contract, positive/negative/restart/recovery tests, privacy/authorization, performance, documentation, CI-built artifact smoke and automated journeys on exact source SHA. No physical installation, live account or human sign-off is required. Never graduate a capability based solely on mocks.
 
-- [ ] **MAT-023 — Measured performance and scale baselines**. Benchmark 100/1k/5k/25k-note vaults for opening, first-note latency, search, indexing, editor responsiveness, memory and app size with reproducible hardware/toolchain details. Keep FTS5 where it meets budgets; prohibit invented gains. Tests: repeatable fixture generation and automated regression thresholds plus manual variance review.
-- [ ] **MAT-024 — Real-user and installed-app acceptance**. Design writing/recovery, Database Studio and source-to-publication studies with scripted tasks and success/error/cancellation criteria. Verify installed Windows/macOS/Linux, Persian RTL, 200% zoom, keyboard and screen reader use. Real Google/Overleaf credentials and privacy approval remain external gates. Record observed evidence separately from browser mocks.
+- [ ] **MAT-023 — Measured performance and scale baselines**. Benchmark 100/1k/5k/25k-note vaults for open, indexing, search, editor latency, memory and artifact size on pinned hosted runners. Require two independent cold/warm runs, measured variance and automated regression thresholds; no invented gains or manual variance review.
+- [ ] **MAT-024 — Automated cross-platform end-to-end acceptance**. Use CI-built executable artifacts and deterministic native/Playwright task journeys for writing/recovery, Database Studio and capture-to-publication; cover hosted Windows/macOS/Linux, RTL Persian, 200% zoom, narrow widths, keyboard/accessibility-tree, offline and provider expiry. No real-world install, recruited user, live credentials or human approval required.
 
 ## Sequencing and practical PR boundaries
-1. **Current PR:** MAT-001 with this backlog, confirmed native-status mapper and unconfirmed-invoke guard. CI and visual review passed on `2a7e64a`; the CodeRabbit follow-up needs new exact-head checks. MAT-001 remains unchecked until installed-client lost-reply, frozen-draft exit, restart, and restore-journal reconciliation acceptance is recorded.
+1. **Current PR:** MAT-001 with this backlog, confirmed native-status mapper and unconfirmed-invoke guard. CI and visual review passed on `2a7e64a`; the CodeRabbit follow-up needs new exact-head checks. MAT-001 remains unchecked until automated native/runtime lost-reply, frozen-draft exit, restart and restore-journal reconciliation evidence is recorded.
 2. **Next focused PRs:** MAT-002 then MAT-003/004/005. Each has its own regression suite and outcome proof.
 3. **Parallel after shared contracts:** MAT-006/007/008 and MAT-009/010/011/012/013/014.
 4. **Independent user-facing work:** MAT-015/016/017, MAT-018/019/020/021.
-5. **Final graduation:** MAT-022 after packaged and user-journey evidence. Maintain the checklist incrementally; review each task against current source before implementation.
+5. **Final graduation:** MAT-022 after CI-built artifact smoke and automated user-journey evidence. Maintain the checklist incrementally; review each task against current source before implementation.
 
 ## Definition of done for each task
 - Tests fail on the previous behavior and pass on the changed behavior.
 - No weakening of the existing audit, authorization, lint, UI, or release gates.
-- Native and browser checks pass on the exact head; selected tasks also require real packaged/provider/assistive-technology evidence.
+- Native and browser checks pass on the exact head; applicable tasks also need hosted platform, provider contract, keyboard/accessibility-tree and artifact smoke evidence without physical installation or human sign-off.
 - Failure, cancellation, stale state, and recovery paths are documented and actionable.
 - One independently reviewable PR, with a clear scope, migration/recovery behavior, tests, and capability claim.

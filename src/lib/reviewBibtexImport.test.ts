@@ -46,3 +46,19 @@ test('MAT-013: rejects malformed UTF-16 input and prevents excessive import prev
   assert.throws(() => reviewBibtexImport('@article{broken, title={bad \u0000 source}}', []), /invalid|NUL/i)
   assert.throws(() => reviewBibtexImport('@article{bad, title={unpaired \uD800}}', []), /invalid|surrogate/i)
 })
+
+test('MAT-013: percent comments inside entries do not terminate a valid entry or hide later keys', () => {
+  const content = `@article{first2026,
+  title={First result},
+  % Comment describing old syntax } and an unmatched " quote
+  year={2026}
+}
+@book{second2026, title={Second result}}`
+  assert.deepEqual(reviewBibtexImport(content, []).keys, ['first2026', 'second2026'])
+})
+
+test('MAT-013: percent escapes inside braced URLs remain literal bibliography content', () => {
+  assert.deepEqual(reviewBibtexImport(
+    '@misc{example, url={https://example.test/encoded%20path}, title={Example}}', [],
+  ).keys, ['example'])
+})
