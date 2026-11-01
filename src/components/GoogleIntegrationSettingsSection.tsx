@@ -76,9 +76,10 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
 
   const accountControls = (service: 'drive' | 'gmail') => {
     const account = accounts[service]
+    const reconnectRequired = account.status === 'reconnect-required'
     return <>
       <div className="calendar-sync-actions google-connection-actions">
-        <span role="status">{account.email || t(`integrations.google.status.${account.status}`)}</span>
+        <span role="status">{reconnectRequired ? t('integrations.google.reconnect') : account.email || t(`integrations.google.status.${account.status}`)}</span>
         <button type="button" className="primary-button" disabled={account.busy} onClick={() => {
           if (!clientId.trim()) {
             setSetupError(t('integrations.google.notConfigured'))
@@ -87,10 +88,10 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
           setSetupError(null)
           void accounts.connect(service)
         }}>
-          <ExternalLink size={14} aria-hidden="true" />{t(account.email ? 'integrations.google.reconnect' : 'integrations.google.connect')}
+          <ExternalLink size={14} aria-hidden="true" />{t(account.email || reconnectRequired ? 'integrations.google.reconnect' : 'integrations.google.connect')}
         </button>
         {account.email ? <button type="button" className="toolbar-button" disabled={account.busy} onClick={() => void accounts.disconnect(service)}>{t('integrations.google.disconnect')}</button> : null}
-        {account.email || account.status === 'error' ? <button type="button" className="toolbar-button" disabled={account.busy} onClick={() => void accounts.check(service)}>{t('integrations.google.checkConnection')}</button> : null}
+        {account.email || account.status === 'error' || reconnectRequired ? <button type="button" className="toolbar-button" disabled={account.busy} onClick={() => void accounts.check(service)}>{t('integrations.google.checkConnection')}</button> : null}
       </div>
       {account.error ? <p className="publish-error" role="alert">{account.error}</p> : null}
     </>
