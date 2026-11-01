@@ -36,3 +36,32 @@ test('note history compares current content before restore', async ({ page }) =>
   await expect(confirmation).toBeHidden()
   await expect(panel).toBeVisible()
 })
+
+
+test('MAT-004 lost native history-restore reply requires reopening before another write', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem('e2e:history-restore-lost-reply', '1')
+  })
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await settleLayout(page)
+
+  await openCommandPalette(page)
+  await runCommand(page, 'Note history timeline')
+  const panel = page.getByRole('dialog', { name: 'Note history' })
+  const restore = panel.getByRole('button', { name: 'Restore revision' })
+  await expect(restore).toBeEnabled()
+  await restore.click()
+  const confirmation = panel.getByRole('group', { name: 'Confirm revision restore' })
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByRole('button', { name: 'Restore revision' }).click()
+
+  await expect(panel.getByText('Restore outcome unconfirmed.', { exact: false })).toBeVisible()
+  await expect(confirmation).toBeHidden()
+  await expect(restore).toBeDisabled()
+  await expect(panel.getByRole('alert')).toContainText('Reopen this vault')
+  await expect.poll(() =>
+    page.evaluate(() => window.__scriptorE2eHistoryRestoreAttempts ?? 0)
+  ).toBe(1)
+  await expect(restore).toBeDisabled()
+})
