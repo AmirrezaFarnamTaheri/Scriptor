@@ -179,6 +179,20 @@
       ]
     },
     {
+      "id": "diagram-timeout-test-unix-descendant",
+      "file": "crates/export-runner/src/diagram.rs",
+      "owner": "export-tests",
+      "executableSource": "fixed Unix sh in cfg(test), isolated temporary output paths",
+      "argumentPolicy": "fixed background-writer timeout regression script; no user input",
+      "timeoutCancellation": "900ms fixture timeout plus explicit captured descendant PID cleanup after RED assertion",
+      "outputBounds": "heartbeat file under temporary fixture; captured stdout and stderr capped by diagram runner",
+      "reviewExpires": "test-only",
+      "negativeTests": [
+        "renderer timeout must stop background writer",
+        "RED fixture cleans up orphan descendant"
+      ]
+    },
+    {
       "id": "diagram-timeout-test-windows-fast",
       "file": "crates/export-runner/src/diagram.rs",
       "owner": "export-tests",
