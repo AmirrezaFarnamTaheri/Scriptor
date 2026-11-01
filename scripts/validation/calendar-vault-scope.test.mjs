@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import vm from 'node:vm'
 import ts from 'typescript'
+import { assertNoAmbiguousTaskRebindings, assertUnambiguousTaskTitles } from '../../src/lib/workspace/taskMirrorIdentity.ts'
 
 const source = ts.transpileModule(readFileSync(new URL('../../src/hooks/useGoogleCalendarSync.ts', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -77,6 +78,7 @@ function harness(remoteTasks, vaultNotes = []) {
       : id.endsWith('/google_calendar.ts') ? commands
         : id.endsWith('/googleAuthErrors.ts') ? { googleAuthErrorMessage: String, isGoogleAuthRequiredError: () => false }
           : id.endsWith('/googleOAuthClient.ts') ? { getGoogleOAuthClientId: (legacyClientId) => legacyClientId?.trim() ?? '' }
+          : id.endsWith('/taskMirrorIdentity.ts') ? { assertUnambiguousTaskTitles, assertNoAmbiguousTaskRebindings }
           : {},
   })
   const render = () => { cursor = 0; return module.exports.useGoogleCalendarSync(options) }
