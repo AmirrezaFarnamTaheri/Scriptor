@@ -16,6 +16,8 @@
 
 ### Fixed
 
+- Reject already-cancelled external process requests before executable lookup or spawn, including direct broker spawns; preserve existing policy errors and post-launch process-tree cancellation.
+
 - Bind Note History timeline and current-note comparison reads to the initiating vault, including the final restore preflight. A delayed read from vault A cannot silently display vault B's same relative path; displayed revision, preview and error states are scoped to vault identity.
 
 - Reject a destructive Note History restore when the retained revision bytes have changed since review: require the timeline's content hash at native admission and verify the re-read source before writing the destination note, without weakening vault or destination-hash checks.
