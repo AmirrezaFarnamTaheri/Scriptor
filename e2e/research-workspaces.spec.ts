@@ -190,6 +190,39 @@ test('bibliography file review preserves existing files and literature notes ret
   expect(saved?.payload.markdown).toContain('[@smith2024]');expect(saved?.payload.markdown).toContain('Methods for careful research.')
 })
 
+test('MAT-013: local BibTeX review blocks key collisions and malformed input before a native write', async ({ page }) => {
+  await openResearch(page, 'Browse bibliography')
+  const panel = page.getByRole('dialog', { name: 'Bibliography', exact: true })
+  const input = panel.getByLabel('Import a .bib file', { exact: true })
+  const review = panel.getByRole('region', { name: 'Review bibliography file' })
+  const save = review.getByRole('button', { name: 'Save reviewed bibliography', exact: true })
+
+  await input.setInputFiles({
+    name: 'collision.bib', mimeType: 'text/plain',
+    buffer: Buffer.from('@article{smith2024, title={Another paper with an existing key}}'),
+  })
+  await expect(review).toContainText('1 existing citation-key collision')
+  await expect(review).toContainText('smith2024')
+  await expect(save).toBeDisabled()
+  expect(await calls(page, 'vault_save_asset')).toHaveLength(0)
+
+  await input.setInputFiles({
+    name: 'truncated.bib', mimeType: 'text/plain',
+    buffer: Buffer.from('@article{new2026, title={Unclosed}'),
+  })
+  await expect(review.getByRole('alert')).toContainText('Unclosed BibTeX')
+  await expect(save).toBeDisabled()
+  expect(await calls(page, 'vault_save_asset')).toHaveLength(0)
+
+  await input.setInputFiles({
+    name: 'new.bib', mimeType: 'text/plain',
+    buffer: Buffer.from('@article{new2026, title={A reviewed new citation}}'),
+  })
+  await expect(review).toContainText('1 new citation key')
+  await expect(save).toBeEnabled()
+  expect(await calls(page, 'vault_save_asset')).toHaveLength(0)
+})
+
 test('capture extraction failures remain actionable without writing a note',async({page})=>{
   await page.addInitScript(()=>sessionStorage.setItem('e2e:capture-failure','1'))
   await openResearch(page,'Capture reviewer')
