@@ -409,3 +409,49 @@ test('a legacy marker cannot migrate a provider record already claimed by anothe
   assert.equal(result.updated, 0)
   assert.match(h.render().error ?? '', /vault|owner|ambiguous|review/i)
 })
+
+test('MAT-016: indistinguishable task titles reordered in one note require review before provider completion', async () => {
+  const h = harness([
+    task('remote-1', 'Submit report', scoped('vault-a', 'task-1')),
+    task('remote-2', 'Submit report', scoped('vault-a', 'task-2')),
+  ], [{
+    path: 'todo.md',
+    tasks: [
+      { id: 'task-1', text: 'Submit report', checked: true, line: 1, dueDate: null },
+      { id: 'task-2', text: 'Submit report', checked: false, line: 0, dueDate: null },
+    ],
+  }])
+  await h.render().refresh()
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0,
+    'occurrence-assigned IDs cannot prove identity after indistinguishable duplicates swap')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /duplicate|ambiguous|review/i)
+})
+
+test('MAT-016: duplicate title normalization matches the indexer semantic identity', async () => {
+  const h = harness([], [{
+    path: 'todo.md',
+    tasks: [
+      { id: 'task-1', text: 'Submit  report', checked: false, line: 0, dueDate: null },
+      { id: 'task-2', text: ' Submit report ', checked: false, line: 1, dueDate: null },
+    ],
+  }])
+  await h.render().refresh()
+  await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0)
+  assert.match(h.render().error ?? '', /duplicate|ambiguous|review/i)
+})
+
+test('MAT-016: identical titles in different notes are not an ambiguous local occurrence', async () => {
+  const h = harness([], [
+    { path: 'first.md', tasks: [{ id: 'task-1', text: 'Submit report', checked: false, line: 0, dueDate: null }] },
+    { path: 'second.md', tasks: [{ id: 'task-2', text: 'Submit report', checked: false, line: 0, dueDate: null }] },
+  ])
+  await h.render().refresh()
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 1)
+  assert.equal(h.batches[0].length, 2)
+  assert.equal(result.created, 2)
+})
