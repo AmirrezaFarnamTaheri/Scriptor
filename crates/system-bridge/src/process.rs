@@ -178,7 +178,22 @@ pub struct ProcessReceipt {
     pub stderr_truncated: bool,
 }
 
+/// An already-cancelled launch must not resolve, hash or start a process.
+fn reject_pre_cancelled(spec: &ProcessSpec) -> Result<(), BridgeError> {
+    if spec
+        .cancel_slot
+        .as_ref()
+        .is_some_and(|slot| slot.load(Ordering::Relaxed))
+    {
+        return Err(BridgeError::ProcessPolicy {
+            message: "process cancelled by caller".into(),
+        });
+    }
+    Ok(())
+}
+
 pub fn spawn_process(spec: &ProcessSpec) -> Result<SpawnedProcess, BridgeError> {
+    reject_pre_cancelled(spec)?;
     let resolved = resolve_executable(&spec.program, spec.current_dir.as_deref())?;
     let actual_hash = if resolved.is_file() {
         Some(hash_file(&resolved)?)
@@ -223,6 +238,10 @@ pub fn spawn_process(spec: &ProcessSpec) -> Result<SpawnedProcess, BridgeError> 
         .stderr(Stdio::piped());
     configure_process_group(&mut command);
 
+    // A cancellation may arrive during executable hashing/policy preparation.
+    // Check once more at the launch boundary; post-spawn cancellation remains
+    // the responsibility of run_process's process-tree termination loop.
+    reject_pre_cancelled(spec)?;
     let child = command
         .spawn()
         .map_err(|source| BridgeError::ProcessSpawn {
@@ -675,6 +694,79 @@ mod tests {
         let (stored, truncated) = read_bounded(input.as_slice(), 1024).expect("read");
         assert_eq!(stored.len(), 1024);
         assert!(truncated);
+    }
+
+    #[test]
+    fn cancelled_request_must_not_resolve_or_launch_an_executable() {
+        let cancelled = Arc::new(AtomicBool::new(true));
+        let spec = ProcessSpec::new("scriptor-mat021-executable-that-must-never-be-resolved")
+            .cancel_slot(cancelled);
+        let outcome = run_process(spec);
+        assert!(
+            matches!(&outcome, Err(BridgeError::ProcessPolicy { message })
+                if message == "process cancelled by caller"),
+            "A cancelled request must be rejected before executable resolution: {outcome:?}"
+        );
+    }
+
+    #[test]
+    fn direct_spawn_rejects_a_pre_cancelled_process_spec() {
+        let cancelled = Arc::new(AtomicBool::new(true));
+        let spec = ProcessSpec::new("scriptor-mat021-executable-that-must-never-be-resolved")
+            .cancel_slot(cancelled);
+        let outcome = spawn_process(&spec);
+        // SpawnedProcess does not implement Debug, so inspect the error only.
+        match outcome {
+            Err(BridgeError::ProcessPolicy { message }) => {
+                assert_eq!(message, "process cancelled by caller");
+            }
+            Err(other) => panic!("Unexpected process error before cancellation: {other:?}"),
+            Ok(mut process) => {
+                terminate_process_tree(&mut process.child);
+                panic!("The broker started a pre-cancelled process.");
+            }
+        }
+    }
+
+    #[test]
+    fn stdout_and_stderr_floods_are_both_drained_and_independently_bounded() {
+        const FLOOD_CHILD: &str = "SCRIPTOR_PROCESS_BROKER_FLOOD_CHILD";
+        if std::env::var_os(FLOOD_CHILD).is_some() {
+            use std::io::Write;
+            let flood = vec![b'x'; 128 * 1024];
+            std::io::stdout()
+                .write_all(&flood)
+                .expect("write stdout flood");
+            std::io::stderr()
+                .write_all(&flood)
+                .expect("write stderr flood");
+            return;
+        }
+
+        let executable = std::env::current_exe().expect("test executable");
+        let receipt = run_process(
+            ProcessSpec::new(executable)
+                .args([
+                    "--exact",
+                    "process::tests::stdout_and_stderr_floods_are_both_drained_and_independently_bounded",
+                    "--nocapture",
+                ])
+                .env(FLOOD_CHILD, "1")
+                .max_output_bytes(1024)
+                .timeout(Duration::from_secs(10)),
+        )
+        .expect("run bounded flood child");
+        assert_eq!(receipt.exit_code, 0, "{}", receipt.stderr);
+        assert!(
+            receipt.stdout_truncated,
+            "stdout flood must be visibly truncated"
+        );
+        assert!(
+            receipt.stderr_truncated,
+            "stderr flood must be visibly truncated"
+        );
+        assert!(receipt.stdout.len() <= 1024, "stdout exceeded byte limit");
+        assert!(receipt.stderr.len() <= 1024, "stderr exceeded byte limit");
     }
 
     #[test]
