@@ -118,3 +118,28 @@ test('MAT-002: a prior receipt cannot be reused after its expected revision chan
   const unknownRevision = buildOperationOutcome({ ...scope, expectedRevision: null }, { kind: 'not-submitted' })
   assert.equal(visibleOperationOutcome(unknownRevision, { ...scope, expectedRevision: undefined }), unknownRevision)
 })
+
+
+test('MAT-002: a native receipt cannot claim paths outside the originating vault', async () => {
+  const invalidPaths = [
+    '../other-vault/note.md', '/outside/note.md', 'C:\\outside\\note.md',
+    'notes/../../secret.md', 'notes//bad.md', 'notes/./bad.md',
+    'notes\\bad.md', 'note.md\0',
+  ]
+  for (const path of invalidPaths) {
+    assert.throws(() => buildOperationOutcome(scope, {
+      kind: 'committed', affectedPaths: [path],
+    }), /Invalid native affected paths inventory/)
+  }
+  const observed = await observeMutation({
+    scope, authorize: async () => true,
+    submit: async () => ({ changed: true }),
+    interpret: () => ({ kind: 'committed', affectedPaths: ['../other-vault/note.md'] }),
+  })
+  assert.equal(observed.outcome.commit, 'indeterminate')
+  assert.equal(observed.outcome.proof, 'invalid-native-result')
+  assert.deepEqual(
+    buildOperationOutcome(scope, { kind: 'committed', affectedPaths: ['notes/note.md'] }).affectedPaths,
+    ['notes/note.md'],
+  )
+})

@@ -30,7 +30,7 @@
 
 - Reject benchmark evidence repetitions that share the same UTC start instant despite distinct IDs or equivalent timestamp precision, rather than incorrectly counting them as independent runs.
 
-- Reject MAT capability-graduation evidence links that point to GitHub Actions runs outside the Scriptor repository. A source SHA string alone is not proof of an installed or privacy review; human verification remains mandatory.
+- Reject MAT capability-graduation evidence links that point to GitHub Actions runs outside the Scriptor repository. A source SHA string alone is insufficient; automated verification of CI runs, artifacts, permission/privacy tests and source provenance remains mandatory.
 
 - Show reconnect-required status and native recovery explanations when Google Drive/Docs, Calendar/Tasks or Gmail authorization expires. Distinguish absent first-time credentials from expired ones, clear unverified account identity and expired Calendar caches across all mounted consumers, invalidate late provider task replies, and keep independent provider credentials and permissions unchanged.
 
