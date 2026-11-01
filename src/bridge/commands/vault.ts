@@ -250,6 +250,20 @@ export async function vaultListViewNotes(filterJson: string): Promise<ViewNoteHi
   return invoke<ViewNoteHit[]>('vault_list_view_notes', { filterJson })
 }
 
+/** Request a bounded, path-keyset page from the native indexed view evaluator. */
+export async function vaultListViewNotesPage(
+  filterJson: string,
+  afterPath: string | null = null,
+  pageSize = 201,
+): Promise<ViewNoteHit[]> {
+  requireNative()
+  if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 201) {
+    throw new Error('Database page size must be between 1 and 201.')
+  }
+  // Unknown native input is verified by selectDatabasePage at the caller.
+  return invoke<ViewNoteHit[]>('vault_list_view_notes', { filterJson, afterPath, pageSize })
+}
+
 export interface StatsHistoryEntry {
   date: string
   words: number

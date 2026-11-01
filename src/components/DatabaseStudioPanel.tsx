@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { vaultListViewNotes, vaultReadNote, vaultSaveNote, vaultSaveAsset, vaultFrontmatterSet } from '../bridge/commands'
+import { vaultListViewNotesPage, vaultReadNote, vaultSaveNote, vaultSaveAsset, vaultFrontmatterSet } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import type { NoteDocument } from '../types/vault'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -10,6 +10,7 @@ import type { DatabaseView, DatabaseColumn, CellValue } from '../lib/databaseStu
 import { DatabaseStudioBuilder } from './database/DatabaseStudioBuilder'
 import { DatabaseStudioResults } from './database/DatabaseStudioResults'
 import { evaluateDatabaseQueryCoverage } from '../lib/databaseQueryCoverage'
+import { selectDatabasePage } from '../lib/databasePagination'
 import '../styles/components/database-studio.css'
 
 const PRESET_PATH = '.scriptor/presets/database-studio.md'
@@ -29,6 +30,9 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
   const [savedViews, setSavedViews] = useState<DatabaseView[]>([])
   const [rows, setRows] = useState<DatabaseRow[]>([])
   const [loadedColumns, setLoadedColumns] = useState<DatabaseColumn[]>([])
+  const [pagePosition, setPagePosition] = useState<{
+    afterPath: string | null; previous: readonly (string | null)[]; nextCursor: string | null
+  } | null>(null)
   const [loadedScope, setLoadedScope] = useState<{ vaultId: string; view: DatabaseView; native: boolean; presetVersion: number; revision: number } | null>(null)
   const [status, setStatus] = useState('Build a view, then load notes. Calculations cover loaded rows only.')
   const [busy, setBusy] = useState(true)
@@ -66,7 +70,7 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
       }
       if (request !== generation.current) return
         if (!Array.isArray(stored) || stored.length > 50) throw new Error('Saved views exceed the 50-view limit.')
-        setSavedViews(stored.map(validateDatabaseView)); setRows([]); setError(null);setPresetLoadFailed(false)
+        setSavedViews(stored.map(validateDatabaseView)); setRows([]); setPagePosition(null); setError(null);setPresetLoadFailed(false)
       } catch (failure) { if(request!==generation.current)return;presetState.current='failed';setPresetLoadFailed(true);setError(`Saved views could not be loaded. Saving is blocked to preserve the stored file: ${String(failure)}`); setSavedViews([]); setRows([]) }
       setView(defaultDatabaseView()); setBusy(false)
     })()
@@ -81,22 +85,25 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
     viewRevision.current += 1
     setView(next)
     setLoadedScope(null)
+    setPagePosition(null)
     setRows([])
     setLoadedColumns([])
     setError(null)
     setStatus('View changed. Load notes to apply it.')
   }
 
-  const load = async () => {
+  const load = async (afterPath: string | null = null, previous: readonly (string | null)[] = []) => {
     if (!native || !vaultId || busy || operationPending.current) return
     operationPending.current=true
     const request = ++generation.current
     const requestedViewRevision = viewRevision.current
-    setBusy(true); setError(null); setLoadedScope(null); setRows([]); setLoadedColumns([])
+    setBusy(true); setError(null); setLoadedScope(null); setRows([]); setLoadedColumns([]); setPagePosition(null)
     try {
       const valid = validateDatabaseView(view)
-      const hits = await vaultListViewNotes(databaseFilterJson(valid))
-      const selected = hits.slice(0, DATABASE_ROW_LIMIT)
+      // Filter natively before taking the bounded page and one look-ahead.
+      const hits = await vaultListViewNotesPage(databaseFilterJson(valid), afterPath, DATABASE_ROW_LIMIT + 1)
+      const page = selectDatabasePage(hits, DATABASE_ROW_LIMIT, afterPath)
+      const selected = page.candidates
       const loaded: DatabaseRow[] = []; let bytes = 0; let skipped = 0; let examined = 0
       // Four in flight; cumulative content and returned rows both have fixed budgets.
       for (let offset = 0; offset < selected.length; offset += 4) {
@@ -116,12 +123,13 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
       }
       if (request !== generation.current || requestedViewRevision !== viewRevision.current) return
       setRows(loaded); setLoadedColumns(valid.columns)
+      setPagePosition({ afterPath, previous, nextCursor: page.nextCursor })
       setLoadedScope({ vaultId, view, native, presetVersion: reloadPresets, revision: requestedViewRevision })
       const coverage = evaluateDatabaseQueryCoverage({
-        candidatesReported: hits.length, candidatesExamined: examined,
+        candidatesReported: selected.length, candidatesExamined: examined,
         loaded: loaded.length, skipped, sourceCoverage: 'unverified',
       })
-      setStatus(coverage.description)
+      setStatus(`Indexed candidate page ${previous.length + 1}. ${coverage.description}${page.nextCursor ? ' More indexed candidates are available.' : ' End of indexed matches at the time of this request.'}`)
     } catch (failure) { if (request === generation.current && requestedViewRevision === viewRevision.current) setError(String(failure)) }
     finally { operationPending.current=false;if (request === generation.current) setBusy(false) }
   }
@@ -186,6 +194,19 @@ export function DatabaseStudioPanel({ vaultOpen, vaultId, onClose, onOpenNote, e
       {!native ? <p>Open a folder of notes in the desktop app to view and edit note properties. Saved views stay on this device.</p> : null}
       {error ? <p role="alert">{error}</p> : null}{presetLoadFailed?<><p>Review the loading error, repair the stored view file if needed, then reload before saving.</p><button type="button" disabled={busy} onClick={()=>setReloadPresets(value=>value+1)}>Reload saved views</button></>:null}<p role="status">{status}</p>
       {native && !runSourceNoteMutation && visibleRows.length > 0 ? <p>Note properties are read-only until the source editor is available. Open a note from the results to edit it safely.</p> : null}
+      {resultsCurrent && pagePosition && (pagePosition.previous.length > 0 || pagePosition.nextCursor !== null) ? (
+        <nav className="database-studio-actions" aria-label="Database indexed candidate pages">
+          <span>Page {pagePosition.previous.length + 1}</span>
+          <button type="button" disabled={busy || pagePosition.previous.length === 0}
+            onClick={() => void load(pagePosition.previous[pagePosition.previous.length - 1] ?? null, pagePosition.previous.slice(0, -1))}>
+            Previous candidates
+          </button>
+          <button type="button" disabled={busy || pagePosition.nextCursor === null}
+            onClick={() => void load(pagePosition.nextCursor, [...pagePosition.previous, pagePosition.afterPath])}>
+            Next candidates
+          </button>
+        </nav>
+      ) : null}
       <DatabaseStudioResults rows={visibleRows} columns={visibleColumns} values={values} mode={view.mode} busy={busy || !runSourceNoteMutation} onOpenNote={onOpenNote} onEdit={editCell} />
       {visibleRows.length ? <details><summary>Totals for loaded notes</summary><dl>{visibleColumns.map((column,index) => <div key={column.key}><dt>{column.label}</dt><dd>Numeric count {aggregates[index].count}; sum {aggregates[index].sum ?? '—'}; average {aggregates[index].average ?? '—'}; min {aggregates[index].min ?? '—'}; max {aggregates[index].max ?? '—'}</dd></div>)}</dl></details> : null}
     </div>

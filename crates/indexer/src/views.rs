@@ -30,6 +30,39 @@ pub fn list_view_notes(
     session: &VaultSession,
     filter_json: &str,
 ) -> Result<Vec<ViewNoteHit>, IndexerError> {
+    list_view_notes_inner(cache, session, filter_json, None, None)
+}
+
+/// MAT-009: return at most 201 filtered hits in deterministic index path order.
+/// The final hit is used as a look-ahead, not a UI result. Cursor pagination
+/// is scoped to a stable index; callers must reload when index data changes.
+pub fn list_view_notes_page(
+    cache: &IndexCache,
+    session: &VaultSession,
+    filter_json: &str,
+    after_path: Option<&str>,
+    page_size: usize,
+) -> Result<Vec<ViewNoteHit>, IndexerError> {
+    if !(1..=201).contains(&page_size) {
+        return Err(IndexerError::InvalidQuery(
+            "database view page size must be between 1 and 201".into(),
+        ));
+    }
+    if after_path.is_some_and(|path| path.is_empty() || path.len() > 4096) {
+        return Err(IndexerError::InvalidQuery(
+            "invalid database view cursor".into(),
+        ));
+    }
+    list_view_notes_inner(cache, session, filter_json, after_path, Some(page_size))
+}
+
+fn list_view_notes_inner(
+    cache: &IndexCache,
+    session: &VaultSession,
+    filter_json: &str,
+    after_path: Option<&str>,
+    limit: Option<usize>,
+) -> Result<Vec<ViewNoteHit>, IndexerError> {
     let filter: ViewFilter = serde_json::from_str(filter_json).map_err(|error| {
         IndexerError::InvalidQuery(format!("invalid view filter JSON: {error}"))
     })?;
@@ -45,6 +78,13 @@ pub fn list_view_notes(
         sql.push_str(&predicate);
         sql.push(')');
         values.append(&mut predicate_values);
+    }
+    if let Some(cursor) = after_path {
+        // Parameterized path keyset pagination uses the same binary collation
+        // and ORDER BY as the indexed query; never apply LIMIT before the
+        // authoritative Rust filter, which would drop matching notes.
+        sql.push_str(" AND path > ?");
+        values.push(Value::Text(cursor.to_owned()));
     }
     sql.push_str(" ORDER BY path");
 
@@ -85,6 +125,9 @@ pub fn list_view_notes(
                 path: metadata.path,
                 title: metadata.title,
             });
+            if limit.is_some_and(|max| hits.len() >= max) {
+                break;
+            }
         }
     }
 
@@ -247,6 +290,59 @@ mod tests {
         let hits = list_view_notes(&cache, &session, filter_json).unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].path, "match.md");
+    }
+
+
+    #[test]
+    fn page_cursor_walks_filtered_notes_in_index_order_without_duplication() {
+        let dir = tempdir().unwrap();
+        for idx in 0..5 {
+            std::fs::write(
+                dir.path().join(format!("page-{idx:02}.md")),
+                format!("# Page {idx:02}\n"),
+            )
+            .unwrap();
+        }
+        std::fs::write(dir.path().join("unrelated.md"), "# Unrelated\n").unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let cache = crate::rebuild::open_cache_for_session(&session).unwrap();
+        rebuild_for_test(&cache, &session).unwrap();
+
+        let filter_json = r#"{"all":[{"op":"title contains","value":"page"}]}"#;
+        let first = list_view_notes_page(&cache, &session, filter_json, None, 2).unwrap();
+        assert_eq!(
+            first.iter().map(|hit| hit.path.as_str()).collect::<Vec<_>>(),
+            vec!["page-00.md", "page-01.md"],
+        );
+        let second = list_view_notes_page(
+            &cache, &session, filter_json, Some(&first[1].path), 2,
+        )
+        .unwrap();
+        assert_eq!(
+            second.iter().map(|hit| hit.path.as_str()).collect::<Vec<_>>(),
+            vec!["page-02.md", "page-03.md"],
+        );
+        let third = list_view_notes_page(
+            &cache, &session, filter_json, Some(&second[1].path), 2,
+        )
+        .unwrap();
+        assert_eq!(third.len(), 1);
+        assert_eq!(third[0].path, "page-04.md");
+        assert!(list_view_notes_page(
+            &cache, &session, filter_json, Some(&third[0].path), 2,
+        )
+        .unwrap().is_empty());
+    }
+
+    #[test]
+    fn view_pages_reject_invalid_sizes_and_cursors() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let cache = crate::rebuild::open_cache_for_session(&session).unwrap();
+        let filter_json = r#"{"all":[{"op":"title contains","value":""}]}"#;
+        assert!(list_view_notes_page(&cache, &session, filter_json, None, 0).is_err());
+        assert!(list_view_notes_page(&cache, &session, filter_json, None, 202).is_err());
+        assert!(list_view_notes_page(&cache, &session, filter_json, Some(""), 2).is_err());
     }
 
     fn rebuild_for_test(cache: &IndexCache, session: &VaultSession) -> Result<(), IndexerError> {

@@ -81,4 +81,4 @@ pub use tasks::{
     FieldStyle, ParsedTask, TaskFilter, TaskRow, parse_tasks_from_markdown, query_tasks,
     rewrite_task_markdown, sync_note_tasks, sync_note_tasks_from_markdown, task_by_id,
 };
-pub use views::{ViewNoteHit, evaluate_view_filter_json, list_view_notes};
+pub use views::{ViewNoteHit, evaluate_view_filter_json, list_view_notes, list_view_notes_page};
