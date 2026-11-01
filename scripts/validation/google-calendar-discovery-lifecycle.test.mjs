@@ -271,3 +271,37 @@ test('MAT-015: an already submitted Google Task result cannot repopulate cache a
   assert.equal(h.render().tasks.length, 0, 'a late provider response cannot revive a cache after credential expiry')
   assert.equal(h.render().authedEmail, null)
 })
+
+test('MAT-015: revoked Calendar discovery scope clears both mounted consumers rather than leaving synced tasks', async () => {
+  const h = harness()
+  await h.render(0).refresh()
+  await h.render(1).refresh()
+  assert.equal(h.render(0).status, 'synced')
+  assert.equal(h.render(1).tasks.length, 1)
+  const generation = h.render(1).accountGeneration
+  h.bridge.googleCalendarListCalendars = async () => {
+    throw 'GOOGLE_AUTH_REQUIRED: Google Calendar resource scope was revoked'
+  }
+  await h.render(0).discoverResources()
+  for (const consumer of [0, 1]) {
+    const result = h.render(consumer)
+    assert.equal(result.status, 'reconnect-required')
+    assert.equal(result.events.length, 0)
+    assert.equal(result.tasks.length, 0)
+    assert.equal(result.authedEmail, null)
+    assert.match(result.error ?? '', /scope was revoked/)
+  }
+  assert.equal(h.render(1).accountGeneration, generation + 1)
+})
+
+test('MAT-015: discovery of a first-time disconnected account does not falsely require reconnection', async () => {
+  const h = harness()
+  await h.render().refresh()
+  h.bridge.googleCalendarListTaskLists = async () => {
+    throw 'GOOGLE_AUTH_REQUIRED: Google account is not connected.'
+  }
+  await h.render().discoverResources()
+  assert.equal(h.render().status, 'disconnected')
+  assert.equal(h.render().authedEmail, null)
+  assert.equal(h.render().tasks.length, 0)
+})
