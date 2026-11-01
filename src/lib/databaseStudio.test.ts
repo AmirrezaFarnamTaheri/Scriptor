@@ -157,3 +157,13 @@ test('bounded declarative formulas reject executable payloads and propagate miss
   assert.throws(() => calculateValue({ op: 'eval', fields: ['x'] } as never, {x: 'alert(1)'}))
   assert.deepEqual(aggregateColumn([10,null,20,'not numeric']), { count: 2, sum: 30, average: 15, min: 10, max: 20 })
 })
+
+test('MAT-010: non-finite numeric cells must not be silently written as YAML null', () => {
+  for (const value of [NaN, Infinity, -Infinity]) {
+    assert.throws(() => formatScalarCell(value), /non-finite database number/i,
+      'invalid numbers require review before any YAML mutation')
+  }
+  assert.equal(formatScalarCell(0), '0')
+  assert.equal(formatScalarCell(1e21), '1e+21')
+  assert.equal(formatScalarCell(null), 'null')
+})
