@@ -273,6 +273,28 @@ test.describe('workspace flows', () => {
     await expect(banner.getByRole('button', { name: 'Keep my changes' })).toBeVisible()
   })
 
+  test('MAT-003: Recovery Center identifies only a current-note external conflict', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:hash-mismatch', '1')
+    })
+    await launchApp(page)
+    await waitForWorkspace(page)
+    await appendEditorLine(page, 'Local edit while the note also changes on disk.')
+    await expect(page.getByRole('alert').filter({ hasText: 'This note changed on disk' }))
+      .toBeVisible({ timeout: 15_000 })
+
+    await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    const recovery = settings.locator('section.backup-recovery-tools')
+      .filter({ hasText: 'Recovery Center · read-only' })
+    const external = recovery.locator('li.backup-entry')
+      .filter({ hasText: 'External file conflicts' })
+    await expect(external).toContainText('available')
+    await expect(external).toContainText('1 reported')
+    await expect(external).toContainText('not a vault-wide')
+    await expect(external.getByRole('button')).toHaveCount(0)
+  })
+
   test('reload from disk discards local edits after a hash mismatch', async ({ page }) => {
     const localMarker = 'Local edit to discard after external change.'
     await page.addInitScript(() => {

@@ -16,7 +16,7 @@ import type { useVaultBackup } from '../hooks/useVaultBackup'
 import type { WorkspaceChromePrefs } from '../hooks/useWorkspaceChrome'
 import { DEFAULT_WORKSPACE_LAYOUTS, type WorkspaceLayout } from '../hooks/useWorkspaceLayout'
 import type { WorkspaceMode } from '../hooks/useWorkspaceMode'
-import type { VaultConfig } from '../types/vault'
+import type { ExternalChangeConflict, VaultConfig } from '../types/vault'
 import type { SystemInfoSnapshot } from '../types/system'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import { VaultConfigSettingsSection } from './VaultConfigSettingsSection'
@@ -80,6 +80,8 @@ interface SettingsPanelProps {
   onRefreshDaemon: () => void
   onStartDaemon: () => void
   activePath?: string | null
+  activeNoteVaultId?: string | null
+  externalChangeConflict?: ExternalChangeConflict | null
   onClose: () => void
   onConfigSaved?: () => void
   hibernateGraph?: boolean
@@ -157,6 +159,8 @@ function SettingsPanelImpl({
   onRefreshDaemon,
   onStartDaemon,
   activePath = null,
+  activeNoteVaultId = null,
+  externalChangeConflict = null,
   onClose,
   onConfigSaved,
   workspaceMode = 'writing',
@@ -354,7 +358,7 @@ function SettingsPanelImpl({
             )
           ) : null}
 
-          {vaultOpen && nativeReady ? <VaultBackupSettings key={vaultId ?? 'closed'} backup={backup} vaultId={vaultId} activePath={activePath} settingsDirty={configDirty} onOpenNoteHistory={onOpenNoteHistory} /> : null}
+          {vaultOpen && nativeReady ? <VaultBackupSettings key={vaultId ?? 'closed'} backup={backup} vaultId={vaultId} activePath={activePath} activeNoteVaultId={activeNoteVaultId} externalChangeConflict={externalChangeConflict} settingsDirty={configDirty} onOpenNoteHistory={onOpenNoteHistory} /> : null}
 
           <div className="settings-section">
             <h3>{t('settingsPanel.spellcheckGrammar')}</h3>

@@ -1752,6 +1752,8 @@ function App() {
           onRefreshDaemon={handleRefreshDaemon}
           onStartDaemon={handleStartDaemon}
           activePath={workspace.activePath}
+          activeNoteVaultId={workspace.activeNote?.metadata.vault_id ?? null}
+          externalChangeConflict={workspace.externalChangeConflict}
           onOpenNoteHistory={() => { setSettingsOpen(false); setNoteHistoryOpen(true) }}
           onConfigSaved={handleSettingsConfigSaved}
           onClose={handleCloseSettings}
