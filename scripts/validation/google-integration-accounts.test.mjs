@@ -41,7 +41,7 @@ function harness() {
     CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail } },
     require: (id) => id === 'react' ? react : id.includes('/commands/') ? bridge
       : { googleAuthErrorMessage: String, isGoogleAuthRequiredError: (error) => String(error).startsWith('GOOGLE_AUTH_REQUIRED:'),
-        isGoogleAccountNotConnectedError: (error) => /^(?:GOOGLE_AUTH_REQUIRED:\\s*)?(?:Google account is not connected\\.?|Gmail is not connected|disconnected)$/i.test(String(error).trim()) },
+        isGoogleAccountNotConnectedError: (error) => ['GOOGLE_AUTH_REQUIRED: disconnected', 'GOOGLE_AUTH_REQUIRED: Google account is not connected.', 'GOOGLE_AUTH_REQUIRED: Gmail is not connected'].includes(String(error)) },
   })
   const render = () => { cursor = 0; return module.exports.useGoogleIntegrationAccounts(options) }
   return { render, bridge, calls, events, options, persisted: () => persisted, unmount: () => effects.map((effect) => effect()).filter(Boolean).forEach((cleanup) => cleanup()) }
