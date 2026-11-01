@@ -18,5 +18,5 @@ pub use paths::{scriptor_data_dir, vault_scriptor_meta_dir};
 pub use platform::{SystemInfo, detect_system_info};
 pub use process::{
     NetworkPolicy, ProcessReceipt, ProcessSpec, SpawnedProcess, process_alive, run_process,
-    spawn_process, terminate_process_tree,
+    spawn_process, configure_process_group, terminate_process_tree,
 };
