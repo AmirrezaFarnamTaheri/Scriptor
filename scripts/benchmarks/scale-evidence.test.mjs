@@ -114,3 +114,11 @@ test('MAT-023: rejects invented means, nonfinite samples, and missing latency di
   row.report.samples_ms = [10]
   assert.throws(() => evaluateScaleEvidence(evidence), /samples|iterations/i)
 })
+
+
+test('MAT-023: distinct run IDs with the same UTC start cannot establish independent repeat evidence', () => {
+  const input = base()
+  const first = run({ condition: 'warm', replicate: 1 })
+  input.runs = [first, { ...run({ condition: 'warm', replicate: 2 }), startedAt: first.startedAt }]
+  assert.throws(() => evaluateScaleEvidence(input), /independent|timestamp|start time/i)
+})
