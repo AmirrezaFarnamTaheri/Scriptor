@@ -212,6 +212,7 @@ mod tests {
         }
         if !descendant_pid.exists() || !heartbeat.exists() {
             let _ = cancel_active_export(&slot);
+            // PROCESS_BROKER_EXCEPTION(export-cancel-test-unix-startup-cleanup)
             let _ = Command::new("kill")
                 .args(["-KILL", "--", &format!("-{group_id}")])
                 .output();
@@ -226,6 +227,7 @@ mod tests {
         let final_bytes = std::fs::metadata(&heartbeat).expect("heartbeat").len();
         // An intentionally failing RED regression must not leave its orphaned
         // descendant writing forever on a hosted CI runner.
+        // PROCESS_BROKER_EXCEPTION(export-cancel-test-unix-postcancel-cleanup)
         let _ = Command::new("kill")
             .args(["-KILL", "--", &format!("-{group_id}")])
             .output();
