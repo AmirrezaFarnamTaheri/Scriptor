@@ -118,8 +118,12 @@ const DEFAULT_LOOKAHEAD_DAYS = 7
 const MAX_TASK_SYNC_MUTATIONS_PER_APPROVAL = 1000
 const SOURCE_MARKER_PREFIX = 'Scriptor source:'
 
-function announceCalendarAccount(origin: object, kind: 'connected' | 'disconnected'): void {
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', { detail: { service: 'calendar', origin, kind } }))
+function announceCalendarAccount(origin: object, kind: 'connected' | 'disconnected' | 'reconnect-required', error: string | null = null): void {
+  // Only the current native credential owner may emit this event. Never send
+  // tokens or a provider response body; the reason is the existing UI-safe message.
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', {
+    detail: { service: 'calendar', origin, kind, error: kind === 'reconnect-required' ? error : null },
+  }))
 }
 
 /** Selects events whose start date matches the user's local date. */
@@ -278,7 +282,10 @@ export function useGoogleCalendarSync({
         setEvents([])
         setTasks([])
         setResources({ calendars: [], taskLists: [], loading: false, error: null })
-        setStatus(isGoogleAccountNotConnectedError(err) ? 'disconnected' : 'reconnect-required')
+        const kind = isGoogleAccountNotConnectedError(err) ? 'disconnected' : 'reconnect-required'
+        setAccountGeneration(current => current + 1)
+        setStatus(kind)
+        announceCalendarAccount(accountOrigin.current, kind, googleAuthErrorMessage(err))
       } else {
         setStatus('error')
       }
@@ -347,8 +354,11 @@ export function useGoogleCalendarSync({
         setTasks([])
         setAuthedEmail(null)
         setResources({ calendars: [], taskLists: [], loading: false, error: null })
-        setStatus(isGoogleAccountNotConnectedError(err) ? 'disconnected' : 'reconnect-required')
+        const kind = isGoogleAccountNotConnectedError(err) ? 'disconnected' : 'reconnect-required'
+        setAccountGeneration(current => current + 1)
+        setStatus(kind)
         setError(googleAuthErrorMessage(err))
+        announceCalendarAccount(accountOrigin.current, kind, googleAuthErrorMessage(err))
       } else {
         setError(googleAuthErrorMessage(err))
         setStatus('error')
@@ -359,17 +369,20 @@ export function useGoogleCalendarSync({
   useEffect(() => {
     if (typeof window === 'undefined') return
     const changed = (event: Event) => {
-      const detail = (event as CustomEvent<{ service?: string; origin?: unknown; kind?: string }>).detail
+      const detail = (event as CustomEvent<{ service?: string; origin?: unknown; kind?: string; error?: string | null }>).detail
       if (detail?.service !== 'calendar' || detail.origin === accountOrigin.current) return
       lifecycleGenerationRef.current++
       refreshGenerationRef.current++
       discoveryGenerationRef.current++
       taskMutationRevisionRef.current++
       setAccountGeneration(current => current + 1)
-      setEvents([]); setTasks([]); setAuthedEmail(null); setError(null)
+      const needsReconnect = detail.kind === 'reconnect-required'
+      setEvents([]); setTasks([]); setAuthedEmail(null)
+      setError(needsReconnect ? detail.error ?? null : null)
       setResources({ calendars: [], taskLists: [], loading: false, error: null })
-      setStatus('disconnected')
-      if (enabled && detail.kind !== 'disconnected') void refresh()
+      setStatus(needsReconnect ? 'reconnect-required' : 'disconnected')
+      // Expired or absent credentials must not trigger an automatic retry loop.
+      if (enabled && detail.kind !== 'disconnected' && !needsReconnect) void refresh()
     }
     window.addEventListener('scriptor:google-account-changed', changed)
     return () => window.removeEventListener('scriptor:google-account-changed', changed)
