@@ -376,6 +376,10 @@ export const TaskPanel = memo(function TaskPanel({
     return embedded ? <p className="empty-state">{t('tasks.openVault')}</p> : null
   }
 
+  const calendarStatusLabel = calendarSync.status === 'reconnect-required'
+    ? t('integrations.google.reconnect')
+    : t(`integrations.google.status.${calendarSync.status}`)
+
   const body = (
     <>
       {vaultId ? <PlannerWorkspace key={`${vaultId}:${calendarSync.accountGeneration}:${calendarSync.authedEmail ?? ''}:${calendarConfig?.google_calendar_id ?? ''}:${calendarConfig?.google_task_list_id ?? ''}`} vaultId={vaultId} tasks={calendarConfig?.enabled && vaultTasksComplete ? allVaultTasks : store.tasks} events={calendarSync.events} remoteTasks={calendarSync.tasks} calendarId={calendarConfig?.google_calendar_id || 'primary'} taskListId={calendarConfig?.google_task_list_id || '@default'} connected={calendarSync.status === 'synced'} googleAccount={calendarSync.authedEmail} calendarWritable={calendarSync.calendars.some(calendar => (calendarConfig?.google_calendar_id && calendarConfig.google_calendar_id !== 'primary' ? calendar.id === calendarConfig.google_calendar_id : calendar.primary) && calendar.writable)} runSourceNoteMutation={runSourceNoteMutation} onReload={async()=>{store.load();await calendarSync.refresh()}} onOpenNote={onOpenNote}/> : null}
@@ -385,7 +389,7 @@ export const TaskPanel = memo(function TaskPanel({
             <div>
               <h3>{t('tasks.google.title')}</h3>
               <p className="health-subtitle">
-                {calendarSync.authedEmail ? `${t(`integrations.google.status.${calendarSync.status}`)} · ${calendarSync.authedEmail}` : t(`integrations.google.status.${calendarSync.status}`)}
+                {calendarSync.authedEmail ? `${calendarStatusLabel} · ${calendarSync.authedEmail}` : calendarStatusLabel}
               </p>
             </div>
             <div className="calendar-sync-actions">

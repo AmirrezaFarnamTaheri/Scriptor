@@ -58,7 +58,8 @@ function harness() {
     window, CustomEvent, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
     require: (id) => id === 'react' ? react : id.includes('/google_calendar.ts') ? bridge
       : id.endsWith('/googleOAuthClient.ts') ? { getGoogleOAuthClientId: (legacy) => legacy?.trim() ?? '' }
-      : { googleAuthErrorMessage: String, isGoogleAuthRequiredError: (error) => String(error).startsWith('GOOGLE_AUTH_REQUIRED:') },
+      : { googleAuthErrorMessage: String, isGoogleAuthRequiredError: (error) => String(error).startsWith('GOOGLE_AUTH_REQUIRED:'),
+        isGoogleAccountNotConnectedError: (error) => ['GOOGLE_AUTH_REQUIRED: disconnected', 'GOOGLE_AUTH_REQUIRED: Google account is not connected.', 'GOOGLE_AUTH_REQUIRED: Gmail is not connected'].includes(String(error)) },
   })
   return {
     bridge, options,
@@ -103,7 +104,8 @@ test('expired credentials clear cached provider data and resource selections', a
   assert.equal(h.render().events.length, 1)
   h.bridge.googleCalendarListEvents = async () => { throw 'GOOGLE_AUTH_REQUIRED: expired' }
   await h.render().refresh()
-  assert.equal(h.render().status, 'disconnected')
+  assert.equal(h.render().status, 'reconnect-required')
+  assert.match(h.render().error ?? '', /expired/)
   assert.equal(h.render().events.length, 0)
   assert.equal(h.render().tasks.length, 0)
   assert.equal(h.render().authedEmail, null)
@@ -162,4 +164,144 @@ test('native OAuth completion notifies surviving consumers after the initiating 
   await Promise.resolve(); await Promise.resolve()
   assert.equal(h.render(1).accountGeneration, 1)
   assert.equal(h.render(1).authedEmail, 'after-close@example.invalid')
+})
+
+test('MAT-015: Calendar OAuth expiry clears previously observed account identity and requires reconnection', async () => {
+  const h = harness()
+  await h.render().refresh()
+  assert.equal(h.render().authedEmail, 'calendar@example.invalid')
+  h.bridge.googleCalendarStartAuth = async () => { throw 'GOOGLE_AUTH_REQUIRED: account authorization expired' }
+  assert.equal(await h.render().startAuth(), false)
+  assert.equal(h.render().status, 'reconnect-required')
+  assert.equal(h.render().authedEmail, null)
+  assert.equal(h.render().events.length, 0)
+  assert.equal(h.render().tasks.length, 0)
+  assert.match(h.render().error ?? '', /authorization expired/)
+})
+
+test('MAT-015: Calendar Settings exposes the existing localized reconnect route for expired sessions', () => {
+  const ui = readFileSync(new URL('../../src/components/GoogleIntegrationSettingsSection.tsx', import.meta.url), 'utf8')
+  assert.match(ui, /calendarSync\.status === 'reconnect-required'/)
+  assert.match(ui, /calendarNeedsReconnect \? t\('integrations\.google\.reconnect'\)/)
+})
+
+test('MAT-015: missing Calendar credentials remain disconnected instead of demanding reconnection', async () => {
+  const h = harness()
+  h.bridge.googleCalendarListEvents = async () => { throw 'GOOGLE_AUTH_REQUIRED: Google account is not connected.' }
+  await h.render().refresh()
+  assert.equal(h.render().status, 'disconnected')
+  assert.equal(h.render().authedEmail, null)
+  assert.equal(h.render().events.length, 0)
+})
+
+test('MAT-015: Task panel renders a localized reconnect label instead of a missing status key', () => {
+  const ui = readFileSync(new URL('../../src/components/TaskPanel.tsx', import.meta.url), 'utf8')
+  assert.match(ui, /calendarSync\.status === 'reconnect-required'\s*\?\s*t\('integrations\.google\.reconnect'\)/)
+  assert.match(ui, /calendarStatusLabel/)
+})
+
+test('MAT-015: expired Calendar refresh invalidates every mounted consumer without retry loops', async () => {
+  const h = harness()
+  await h.render(0).refresh()
+  await h.render(1).refresh()
+  const beforeGeneration = h.render(1).accountGeneration
+  let reads = 0
+  h.bridge.googleCalendarListEvents = async () => {
+    reads += 1
+    throw 'GOOGLE_AUTH_REQUIRED: Google authorization expired. Reconnect the account.'
+  }
+  await h.render(0).refresh()
+  assert.equal(h.render(0).status, 'reconnect-required')
+  const other = h.render(1)
+  assert.equal(other.status, 'reconnect-required')
+  assert.equal(other.accountGeneration, beforeGeneration + 1)
+  assert.equal(other.authedEmail, null)
+  assert.equal(other.events.length, 0)
+  assert.equal(other.tasks.length, 0)
+  assert.match(other.error ?? '', /authorization expired/)
+  assert.equal(reads, 1, 'peer must not auto-refresh an expired account in a notification loop')
+})
+
+test('MAT-015: rejected Calendar OAuth in Settings clears remote state in other mounted panels', async () => {
+  const h = harness()
+  await h.render(0).refresh()
+  await h.render(1).refresh()
+  const beforeGeneration = h.render(1).accountGeneration
+  h.bridge.googleCalendarStartAuth = async () => {
+    throw 'GOOGLE_AUTH_REQUIRED: account session expired during reconnect'
+  }
+  assert.equal(await h.render(0).startAuth(), false)
+  const other = h.render(1)
+  assert.equal(other.status, 'reconnect-required')
+  assert.equal(other.accountGeneration, beforeGeneration + 1)
+  assert.equal(other.authedEmail, null)
+  assert.deepEqual(Array.from(other.events), [])
+  assert.deepEqual(Array.from(other.tasks), [])
+  assert.match(other.error ?? '', /session expired/)
+})
+
+test('MAT-015: missing Calendar credentials clear other panels without mislabeling first-time setup', async () => {
+  const h = harness()
+  await h.render(0).refresh()
+  await h.render(1).refresh()
+  h.bridge.googleCalendarListEvents = async () => {
+    throw 'GOOGLE_AUTH_REQUIRED: Google account is not connected.'
+  }
+  await h.render(0).refresh()
+  const other = h.render(1)
+  assert.equal(other.status, 'disconnected')
+  assert.equal(other.authedEmail, null)
+  assert.equal(other.events.length, 0)
+  assert.equal(other.tasks.length, 0)
+})
+
+test('MAT-015: an already submitted Google Task result cannot repopulate cache after native auth expires', async () => {
+  const h = harness()
+  await h.render().refresh()
+  let finishCreation
+  h.bridge.googleCalendarCreateTask = () => new Promise(resolve => { finishCreation = resolve })
+  const pendingCreation = h.render().pushTask({ title: 'Pending task' })
+  h.bridge.googleCalendarListEvents = async () => {
+    throw 'GOOGLE_AUTH_REQUIRED: session expired while a task request was pending'
+  }
+  await h.render().refresh()
+  assert.equal(h.render().status, 'reconnect-required')
+  finishCreation({ id: 'late-task', title: 'Pending task', etag: 'late-revision' })
+  await pendingCreation
+  assert.equal(h.render().tasks.length, 0, 'a late provider response cannot revive a cache after credential expiry')
+  assert.equal(h.render().authedEmail, null)
+})
+
+test('MAT-015: revoked Calendar discovery scope clears both mounted consumers rather than leaving synced tasks', async () => {
+  const h = harness()
+  await h.render(0).refresh()
+  await h.render(1).refresh()
+  assert.equal(h.render(0).status, 'synced')
+  assert.equal(h.render(1).tasks.length, 1)
+  const generation = h.render(1).accountGeneration
+  h.bridge.googleCalendarListCalendars = async () => {
+    throw 'GOOGLE_AUTH_REQUIRED: Google Calendar resource scope was revoked'
+  }
+  await h.render(0).discoverResources()
+  for (const consumer of [0, 1]) {
+    const result = h.render(consumer)
+    assert.equal(result.status, 'reconnect-required')
+    assert.equal(result.events.length, 0)
+    assert.equal(result.tasks.length, 0)
+    assert.equal(result.authedEmail, null)
+    assert.match(result.error ?? '', /scope was revoked/)
+  }
+  assert.equal(h.render(1).accountGeneration, generation + 1)
+})
+
+test('MAT-015: discovery of a first-time disconnected account does not falsely require reconnection', async () => {
+  const h = harness()
+  await h.render().refresh()
+  h.bridge.googleCalendarListTaskLists = async () => {
+    throw 'GOOGLE_AUTH_REQUIRED: Google account is not connected.'
+  }
+  await h.render().discoverResources()
+  assert.equal(h.render().status, 'disconnected')
+  assert.equal(h.render().authedEmail, null)
+  assert.equal(h.render().tasks.length, 0)
 })
