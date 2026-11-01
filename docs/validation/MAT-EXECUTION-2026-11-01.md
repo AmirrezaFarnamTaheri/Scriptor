@@ -18,5 +18,13 @@
 - The deterministic 25k-row SQLite index pagination regression is checked by Rust CI; separate 25k-file filesystem, frontend timing, snapshot-cursor and full-vault aggregate proof remain required before MAT-009 completeness claims.
 - Real citation/source rename/export and consented provider journeys before MAT-011/012 graduation.
 
+## Hosted browser regression evidence and follow-up
+
+- At `acbe64811d8657b97b86b71f135bdf8ed88d23af`, [CI #41312273984](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41312273984) passed contracts/lint, frontend, Rust, container, supply chain and Windows release gates, but **Browser E2E failed: 515 passed, 6 failed**. The separate visual, desktop compile, and localization workflows passed.
+- Two backup pagination assertions counted the four Recovery Center diagnostic rows as saved backups. E2E now explicitly scopes counts to `#vault-backup-list .backup-entry`, without hiding or removing read-only recovery evidence.
+- Three Database Studio workflows failed because the research browser fixture returned unsorted paths, violating the new strict UTF-8 indexed cursor ordering. The fixture now honors native-compatible path ordering and bounded exclusive cursor pages. The new pure pagination test was observed RED (missing helper) and GREEN (4/4 locally on Node 22); GitHub blob hashes `77916b57220df0124e1f89c0657822b6bb185cc0` and `9b3a698b891569b5b42828369ef7fb281cdec978` match the tested files.
+- Capture review had an obsolete assertion for `Saved reviewed capture`; the observed UI correctly says `Saved and indexed reviewed capture`. E2E now checks the explicit indexed receipt and retains its native write identity assertions.
+- These changes were applied **after** the failed run. An exact-head successful browser rerun is still required; neither MAT-009 nor other maturity workstreams are accepted.
+
 ## Safety boundaries
 No new independent permission service, storage authority, native command, auto retry, remote provider call, release tag or support-status change. This branch must not be merged as completion of the parent issues.
