@@ -75,6 +75,13 @@ pub(crate) fn require_git_commit_vault_identity(
 }
 
 pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Result<Value, String> {
+    // Defense in depth: the RPC handler already denies these operations, but
+    // direct dispatcher callers must not bypass desktop-only authorization.
+    if requires_desktop_authorization(command) {
+        return Err(format!(
+            "command {command} requires desktop authorization and is unavailable over daemon IPC"
+        ));
+    }
     match command {
         "health_check" => Ok(json!("ok")),
         "system_info" => to_value(detect_system_info()),
@@ -409,25 +416,6 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
                 read_note_history_revision(&session.root, &path, &revision_id)
                     .map_err(|e| e.to_string())?
             ))
-        }
-        "vault_restore_note_history_revision" => {
-            let session = state.require_session()?;
-            let path = require_str(payload, "path")?;
-            let revision_id = require_str(payload, "revisionId")?;
-            let relative = RelativeVaultPath::parse(&path).map_err(|e| e.to_string())?;
-            let markdown = read_note_history_revision(&session.root, &path, &revision_id)
-                .map_err(|e| e.to_string())?;
-            to_value(
-                save_note_with_options(
-                    &session.descriptor.id,
-                    &session.root,
-                    &relative,
-                    &markdown,
-                    None,
-                    SaveNoteOptions { dry_run: false },
-                )
-                .map_err(|e| e.to_string())?,
-            )
         }
         "indexer_rebuild" => to_value(cmd_indexer_rebuild(state)?),
         "indexer_update_note" => {
