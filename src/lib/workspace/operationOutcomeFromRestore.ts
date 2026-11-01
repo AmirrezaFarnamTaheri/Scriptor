@@ -19,7 +19,7 @@ export function outcomeFromRestoreReceipt(receipt: OperationReceipt): TypedOpera
         case 'committed-ready':
         case 'committed-needs-reopen':
           evidence = receipt.recovery === 'reopen-vault'
-            ? { kind: 'post-commit-refresh-failed' } : { kind: 'committed' }
+            ? { kind: 'post-commit-refresh-failed', nativeStatus: receipt.nativeStatus } : { kind: 'committed' }
           break
         case 'recovery-required': evidence = { kind: 'recovery-required' }; break
         default: throw new Error('Unknown native restore status')

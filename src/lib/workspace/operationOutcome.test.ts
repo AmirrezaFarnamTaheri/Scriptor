@@ -65,6 +65,7 @@ test('invalid native payload cannot be classified as committed', async () => {
     interpret: () => { throw Error('invalid native response') },
   })
   assert.equal(r.outcome.commit, 'indeterminate')
+  assert.equal(r.outcome.proof, 'invalid-native-result')
 })
 test('invalid origin rejected before authorization', async () => {
   let calls = 0
@@ -73,4 +74,14 @@ test('invalid origin rejected before authorization', async () => {
     submit: async () => true, interpret: () => ({ kind: 'committed' }),
   }), /vaultId/)
   assert.equal(calls, 0)
+})
+
+test('post-commit refresh failure needs a valid native committed status', () => {
+  assert.throws(
+    () => buildOperationOutcome(scope, { kind: 'post-commit-refresh-failed', nativeStatus: 'recovery-required' }),
+    /confirmed native commit/,
+  )
+  const committed = buildOperationOutcome(scope, { kind: 'post-commit-refresh-failed', nativeStatus: 'committed-ready' })
+  assert.equal(committed.commit, 'confirmed-committed')
+  assert.equal(committed.retry, 'blocked-until-reconciliation')
 })

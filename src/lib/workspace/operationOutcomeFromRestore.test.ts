@@ -32,3 +32,12 @@ test('lost restore reply cannot imply a rollback', () => {
 test('fabricated pre-submission native status is rejected', () => {
   assert.throws(() => translate({ ...receipt, proof: 'before-native-submission' }), /Pre-submit/)
 })
+
+test('confirmed native commit followed by workspace refresh failure requires reopen', () => {
+  const result = translate({
+    ...receipt, nativeStatus: 'committed-ready', effect: 'committed',
+    recovery: 'reopen-vault', retry: 'blocked-until-reopen',
+  })
+  assert.equal(result.commit, 'confirmed-committed')
+  assert.equal(result.retry, 'blocked-until-reconciliation')
+})

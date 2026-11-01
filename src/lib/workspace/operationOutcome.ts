@@ -16,7 +16,8 @@ export type NativeMutationProof =
 export type MutationEvidence = NativeMutationProof
   | { readonly kind: 'not-submitted' }
   | { readonly kind: 'reply-missing' }
-  | { readonly kind: 'post-commit-refresh-failed' }
+  | { readonly kind: 'invalid-native-result' }
+  | { readonly kind: 'post-commit-refresh-failed'; readonly nativeStatus: 'committed-ready' | 'committed-needs-reopen' }
 export interface TypedOperationOutcome {
   readonly schemaVersion: 1
   readonly operationId: string
@@ -28,7 +29,7 @@ export interface TypedOperationOutcome {
   /** Null means that the native owner has not reported an exhaustive inventory. */
   readonly affectedPaths: readonly string[] | null
   readonly commit: 'confirmed-none' | 'confirmed-committed' | 'indeterminate'
-  readonly proof: 'before-native-submission' | 'native-result' | 'no-native-result'
+  readonly proof: 'before-native-submission' | 'native-result' | 'no-native-result' | 'invalid-native-result'
   readonly retry: 'review-and-reauthorize' | 'do-not-retry' | 'blocked-until-reconciliation'
   readonly recovery: 'none' | 'reopen-vault'
 }
@@ -59,8 +60,15 @@ export function buildOperationOutcome(scope: MutationScope, evidence: MutationEv
     case 'reply-missing':
       return { ...base, commit: 'indeterminate', proof: 'no-native-result',
         retry: 'blocked-until-reconciliation', recovery: 'reopen-vault' }
+    case 'invalid-native-result':
+      return { ...base, commit: 'indeterminate', proof: 'invalid-native-result',
+        retry: 'blocked-until-reconciliation', recovery: 'reopen-vault' }
     case 'post-commit-refresh-failed':
-      // Only call after an already validated authoritative commit response.
+      // A renderer refresh error alone cannot prove a native commit.
+      if (evidence.nativeStatus !== 'committed-ready' &&
+          evidence.nativeStatus !== 'committed-needs-reopen') {
+        throw new Error('Post-commit reconciliation requires a confirmed native commit status.')
+      }
       return { ...base, commit: 'confirmed-committed', proof: 'native-result',
         retry: 'blocked-until-reconciliation', recovery: 'reopen-vault' }
   }
@@ -85,12 +93,18 @@ export async function observeMutation<A, T>(request: {
   } catch (error) {
     return { outcome: buildOperationOutcome(request.scope, { kind: 'not-submitted' }), error }
   }
+  let value: T
   try {
-    const value = await request.submit(grant)
+    value = await request.submit(grant)
+  } catch (error) {
+    return { outcome: buildOperationOutcome(request.scope, { kind: 'reply-missing' }), error }
+  }
+  try {
     const proof = request.interpret(value)
     return { outcome: buildOperationOutcome(request.scope, proof), value }
   } catch (error) {
-    return { outcome: buildOperationOutcome(request.scope, { kind: 'reply-missing' }), error }
+    // A transport response arrived but did not satisfy its contract.
+    return { outcome: buildOperationOutcome(request.scope, { kind: 'invalid-native-result' }), error }
   }
 }
 /** A prior operation's receipt cannot appear after a vault, target, or request switch. */
