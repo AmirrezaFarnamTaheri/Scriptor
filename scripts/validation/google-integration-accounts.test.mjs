@@ -127,3 +127,30 @@ test('successful disconnect after settings unmount still invalidates other panel
   assert.equal(h.events.length, 1)
   assert.equal(h.events[0].detail.service, 'drive')
 })
+
+test('MAT-015: expired Gmail authorization exposes a reconnect-required state and its recovery reason', async () => {
+  const h = harness()
+  await h.render().check('gmail')
+  assert.equal(h.render().gmail.status, 'reconnect-required')
+  assert.equal(h.render().gmail.email, null)
+  assert.match(h.render().gmail.error ?? '', /disconnected/)
+  assert.equal(h.render().drive.status, 'disconnected')
+})
+
+test('MAT-015: expired authorization during reconnect cannot keep stale credential ownership', async () => {
+  const h = harness()
+  await h.render().connect('gmail')
+  assert.equal(h.render().gmail.email, 'gmail@example.invalid')
+  h.bridge.googleGmailStartAuth = async () => { throw 'GOOGLE_AUTH_REQUIRED: session expired; reconnect' }
+  await h.render().connect('gmail')
+  assert.equal(h.render().gmail.status, 'reconnect-required')
+  assert.equal(h.render().gmail.email, null)
+  assert.match(h.render().gmail.error ?? '', /session expired/)
+  assert.equal(h.persisted(), 1)
+})
+
+test('MAT-015: Google connection UI names reconnect-required state without reporting a successful sync', () => {
+  const ui = readFileSync(new URL('../../src/components/GoogleIntegrationSettingsSection.tsx', import.meta.url), 'utf8')
+  assert.match(ui, /account\.status === 'reconnect-required'/)
+  assert.match(ui, /integrations\.google\.reconnect/)
+})
