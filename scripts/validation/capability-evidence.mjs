@@ -1,4 +1,4 @@
-/** MAT-022: review the 8 capability gates without automatically promoting labels. */
+/** MAT-022: index eight automated evidence gates without promoting support. */
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v)
 const nonblank = v => typeof v === 'string' && v.trim().length > 0 && v.length <= 500
 const relativePath = path => typeof path === 'string' && path.length <= 500 && path.length > 0 && !path.startsWith('/') && !path.includes('\\') && !path.includes(':') && path.split('/').every(p => p !== '' && p !== '.' && p !== '..')
@@ -30,6 +30,6 @@ export function assessCapabilityEvidence(packet) {
   if (!goodProof(packet.authorization?.privacyReview, packet.sourceHead)) missing.push('authorization.privacyReview')
   if (!goodProof(packet.performance, packet.sourceHead)) missing.push('performance')
   if (!goodProof(packet.release?.inclusion, packet.sourceHead)) missing.push('release.inclusion')
-  if (!goodProof(packet.release?.installed, packet.sourceHead)) missing.push('release.installed')
-  return { readyForHumanReview: missing.length === 0, missing }
+  if (!goodProof(packet.release?.artifactSmoke, packet.sourceHead)) missing.push('release.artifactSmoke')
+  return { evidenceIndexComplete: missing.length === 0, missing }
 }
