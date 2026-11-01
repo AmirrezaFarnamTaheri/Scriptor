@@ -7,7 +7,7 @@
 - Make native mutation reply loss distinguishable from confirmed commit/rollback in renderer-observed operation receipts; preserve vault-scoped backup receipt semantics.
 - Show a read-only Recovery Center summary without implying that uninspected Canvas or conflict sources are empty, or that an unverified backup is restorable.
 - Introduce bounded native indexed-view pages and candidate navigation; keep client-filtered results non-authoritative for whole-vault counts.
-- Expose next steps after reviewed capture and preserve an explicit warning if creation was acknowledged but index refresh failed.
+- Expose next steps after reviewed capture, save a vault-owned UUID in its Markdown frontmatter for future evidence linking, and preserve an explicit warning if creation was acknowledged but index refresh failed.
 
 
 ### Improved

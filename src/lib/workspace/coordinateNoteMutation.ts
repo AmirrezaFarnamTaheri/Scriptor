@@ -9,16 +9,22 @@ export async function coordinateNoteMutation({
   isDirty,
   saveActiveNote,
   runMutation,
+  isStillCurrent,
 }: {
   sourcePath: string
   activePath: string | null
   isDirty: boolean
   saveActiveNote: () => Promise<boolean>
   runMutation: () => Promise<void>
+  /** Renderer ownership check, re-evaluated after any asynchronous draft save. */
+  isStillCurrent?: () => boolean
 }): Promise<boolean> {
-  if (sourcePath === activePath && isDirty && !(await saveActiveNote())) {
-    return false
+  if (isStillCurrent && !isStillCurrent()) return false
+  if (sourcePath === activePath && isDirty) {
+    const saved = await saveActiveNote()
+    if (!saved || (isStillCurrent && !isStillCurrent())) return false
   }
+  if (isStillCurrent && !isStillCurrent()) return false
 
   await runMutation()
   return true

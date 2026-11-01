@@ -1,4 +1,4 @@
-export interface ReviewedCapture { url: string; title: string; author: string; published: string; tags: string; markdown: string }
+export interface ReviewedCapture { url: string; title: string; author: string; published: string; tags: string; markdown: string; sourceId?: string }
 export interface CaptureExtraction {url:string;title:string;site_name:string|null;published_at:string|null;markdown:string;word_count:number;source_html:string}
 export function parseCaptureExtraction(payload:unknown):CaptureExtraction {
   if (!payload || typeof payload !== 'object') throw new Error('Invalid capture result')
@@ -24,8 +24,12 @@ export function captureMarkdown(item: ReviewedCapture): string {
   if (!item.title.trim() || item.markdown.length > 2*1024*1024 || item.title.length > 4096 || item.author.length > 4096 || item.tags.length > 4096) throw new Error('Capture exceeds the metadata or content limit.')
   if (item.published && !/^\d{4}-\d{2}-\d{2}$/.test(item.published)) throw new Error('Use YYYY-MM-DD for the publication date.')
   if(item.published){const date=new Date(item.published);if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==item.published)throw new Error('Choose a valid publication date.')}
+  if (item.sourceId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.sourceId)) {
+    throw new Error('Invalid capture source identity.')
+  }
+  const sourceIdLine = item.sourceId ? `source_id: ${JSON.stringify(item.sourceId)}\n` : ''
   const tags = item.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
-  const content=`---\ntitle: ${JSON.stringify(item.title.trim())}\nsource_url: ${JSON.stringify(url.href)}\nauthor: ${JSON.stringify(item.author)}\npublished: ${JSON.stringify(item.published)}\ntags: ${JSON.stringify(tags)}\n---\n\n${item.markdown}\n`
+  const content=`---\ntitle: ${JSON.stringify(item.title.trim())}\n${sourceIdLine}source_url: ${JSON.stringify(url.href)}\nauthor: ${JSON.stringify(item.author)}\npublished: ${JSON.stringify(item.published)}\ntags: ${JSON.stringify(tags)}\n---\n\n${item.markdown}\n`
   if(new TextEncoder().encode(content).byteLength>2*1024*1024)throw new Error('Reviewed capture exceeds the 2 MiB content limit.')
   return content
 }
