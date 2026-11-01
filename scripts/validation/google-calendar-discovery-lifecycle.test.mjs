@@ -59,7 +59,7 @@ function harness() {
     require: (id) => id === 'react' ? react : id.includes('/google_calendar.ts') ? bridge
       : id.endsWith('/googleOAuthClient.ts') ? { getGoogleOAuthClientId: (legacy) => legacy?.trim() ?? '' }
       : { googleAuthErrorMessage: String, isGoogleAuthRequiredError: (error) => String(error).startsWith('GOOGLE_AUTH_REQUIRED:'),
-        isGoogleAccountNotConnectedError: (error) => /^(?:GOOGLE_AUTH_REQUIRED:\\s*)?(?:Google account is not connected\\.?|Gmail is not connected|disconnected)$/i.test(String(error).trim()) },
+        isGoogleAccountNotConnectedError: (error) => ['GOOGLE_AUTH_REQUIRED: disconnected', 'GOOGLE_AUTH_REQUIRED: Google account is not connected.', 'GOOGLE_AUTH_REQUIRED: Gmail is not connected'].includes(String(error)) },
   })
   return {
     bridge, options,
