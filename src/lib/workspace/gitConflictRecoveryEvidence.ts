@@ -24,7 +24,7 @@ export function inspectGitConflictEvidence(
     if (!file || typeof file !== 'object') return invalid
     const entry = file as Record<string, unknown>
     const path = entry.path
-    if (entry.conflict !== true || typeof entry.status !== 'string' || !entry.status.trim()) return invalid
+    if (entry.conflict !== true || entry.status !== 'conflict') return invalid
     if (typeof path !== 'string' || !path.trim() || path.length > 4096 || paths.has(path)) return invalid
     paths.add(path)
   }
