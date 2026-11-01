@@ -729,6 +729,37 @@ mod tests {
     }
 
     #[test]
+    fn stdout_and_stderr_floods_are_both_drained_and_independently_bounded() {
+        const FLOOD_CHILD: &str = "SCRIPTOR_PROCESS_BROKER_FLOOD_CHILD";
+        if std::env::var_os(FLOOD_CHILD).is_some() {
+            use std::io::Write;
+            let flood = vec![b'x'; 128 * 1024];
+            std::io::stdout().write_all(&flood).expect("write stdout flood");
+            std::io::stderr().write_all(&flood).expect("write stderr flood");
+            return;
+        }
+
+        let executable = std::env::current_exe().expect("test executable");
+        let receipt = run_process(
+            ProcessSpec::new(executable)
+                .args([
+                    "--exact",
+                    "process::tests::stdout_and_stderr_floods_are_both_drained_and_independently_bounded",
+                    "--nocapture",
+                ])
+                .env(FLOOD_CHILD, "1")
+                .max_output_bytes(1024)
+                .timeout(Duration::from_secs(10)),
+        )
+        .expect("run bounded flood child");
+        assert_eq!(receipt.exit_code, 0, "{}", receipt.stderr);
+        assert!(receipt.stdout_truncated, "stdout flood must be visibly truncated");
+        assert!(receipt.stderr_truncated, "stderr flood must be visibly truncated");
+        assert!(receipt.stdout.len() <= 1024, "stdout exceeded byte limit");
+        assert!(receipt.stderr.len() <= 1024, "stderr exceeded byte limit");
+    }
+
+    #[test]
     fn process_receipt_captures_output() {
         #[cfg(windows)]
         let spec = ProcessSpec::new("cmd").args(["/C", "echo", "hello"]);
