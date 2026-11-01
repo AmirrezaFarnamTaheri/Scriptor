@@ -59,7 +59,8 @@ test('MAT-004 lost native history-restore reply requires reopening before anothe
   await expect(panel.getByText('Restore outcome unconfirmed.', { exact: false })).toBeVisible()
   await expect(confirmation).toBeHidden()
   await expect(restore).toBeDisabled()
-  await expect(panel.getByRole('alert')).toContainText('Reopen this vault')
+  await expect(panel.getByRole('alert').filter({ hasText: 'The previous native history restore result is unconfirmed' }))
+    .toContainText('Reopen this vault')
   await expect.poll(() =>
     page.evaluate(() => window.__scriptorE2eHistoryRestoreAttempts ?? 0)
   ).toBe(1)
