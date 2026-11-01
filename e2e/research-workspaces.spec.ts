@@ -144,7 +144,7 @@ test('capture extraction is explicit and reviewed metadata saves a new scoped no
   await panel.getByRole('button',{name:'Highlight selected text',exact:true}).click()
   await expect(panel.getByRole('textbox',{name:'Reviewed Markdown',exact:true})).toHaveValue('==Reviewed== excerpt')
   await panel.getByRole('button',{name:'Save reviewed capture as a new note',exact:true}).click()
-  await expect(panel.getByRole('status')).toContainText('Saved reviewed capture')
+  await expect(panel.getByRole('status')).toContainText('Saved and indexed reviewed capture')
   const saved=(await calls(page,'vault_save_asset'))[0].payload
   expect(saved.requireMissing).toBe(true);expect(saved.expectedVaultId).toBe('screenshot-vault');expect(saved.relativePath).toBe('Inbox/Reviewed article.md')
   const content=new TextDecoder().decode(new Uint8Array(saved.bytes as number[]));expect(content).toContain('author: "Jane Writer"');expect(content).toContain('==Reviewed== excerpt')
