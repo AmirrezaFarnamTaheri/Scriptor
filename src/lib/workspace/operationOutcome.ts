@@ -123,5 +123,6 @@ export async function observeMutation<A, T>(request: {
 export function visibleOperationOutcome(outcome: TypedOperationOutcome | null, scope: MutationScope): TypedOperationOutcome | null {
   return outcome && outcome.operationId === scope.operationId &&
     outcome.vaultId === scope.vaultId && outcome.operation === scope.operation &&
-    outcome.target === scope.target ? outcome : null
+    outcome.target === scope.target &&
+    outcome.expectedRevision === (scope.expectedRevision ?? null) ? outcome : null
 }
