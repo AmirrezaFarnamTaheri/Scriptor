@@ -178,6 +178,48 @@ mod tests {
             .ok()
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn cancelling_export_terminates_descendants_and_stops_their_output() {
+        use scriptor_system_bridge::{ProcessSpec, spawn_process};
+        let directory = tempfile::tempdir().expect("isolated export cancellation fixture");
+        let heartbeat = directory.path().join("descendant-heartbeat");
+        let descendant_pid = directory.path().join("descendant-pid");
+        let script = r#"sh -c 'while :; do printf x >> "$SCRIPTOR_EXPORT_HEARTBEAT"; sleep 0.05; done' & echo $! > "$SCRIPTOR_EXPORT_DESCENDANT_PID"; wait"#;
+        let spawned = spawn_process(
+            &ProcessSpec::new("sh")
+                .args(["-c", script])
+                .env("SCRIPTOR_EXPORT_HEARTBEAT", heartbeat.as_os_str())
+                .env("SCRIPTOR_EXPORT_DESCENDANT_PID", descendant_pid.as_os_str()),
+        )
+        .expect("spawn group-scoped export process");
+        let slot = new_cancel_slot();
+        *lock_recover(&slot) = Some(RunningExport {
+            job_id: "descendant-cancel".into(),
+            child: spawned.child,
+        });
+
+        let started = Instant::now();
+        while started.elapsed() < Duration::from_secs(5) {
+            if descendant_pid.exists()
+                && std::fs::metadata(&heartbeat)
+                    .is_ok_and(|metadata| metadata.len() > 0)
+            {
+                break;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert!(descendant_pid.exists() && heartbeat.exists(), "descendant never started");
+        assert_eq!(cancel_active_export(&slot).as_deref(), Some("descendant-cancel"));
+        let stopped_bytes = std::fs::metadata(&heartbeat).expect("heartbeat").len();
+        thread::sleep(Duration::from_millis(250));
+        let final_bytes = std::fs::metadata(&heartbeat).expect("heartbeat").len();
+        assert_eq!(
+            stopped_bytes, final_bytes,
+            "cancelled export left a background compiler child writing outside the broker lifecycle",
+        );
+    }
+
     #[test]
     fn export_wait_still_works_after_a_poisoning_panic() {
         let slot = new_cancel_slot();
