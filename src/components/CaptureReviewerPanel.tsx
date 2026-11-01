@@ -32,18 +32,43 @@ export function CaptureReviewerPanel({vaultOpen,vaultId,onClose,onSaved,embedded
   const generation=useRef(0);const pending=useRef(false);const dialog=useRef<HTMLDivElement>(null);const editor=useRef<HTMLTextAreaElement>(null)
   const [sourceSnapshot,setSourceSnapshot]=useState('');const [snapshotError,setSnapshotError]=useState<string|null>(null)
   const [ignored,setIgnored]=useState(false)
+  const [savedCapture,setSavedCapture]=useState<{vaultId:string;path:string;sourceId:string}|null>(null)
+  const sourceIdRef=useRef<string|null>(null)
   const native=vaultOpen&&!!vaultId&&isNativeBridgeAvailable()
   useEscapeToClose(!inline,onClose);useFocusTrap(dialog,{active:!inline})
-  useEffect(()=>{generation.current+=1;return()=>{generation.current+=1}},[vaultId])
+  useEffect(()=>{generation.current+=1;sourceIdRef.current=null;return()=>{generation.current+=1}},[vaultId])
   const extract=async()=>{
     if(!native||busy||pending.current)return;pending.current=true
-    const request=++generation.current;setBusy(true);setIgnored(false);setError(null);setStatus('Extracting article…')
-    try {const result=await captureExtractPreview(url.trim());if(request!==generation.current)return;setSource(result.url);setTitle(result.title);setAuthor('');setTags('');setMarkdown(result.markdown);setPublished(result.published_at?.match(/^\d{4}-\d{2}-\d{2}/)?.[0]??'');setSnapshotError(null);setSourceSnapshot('');try{setSourceSnapshot(passiveSourceSnapshot(result.source_html))}catch(failure){setSnapshotError(`Source snapshot unavailable: ${String(failure)}`)}setStatus(`Extracted ${result.word_count} words${result.site_name?` from ${result.site_name}`:''}. Review the text and destination, then save.`)}catch(failure){if(request===generation.current){setError(String(failure));setStatus('Extraction failed. Check the URL and try again.')}}finally{pending.current=false;setBusy(false);setIgnored(false)}
+    const request=++generation.current;sourceIdRef.current=null;setBusy(true);setIgnored(false);setError(null);setSavedCapture(null);setStatus('Extracting article…')
+    try {const result=await captureExtractPreview(url.trim());if(request!==generation.current)return;sourceIdRef.current=crypto.randomUUID();setSource(result.url);setTitle(result.title);setAuthor('');setTags('');setMarkdown(result.markdown);setPublished(result.published_at?.match(/^\d{4}-\d{2}-\d{2}/)?.[0]??'');setSnapshotError(null);setSourceSnapshot('');try{setSourceSnapshot(passiveSourceSnapshot(result.source_html))}catch(failure){setSnapshotError(`Source snapshot unavailable: ${String(failure)}`)}setStatus(`Extracted ${result.word_count} words${result.site_name?` from ${result.site_name}`:''}. Review the text and destination, then save.`)}catch(failure){if(request===generation.current){setError(String(failure));setStatus('Extraction failed. Check the URL and try again.')}}finally{pending.current=false;setBusy(false);setIgnored(false)}
   }
   const save=async()=>{
     if(!native||!vaultId||busy||!source||pending.current)return;pending.current=true
     const request=generation.current;setBusy(true);setIgnored(false);setError(null)
-    try {const path=captureTarget(directory,title);const content=captureMarkdown({url:source,title,author,published,tags,markdown});await vaultSaveAsset(path,Array.from(new TextEncoder().encode(content)),true,vaultId);if(request!==generation.current)return;setStatus(`Saved reviewed capture to ${path}.`);setSource('');await indexerApplyFilesystemChanges([path]);if(request===generation.current)onSaved?.(path)}catch(failure){if(request===generation.current)setError(`Capture could not be saved or indexed: ${String(failure)}. If a file was saved, choose a new title before retrying.`)}finally{pending.current=false;setBusy(false);setIgnored(false)}
+    let confirmedPath: string | null = null
+    try {
+      const path = captureTarget(directory,title)
+      // The same reviewed source keeps its local identity across edits, but
+      // a new extraction or vault scope gets a distinct UUID.
+      const sourceId = sourceIdRef.current ?? crypto.randomUUID()
+      sourceIdRef.current = sourceId
+      const content = captureMarkdown({url:source,title,author,published,tags,markdown,sourceId})
+      await vaultSaveAsset(path, Array.from(new TextEncoder().encode(content)), true, vaultId)
+      // Once native creation is acknowledged, never offer an implicit second save.
+      confirmedPath = path
+      if(request!==generation.current)return
+      setSavedCapture({vaultId,path,sourceId})
+      setStatus(`Saved reviewed capture to ${path}; updating search index…`)
+      setSource('')
+      await indexerApplyFilesystemChanges([path])
+      if(request===generation.current){setStatus(`Saved and indexed reviewed capture at ${path}.`);onSaved?.(path)}
+    } catch(failure) {
+      if(request===generation.current){
+        setError(confirmedPath
+          ? `Capture was saved at ${confirmedPath}, but indexing did not finish: ${String(failure)}. Do not resubmit the save; refresh the vault or rebuild the index.`
+          : `Capture save was not confirmed: ${String(failure)}. A native write may have occurred; inspect the vault before attempting another save.`)
+      }
+    } finally {pending.current=false;setBusy(false);setIgnored(false)}
   }
   const highlight=()=>{const input=editor.current;if(!input||input.selectionStart===input.selectionEnd)return;const start=input.selectionStart,end=input.selectionEnd;setMarkdown(markdown.slice(0,start)+'=='+markdown.slice(start,end)+'=='+markdown.slice(end));input.focus()}
   const body=<>
@@ -54,6 +79,10 @@ export function CaptureReviewerPanel({vaultOpen,vaultId,onClose,onSaved,embedded
     </form>
     {!native?<p>Open a desktop vault to extract and save articles.</p>:null}
     <p role="status">{status}</p>{error?<p role="alert">{error}</p>:null}
+    {savedCapture?.vaultId===vaultId ? <section aria-label="Research workflow next steps">
+      <h3>Continue your research draft</h3>
+      <p>Saved capture: <code>{savedCapture.path}</code>. Source ID: <code>{savedCapture.sourceId}</code>. Next, review the citation key in your bibliography, link the passage to a literature note, and cite that key in your manuscript before exporting. These later steps are not verified by this capture.</p>
+    </section> : null}
     {source?<>
       <p>Source: <a href={source} target="_blank" rel="noreferrer">{source}</a></p>
       <div className="capture-reviewer-metadata">

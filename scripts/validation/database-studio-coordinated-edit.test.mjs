@@ -11,7 +11,17 @@ const source = ts.transpileModule(
   { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } },
 ).outputText
 
-function harness(withCoordinator, { delayList = false } = {}) {
+function loadRealDomainModule(path) {
+  const code = ts.transpileModule(
+    readFileSync(new URL('../../' + path, import.meta.url), 'utf8'),
+    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+  ).outputText
+  const module = { exports: {} }
+  vm.runInNewContext(code, { module, exports: module.exports, Error, TextEncoder })
+  return module.exports
+}
+
+function harness(withCoordinator, { delayList = false, pagedList = false } = {}) {
   const slots = []
   let cursor = 0
   let firstRender = true
@@ -45,13 +55,28 @@ function harness(withCoordinator, { delayList = false } = {}) {
   const jsx = (type, props, key) => ({ type, props, key })
   const resultComponent = () => null
   const builderComponent = () => null
+  let pageQueries = 0
+  const pageQuery = (_filter, afterPath, pageSize) => {
+    pageQueries += 1
+    if (delayList) return new Promise((resolve, reject) => { pendingLists.push({ resolve, reject }) })
+    if (pagedList) {
+      const start = afterPath ? Number(afterPath.split('/').at(-1).replace('.md', '')) + 1 : 0
+      return Promise.resolve(Array.from({ length: Math.min(pageSize, 240 - start) }, (_, index) => {
+        const path = `notes/${String(start + index).padStart(3, '0')}.md`
+        return { path, title: path }
+      }))
+    }
+    return Promise.resolve([{ path: note.metadata.path, title: note.metadata.title }])
+  }
   const mockCommands = {
-    vaultListViewNotes: () => delayList
-      ? new Promise((resolve, reject) => { pendingLists.push({ resolve, reject }) })
-      : Promise.resolve([{ path: note.metadata.path }]),
+    vaultListViewNotes: () => pageQuery(null, null, 201),
+    vaultListViewNotesPage: pageQuery,
     vaultReadNote: async (path) => {
       if (path === '.scriptor/presets/database-studio.md') {
         throw Object.assign(new Error('preset not found'), { code: 'NOT_FOUND' })
+      }
+      if (pagedList && path.startsWith('notes/') && path.endsWith('.md')) {
+        return { ...note, metadata: { ...note.metadata, path, title: path } }
       }
       assert.equal(path, note.metadata.path)
       return note
@@ -84,6 +109,8 @@ function harness(withCoordinator, { delayList = false } = {}) {
       isMissingDatabasePreset: (error) => error?.code === 'NOT_FOUND',
       matchesMetadataFilters: () => true,
     },
+    '../lib/databaseQueryCoverage': loadRealDomainModule('src/lib/databaseQueryCoverage.ts'),
+    '../lib/databasePagination': loadRealDomainModule('src/lib/databasePagination.ts'),
     './database/DatabaseStudioBuilder': { DatabaseStudioBuilder: builderComponent },
     './database/DatabaseStudioResults': { DatabaseStudioResults: resultComponent },
     '../styles/components/database-studio.css': {},
@@ -131,7 +158,7 @@ function harness(withCoordinator, { delayList = false } = {}) {
     return tree
   }
   const settle = async () => {
-    for (let i = 0; i < 16; i++) await Promise.resolve()
+    for (let i = 0; i < (pagedList ? 1000 : 16); i++) await Promise.resolve()
   }
   const results = () => {
     const result = find(render(), node => node.type === resultComponent)
@@ -166,7 +193,7 @@ function harness(withCoordinator, { delayList = false } = {}) {
   const completeList = () => {
     const pending = pendingLists.shift()
     assert.ok(pending, 'deferred native view list was requested')
-    pending.resolve([{ path: note.metadata.path }])
+    pending.resolve([{ path: note.metadata.path, title: note.metadata.title }])
   }
   const failList = (message) => {
     const pending = pendingLists.shift()
@@ -174,7 +201,14 @@ function harness(withCoordinator, { delayList = false } = {}) {
     pending.reject(new Error(message))
   }
   const errorText = () => find(render(), node => node.type === 'p' && node.props?.role === 'alert')?.props.children ?? null
-  return { render, settle, load, startLoad, completeList, failList, errorText, results, currentView, changeView, nativeWrites, coordinated, note }
+  const clickButton = label => {
+    const button = find(render(), node => node.type === 'button' && node.props?.children === label)
+    assert.ok(button, `missing button ${label}`)
+    assert.equal(button.props.disabled, false, `button ${label} is disabled`)
+    button.props.onClick()
+  }
+  const statusText = () => find(render(), node => node.type === 'p' && node.props?.role === 'status')?.props.children ?? null
+  return { render, settle, load, startLoad, completeList, failList, errorText, results, currentView, changeView, nativeWrites, coordinated, note, clickButton, statusText, pageQueries: () => pageQueries }
 
 }
 
@@ -272,4 +306,22 @@ test('a delayed old-view query failure cannot become an error on the selected ne
   h.failList('Old view native lookup was denied')
   await h.settle()
   assert.equal(h.errorText(), null, 'the new view must not display the previous query failure')
+})
+
+test('Database Studio pages beyond 200 indexed candidates without promoting them to full-vault totals', async () => {
+  const h = harness(true, { pagedList: true })
+  h.render()
+  await h.settle()
+  const first = await h.load()
+  assert.equal(first.rows.length, 200)
+  assert.match(h.statusText(), /candidate page 1/i)
+  assert.match(h.statusText(), /full-vault completeness has not been verified/i)
+  h.clickButton('Next candidates')
+  await h.settle()
+  assert.equal(h.results().rows.length, 40)
+  assert.match(h.statusText(), /candidate page 2/i)
+  h.clickButton('Previous candidates')
+  await h.settle()
+  assert.equal(h.results().rows.length, 200)
+  assert.equal(h.pageQueries(), 3)
 })

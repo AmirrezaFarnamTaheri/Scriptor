@@ -13,6 +13,7 @@ import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { revisionHeatmap, vocabularyMetrics } from '../lib/researchStudio'
 import { VocabularyEvolution } from './history/VocabularyEvolution'
 import { RevisionCopyForm } from './RevisionCopyForm'
+import { noteHistoryReadStatus } from '../lib/workspace/noteHistoryReadStatus'
 import '../styles/components/research-studio.css'
 
 export interface NoteHistoryRevision {
@@ -35,6 +36,7 @@ interface RevisionState {
   path: string
   vaultId: string
   rows: NoteHistoryRevision[]
+  error: string | null
 }
 
 interface PreviewState {
@@ -97,12 +99,13 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
       if (cancelled) return
       if (historyResult.status === 'fulfilled') {
         const rows = historyResult.value
-        setRevisionState({ path: requestedPath, vaultId: requestedVaultId, rows })
+        setRevisionState({ path: requestedPath, vaultId: requestedVaultId, rows, error: null })
         setSelectedId(rows[0]?.id ?? null)
         setStatus('')
       } else {
-        setRevisionState({ path: requestedPath, vaultId: requestedVaultId, rows: [] })
-        setStatus(historyResult.reason instanceof Error ? historyResult.reason.message : 'Could not load note history')
+        const message = historyResult.reason instanceof Error ? historyResult.reason.message : 'Could not load note history'
+        setRevisionState({ path: requestedPath, vaultId: requestedVaultId, rows: [], error: message })
+        setStatus('')
       }
 
       if (currentResult.status === 'fulfilled') {
@@ -157,6 +160,13 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
   const revisions = useMemo(
     () => loadedHistoryPath === path && loadedHistoryVaultId === vaultId ? revisionState?.rows ?? [] : [],
     [loadedHistoryPath, loadedHistoryVaultId, path, vaultId, revisionState],
+  )
+  const readStatus = noteHistoryReadStatus(
+    { path, vaultId },
+    revisionState && {
+      path: revisionState.path, vaultId: revisionState.vaultId,
+      count: revisionState.rows.length, error: revisionState.error,
+    },
   )
   const activity = useMemo(() => revisionHeatmap(revisions), [revisions])
   const selectedRevision = revisions.find((revision) => revision.id === selectedId) ?? null
@@ -240,9 +250,15 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
       className="note-history-panel knowledge-filters-panel"
       wide
     >
-      {!path ? (
+      {readStatus === 'select-note' ? (
         <p className="empty-state">Select a note to view its revision timeline.</p>
-      ) : revisions.length === 0 ? (
+      ) : readStatus === 'blocked' ? (
+        <p className="empty-state">Open the originating vault before inspecting note history.</p>
+      ) : readStatus === 'loading' ? (
+        <p className="empty-state" role="status">Loading saved note history…</p>
+      ) : readStatus === 'error' ? (
+        <p className="empty-state" role="alert">Note history could not be inspected: {revisionState?.error || 'Invalid history inventory.'} No empty history has been confirmed.</p>
+      ) : readStatus === 'empty' ? (
         <p className="empty-state">No previous versions yet. Scriptor keeps earlier versions when you save.</p>
       ) : (
         <div className="note-history-layout">
@@ -389,7 +405,9 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
           <section className="note-history-vocabulary" aria-label="Writing statistics">
             <details className="note-history-advanced-stats">
               <summary>Advanced: word history</summary>
-              <VocabularyEvolution key={`${vaultId}:${path}`} path={path} vaultId={vaultId} revisions={revisions}/>
+              {path && vaultId ? (
+                <VocabularyEvolution key={`${vaultId}:${path}`} path={path} vaultId={vaultId} revisions={revisions} />
+              ) : null}
             </details>
             {vocabulary && <details><summary>Word comparison</summary><p>Measured from the Markdown source, including code and metadata. Distinct word ratio measures repetition; it is not a readability or quality score.</p><table><thead><tr><th>Measure</th><th>Current note</th><th>Selected revision</th></tr></thead><tbody><tr><th>Words</th><td>{vocabulary.current.words}</td><td>{vocabulary.revision.words}</td></tr><tr><th>Distinct words</th><td>{vocabulary.current.uniqueWords}</td><td>{vocabulary.revision.uniqueWords}</td></tr><tr><th>Distinct word ratio</th><td>{vocabulary.current.diversity === null ? 'No words' : `${(vocabulary.current.diversity * 100).toFixed(1)}%`}</td><td>{vocabulary.revision.diversity === null ? 'No words' : `${(vocabulary.revision.diversity * 100).toFixed(1)}%`}</td></tr></tbody></table></details>}
           </section>

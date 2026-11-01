@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "authority": "native",
+  "purpose": "MAT-005/008 review matrix, not a second authorizer; evidence indicates outstanding acceptance",
+  "desktopOnly": [
+    "vault_delete_note",
+    "vault_lint_fix",
+    "vault_restore_note_history_revision",
+    "git_pull_cmd",
+    "git_push_cmd",
+    "git_resolve_conflict_cmd",
+    "pdf_translate",
+    "plantuml_render"
+  ],
+  "operations": [
+    {
+      "command": "vault_delete_note",
+      "authority": "native",
+      "daemonPolicy": "deny-without-desktop-authorization",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "vault_lint_fix",
+      "authority": "native",
+      "daemonPolicy": "deny-without-desktop-authorization",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "vault_restore_note_history_revision",
+      "authority": "native",
+      "daemonPolicy": "deny-without-desktop-authorization",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "git_pull_cmd",
+      "authority": "native",
+      "daemonPolicy": "deny-without-desktop-authorization",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "git_push_cmd",
+      "authority": "native",
+      "daemonPolicy": "deny-without-desktop-authorization",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "git_resolve_conflict_cmd",
+      "authority": "native",
+      "daemonPolicy": "deny-without-desktop-authorization",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "pdf_translate",
+      "authority": "native",
+      "daemonPolicy": "deny-without-desktop-authorization",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "plantuml_render",
+      "authority": "native",
+      "daemonPolicy": "deny-without-desktop-authorization",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "vault_save_note",
+      "authority": "native",
+      "daemonPolicy": "requires-operation-parity-audit",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "vault_frontmatter_set",
+      "authority": "native",
+      "daemonPolicy": "requires-operation-parity-audit",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "vault_save_asset",
+      "authority": "native",
+      "daemonPolicy": "requires-operation-parity-audit",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "git_commit_cmd",
+      "authority": "native",
+      "daemonPolicy": "requires-operation-parity-audit",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "canvas_save_document",
+      "authority": "native",
+      "daemonPolicy": "requires-operation-parity-audit",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    },
+    {
+      "command": "vault_restore_backup",
+      "authority": "native",
+      "daemonPolicy": "requires-operation-parity-audit",
+      "evidence": "pending",
+      "requiredFaults": [
+        "wrong-vault",
+        "stale-revision",
+        "denied-before-mutation",
+        "cancel-after-submission",
+        "lost-native-reply",
+        "duplicate-invoke"
+      ]
+    }
+  ]
+}

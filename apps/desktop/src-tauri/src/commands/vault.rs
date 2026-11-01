@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 use scriptor_indexer::{
     ViewNoteHit, health_report_json, incremental_notes_index, list_view_notes,
-    open_cache_for_session,
+    list_view_notes_page, open_cache_for_session,
 };
 use scriptor_vault::{
     ActivityLogEntry, DailyNotePlan, DeleteNoteOutput, FrontmatterFieldOutput,
@@ -533,10 +533,21 @@ pub fn vault_plan_daily_note(
 pub fn vault_list_view_notes(
     state: tauri::State<AppState>,
     filter_json: String,
+    after_path: Option<String>,
+    page_size: Option<usize>,
 ) -> Result<Vec<ViewNoteHit>, String> {
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
-    list_view_notes(&cache, &session, &filter_json).map_err(|error| error.to_string())
+    match page_size {
+        Some(size) => {
+            list_view_notes_page(&cache, &session, &filter_json, after_path.as_deref(), size)
+                .map_err(|error| error.to_string())
+        }
+        None if after_path.is_none() => {
+            list_view_notes(&cache, &session, &filter_json).map_err(|error| error.to_string())
+        }
+        None => Err("database view cursor requires a page size".into()),
+    }
 }
 
 #[tauri::command]

@@ -934,12 +934,22 @@ export function useWorkspaceEditor({
       const note = activeNoteRef.current
       const navigationGeneration = navigationGenerationRef.current
       const draftRevision = draftRevisionRef.current
-      if (sourcePath === activePathRef.current && isSavingRef.current) return false
+      const initiatingPath = activePathRef.current
+      const initiatingVault = note?.metadata.vault_id
+      // A draft flush may await native I/O while the writer navigates or
+      // edits again. Do not let that prior review authorize a later mutation.
+      const isStillCurrent = () => !persistenceSuspendedRef.current
+        && navigationGeneration === navigationGenerationRef.current
+        && draftRevision === draftRevisionRef.current
+        && initiatingPath === activePathRef.current
+        && initiatingVault === activeNoteRef.current?.metadata.vault_id
+      if (sourcePath === initiatingPath && isSavingRef.current) return false
       const didMutate = await coordinateNoteMutation({
         sourcePath,
-        activePath: activePathRef.current,
+        activePath: initiatingPath,
         isDirty: Boolean(note && draftMarkdownRef.current !== note.markdown),
         saveActiveNote: saveActiveNoteNow,
+        isStillCurrent,
         runMutation,
       })
       if (didMutate && sourcePath === activePathRef.current) {
