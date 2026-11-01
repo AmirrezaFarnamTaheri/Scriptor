@@ -18,7 +18,7 @@ test('MAT automation policy removes human/project installation gates but keeps n
   assert.match(text, /real-world installation/i)
   assert.match(text, /human approval\/sign-off/i)
   assert.match(text, /no manual or physical acceptance gate/i)
-  assert.match(text, /Native.*user consent or authorization/i)
+  assert.match(text, /in-product, vault-scoped user consent or explicit confirmation/i)
   assert.match(text, /indeterminate-effect handling/i)
   assert.match(text, /immutable tags/i)
   assert.match(text, /partial PR is not completion/i)
