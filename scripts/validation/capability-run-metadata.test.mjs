@@ -117,3 +117,12 @@ test('MAT-022: provider API errors must remain unverified and never become a sup
   assert.deepEqual(result.unverified, ids)
   assert.equal(result.supportGraduated, false)
 })
+
+
+test('MAT-022: malformed run repository metadata is unverified rather than throwing', async () => {
+  const result = await verifyCapabilityWorkflowMetadata(packet(), provider({
+    ...succeededRun(), repository: { full_name: 123 },
+  }))
+  assert.equal(result.runMetadataVerified, false)
+  assert.deepEqual(result.unverified, ids)
+})
