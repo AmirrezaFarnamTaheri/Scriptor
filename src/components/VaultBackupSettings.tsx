@@ -6,6 +6,8 @@ import { recoveryHistoryAvailability, type RecoveryHistoryReason } from '../lib/
 import { describeRestoreReceipt } from '../lib/workspace/restoreReceiptPresentation'
 import { buildRecoveryInventory } from '../lib/workspace/recoveryInventory'
 import { vaultListNoteHistory } from '../bridge/commands/vault'
+import { gitStatus } from '../bridge/commands/git'
+import { inspectGitConflictEvidence } from '../lib/workspace/gitConflictRecoveryEvidence'
 
 import type { useVaultBackup } from '../hooks/useVaultBackup'
 
@@ -67,6 +69,29 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
     })
     return () => { current = false }
   }, [vaultId, activePath, recoveryRequired, settingsDirty])
+  const [gitConflictView, setGitConflictView] = useState<{
+    vaultId: string; state: 'ready' | 'loading' | 'error' | 'unverified'; count: number
+  } | null>(null)
+  useEffect(() => {
+    const originVault = vaultId
+    if (!originVault || recoveryRequired) return
+    let current = true
+    // The native read validates its initiating vault. A late response from the
+    // old vault must never become evidence for the newly selected vault.
+    void gitStatus(originVault).then((result) => {
+      if (!current) return
+      setGitConflictView(inspectGitConflictEvidence(originVault, result) ??
+        { vaultId: originVault, state: 'unverified', count: 0 })
+    }).catch(() => {
+      if (current) setGitConflictView({ vaultId: originVault, state: 'error', count: 0 })
+    })
+    return () => { current = false }
+  }, [vaultId, recoveryRequired])
+  const scopedGitConflicts = vaultId && !recoveryRequired
+    ? gitConflictView?.vaultId === vaultId
+      ? gitConflictView
+      : { vaultId, state: 'loading' as const, count: 0 }
+    : undefined
   const scopedHistory = historyView?.vaultId === vaultId && historyView.notePath === activePath?.trim()
     ? historyView
     : vaultId && activePath?.trim() && historyAccess.allowed
@@ -76,7 +101,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
   const recoveryEntries = buildRecoveryInventory({
     vaultId, backupPath: settings.backupPath, recoveryRequired,
     selectedNote: activePath, settingsDirty, lastRestoreReceipt,
-    history: scopedHistory,
+    history: scopedHistory, gitConflicts: scopedGitConflicts,
     backups: vaultId ? {
       vaultId, backupPath: settings.backupPath,
       state: backupListLoading ? 'loading' : backupListError ? 'error' : 'ready',
@@ -86,6 +111,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
   const recoveryLabels: Record<string, string> = {
     backups: 'Backup snapshots', 'note-history': 'Selected note history',
     'last-restore': 'Last restore result', canvas: 'Canvas recovery',
+    'git-conflicts': 'Git merge conflicts',
     'external-conflicts': 'External file conflicts',
   }
   const reasons: Record<Exclude<RecoveryHistoryReason, null>, string> = {
