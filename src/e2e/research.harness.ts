@@ -1,4 +1,5 @@
 import { e2eNoteDocument, e2eSaveNote } from './state'
+import { pageResearchViewHits } from './researchPagination'
 
 /** Opt-in browser fixture only; never imported by the production bridge. */
 export function createResearchHarness() {
@@ -22,7 +23,17 @@ export function createResearchHarness() {
         if(path===preset){if(sessionStorage.getItem('e2e:corrupt-db-preset')==='1')return reply({...document(path),markdown:'{malformed'});if(!assets.has(path))throw new Error(`note not found: ${path}`);return reply({...document(path),markdown:assets.get(path)})}
         if(paths.includes(path)||assets.has(path))return reply({...document(path),...(assets.has(path)?{markdown:assets.get(path)}:{})})
         return {handled:false}
-      case 'vault_list_view_notes':return reply(paths.map(path=>({id:path,path,title:path.replace(/\.md$/,''),modified_at:'2026-10-01T00:00:00Z',tags:['research']})))
+      case 'vault_list_view_notes': {
+        const afterPath = body.afterPath == null ? null : body.afterPath
+        const pageSize = body.pageSize == null ? 201 : body.pageSize
+        if ((afterPath !== null && typeof afterPath !== 'string') || typeof pageSize !== 'number') {
+          throw new Error('Invalid indexed research fixture cursor or page size.')
+        }
+        return reply(pageResearchViewHits(
+          paths.map(path => ({ id: path, path, title: path.replace(/\.md$/, ''), modified_at: '2026-10-01T00:00:00Z', tags: ['research'] })),
+          afterPath, pageSize,
+        ))
+      }
       case 'vault_save_asset':{
         if(body.expectedVaultId!=='screenshot-vault')throw new Error('Vault scope changed.')
         if(body.requireMissing&&assets.has(path))throw new Error('Destination already exists.')
