@@ -4,6 +4,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::error::ExportError;
+use scriptor_system_bridge::terminate_process_tree;
 
 /// Locks `mutex`, recovering the inner guard if a previous holder panicked.
 ///
@@ -32,7 +33,7 @@ pub fn cancel_active_export(slot: &ExportCancelSlot) -> Option<String> {
     let job_id = running.job_id.clone();
     let mut child = running.child;
     drop(guard);
-    let _ = child.kill();
+    terminate_process_tree(&mut child);
     let _ = child.wait();
     Some(job_id)
 }
@@ -58,7 +59,7 @@ pub fn wait_for_child_with_timeout(
         let mut guard = lock_recover(slot);
         if let Some(previous) = guard.take() {
             let mut previous_child = previous.child;
-            let _ = previous_child.kill();
+            terminate_process_tree(&mut previous_child);
             let _ = previous_child.wait();
         }
         *guard = Some(RunningExport {
@@ -104,7 +105,7 @@ pub fn wait_for_child_with_timeout(
                         }
                     };
                     if let Some(running) = running.as_mut() {
-                        let _ = running.child.kill();
+                        terminate_process_tree(&mut running.child);
                         let _ = running.child.wait();
                     }
                     return Err(ExportError::Process(format!(
