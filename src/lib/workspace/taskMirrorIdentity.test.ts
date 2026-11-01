@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { assertUnambiguousTaskTitles } from './taskMirrorIdentity.ts'
+import { assertUnambiguousTaskTitles, assertNoAmbiguousTaskRebindings } from './taskMirrorIdentity.ts'
 
 test('reordered indistinguishable titles in the same note require review', () => {
   const notes = [{ path: 'todo.md', tasks: [{ text: 'Submit report' }, { text: 'Submit report' }] }]
@@ -28,7 +28,6 @@ test('repeated current-note entries cannot bypass same-note duplicate detection'
 })
 
 
-import { assertNoAmbiguousTaskRebindings } from './taskMirrorIdentity.ts'
 
 test('a moved task cannot create a new Google record and complete its old source ID without review', () => {
   assert.throws(() => assertNoAmbiguousTaskRebindings('vault-a', [
