@@ -40,6 +40,7 @@ export type CalendarSyncStatus =
   | 'syncing'
   | 'synced'
   | 'error'
+  | 'reconnect-required'
 
 export type { CalendarEvent, GoogleTask }
 
@@ -270,7 +271,17 @@ export function useGoogleCalendarSync({
         currentRefreshGen !== refreshGenerationRef.current
       ) return false
       setError(googleAuthErrorMessage(err))
-      setStatus('error')
+      if (isGoogleAuthRequiredError(err)) {
+        // A credential rejected by native authority cannot keep its former
+        // account identity or remote cache on screen after a reconnect attempt.
+        setAuthedEmail(null)
+        setEvents([])
+        setTasks([])
+        setResources({ calendars: [], taskLists: [], loading: false, error: null })
+        setStatus('reconnect-required')
+      } else {
+        setStatus('error')
+      }
       return false
     }
   }, [clientId, calendarId, taskListId, lookaheadDays, discoverResources])
@@ -336,7 +347,7 @@ export function useGoogleCalendarSync({
         setTasks([])
         setAuthedEmail(null)
         setResources({ calendars: [], taskLists: [], loading: false, error: null })
-        setStatus('disconnected')
+        setStatus('reconnect-required')
         setError(googleAuthErrorMessage(err))
       } else {
         setError(googleAuthErrorMessage(err))
