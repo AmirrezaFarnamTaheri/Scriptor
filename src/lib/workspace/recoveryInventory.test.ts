@@ -87,10 +87,11 @@ test('MAT-003: scoped Git merge conflicts are reported separately from unknown e
 })
 
 test('MAT-003: absent, loading, failed, and zero Git inspections have distinct statuses', () => {
-  const entry = (gitConflicts?: { vaultId: string; state: 'ready' | 'loading' | 'error'; count: number }) =>
+  const entry = (gitConflicts?: { vaultId: string; state: 'ready' | 'loading' | 'error' | 'unverified'; count: number }) =>
     buildRecoveryInventory({ ...input, gitConflicts }).find(row => row.source === 'git-conflicts')
   assert.equal(entry()?.status, 'unverified')
   assert.equal(entry({ vaultId: 'v-a', state: 'loading', count: 0 })?.status, 'loading')
   assert.equal(entry({ vaultId: 'v-a', state: 'error', count: 0 })?.status, 'unavailable')
+  assert.equal(entry({ vaultId: 'v-a', state: 'unverified', count: 0 })?.status, 'unverified')
   assert.equal(entry({ vaultId: 'v-a', state: 'ready', count: 0 })?.status, 'empty')
 })
