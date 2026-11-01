@@ -58,7 +58,8 @@ function harness() {
     window, CustomEvent, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
     require: (id) => id === 'react' ? react : id.includes('/google_calendar.ts') ? bridge
       : id.endsWith('/googleOAuthClient.ts') ? { getGoogleOAuthClientId: (legacy) => legacy?.trim() ?? '' }
-      : { googleAuthErrorMessage: String, isGoogleAuthRequiredError: (error) => String(error).startsWith('GOOGLE_AUTH_REQUIRED:') },
+      : { googleAuthErrorMessage: String, isGoogleAuthRequiredError: (error) => String(error).startsWith('GOOGLE_AUTH_REQUIRED:'),
+        isGoogleAccountNotConnectedError: (error) => /^(?:GOOGLE_AUTH_REQUIRED:\\s*)?(?:Google account is not connected\\.?|Gmail is not connected|disconnected)$/i.test(String(error).trim()) },
   })
   return {
     bridge, options,
@@ -182,4 +183,13 @@ test('MAT-015: Calendar Settings exposes the existing localized reconnect route 
   const ui = readFileSync(new URL('../../src/components/GoogleIntegrationSettingsSection.tsx', import.meta.url), 'utf8')
   assert.match(ui, /calendarSync\.status === 'reconnect-required'/)
   assert.match(ui, /calendarNeedsReconnect \? t\('integrations\.google\.reconnect'\)/)
+})
+
+test('MAT-015: missing Calendar credentials remain disconnected instead of demanding reconnection', async () => {
+  const h = harness()
+  h.bridge.googleCalendarListEvents = async () => { throw 'GOOGLE_AUTH_REQUIRED: Google account is not connected.' }
+  await h.render().refresh()
+  assert.equal(h.render().status, 'disconnected')
+  assert.equal(h.render().authedEmail, null)
+  assert.equal(h.render().events.length, 0)
 })
