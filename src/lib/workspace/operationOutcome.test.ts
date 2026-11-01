@@ -109,3 +109,12 @@ test('unknown native evidence cannot bypass a runtime receipt classification', a
   assert.equal(observed.outcome.commit, 'indeterminate')
   assert.equal(observed.outcome.proof, 'invalid-native-result')
 })
+
+test('MAT-002: a prior receipt cannot be reused after its expected revision changes', () => {
+  const observed = buildOperationOutcome(scope, { kind: 'reply-missing' })
+  assert.equal(visibleOperationOutcome(observed, scope), observed)
+  assert.equal(visibleOperationOutcome(observed, { ...scope, expectedRevision: 'newer' }), null)
+  assert.equal(visibleOperationOutcome(observed, { ...scope, expectedRevision: null }), null)
+  const unknownRevision = buildOperationOutcome({ ...scope, expectedRevision: null }, { kind: 'not-submitted' })
+  assert.equal(visibleOperationOutcome(unknownRevision, { ...scope, expectedRevision: undefined }), unknownRevision)
+})
