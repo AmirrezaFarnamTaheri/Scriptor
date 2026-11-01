@@ -4,12 +4,14 @@ const nonblank = v => typeof v === 'string' && v.trim().length > 0 && v.length <
 const relativePath = path => typeof path === 'string' && path.length <= 500 && path.length > 0 && !path.startsWith('/') && !path.includes('\\') && !path.includes(':') && path.split('/').every(p => p !== '' && p !== '.' && p !== '..')
 const SHA = /^[a-f\d]{40}$/i
 const GATES = ['positive', 'negative', 'restart', 'cancellation', 'recovery']
+const SOURCE_REPO_RUN = /^\/AmirrezaFarnamTaheri\/Scriptor\/actions\/runs\/[1-9]\d*(?:\/.*)?$/i
 function goodProof(p, head) {
   if (!isObject(p) || p.result !== 'passed' || p.sha !== head || !nonblank(p.caseId)) return false
   if (!nonblank(p.url)) return false
   try {
     const u = new URL(p.url)
-    return u.protocol === 'https:' && u.hostname === 'github.com' && /^\/[^/]+\/[^/]+\/actions\/runs\/\d+(?:\/.*)?$/.test(u.pathname)
+    return u.protocol === 'https:' && u.hostname === 'github.com' &&
+      !u.username && !u.password && !u.port && SOURCE_REPO_RUN.test(u.pathname)
   } catch { return false }
 }
 /** An evidence-index completeness check, not an attestation or a release decision. */
