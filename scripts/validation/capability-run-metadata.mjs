@@ -36,7 +36,8 @@ function runIdFromUrl(url) {
 
 function isExpectedSuccessfulRun(run, id, sourceHead) {
   return isObject(run) && run.id === id &&
-    run.repository?.full_name?.toLowerCase() === REPOSITORY.toLowerCase() &&
+    typeof run.repository?.full_name === 'string' &&
+    run.repository.full_name.toLowerCase() === REPOSITORY.toLowerCase() &&
     run.head_sha === sourceHead &&
     run.status === 'completed' && run.conclusion === 'success' &&
     runIdFromUrl(run.html_url) === id
