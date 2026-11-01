@@ -18,6 +18,8 @@ Two targeted Rust unit tests were committed first (`ed3bf71`, corrected borrow i
 
 Implementation commit: `b6e3c53`.
 
+- Additional native test `stdout_and_stderr_floods_are_both_drained_and_independently_bounded` starts the Rust test executable as a brokered child and writes 128 KiB to each output pipe. It requires both truncation flags and independent 1024-byte caps while exiting successfully. This test is cross-platform source coverage, not yet observed hosted proof.
+
 **Behavioral RED not claimed:** the test-only commit was authored before implementation, but no hosted failing result has been observed. Exact-head Rust workspace tests, full CI and Windows/macOS/Linux installed process-tree tests remain required. An offline sandbox without a Rust toolchain cannot independently compile these tests.
 
 ## Still open
