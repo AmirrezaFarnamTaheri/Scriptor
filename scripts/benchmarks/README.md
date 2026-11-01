@@ -22,3 +22,16 @@ Hostile Markdown fixtures live in `packages/test-fixtures/markdown/hostile/` and
 pnpm bench:vault-scan
 cargo run --release -p scriptor-cli -- bench-scan packages/test-fixtures/vaults/minimal --iterations 5
 ```
+
+## MAT-023 — scale evidence matrix (review only)
+
+The existing `bench-large.ps1` scripts produce individual 100, 1k, 5k and 25k-note scan/search reports. To evaluate whether a **complete comparable matrix** was actually collected, use:
+
+```sh
+node --test scripts/benchmarks/scale-evidence.test.mjs scripts/benchmarks/verify-scale-evidence.test.mjs
+node scripts/benchmarks/verify-scale-evidence.mjs artifacts/performance/scale-matrix.json
+```
+
+The input is a `schemaVersion: 1` JSON object with a pinned `sourceCommit` (40 hex characters), `host` identity (id, os, arch, cpu, memoryMb), `toolchain` versions (node, rustc, cargo), and `runs` records. Every run needs `size` (100, 1000, 5000 or 25000), `mode` (scan or search), `condition` (cold or warm), `replicate` (1 or 2), distinct `runId`, UTC `startedAt`, `fixtureSha256`, `noteCount` and real CLI `report` (`note_count`, `mean_ms`, at least three `samples_ms`). Cold runs must document `cacheReset: { method: 'fresh-volume' | 'os-cache-purge', evidence: '...' }`; warm runs must mark `warmed: true`. These fields are **attestations**, not proof the host actually cleared caches.
+
+A complete matrix contains 32 independently identified measurements. The checker returns `readyForReview: true` only when the matrix is structurally complete, with 16 cold/warm/size/mode summaries. Exit code 1 means incomplete, 2 means invalid. It **does not run any benchmark, clear caches, certify toolchain provenance, enforce latency budgets, or imply MAT-023 acceptance**. Actual host/OS evidence, two genuine independent runs, memory/editor/file-size measurements and signed installed-platform review remain mandatory.
