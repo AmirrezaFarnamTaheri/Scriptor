@@ -236,3 +236,40 @@ test('one hidden backup uses a singular, keyboard-accessible disclosure label', 
   await expect(collapse).toBeFocused()
   await expect(collapse).toHaveAttribute('aria-expanded', 'true')
 })
+
+test('MAT-003: read-only Recovery Center reports native Git conflicts without treating other edits as safe', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.evaluate(() => {
+    const host = window as Window & { __TAURI_INTERNALS__?: NativeBridge; __gitRecoveryWrites?: string[] }
+    const native = host.__TAURI_INTERNALS__
+    if (!native) throw new Error('Native fixture bridge unavailable')
+    const invoke = native.invoke.bind(native)
+    host.__gitRecoveryWrites = []
+    native.invoke = (command, args) => {
+      if (command === 'git_status_cmd') {
+        const conflicted_files = [
+          { path: 'Notes/Draft.md', status: 'U', conflict: true },
+          { path: 'Research/Source.md', status: 'U', conflict: true },
+        ]
+        return Promise.resolve({
+          is_repo: true, branch: 'main', has_conflicts: true,
+          clean: false, changed_files: conflicted_files, ahead: 0, behind: 0, has_upstream: false,
+          conflicted_files,
+        })
+      }
+      if (/^git_(commit|pull|push|resolve|apply)/.test(command)) host.__gitRecoveryWrites?.push(command)
+      return invoke(command, args)
+    }
+  })
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  const recovery = settings.locator('section.backup-recovery-tools').filter({ hasText: 'Recovery Center' })
+  const git = recovery.locator('li').filter({ hasText: 'Git merge conflicts' })
+  await expect(git).toContainText('available')
+  await expect(git).toContainText('2 reported')
+  await expect(git).toContainText('Non-Git external changes are not covered')
+  await expect(git.getByRole('button')).toHaveCount(0)
+  await expect(recovery.locator('li').filter({ hasText: 'External file conflicts' })).toContainText('unverified')
+  expect(await page.evaluate(() => (window as Window & { __gitRecoveryWrites?: string[] }).__gitRecoveryWrites ?? [])).toEqual([])
+})

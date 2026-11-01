@@ -2,9 +2,9 @@ import type { OperationReceipt } from './operationReceipt.ts'
 import { outcomeFromRestoreReceipt } from './operationOutcomeFromRestore.ts'
 
 /** A read-only view over existing native/renderer owners, never a restore broker. */
-export type RecoverySource = 'backups' | 'note-history' | 'last-restore' | 'canvas' | 'external-conflicts'
+export type RecoverySource = 'backups' | 'note-history' | 'last-restore' | 'canvas' | 'git-conflicts' | 'external-conflicts'
 export type RecoveryStatus = 'available' | 'empty' | 'loading' | 'unverified' | 'unavailable' | 'blocked' | 'needs-reopen'
-interface ScopedEvidence { readonly vaultId: string; readonly state: 'ready' | 'loading' | 'error'; readonly count: number }
+interface ScopedEvidence { readonly vaultId: string; readonly state: 'ready' | 'loading' | 'error' | 'unverified'; readonly count: number }
 interface BackupEvidence extends ScopedEvidence {
   readonly backupPath: string
   readonly verifiedCount: number
@@ -22,6 +22,7 @@ export interface RecoveryInventoryInput {
   readonly history?: HistoryEvidence
   readonly settingsDirty: boolean
   readonly canvas?: ScopedEvidence
+  readonly gitConflicts?: ScopedEvidence
   readonly externalConflicts?: ScopedEvidence
 }
 export interface RecoveryEntry {
@@ -36,6 +37,10 @@ function sourceEntry(source: RecoverySource, vaultId: string, evidence: ScopedEv
   if (!evidence || evidence.vaultId !== vaultId) return {
     source, status: 'unverified', count: null, route: null, readOnly: true,
     explanation: 'No current-vault inspection evidence is available for this recovery source.',
+  }
+  if (evidence.state === 'unverified') return {
+    source, status: 'unverified', count: null, route: null, readOnly: true,
+    explanation: 'This source has not confirmed a current-vault inventory. No absence of conflicts can be inferred.',
   }
   if (evidence.state === 'loading') return {
     source, status: 'loading', count: null, route: null, readOnly: true,
@@ -96,6 +101,13 @@ export function buildRecoveryInventory(input: RecoveryInventoryInput): readonly 
     })
   }
   entries.push(sourceEntry('canvas', id, input.canvas))
+  const git = sourceEntry('git-conflicts', id, input.gitConflicts)
+  entries.push({
+    ...git,
+    explanation: git.status === 'available' || git.status === 'empty'
+      ? `Native Git inspection reports ${git.count} Git-tracked conflicted paths. Non-Git external changes are not covered. No resolution has been authorized.`
+      : git.explanation,
+  })
   entries.push(sourceEntry('external-conflicts', id, input.externalConflicts))
   return entries
 }
