@@ -40,7 +40,8 @@ function harness() {
     window: { addEventListener() {}, removeEventListener() {}, dispatchEvent(event) { events.push(event) } },
     CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail } },
     require: (id) => id === 'react' ? react : id.includes('/commands/') ? bridge
-      : { googleAuthErrorMessage: String, isGoogleAuthRequiredError: (error) => String(error).startsWith('GOOGLE_AUTH_REQUIRED:') },
+      : { googleAuthErrorMessage: String, isGoogleAuthRequiredError: (error) => String(error).startsWith('GOOGLE_AUTH_REQUIRED:'),
+        isGoogleAccountNotConnectedError: (error) => /^(?:GOOGLE_AUTH_REQUIRED:\\s*)?(?:Google account is not connected\\.?|Gmail is not connected|disconnected)$/i.test(String(error).trim()) },
   })
   const render = () => { cursor = 0; return module.exports.useGoogleIntegrationAccounts(options) }
   return { render, bridge, calls, events, options, persisted: () => persisted, unmount: () => effects.map((effect) => effect()).filter(Boolean).forEach((cleanup) => cleanup()) }
@@ -130,10 +131,11 @@ test('successful disconnect after settings unmount still invalidates other panel
 
 test('MAT-015: expired Gmail authorization exposes a reconnect-required state and its recovery reason', async () => {
   const h = harness()
+  h.bridge.googleGmailGetAuthedEmail = async () => { throw 'GOOGLE_AUTH_REQUIRED: Google authorization expired. Reconnect the account.' }
   await h.render().check('gmail')
   assert.equal(h.render().gmail.status, 'reconnect-required')
   assert.equal(h.render().gmail.email, null)
-  assert.match(h.render().gmail.error ?? '', /disconnected/)
+  assert.match(h.render().gmail.error ?? '', /expired/)
   assert.equal(h.render().drive.status, 'disconnected')
 })
 
@@ -153,4 +155,12 @@ test('MAT-015: Google connection UI names reconnect-required state without repor
   const ui = readFileSync(new URL('../../src/components/GoogleIntegrationSettingsSection.tsx', import.meta.url), 'utf8')
   assert.match(ui, /account\.status === 'reconnect-required'/)
   assert.match(ui, /integrations\.google\.reconnect/)
+})
+
+test('MAT-015: first-time Gmail account stays disconnected when native credentials are absent', async () => {
+  const h = harness()
+  await h.render().check('gmail')
+  assert.equal(h.render().gmail.status, 'disconnected')
+  assert.equal(h.render().gmail.email, null)
+  assert.equal(h.render().gmail.error, null)
 })
