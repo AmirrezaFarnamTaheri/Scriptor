@@ -254,3 +254,20 @@ test('MAT-015: missing Calendar credentials clear other panels without mislabeli
   assert.equal(other.events.length, 0)
   assert.equal(other.tasks.length, 0)
 })
+
+test('MAT-015: an already submitted Google Task result cannot repopulate cache after native auth expires', async () => {
+  const h = harness()
+  await h.render().refresh()
+  let finishCreation
+  h.bridge.googleCalendarCreateTask = () => new Promise(resolve => { finishCreation = resolve })
+  const pendingCreation = h.render().pushTask({ title: 'Pending task' })
+  h.bridge.googleCalendarListEvents = async () => {
+    throw 'GOOGLE_AUTH_REQUIRED: session expired while a task request was pending'
+  }
+  await h.render().refresh()
+  assert.equal(h.render().status, 'reconnect-required')
+  finishCreation({ id: 'late-task', title: 'Pending task', etag: 'late-revision' })
+  await pendingCreation
+  assert.equal(h.render().tasks.length, 0, 'a late provider response cannot revive a cache after credential expiry')
+  assert.equal(h.render().authedEmail, null)
+})
