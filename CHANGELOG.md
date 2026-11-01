@@ -112,6 +112,24 @@
 - Keep Database Studio filter and cell editing consistent with the native view evaluator: pass `path matches` patterns through as regular expressions, compare tags case-insensitively with an optional leading `#`, and write edited cells as YAML scalars so text such as `2026` keeps its type instead of becoming a number. Read YAML numbers in the exponent form so a written number does not come back as text, mirror the native regular-expression dialect so a pattern the native engine rejects falls back the same way, and leave the conditions the native query already applied to the native query.
 - Ignore the gitignored `artifacts/` scratch tree in ESLint, keep the release signing fixtures usable under a Windows device-path `TEMP`, and let the plugin Rust gate resolve its references from the workspace manifests when the Rust toolchain is absent instead of failing with a spawn error.
 
+## 1.3.4 — 2026-11-01
+
+### Fixed
+
+- Preserve reviewed note-history revisions across vault switching, authorization delays, concurrent writes and unsaved editor drafts. Reject stale or changed recovery inputs without overwriting newer notes.
+- Reject direct daemon requests for desktop-authorized destructive or external operations, including retained-history restoration.
+- Reject pre-cancelled external-process launches before executable lookup or spawn, and retain independent bounded stdout/stderr handling.
+- Require source-bound release-quality checks before creating an immutable release tag; refuse a conflicting prior tag rather than moving it.
+
+### Improved
+
+- Integrate read-only recovery, mutation-outcome, Database Studio candidate-coverage and research provenance foundations without granting new mutation authority.
+- Add versioned research manifest and capability-graduation evidence review; support status and installed/live acceptance remain independent.
+- Add a source-bound, repeatable cold/warm scan/search benchmark evidence validator; completeness does not establish performance targets.
+- Update supported dependency graph to the reviewed Wasmtime 50 and npm minor/patch versions.
+
+**Candidate status:** This is source-version preparation, not evidence that a release tag, signed installer, publication or real-user MAT acceptance exists.
+
 ## 1.3.3 — 2026-10-20
 
 ### Fixed
