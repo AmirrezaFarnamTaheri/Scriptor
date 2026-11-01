@@ -127,8 +127,9 @@ test('MAT-004 after native submission, a lost response must mark the operation u
 test('MAT-004 once native submission is unconfirmed, the note-history UI forbids blind retry', () => {
   assert.match(panel, /let nativeSubmitted = false/)
   assert.match(panel, /const \[uncertainRestore, setUncertainRestore\] = useState/)
-  assert.match(panel, /!uncertainRestore[^\n]*canRestore|!uncertainRestore[^\n]*previewReady|!uncertainRestore[^\n]*selectedRevision|!uncertainRestore/,
-    'a lost reply must disable restore until the originating view is reopened')
+  assert.match(panel, /const restoreUnconfirmed = uncertainRestore\?\.path === path && uncertainRestore\.vaultId === vaultId/)
+  assert.match(panel, /!restoreUnconfirmed/,
+    'a lost reply must disable restore only for the originating vault and note')
   assert.match(panel, /if \(nativeSubmitted\) \{[\s\S]*?setUncertainRestore\(/)
   assert.match(panel, /Restore outcome unconfirmed|Restore result unconfirmed/)
   assert.match(panel, /setConfirmRestore\(false\)/)
