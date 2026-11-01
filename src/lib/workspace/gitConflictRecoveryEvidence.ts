@@ -22,7 +22,9 @@ export function inspectGitConflictEvidence(
   const paths = new Set<string>()
   for (const file of files) {
     if (!file || typeof file !== 'object') return invalid
-    const path = (file as Record<string, unknown>).path
+    const entry = file as Record<string, unknown>
+    const path = entry.path
+    if (entry.conflict !== true || typeof entry.status !== 'string' || !entry.status.trim()) return invalid
     if (typeof path !== 'string' || !path.trim() || path.length > 4096 || paths.has(path)) return invalid
     paths.add(path)
   }
