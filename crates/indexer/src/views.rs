@@ -330,7 +330,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn indexed_page_cursor_walks_25k_note_metadata_without_duplicates_or_drops() {
         // Fast deterministic index fixture: create metadata directly in SQLite.
@@ -390,7 +389,6 @@ mod tests {
         assert_eq!(visited, 25_000);
         assert_eq!(last_path.as_deref(), Some("notes/24999.md"));
     }
-
 
     #[test]
     fn unicode_title_contains_survives_native_index_pagination() {
