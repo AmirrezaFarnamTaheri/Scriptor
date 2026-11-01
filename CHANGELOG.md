@@ -16,7 +16,7 @@
 
 ### Fixed
 
-- Show reconnect-required status and native recovery explanation when Google Drive or Gmail authorization has expired. Clear unverified account identity rather than misreporting the old email as connected; keep provider credentials and permissions independent.
+- Show reconnect-required status and native recovery explanations when Google Drive/Docs, Calendar/Tasks or Gmail authorization expires. Clear unverified account identity and expired Calendar caches rather than presenting old data as connected; keep independent provider credentials and permissions unchanged.
 
 - Bind Note History timeline and current-note comparison reads to the initiating vault, including the final restore preflight. A delayed read from vault A cannot silently display vault B's same relative path; displayed revision, preview and error states are scoped to vault identity.
 
