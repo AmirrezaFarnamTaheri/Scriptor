@@ -7,8 +7,8 @@ const repoStatus = {
   branch: 'main',
   has_conflicts: true,
   conflicted_files: [
-    { path: 'Notes/Draft.md', status: 'U', conflict: true },
-    { path: 'Research/Source.md', status: 'U', conflict: true },
+    { path: 'Notes/Draft.md', status: 'conflict', conflict: true },
+    { path: 'Research/Source.md', status: 'conflict', conflict: true },
   ],
 }
 
@@ -40,6 +40,7 @@ test('MAT-003: malformed or excessive native responses never become zero or rest
 test('MAT-003: contradictory native per-file conflict flags cannot become verified recovery counts', () => {
   for (const file of [
     { path: 'Note.md', status: 'modified', conflict: false },
+    { path: 'Note.md', status: 'modified', conflict: true },
     { path: 'Note.md', status: 'conflict', conflict: 'true' },
     { path: 'Note.md', status: '', conflict: true },
   ]) {
