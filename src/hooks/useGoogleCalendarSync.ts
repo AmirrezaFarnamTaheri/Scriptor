@@ -224,7 +224,25 @@ export function useGoogleCalendarSync({
       setResources({ calendars, taskLists, loading: false, error: null })
     } catch (caught) {
       if (lifecycle !== lifecycleGenerationRef.current || sequence !== discoveryGenerationRef.current) return
-      setResources({ calendars: [], taskLists: [], loading: false, error: googleAuthErrorMessage(caught) })
+      const message = googleAuthErrorMessage(caught)
+      if (isGoogleAuthRequiredError(caught)) {
+        // Resource discovery is another native credential read. A revoked scope
+        // invalidates the same remote cache and all mounted consumers as a
+        // failed events/tasks refresh; do not leave the last sync marked current.
+        lifecycleGenerationRef.current += 1
+        refreshGenerationRef.current += 1
+        taskMutationRevisionRef.current += 1
+        discoveryGenerationRef.current += 1
+        setEvents([])
+        setTasks([])
+        setAuthedEmail(null)
+        const kind = isGoogleAccountNotConnectedError(caught) ? 'disconnected' : 'reconnect-required'
+        setStatus(kind)
+        setError(message)
+        setAccountGeneration(current => current + 1)
+        announceCalendarAccount(accountOrigin.current, kind, message)
+      }
+      setResources({ calendars: [], taskLists: [], loading: false, error: message })
     }
   }, [enabled])
 
