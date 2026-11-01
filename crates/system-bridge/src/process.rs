@@ -736,7 +736,7 @@ mod tests {
     fn cancelled_spawned_process_is_reaped_before_returning() {
         const CHILD_MARKER: &str = "SCRIPTOR_PROCESS_BROKER_CANCEL_CHILD";
         if let Some(pid_path) = std::env::var_os(CHILD_MARKER) {
-            std::fs::write(pid_path, std::process::id().to_string())
+            std::fs::write(PathBuf::from(pid_path), std::process::id().to_string())
                 .expect("record spawned test child PID");
             thread::sleep(Duration::from_secs(30));
             return;
