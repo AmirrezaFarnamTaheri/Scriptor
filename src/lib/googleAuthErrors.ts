@@ -20,7 +20,7 @@ export function isGoogleAuthRequiredError(error: unknown): boolean {
  */
 export function isGoogleAccountNotConnectedError(error: unknown): boolean {
   if (!isGoogleAuthRequiredError(error)) return false
-  const message = googleAuthErrorMessage(error).trim().replace(/\\.$/, '').toLowerCase()
+  const message = googleAuthErrorMessage(error).trim().replace(/\.$/, '').toLowerCase()
   return message === 'google account is not connected'
     || message === 'gmail is not connected'
     || message === 'disconnected'
