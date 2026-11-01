@@ -545,6 +545,7 @@ mod tests {
         let heartbeat = directory.path().join("diagram-heartbeat");
         let descendant_pid = directory.path().join("diagram-descendant-pid");
         let script = r#"sh -c 'while :; do printf x >> "$SCRIPTOR_DIAGRAM_HEARTBEAT"; sleep 0.05; done' & echo $! > "$SCRIPTOR_DIAGRAM_DESCENDANT_PID"; wait"#;
+        // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-unix-descendant)
         let mut command = Command::new("sh");
         command
             .args(["-c", script])
