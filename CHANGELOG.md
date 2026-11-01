@@ -26,6 +26,8 @@
 
 ### Fixed
 
+- Reject MAT capability-graduation evidence links that point to GitHub Actions runs outside the Scriptor repository. A source SHA string alone is not proof of an installed or privacy review; human verification remains mandatory.
+
 - Show reconnect-required status and native recovery explanations when Google Drive/Docs, Calendar/Tasks or Gmail authorization expires. Distinguish absent first-time credentials from expired ones, clear unverified account identity and expired Calendar caches across all mounted consumers, invalidate late provider task replies, and keep independent provider credentials and permissions unchanged.
 
 - Reject already-cancelled external process requests before executable lookup or spawn, including direct broker spawns; preserve existing policy errors and post-launch process-tree cancellation.
