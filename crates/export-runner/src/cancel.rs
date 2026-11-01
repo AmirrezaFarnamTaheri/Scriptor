@@ -194,6 +194,7 @@ mod tests {
                 .env("SCRIPTOR_EXPORT_DESCENDANT_PID", descendant_pid.as_os_str()),
         )
         .expect("spawn group-scoped export process");
+        let group_id = spawned.child.id();
         let slot = new_cancel_slot();
         *lock_recover(&slot) = Some(RunningExport {
             job_id: "descendant-cancel".into(),
@@ -210,11 +211,22 @@ mod tests {
             }
             thread::sleep(Duration::from_millis(10));
         }
-        assert!(descendant_pid.exists() && heartbeat.exists(), "descendant never started");
+        if !descendant_pid.exists() || !heartbeat.exists() {
+            let _ = cancel_active_export(&slot);
+            let _ = Command::new("kill")
+                .args(["-KILL", "--", &format!("-{group_id}")])
+                .output();
+            panic!("descendant never started");
+        }
         assert_eq!(cancel_active_export(&slot).as_deref(), Some("descendant-cancel"));
         let stopped_bytes = std::fs::metadata(&heartbeat).expect("heartbeat").len();
         thread::sleep(Duration::from_millis(250));
         let final_bytes = std::fs::metadata(&heartbeat).expect("heartbeat").len();
+        // An intentionally failing RED regression must not leave its orphaned
+        // descendant writing forever on a hosted CI runner.
+        let _ = Command::new("kill")
+            .args(["-KILL", "--", &format!("-{group_id}")])
+            .output();
         assert_eq!(
             stopped_bytes, final_bytes,
             "cancelled export left a background compiler child writing outside the broker lifecycle",
