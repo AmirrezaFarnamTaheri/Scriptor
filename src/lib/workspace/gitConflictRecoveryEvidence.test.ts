@@ -36,3 +36,15 @@ test('MAT-003: malformed or excessive native responses never become zero or rest
   assert.equal(inspectGitConflictEvidence('vault-a', { ...repoStatus, conflicted_files: [{ path: '', status: 'U' }] }).state, 'error')
   assert.equal(inspectGitConflictEvidence('vault-a', { ...repoStatus, conflicted_files: Array.from({length: 50_001}, (_, i) => ({path: String(i)})) }).state, 'error')
 })
+
+test('MAT-003: contradictory native per-file conflict flags cannot become verified recovery counts', () => {
+  for (const file of [
+    { path: 'Note.md', status: 'modified', conflict: false },
+    { path: 'Note.md', status: 'conflict', conflict: 'true' },
+    { path: 'Note.md', status: '', conflict: true },
+  ]) {
+    assert.equal(inspectGitConflictEvidence('vault-a', {
+      is_repo: true, has_conflicts: true, conflicted_files: [file],
+    })?.state, 'error')
+  }
+})
