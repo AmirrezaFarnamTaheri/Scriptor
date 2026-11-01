@@ -539,10 +539,10 @@ pub fn vault_list_view_notes(
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     match page_size {
-        Some(size) => list_view_notes_page(
-            &cache, &session, &filter_json, after_path.as_deref(), size,
-        )
-        .map_err(|error| error.to_string()),
+        Some(size) => {
+            list_view_notes_page(&cache, &session, &filter_json, after_path.as_deref(), size)
+                .map_err(|error| error.to_string())
+        }
         None if after_path.is_none() => {
             list_view_notes(&cache, &session, &filter_json).map_err(|error| error.to_string())
         }

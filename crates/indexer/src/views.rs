@@ -292,7 +292,6 @@ mod tests {
         assert_eq!(hits[0].path, "match.md");
     }
 
-
     #[test]
     fn page_cursor_walks_filtered_notes_in_index_order_without_duplication() {
         let dir = tempdir().unwrap();
@@ -311,27 +310,30 @@ mod tests {
         let filter_json = r#"{"all":[{"op":"title contains","value":"page"}]}"#;
         let first = list_view_notes_page(&cache, &session, filter_json, None, 2).unwrap();
         assert_eq!(
-            first.iter().map(|hit| hit.path.as_str()).collect::<Vec<_>>(),
+            first
+                .iter()
+                .map(|hit| hit.path.as_str())
+                .collect::<Vec<_>>(),
             vec!["page-00.md", "page-01.md"],
         );
-        let second = list_view_notes_page(
-            &cache, &session, filter_json, Some(&first[1].path), 2,
-        )
-        .unwrap();
+        let second =
+            list_view_notes_page(&cache, &session, filter_json, Some(&first[1].path), 2).unwrap();
         assert_eq!(
-            second.iter().map(|hit| hit.path.as_str()).collect::<Vec<_>>(),
+            second
+                .iter()
+                .map(|hit| hit.path.as_str())
+                .collect::<Vec<_>>(),
             vec!["page-02.md", "page-03.md"],
         );
-        let third = list_view_notes_page(
-            &cache, &session, filter_json, Some(&second[1].path), 2,
-        )
-        .unwrap();
+        let third =
+            list_view_notes_page(&cache, &session, filter_json, Some(&second[1].path), 2).unwrap();
         assert_eq!(third.len(), 1);
         assert_eq!(third[0].path, "page-04.md");
-        assert!(list_view_notes_page(
-            &cache, &session, filter_json, Some(&third[0].path), 2,
-        )
-        .unwrap().is_empty());
+        assert!(
+            list_view_notes_page(&cache, &session, filter_json, Some(&third[0].path), 2,)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
