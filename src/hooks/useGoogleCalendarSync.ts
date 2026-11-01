@@ -276,6 +276,11 @@ export function useGoogleCalendarSync({
       ) return false
       setError(googleAuthErrorMessage(err))
       if (isGoogleAuthRequiredError(err)) {
+        // Invalidate pending provider reads/writes before clearing the cache.
+        // A late successful native reply cannot make an expired account look synced.
+        lifecycleGenerationRef.current += 1
+        refreshGenerationRef.current += 1
+        taskMutationRevisionRef.current += 1
         // A credential rejected by native authority cannot keep its former
         // account identity or remote cache on screen after a reconnect attempt.
         setAuthedEmail(null)
@@ -349,6 +354,9 @@ export function useGoogleCalendarSync({
         currentRefreshGen !== refreshGenerationRef.current
       ) return
       if (isGoogleAuthRequiredError(err)) {
+        lifecycleGenerationRef.current += 1
+        refreshGenerationRef.current += 1
+        taskMutationRevisionRef.current += 1
         discoveryGenerationRef.current += 1
         setEvents([])
         setTasks([])
