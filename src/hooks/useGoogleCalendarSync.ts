@@ -31,7 +31,7 @@ import {
   type GoogleTaskListResource,
 } from '../bridge/commands/google_calendar.ts'
 import { safeExternalMarkdownDestination, safeExternalMarkdownText } from '../lib/safeExternalUrl.ts'
-import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors.ts'
+import { googleAuthErrorMessage, isGoogleAuthRequiredError, isGoogleAccountNotConnectedError } from '../lib/googleAuthErrors.ts'
 import { getGoogleOAuthClientId } from '../lib/googleOAuthClient.ts'
 
 export type CalendarSyncStatus =
@@ -278,7 +278,7 @@ export function useGoogleCalendarSync({
         setEvents([])
         setTasks([])
         setResources({ calendars: [], taskLists: [], loading: false, error: null })
-        setStatus('reconnect-required')
+        setStatus(isGoogleAccountNotConnectedError(err) ? 'disconnected' : 'reconnect-required')
       } else {
         setStatus('error')
       }
@@ -347,7 +347,7 @@ export function useGoogleCalendarSync({
         setTasks([])
         setAuthedEmail(null)
         setResources({ calendars: [], taskLists: [], loading: false, error: null })
-        setStatus('reconnect-required')
+        setStatus(isGoogleAccountNotConnectedError(err) ? 'disconnected' : 'reconnect-required')
         setError(googleAuthErrorMessage(err))
       } else {
         setError(googleAuthErrorMessage(err))
