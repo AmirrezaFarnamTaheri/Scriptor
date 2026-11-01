@@ -1,5 +1,7 @@
 # MAT 24-workstream midpoint execution register — November 1, 2026
 
+**Historical snapshot (2026-11-01):** superseded MAT closure criteria involving installed/live studies and human sign-off are replaced by [automated MAT acceptance](../MAT-AUTOMATED-ACCEPTANCE.md) effective 2026-11-02. Historical evidence below and the unimplemented behavior it identifies remain unchanged.
+
 This register makes the user's **at least 50% per MAT** target actionable without inventing percentages. It supplements the [executable backlog](../../tasks/plans/2026-10-27-product-maturation-backlog.md) and [acceptance register](../../tasks/plans/2026-10-30-mat-006-024-acceptance-register.md); neither those requirements nor GitHub issue status is replaced.
 
 ## How to measure progress responsibly

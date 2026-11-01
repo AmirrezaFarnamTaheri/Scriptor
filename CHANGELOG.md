@@ -12,6 +12,8 @@
 
 ### Improved
 
+- Replace MAT project-completion requirements for physical installation, live accounts and human sign-off with exact-head automated native/browser/accessibility/platform/artifact evidence, preserving user authorization and release integrity.
+
 - Preview incoming local BibTeX citation keys against the currently indexed bibliography before a create-only import. Block duplicate or malformed key structures and collisions with existing keys without changing authored manuscript citations or bypassing native destination protection.
 
 - Reveal older retained backups progressively in sets of ten instead of hiding every backup beyond the first ten. Paging or changing destinations discards outstanding Restore/Delete approval, and the native backup order remains unchanged.

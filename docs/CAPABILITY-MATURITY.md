@@ -2,6 +2,8 @@
 
 This ledger is authoritative for support claims. “Implemented” means source exists; “Supported” additionally requires integrated tests, release inclusion, docs, and an owner. “Experimental” is opt-in and may change. “Design-only” must not be presented as available.
 
+**MAT closure as of 2026-11-02:** [Automated MAT acceptance](MAT-AUTOMATED-ACCEPTANCE.md) replaces human sign-off, physical installation, real-user studies and live-account use with full exact-head CI, native/browser/platform/runtime tests and machine-checkable artifacts. Native user authorization remains required. Existing status labels are unchanged until automated evidence proves their contracts; mock provider tests do not establish real-provider support.
+
 | Capability | Status | Source / evidence | Release posture |
 |---|---|---|---|
 | Markdown vault read/write/config | Supported | `crates/vault/`, Tauri/daemon adapters | Included |
