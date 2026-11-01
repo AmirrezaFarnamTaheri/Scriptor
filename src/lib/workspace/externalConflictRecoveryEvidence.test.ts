@@ -20,3 +20,9 @@ test('MAT-003: absent or unverifiable mismatch is never misreported as no extern
   assert.equal(inspectActiveExternalConflict('vault-a', 'Notes/Proof.md', 'vault-a', { ...mismatch, disk_hash: '' }), undefined)
   assert.equal(inspectActiveExternalConflict('', 'Notes/Proof.md', '', mismatch), undefined)
 })
+
+test('MAT-003: failed native disk read with unknown hash is not proven external conflict', () => {
+  assert.equal(inspectActiveExternalConflict('vault-a', 'Notes/Proof.md', 'vault-a', {
+    ...mismatch, disk_hash: 'unknown',
+  }), undefined)
+})
