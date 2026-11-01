@@ -5,6 +5,7 @@ use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 use crate::error::ExportError;
+use scriptor_system_bridge::{configure_process_group, terminate_process_tree};
 
 /// Wall-clock budget for a single diagram render. A pathological diagram (or a
 /// renderer that waits on stdin) must never hang the whole export job.
@@ -25,6 +26,8 @@ const MAX_DIAGRAM_OUTPUT_BYTES: u64 = 16 * 1024 * 1024;
 /// `Command::output()` waits forever; every diagram engine below goes through
 /// this helper instead so a wedged subprocess surfaces as a `TimedOut` error.
 fn output_with_timeout(command: &mut Command, timeout: Duration) -> io::Result<Output> {
+    // The native broker owns the child process-group setup on each platform.
+    configure_process_group(command);
     let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -62,7 +65,7 @@ fn output_with_timeout(command: &mut Command, timeout: Duration) -> io::Result<O
             Some(status) => break status,
             None => {
                 if Instant::now() >= deadline {
-                    let _ = child.kill();
+                    terminate_process_tree(&mut child);
                     let _ = child.wait();
                     return Err(io::Error::new(
                         io::ErrorKind::TimedOut,
