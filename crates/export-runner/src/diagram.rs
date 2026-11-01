@@ -535,6 +535,36 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn timed_out_diagram_renderer_must_stop_its_background_writer() {
+        let directory = tempfile::tempdir().expect("isolated diagram timeout fixture");
+        let heartbeat = directory.path().join("diagram-heartbeat");
+        let descendant_pid = directory.path().join("diagram-descendant-pid");
+        let script = r#"sh -c 'while :; do printf x >> "$SCRIPTOR_DIAGRAM_HEARTBEAT"; sleep 0.05; done' & echo $! > "$SCRIPTOR_DIAGRAM_DESCENDANT_PID"; wait"#;
+        let mut command = Command::new("sh");
+        command
+            .args(["-c", script])
+            .env("SCRIPTOR_DIAGRAM_HEARTBEAT", heartbeat.as_os_str())
+            .env("SCRIPTOR_DIAGRAM_DESCENDANT_PID", descendant_pid.as_os_str());
+        let result = output_with_timeout(&mut command, Duration::from_millis(900));
+        let first = fs::metadata(&heartbeat).map(|meta| meta.len()).unwrap_or(0);
+        std::thread::sleep(Duration::from_millis(300));
+        let second = fs::metadata(&heartbeat).map(|meta| meta.len()).unwrap_or(0);
+        // RED cleanup must not leave a runaway writer behind. Kill the captured
+        // descendant PID specifically: the old launch has no isolated group.
+        if let Ok(pid) = fs::read_to_string(&descendant_pid) {
+            let _ = Command::new("kill").args(["-KILL", pid.trim()]).status();
+        }
+        let error = result.expect_err("diagram renderer and descendants must time out");
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert!(first > 0, "background writer did not start in the fixture");
+        assert_eq!(
+            first, second,
+            "a renderer child kept writing after the timeout returned",
+        );
+    }
+
     #[test]
     fn output_with_timeout_kills_a_hanging_child() {
         let mut command = if cfg!(windows) {
