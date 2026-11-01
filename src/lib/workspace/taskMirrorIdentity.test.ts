@@ -26,3 +26,30 @@ test('repeated current-note entries cannot bypass same-note duplicate detection'
     { path: 'todo.md', tasks: [{ text: 'Item' }] },
   ]), /review/i)
 })
+
+
+import { assertNoAmbiguousTaskRebindings } from './taskMirrorIdentity.ts'
+
+test('a moved task cannot create a new Google record and complete its old source ID without review', () => {
+  assert.throws(() => assertNoAmbiguousTaskRebindings('vault-a', [
+    { tasks: [{ id: 'new-task', text: 'Buy milk' }] },
+  ], [{ title: 'Buy milk', notes: 'Scriptor source: vault:vault-a:old-task' }]), /review|ambiguous/i)
+})
+
+test('a remote current-vault source still matching a local ID is not a moved-task ambiguity', () => {
+  assert.doesNotThrow(() => assertNoAmbiguousTaskRebindings('vault-a', [
+    { tasks: [{ id: 'same-task', text: 'Buy milk' }] },
+  ], [{ title: 'Buy milk', notes: 'Scriptor source: vault:vault-a:same-task' }]))
+})
+
+test('foreign-vault ownership is not used to guess moved-task identity', () => {
+  assert.doesNotThrow(() => assertNoAmbiguousTaskRebindings('vault-a', [
+    { tasks: [{ id: 'new-task', text: 'Buy milk' }] },
+  ], [{ title: 'Buy milk', notes: 'Scriptor source: vault:vault-b:old-task' }]))
+})
+
+test('an orphan owned remote without a matching local title can be completed as deleted', () => {
+  assert.doesNotThrow(() => assertNoAmbiguousTaskRebindings('vault-a', [
+    { tasks: [{ id: 'new-task', text: 'Write report' }] },
+  ], [{ title: 'Buy milk', notes: 'Scriptor source: vault:vault-a:old-task' }]))
+})
