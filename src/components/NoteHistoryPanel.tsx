@@ -405,7 +405,9 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
           <section className="note-history-vocabulary" aria-label="Writing statistics">
             <details className="note-history-advanced-stats">
               <summary>Advanced: word history</summary>
-              <VocabularyEvolution key={`${vaultId}:${path}`} path={path} vaultId={vaultId} revisions={revisions}/>
+              {path && vaultId ? (
+                <VocabularyEvolution key={`${vaultId}:${path}`} path={path} vaultId={vaultId} revisions={revisions} />
+              ) : null}
             </details>
             {vocabulary && <details><summary>Word comparison</summary><p>Measured from the Markdown source, including code and metadata. Distinct word ratio measures repetition; it is not a readability or quality score.</p><table><thead><tr><th>Measure</th><th>Current note</th><th>Selected revision</th></tr></thead><tbody><tr><th>Words</th><td>{vocabulary.current.words}</td><td>{vocabulary.revision.words}</td></tr><tr><th>Distinct words</th><td>{vocabulary.current.uniqueWords}</td><td>{vocabulary.revision.uniqueWords}</td></tr><tr><th>Distinct word ratio</th><td>{vocabulary.current.diversity === null ? 'No words' : `${(vocabulary.current.diversity * 100).toFixed(1)}%`}</td><td>{vocabulary.revision.diversity === null ? 'No words' : `${(vocabulary.revision.diversity * 100).toFixed(1)}%`}</td></tr></tbody></table></details>}
           </section>
