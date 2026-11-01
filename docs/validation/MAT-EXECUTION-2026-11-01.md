@@ -26,5 +26,11 @@
 - Capture review had an obsolete assertion for `Saved reviewed capture`; the observed UI correctly says `Saved and indexed reviewed capture`. E2E now checks the explicit indexed receipt and retains its native write identity assertions.
 - These changes were applied **after** the failed run. An exact-head successful browser rerun is still required; neither MAT-009 nor other maturity workstreams are accepted.
 
+## Second hosted browser rerun (2026-11-01)
+
+- [CI #41314309420](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41314309420) at `45371065ca55b549bf7138ce5442c34c23401216`: **520 of 521 Playwright tests passed**. Backup pagination, database indexed loading/editing, and indexed capture receipts passed after the prior corrections. The remaining failure was `database layouts preserve calculated values and scoped aggregate evidence`: a positional `tbody tr.first()` assertion expected the Research Plan calculated value `24`, but native UTF-8 path sorting correctly placed the Field Notes calculated value `6` in the first row.
+- The assertion now identifies each note by its rendered row identity and checks both calculated values, `Research Plan → 24` and `Field Notes → 6`, without loosening the aggregate proof (`sum 30`) or changing product code. This is regression **test repair**, not a change to database computation.
+- Fresh exact-head CI/browser verification after this test repair is **required** before claiming the 521-test suite passes or graduating any MAT issue.
+
 ## Safety boundaries
 No new independent permission service, storage authority, native command, auto retry, remote provider call, release tag or support-status change. This branch must not be merged as completion of the parent issues.
