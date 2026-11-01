@@ -15,7 +15,7 @@ const input = {
 }
 const run = (size, mode, condition, replicate) => ({
   size, mode, condition, replicate, runId: size + '-' + mode + '-' + condition + '-' + replicate,
-  startedAt: '2026-11-01T15:22:00.000Z', fixtureSha256: String(size).padStart(64, '0'),
+  startedAt: replicate === 1 ? '2026-11-01T15:22:00.000Z' : '2026-11-01T15:22:01.000Z', fixtureSha256: String(size).padStart(64, '0'),
   noteCount: size, report: { note_count: size, samples_ms: [10, 11, 12], mean_ms: 11 },
   ...(condition === 'cold' ? { cacheReset: { method: 'fresh-volume', evidence: 'attested' } } : { warmed: true }),
 })
