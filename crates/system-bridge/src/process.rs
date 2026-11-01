@@ -292,6 +292,9 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
             && cancel.load(Ordering::Relaxed)
         {
             terminate_process_tree(&mut child);
+            // Reap the direct child after terminating its process group. Dropping
+            // Child without wait can leave a zombie until the host exits.
+            let _ = child.wait();
             return Err(BridgeError::ProcessPolicy {
                 message: "process cancelled by caller".into(),
             });
