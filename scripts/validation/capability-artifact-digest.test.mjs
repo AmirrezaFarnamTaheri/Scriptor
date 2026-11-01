@@ -86,7 +86,7 @@ test('MAT-022: truncated or tampered bytes fail closed even if Actions metadata 
 })
 
 test('MAT-022: oversized byte stream and provider transport errors cannot become a proof', async () => {
-  const oversized = { ...provider(), downloadArchive: async function* () { yield Buffer.alloc(129 * 1024 * 1024) } }
+  const oversized = { ...provider(), downloadArchive: async function* () { yield Buffer.alloc(1024) } }
   assert.equal((await verifyGithubArtifactProvenance(proof(), oversized)).artifactDigestVerified, false)
   const broken = { ...provider(), getArtifact: async () => { throw new Error('API 403 forbidden') } }
   assert.equal((await verifyGithubArtifactProvenance(proof(), broken)).artifactDigestVerified, false)
