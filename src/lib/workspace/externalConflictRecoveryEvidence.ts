@@ -22,6 +22,6 @@ export function inspectActiveExternalConflict(
       !activePath?.trim() || !conflict || activePath !== conflict.path ||
       typeof conflict.loaded_hash !== 'string' || !conflict.loaded_hash.trim() ||
       typeof conflict.disk_hash !== 'string' || !conflict.disk_hash.trim() ||
-      conflict.disk_hash === conflict.loaded_hash) return undefined
+      conflict.disk_hash === 'unknown' || conflict.disk_hash === conflict.loaded_hash) return undefined
   return { vaultId, state: 'ready', count: 1 }
 }
