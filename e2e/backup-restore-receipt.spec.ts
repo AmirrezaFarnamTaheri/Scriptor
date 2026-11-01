@@ -247,14 +247,17 @@ test('MAT-003: read-only Recovery Center reports native Git conflicts without tr
     const invoke = native.invoke.bind(native)
     host.__gitRecoveryWrites = []
     native.invoke = (command, args) => {
-      if (command === 'git_status_cmd') return Promise.resolve({
-        is_repo: true, branch: 'main', has_conflicts: true,
-        clean: false, changed_files: [], ahead: 0, behind: 0, has_upstream: false,
-        conflicted_files: [
+      if (command === 'git_status_cmd') {
+        const conflicted_files = [
           { path: 'Notes/Draft.md', status: 'U', conflict: true },
           { path: 'Research/Source.md', status: 'U', conflict: true },
-        ],
-      })
+        ]
+        return Promise.resolve({
+          is_repo: true, branch: 'main', has_conflicts: true,
+          clean: false, changed_files: conflicted_files, ahead: 0, behind: 0, has_upstream: false,
+          conflicted_files,
+        })
+      }
       if (/^git_(commit|pull|push|resolve|apply)/.test(command)) host.__gitRecoveryWrites?.push(command)
       return invoke(command, args)
     }
