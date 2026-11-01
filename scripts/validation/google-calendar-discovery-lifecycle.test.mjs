@@ -193,3 +193,9 @@ test('MAT-015: missing Calendar credentials remain disconnected instead of deman
   assert.equal(h.render().authedEmail, null)
   assert.equal(h.render().events.length, 0)
 })
+
+test('MAT-015: Task panel renders a localized reconnect label instead of a missing status key', () => {
+  const ui = readFileSync(new URL('../../src/components/TaskPanel.tsx', import.meta.url), 'utf8')
+  assert.match(ui, /calendarSync\.status === 'reconnect-required'\s*\?\s*t\('integrations\.google\.reconnect'\)/)
+  assert.match(ui, /calendarStatusLabel/)
+})
