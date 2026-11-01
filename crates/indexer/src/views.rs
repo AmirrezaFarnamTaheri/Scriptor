@@ -209,18 +209,12 @@ fn view_condition_sql_prefilter(condition: &ViewFilterCondition) -> Option<(Stri
                 )
             })
         }
-        ViewFilterOp::TitleContains => {
-            let value = scalar()?;
-            value.is_ascii().then(|| {
-                (
-                    "title LIKE ? COLLATE NOCASE".into(),
-                    vec![Value::Text(format!("%{value}%"))],
-                )
-            })
-        }
-        // Arbitrary regexes and timestamp semantics stay in the authoritative
-        // Rust evaluator. In an `All` group, sibling predicates can still
-        // reduce the candidate set safely.
+        // SQLite LIKE/NOCASE fold only ASCII, but the Rust TitleContains
+        // evaluator lowercases Unicode. A SQL prefilter for "kelvin" would
+        // otherwise drop a title beginning with the Kelvin sign (K).
+        // Preserve exact native semantics; safe All-group predicates can
+        // still reduce the candidate set before Rust evaluation.
+        ViewFilterOp::TitleContains => None,
         ViewFilterOp::PathMatches | ViewFilterOp::ModifiedWithinDays => None,
     }
 }
@@ -334,6 +328,98 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+
+
+    #[test]
+    fn indexed_page_cursor_walks_25k_note_metadata_without_duplicates_or_drops() {
+        // Fast deterministic index fixture: create metadata directly in SQLite.
+        // This does not claim 25k filesystem note reads, export, or UI latency.
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let cache = crate::rebuild::open_cache_for_session(&session).unwrap();
+        {
+            let mut conn = cache.connection().unwrap();
+            let transaction = conn.transaction().unwrap();
+            {
+                let mut insert = transaction
+                    .prepare(
+                        "INSERT INTO notes
+                         (id, vault_id, path, title, content_hash, modified_at, word_count)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    )
+                    .unwrap();
+                for number in 0..25_000 {
+                    insert
+                        .execute(rusqlite::params![
+                            format!("fixture-{number:05}"),
+                            &session.descriptor.id,
+                            format!("notes/{number:05}.md"),
+                            "Target note",
+                            "fixture-hash",
+                            "2026-11-01T00:00:00Z",
+                            0_i64,
+                        ])
+                        .unwrap();
+                }
+            }
+            transaction.commit().unwrap();
+        }
+
+        let filter = r#"{"all":[{"op":"title contains","value":"Target"}]}"#;
+        let mut last_path: Option<String> = None;
+        let mut visited = 0;
+        loop {
+            let page =
+                list_view_notes_page(&cache, &session, filter, last_path.as_deref(), 201).unwrap();
+            assert!(page.len() <= 201);
+            if page.is_empty() {
+                break;
+            }
+            for hit in page {
+                if let Some(ref previous) = last_path {
+                    assert!(
+                        previous < &hit.path,
+                        "index cursor returned an out-of-order or repeated path"
+                    );
+                }
+                last_path = Some(hit.path);
+                visited += 1;
+            }
+        }
+        assert_eq!(visited, 25_000);
+        assert_eq!(last_path.as_deref(), Some("notes/24999.md"));
+    }
+
+
+    #[test]
+    fn unicode_title_contains_survives_native_index_pagination() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let cache = crate::rebuild::open_cache_for_session(&session).unwrap();
+        {
+            let conn = cache.connection().unwrap();
+            conn.execute(
+                "INSERT INTO notes
+                 (id, vault_id, path, title, content_hash, modified_at, word_count)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                rusqlite::params![
+                    "unicode-note",
+                    &session.descriptor.id,
+                    "unicode.md",
+                    "Kelvin",
+                    "fixture-hash",
+                    "2026-11-01T00:00:00Z",
+                    0_i64,
+                ],
+            )
+            .unwrap();
+        }
+        // Rust's Unicode lowercase matches K -> k; SQLite LIKE does not.
+        let filter = r#"{"all":[{"op":"title contains","value":"kelvin"}]}"#;
+        let hits = list_view_notes_page(&cache, &session, filter, None, 201).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "unicode.md");
     }
 
     #[test]

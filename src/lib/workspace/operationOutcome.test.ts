@@ -85,3 +85,27 @@ test('post-commit refresh failure needs a valid native committed status', () => 
   assert.equal(committed.commit, 'confirmed-committed')
   assert.equal(committed.retry, 'blocked-until-reconciliation')
 })
+
+test('malformed native committed evidence cannot claim a committed result', async () => {
+  assert.throws(() => buildOperationOutcome(scope, {
+    kind: 'committed', affectedPaths: 'not-an-array' as unknown as string[],
+  }), /native affected paths/)
+  assert.throws(() => buildOperationOutcome(scope, {
+    kind: 'committed', actualRevision: { invalid: true } as unknown as string,
+  }), /native actual revision/)
+  const observed = await observeMutation({
+    scope, authorize: async () => 'approved', submit: async () => ({ status: 'unknown' }),
+    interpret: () => ({ kind: 'committed', affectedPaths: 'malformed' } as never),
+  })
+  assert.equal(observed.outcome.commit, 'indeterminate')
+  assert.equal(observed.outcome.proof, 'invalid-native-result')
+})
+test('unknown native evidence cannot bypass a runtime receipt classification', async () => {
+  assert.throws(() => buildOperationOutcome(scope, { kind: 'future-native-reply' } as never), /Unsupported native mutation evidence/)
+  const observed = await observeMutation({
+    scope, authorize: async () => 'approved', submit: async () => ({}),
+    interpret: () => ({ kind: 'future-native-reply' } as never),
+  })
+  assert.equal(observed.outcome.commit, 'indeterminate')
+  assert.equal(observed.outcome.proof, 'invalid-native-result')
+})

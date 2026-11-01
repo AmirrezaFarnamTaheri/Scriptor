@@ -43,6 +43,7 @@ export function buildOperationOutcome(scope: MutationScope, evidence: MutationEv
     expectedRevision: scope.expectedRevision ?? null, actualRevision: null,
     affectedPaths: null,
   }
+  if (!evidence || typeof evidence !== 'object') throw new Error('Unsupported native mutation evidence.')
   switch (evidence.kind) {
     case 'not-submitted':
       return { ...base, affectedPaths: [], commit: 'confirmed-none', proof: 'before-native-submission',
@@ -51,6 +52,15 @@ export function buildOperationOutcome(scope: MutationScope, evidence: MutationEv
       return { ...base, affectedPaths: [], commit: 'confirmed-none', proof: 'native-result',
         retry: 'review-and-reauthorize', recovery: 'none' }
     case 'committed':
+      if (evidence.actualRevision !== undefined && evidence.actualRevision !== null &&
+          typeof evidence.actualRevision !== 'string') {
+        throw new Error('Invalid native actual revision.')
+      }
+      if (evidence.affectedPaths !== undefined &&
+          (!Array.isArray(evidence.affectedPaths) ||
+           evidence.affectedPaths.some(path => typeof path !== 'string' || !path || path.length > 4096))) {
+        throw new Error('Invalid native affected paths inventory.')
+      }
       return { ...base, affectedPaths: evidence.affectedPaths === undefined ? null : [...evidence.affectedPaths],
         actualRevision: evidence.actualRevision ?? null, commit: 'confirmed-committed', proof: 'native-result',
         retry: 'do-not-retry', recovery: 'none' }
@@ -71,6 +81,8 @@ export function buildOperationOutcome(scope: MutationScope, evidence: MutationEv
       }
       return { ...base, commit: 'confirmed-committed', proof: 'native-result',
         retry: 'blocked-until-reconciliation', recovery: 'reopen-vault' }
+    default:
+      throw new Error('Unsupported native mutation evidence.')
   }
 }
 export interface ObservedMutation<T> {

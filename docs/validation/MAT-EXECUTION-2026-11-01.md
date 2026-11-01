@@ -15,7 +15,7 @@
 - Local Node 22 strip-types unit tests and the Rust-catalog/source-wiring contracts.
 - Exact-head CI (Rust, Clippy, Node, frontend, E2E, visual, Windows smoke).
 - Installed Windows/macOS/Linux: vault A→B same-path, denial and retry, crash/reopen recovery journal, corrupt source, 200% zoom, keyboard + screen reader, 320px and RTL.
-- 25k-note performance tests and native full-vault result proof before MAT-009 completeness claims.
+- The deterministic 25k-row SQLite index pagination regression is checked by Rust CI; separate 25k-file filesystem, frontend timing, snapshot-cursor and full-vault aggregate proof remain required before MAT-009 completeness claims.
 - Real citation/source rename/export and consented provider journeys before MAT-011/012 graduation.
 
 ## Safety boundaries
