@@ -59,6 +59,10 @@ function afterEntryBody(text: string, openingAt: number, opener: '{' | '('): num
     if (character === '\\') { escaped = true; continue }
     if (character === '"' && braceDepth === 0) { inQuote = !inQuote; continue }
     if (inQuote) continue
+    if (character === '%' && braceDepth === 0) {
+      while (i < text.length && text[i] !== '\n') i += 1
+      continue
+    }
     if (character === '{') { braceDepth += 1; continue }
     if (character === '}') {
       if (braceDepth > 0) { braceDepth -= 1; continue }
