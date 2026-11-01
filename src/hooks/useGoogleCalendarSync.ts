@@ -31,7 +31,7 @@ import {
   type GoogleTaskListResource,
 } from '../bridge/commands/google_calendar.ts'
 import { safeExternalMarkdownDestination, safeExternalMarkdownText } from '../lib/safeExternalUrl.ts'
-import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors.ts'
+import { googleAuthErrorMessage, isGoogleAuthRequiredError, isGoogleAccountNotConnectedError } from '../lib/googleAuthErrors.ts'
 import { getGoogleOAuthClientId } from '../lib/googleOAuthClient.ts'
 
 export type CalendarSyncStatus =
@@ -40,6 +40,7 @@ export type CalendarSyncStatus =
   | 'syncing'
   | 'synced'
   | 'error'
+  | 'reconnect-required'
 
 export type { CalendarEvent, GoogleTask }
 
@@ -117,8 +118,12 @@ const DEFAULT_LOOKAHEAD_DAYS = 7
 const MAX_TASK_SYNC_MUTATIONS_PER_APPROVAL = 1000
 const SOURCE_MARKER_PREFIX = 'Scriptor source:'
 
-function announceCalendarAccount(origin: object, kind: 'connected' | 'disconnected'): void {
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', { detail: { service: 'calendar', origin, kind } }))
+function announceCalendarAccount(origin: object, kind: 'connected' | 'disconnected' | 'reconnect-required', error: string | null = null): void {
+  // Only the current native credential owner may emit this event. Never send
+  // tokens or a provider response body; the reason is the existing UI-safe message.
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', {
+    detail: { service: 'calendar', origin, kind, error: kind === 'reconnect-required' ? error : null },
+  }))
 }
 
 /** Selects events whose start date matches the user's local date. */
@@ -219,7 +224,25 @@ export function useGoogleCalendarSync({
       setResources({ calendars, taskLists, loading: false, error: null })
     } catch (caught) {
       if (lifecycle !== lifecycleGenerationRef.current || sequence !== discoveryGenerationRef.current) return
-      setResources({ calendars: [], taskLists: [], loading: false, error: googleAuthErrorMessage(caught) })
+      const message = googleAuthErrorMessage(caught)
+      if (isGoogleAuthRequiredError(caught)) {
+        // Resource discovery is another native credential read. A revoked scope
+        // invalidates the same remote cache and all mounted consumers as a
+        // failed events/tasks refresh; do not leave the last sync marked current.
+        lifecycleGenerationRef.current += 1
+        refreshGenerationRef.current += 1
+        taskMutationRevisionRef.current += 1
+        discoveryGenerationRef.current += 1
+        setEvents([])
+        setTasks([])
+        setAuthedEmail(null)
+        const kind = isGoogleAccountNotConnectedError(caught) ? 'disconnected' : 'reconnect-required'
+        setStatus(kind)
+        setError(message)
+        setAccountGeneration(current => current + 1)
+        announceCalendarAccount(accountOrigin.current, kind, message)
+      }
+      setResources({ calendars: [], taskLists: [], loading: false, error: message })
     }
   }, [enabled])
 
@@ -270,7 +293,25 @@ export function useGoogleCalendarSync({
         currentRefreshGen !== refreshGenerationRef.current
       ) return false
       setError(googleAuthErrorMessage(err))
-      setStatus('error')
+      if (isGoogleAuthRequiredError(err)) {
+        // Invalidate pending provider reads/writes before clearing the cache.
+        // A late successful native reply cannot make an expired account look synced.
+        lifecycleGenerationRef.current += 1
+        refreshGenerationRef.current += 1
+        taskMutationRevisionRef.current += 1
+        // A credential rejected by native authority cannot keep its former
+        // account identity or remote cache on screen after a reconnect attempt.
+        setAuthedEmail(null)
+        setEvents([])
+        setTasks([])
+        setResources({ calendars: [], taskLists: [], loading: false, error: null })
+        const kind = isGoogleAccountNotConnectedError(err) ? 'disconnected' : 'reconnect-required'
+        setAccountGeneration(current => current + 1)
+        setStatus(kind)
+        announceCalendarAccount(accountOrigin.current, kind, googleAuthErrorMessage(err))
+      } else {
+        setStatus('error')
+      }
       return false
     }
   }, [clientId, calendarId, taskListId, lookaheadDays, discoverResources])
@@ -331,13 +372,19 @@ export function useGoogleCalendarSync({
         currentRefreshGen !== refreshGenerationRef.current
       ) return
       if (isGoogleAuthRequiredError(err)) {
+        lifecycleGenerationRef.current += 1
+        refreshGenerationRef.current += 1
+        taskMutationRevisionRef.current += 1
         discoveryGenerationRef.current += 1
         setEvents([])
         setTasks([])
         setAuthedEmail(null)
         setResources({ calendars: [], taskLists: [], loading: false, error: null })
-        setStatus('disconnected')
+        const kind = isGoogleAccountNotConnectedError(err) ? 'disconnected' : 'reconnect-required'
+        setAccountGeneration(current => current + 1)
+        setStatus(kind)
         setError(googleAuthErrorMessage(err))
+        announceCalendarAccount(accountOrigin.current, kind, googleAuthErrorMessage(err))
       } else {
         setError(googleAuthErrorMessage(err))
         setStatus('error')
@@ -348,17 +395,20 @@ export function useGoogleCalendarSync({
   useEffect(() => {
     if (typeof window === 'undefined') return
     const changed = (event: Event) => {
-      const detail = (event as CustomEvent<{ service?: string; origin?: unknown; kind?: string }>).detail
+      const detail = (event as CustomEvent<{ service?: string; origin?: unknown; kind?: string; error?: string | null }>).detail
       if (detail?.service !== 'calendar' || detail.origin === accountOrigin.current) return
       lifecycleGenerationRef.current++
       refreshGenerationRef.current++
       discoveryGenerationRef.current++
       taskMutationRevisionRef.current++
       setAccountGeneration(current => current + 1)
-      setEvents([]); setTasks([]); setAuthedEmail(null); setError(null)
+      const needsReconnect = detail.kind === 'reconnect-required'
+      setEvents([]); setTasks([]); setAuthedEmail(null)
+      setError(needsReconnect ? detail.error ?? null : null)
       setResources({ calendars: [], taskLists: [], loading: false, error: null })
-      setStatus('disconnected')
-      if (enabled && detail.kind !== 'disconnected') void refresh()
+      setStatus(needsReconnect ? 'reconnect-required' : 'disconnected')
+      // Expired or absent credentials must not trigger an automatic retry loop.
+      if (enabled && detail.kind !== 'disconnected' && !needsReconnect) void refresh()
     }
     window.addEventListener('scriptor:google-account-changed', changed)
     return () => window.removeEventListener('scriptor:google-account-changed', changed)
