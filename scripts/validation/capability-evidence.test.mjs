@@ -11,12 +11,12 @@ const packet = () => ({
   authorization: { model: 'native vault authorization', privacyReview: proof('privacy') },
   performance: proof('25k-performance'),
   docs: { user: 'docs/CAPABILITIES.md', operator: 'docs/VERIFICATION.md' },
-  release: { inclusion: proof('release'), installed: proof('installed') },
+  release: { inclusion: proof('release'), artifactSmoke: proof('ci-artifact-smoke') },
   changelog: 'CHANGELOG.md',
 })
-test('MAT-022: complete evidence index is ready for human review, not automatically supported', () => {
+test('MAT-022: complete evidence index is complete for automated verification, not automatically supported', () => {
   const result = assessCapabilityEvidence(packet())
-  assert.equal(result.readyForHumanReview, true)
+  assert.equal(result.evidenceIndexComplete, true)
   assert.deepEqual(result.missing, [])
   assert.equal('supported' in result, false)
 })
@@ -26,18 +26,18 @@ test('MAT-022: missing negative, failed restart or missing recovery proof blocks
   input.tests.restart.result = 'failed'
   input.tests.recovery.url = ''
   const result = assessCapabilityEvidence(input)
-  assert.equal(result.readyForHumanReview, false)
+  assert.equal(result.evidenceIndexComplete, false)
   assert.deepEqual(result.missing, ['tests.negative', 'tests.restart', 'tests.recovery'])
 })
 test('MAT-022: stale commit evidence never certifies a newer head', () => {
-  const input = packet(); input.release.installed.sha = 'b'.repeat(40)
-  assert.deepEqual(assessCapabilityEvidence(input).missing, ['release.installed'])
+  const input = packet(); input.release.artifactSmoke.sha = 'b'.repeat(40)
+  assert.deepEqual(assessCapabilityEvidence(input).missing, ['release.artifactSmoke'])
 })
-test('MAT-022: unit tests cannot substitute for packaged or privacy evidence', () => {
-  const input = packet(); delete input.release.installed; delete input.authorization.privacyReview
+test('MAT-022: unit tests cannot substitute for CI artifact smoke or privacy evidence', () => {
+  const input = packet(); delete input.release.artifactSmoke; delete input.authorization.privacyReview
   const result = assessCapabilityEvidence(input)
-  assert.deepEqual(result.missing, ['authorization.privacyReview', 'release.installed'])
-  assert.equal(result.readyForHumanReview, false)
+  assert.deepEqual(result.missing, ['authorization.privacyReview', 'release.artifactSmoke'])
+  assert.equal(result.evidenceIndexComplete, false)
 })
 test('MAT-022: malformed identity, unsafe document paths and unsupported schemas fail closed', () => {
   for (const [key, value] of [['sourceHead','main'],['capabilityId',''],['schemaVersion',2]]) {
@@ -58,6 +58,17 @@ test('MAT-022: an unrelated GitHub repository cannot supply readiness evidence',
   input.tests.positive.url = 'https://github.com/example-org/another-repo/actions/runs/100'
   assert.deepEqual(assessCapabilityEvidence(input).missing, ['tests.positive'])
 })
-test('MAT-022: valid Scriptor workflow run links remain eligible for human review', () => {
-  assert.equal(assessCapabilityEvidence(packet()).readyForHumanReview, true)
+test('MAT-022: valid Scriptor workflow run links remain eligible for automated verification', () => {
+  assert.equal(assessCapabilityEvidence(packet()).evidenceIndexComplete, true)
+})
+
+test('MAT-022: an installed-app label without CI artifact smoke cannot complete automated evidence', () => {
+  const input = packet()
+  input.release.installed = proof('manual-installed')
+  delete input.release.artifactSmoke
+  const result = assessCapabilityEvidence(input)
+  assert.equal(result.evidenceIndexComplete, false)
+  assert.deepEqual(result.missing, ['release.artifactSmoke'])
+  assert.equal('readyForHumanReview' in result, false)
+  assert.equal('supported' in result, false)
 })
