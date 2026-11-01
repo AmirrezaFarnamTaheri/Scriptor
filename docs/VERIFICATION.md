@@ -6,6 +6,8 @@ This document defines the evidence required to verify Scriptor. A result must
 identify its exact source commit, environment, target architecture and artifacts.
 Results from an older commit cannot certify a newer implementation.
 
+**MAT-001–024 policy effective 2026-11-02:** [Automated MAT acceptance](MAT-AUTOMATED-ACCEPTANCE.md) supersedes older passages below referring to manual approval, real-user studies, physical installation, live-account use and installed-app acceptance as *closure gates*. Those historical verification records remain valid evidence of what was or was not tested then; none becomes an automated pass retroactively. In-product user authorization is unaffected.
+
 ## MAT-004 — read-side Note History vault identity (PR #242)
 
 This is a separate read-only provenance slice stacked on the destructive-restore

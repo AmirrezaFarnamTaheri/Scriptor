@@ -1,6 +1,6 @@
 # MAT-006–024 — independent acceptance evidence register
 
-Date: 2026-10-30. This register separates **source changes**, **hosted CI**, and **installed/live acceptance**. It does not repeat the implementation specification: each [MAT issue](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues) is authoritative for scope and required regression cases.
+Historical baseline: 2026-10-30. **Current completion policy (2026-11-02):** [automated MAT acceptance](../../docs/MAT-AUTOMATED-ACCEPTANCE.md). Prior physical-install/human criteria are historical, not new closure gates. This register separates **source changes**, **hosted CI**, and **automated integration/artifact acceptance**. It does not repeat the implementation specification: each [MAT issue](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues) is authoritative for scope and required regression cases.
 
 **No feature in this register is marked graduated.** Results listed are historical, exact-source evidence; do not reuse a pass for a newer commit. Record every new accepted case with the exact SHA, runner/OS/architecture, test name, result, URL, and the remaining gap. An authored test without an observed failure is not failing-first proof. A rejected/missing native reply is not proof of rollback. The installed process/device and consented external-provider gates cannot be satisfied by browser mocks.
 
@@ -8,42 +8,42 @@ Date: 2026-10-30. This register separates **source changes**, **hosted CI**, and
 
 - **Evidence present:** None; ownership refactor not submitted.
 - **Required acceptance assertions:** Same-note navigation, dirty close, inactive-tab restore, A→B switching, focus, source-editor/reader transitions, RTL and zoom.
-- **Outstanding evidence:** Packaged cross-vault and keyboard/focus evidence; observed failing-first tests plus exact-head checks.
+- **Outstanding evidence:** Automated hosted cross-vault and keyboard/focus evidence; observed failing-first tests plus exact-head checks.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-007 · [issue #187](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/187)
 
 - **Evidence present:** No dedicated implementation PR verified.
 - **Required acceptance assertions:** Semantic fixture corpus across source, editable preview, inspector, reload and export; unsupported syntax must survive editing adjacent content.
-- **Outstanding evidence:** Native/browser adapter round trips and installed visual/accessibility proof.
+- **Outstanding evidence:** Native/browser adapter round trips and CI visual/accessibility-tree proof.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-008 · [issue #188](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/188)
 
 - **Evidence present:** #211 merged to main (5930efa); #212 head 10f815c and #213 head 1d2f7fb reconciled; their new CI was pending at this register's creation.
 - **Required acceptance assertions:** Wrong-vault commit/status and conflict reads at desktop/daemon/CLI/TUI/MCP; stale hashes, cancellation, post-commit lost replies.
-- **Outstanding evidence:** Current #212/#213 exact-head checks; #213 unresolved installed two-client A→B, restart/reconnect thread; full entrypoint parity.
+- **Outstanding evidence:** Current #212/#213 exact-head checks; #213 unresolved automated two-client A→B, restart/reconnect thread; full entrypoint parity.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-009 · [issue #189](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/189)
 
 - **Evidence present:** #232 head 15a1f2f passed CI 41024144641, visual 41024144551, docs 41024144556; ready-for-review reruns subsequently started.
 - **Required acceptance assertions:** Stale query/edit scoping plus full-vault 25k-note pagination, stable totals, deterministic sorting, bounded memory.
-- **Outstanding evidence:** Installed stale-view/dirty-draft/restart; native indexed query and full-vault aggregate evidence; #232 is a limited safety slice.
+- **Outstanding evidence:** Automated stale-view/dirty-draft/restart; native indexed query and full-vault aggregate evidence; #232 is a limited safety slice.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-010 · [issue #190](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/190)
 
 - **Evidence present:** No dedicated implementation PR verified.
 - **Required acceptance assertions:** YAML number/string/null/date preservation; corrupt presets; migration; stale-hash rejected batch edits; partial failure receipts.
-- **Outstanding evidence:** Dry-run/confirmation UI, native row-specific results and packaged rollback/uncertain-outcome evidence.
+- **Outstanding evidence:** Dry-run/confirmation UI, native row-specific results and hosted native rollback/uncertain-outcome fault-injection evidence.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-011 · [issue #191](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/191)
 
 - **Evidence present:** No dedicated implementation PR verified.
 - **Required acceptance assertions:** Capture passage→locator→reference key→literature note→manuscript citation, source rename, content alteration and offline.
-- **Outstanding evidence:** Source-preserving renderer/indexer integration and installed capture provenance acceptance.
+- **Outstanding evidence:** Source-preserving renderer/indexer integration and automated capture provenance acceptance.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-012 · [issue #192](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/192)
@@ -71,7 +71,7 @@ Date: 2026-10-30. This register separates **source changes**, **hosted CI**, and
 
 - **Evidence present:** No dedicated implementation PR verified.
 - **Required acceptance assertions:** Connected credentials vs completed transfer, token expiry, scope revocation, stale response, account/vault switches.
-- **Outstanding evidence:** Installed account recovery and consented live-provider verification, read-only status not write authority.
+- **Outstanding evidence:** Automated account-expiry/revocation/provider-contract verification, read-only status not write authority.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-016 · [issue #196](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/196)
@@ -85,14 +85,14 @@ Date: 2026-10-30. This register separates **source changes**, **hosted CI**, and
 
 - **Evidence present:** No dedicated implementation PR verified.
 - **Required acceptance assertions:** Offline open/save/search/recovery, sleep-resume, revoked token, queued upload and local revision conflicts.
-- **Outstanding evidence:** Network-disabled installed-client evidence and reviewed replay/consent outcomes.
+- **Outstanding evidence:** Automated network-disabled runtime evidence and reviewed replay/consent outcomes.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-018 · [issue #198](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/198)
 
 - **Evidence present:** #216 head 38c43ef had hosted CI 40974725315 pass; not integrated or accepted.
 - **Required acceptance assertions:** Command palette/help/launcher availability parity with missing vault, disabled plugin, RTL and keyboard focus.
-- **Outstanding evidence:** Exact integrated head plus installed screen-reader and F1/help workflow checks.
+- **Outstanding evidence:** Exact integrated head plus automated accessibility-tree/keyboard and F1/help workflow checks.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-019 · [issue #199](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/199)
@@ -119,7 +119,7 @@ Date: 2026-10-30. This register separates **source changes**, **hosted CI**, and
 ## MAT-022 · [issue #202](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/202)
 
 - **Evidence present:** No graduation submitted.
-- **Required acceptance assertions:** Writing/recovery, Database Studio and capture/publish each need owner, stable contract, negative/restart tests, privacy, performance and packaged evidence.
+- **Required acceptance assertions:** Writing/recovery, Database Studio and capture/publish each need owner, stable contract, negative/restart tests, privacy, performance and CI-built artifact/runtime evidence.
 - **Outstanding evidence:** Do not relabel experimental until all mandatory gates have links and observed results.
 - **Status:** Open — source-level progress is not a feature graduation.
 
@@ -132,8 +132,8 @@ Date: 2026-10-30. This register separates **source changes**, **hosted CI**, and
 
 ## MAT-024 · [issue #204](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/204)
 
-- **Evidence present:** No installed Windows/macOS/Linux or real-user acceptance record verified for MAT program.
-- **Required acceptance assertions:** Install/upgrade/restore crash and reopen, source publication, 320px/200% zoom, RTL, screen reader, expired provider, offline.
-- **Outstanding evidence:** Consented independent platform and user task outcome logs; mocked E2E does not suffice.
+- **Evidence present:** No full automated Windows/macOS/Linux and task-journey acceptance matrix verified for the MAT program.
+- **Required acceptance assertions:** CI-built artifact startup/upgrade fixture, restore crash and reopen, source publication, 320px/200% zoom, RTL, accessibility-tree/keyboard, simulated expired provider and offline.
+- **Outstanding evidence:** Exact-head automated platform and user-journey assertions, including real native fault-injection; mock-only provider tests are limited to simulated interface claims.
 - **Status:** Open — source-level progress is not a feature graduation.
 

@@ -114,4 +114,4 @@ As of 2026-08-09:
 
 ## Visual verification
 
-Playwright projects cover light/dark themes, desktop/mobile breakpoints, modal surfaces, editor/preview, knowledge workbench, settings, graph, and major workflow states. The frozen release candidate additionally requires manual 200% zoom, screen-reader, and native-shell review until those checks are reliably automated. Snapshot thresholds must not mask full-page movement. See [`docs/validation/FRONTEND_QUALITY.md`](docs/validation/FRONTEND_QUALITY.md).
+Playwright projects cover light/dark themes, desktop/mobile breakpoints, modal surfaces, editor/preview, knowledge workbench, settings, graph, and major workflow states. MAT acceptance now requires automated 200% zoom, keyboard/accessibility-tree and hosted native-shell artifact smoke checks rather than physical installs, human screen-reader sessions or manual visual sign-off. Automation must disclose its assistive-technology limits. Snapshot thresholds must not mask full-page movement. See [`docs/validation/FRONTEND_QUALITY.md`](docs/validation/FRONTEND_QUALITY.md).
