@@ -558,6 +558,7 @@ mod tests {
         // RED cleanup must not leave a runaway writer behind. Kill the captured
         // descendant PID specifically: the old launch has no isolated group.
         if let Ok(pid) = fs::read_to_string(&descendant_pid) {
+            // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-unix-cleanup)
             let _ = Command::new("kill").args(["-KILL", pid.trim()]).status();
         }
         let error = result.expect_err("diagram renderer and descendants must time out");
