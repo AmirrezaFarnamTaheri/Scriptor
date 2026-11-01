@@ -72,3 +72,12 @@ test('MAT-022: an installed-app label without CI artifact smoke cannot complete 
   assert.equal('readyForHumanReview' in result, false)
   assert.equal('supported' in result, false)
 })
+
+test('MAT-022: independent evidence gates cannot reuse one test-case identity', () => {
+  const input = packet()
+  input.tests.negative.caseId = input.tests.positive.caseId
+  input.authorization.privacyReview.caseId = input.tests.positive.caseId
+  const result = assessCapabilityEvidence(input)
+  assert.equal(result.evidenceIndexComplete, false)
+  assert.deepEqual(result.missing, ['tests.negative', 'authorization.privacyReview'])
+})
