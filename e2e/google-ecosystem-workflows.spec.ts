@@ -420,3 +420,16 @@ test('MAT-015: expired Drive and Calendar credentials show actionable recovery w
   const history = await calls(page)
   expect(history.filter(call => /^(collaboration_write|google_planner_write_event|google_planner_write_task|google_calendar_start_auth)$/.test(call.cmd))).toHaveLength(0)
 })
+
+test('MAT-015: Task workspace labels expired Calendar authorization using the existing translation', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('e2e:google-calendar-auth-expired', '1'))
+  await launchGoogle(page)
+  await openCommandPalette(page)
+  await runCommand(page, 'Open tasks panel')
+  const calendar = page.getByRole('region', { name: 'Google Calendar and Tasks', exact: true })
+  await expect(calendar).toBeVisible()
+  await expect(calendar.locator('.section-heading-row .health-subtitle')).toContainText('Reconnect')
+  await expect(calendar.locator('.section-heading-row .health-subtitle')).not.toContainText('integrations.google.status.')
+  await expect(calendar.getByRole('alert')).toContainText('Google authorization expired')
+  expect((await calls(page)).filter(call => /^(google_planner_write_event|google_planner_write_task|google_calendar_start_auth)$/.test(call.cmd))).toHaveLength(0)
+})
