@@ -9,6 +9,9 @@ test('Recovery Center relies on the existing vault-scoped backup hook', () => {
   assert.match(code, /backupListLoading/)
   assert.match(code, /verifiedCount: backups\.filter\(entry => entry\.verified\)\.length/)
   assert.match(code, /Recovery Center/)
+  assert.match(code, /vaultListNoteHistory\(/)
+  assert.match(code, /originVault/)
+  assert.match(code, /notePath/)
   assert.match(code, /onOpenNoteHistory/)
 })
 test('Database Studio must not label the first 200 candidates as full-vault results', () => {

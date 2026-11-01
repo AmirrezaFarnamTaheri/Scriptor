@@ -52,3 +52,23 @@ test('lost native reply disables recovery writes until vault reopen', () => {
   assert.match(entries.find(x => x.source === 'last-restore')!.explanation, /indeterminate/)
   assert.equal(buildRecoveryInventory({ ...input, lastRestoreReceipt: { ...receipt, vaultId: 'v-b' } }).some(x => x.source === 'last-restore'), false)
 })
+
+test('history counts are displayed only for the originating vault and note', () => {
+  const history = { vaultId: 'v-a', notePath: 'note.md', state: 'ready' as const, count: 3 }
+  const entries = buildRecoveryInventory({ ...input, history })
+  assert.equal(entries[1].status, 'available')
+  assert.equal(entries[1].count, 3)
+  assert.equal(entries[1].route, 'note-history')
+  assert.equal(buildRecoveryInventory({ ...input, history, selectedNote: 'changed.md' })[1].count, null)
+  assert.equal(buildRecoveryInventory({ ...input, history, vaultId: 'v-b' })[1].count, null)
+})
+test('history loading, error, empty, and reopen are distinct and non-destructive', () => {
+  const history = { vaultId: 'v-a', notePath: 'note.md', state: 'ready' as const, count: 0 }
+  assert.equal(buildRecoveryInventory({ ...input, history })[1].status, 'empty')
+  assert.equal(buildRecoveryInventory({ ...input, history: { ...history, state: 'loading' } })[1].status, 'loading')
+  assert.equal(buildRecoveryInventory({ ...input, history: { ...history, state: 'error' } })[1].status, 'unavailable')
+  const blocked = buildRecoveryInventory({ ...input, history, recoveryRequired: true })[1]
+  assert.equal(blocked.count, null)
+  assert.equal(blocked.route, null)
+  assert.equal(blocked.status, 'needs-reopen')
+})

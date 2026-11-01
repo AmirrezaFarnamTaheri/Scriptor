@@ -1,10 +1,11 @@
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { HardDrive } from 'lucide-react'
 import { createPendingBackupAction, matchesBackupActionScope, type PendingBackupAction } from '../lib/workspace/backupActionScope'
 import { recoveryHistoryAvailability, type RecoveryHistoryReason } from '../lib/workspace/recoveryHistoryAvailability'
 import { describeRestoreReceipt } from '../lib/workspace/restoreReceiptPresentation'
 import { buildRecoveryInventory } from '../lib/workspace/recoveryInventory'
+import { vaultListNoteHistory } from '../bridge/commands/vault'
 
 import type { useVaultBackup } from '../hooks/useVaultBackup'
 
@@ -46,10 +47,36 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
   const backupScope = { vaultId, backupPath: settings.backupPath }
   const [backupOptionsOpen, setBackupOptionsOpen] = useState(settings.enabled || Boolean(settings.backupPath))
   const historyAccess = recoveryHistoryAvailability({ vaultId, activePath, recoveryRequired, settingsDirty })
+  const [historyView, setHistoryView] = useState<{
+    vaultId: string; notePath: string; state: 'loading' | 'ready' | 'error'; count: number
+  } | null>(null)
+  useEffect(() => {
+    const originVault = vaultId
+    const notePath = activePath?.trim()
+    if (!originVault || !notePath || recoveryRequired || settingsDirty) return
+    let current = true
+    // React effects must not synchronously set state; unobserved owner keys
+    // render as loading until this read-only native request settles.
+    void vaultListNoteHistory(notePath, originVault).then((revisions) => {
+      if (!Array.isArray(revisions) || revisions.length > 10_000) {
+        throw new Error('Invalid native note history inventory.')
+      }
+      if (current) setHistoryView({ vaultId: originVault, notePath, state: 'ready', count: revisions.length })
+    }).catch(() => {
+      if (current) setHistoryView({ vaultId: originVault, notePath, state: 'error', count: 0 })
+    })
+    return () => { current = false }
+  }, [vaultId, activePath, recoveryRequired, settingsDirty])
+  const scopedHistory = historyView?.vaultId === vaultId && historyView.notePath === activePath?.trim()
+    ? historyView
+    : vaultId && activePath?.trim() && historyAccess.allowed
+      ? { vaultId, notePath: activePath.trim(), state: 'loading' as const, count: 0 }
+      : undefined
   // Read-only inventory: missing native sources remain unverified, not empty.
   const recoveryEntries = buildRecoveryInventory({
     vaultId, backupPath: settings.backupPath, recoveryRequired,
     selectedNote: activePath, settingsDirty, lastRestoreReceipt,
+    history: scopedHistory,
     backups: vaultId ? {
       vaultId, backupPath: settings.backupPath,
       state: backupListLoading ? 'loading' : backupListError ? 'error' : 'ready',

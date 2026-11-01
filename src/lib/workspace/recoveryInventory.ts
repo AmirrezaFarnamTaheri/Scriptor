@@ -9,6 +9,9 @@ interface BackupEvidence extends ScopedEvidence {
   readonly backupPath: string
   readonly verifiedCount: number
 }
+interface HistoryEvidence extends ScopedEvidence {
+  readonly notePath: string
+}
 export interface RecoveryInventoryInput {
   readonly vaultId: string | null
   readonly backupPath: string
@@ -16,6 +19,7 @@ export interface RecoveryInventoryInput {
   readonly backups?: BackupEvidence
   readonly lastRestoreReceipt?: OperationReceipt | null
   readonly selectedNote: string | null
+  readonly history?: HistoryEvidence
   readonly settingsDirty: boolean
   readonly canvas?: ScopedEvidence
   readonly externalConflicts?: ScopedEvidence
@@ -65,14 +69,20 @@ export function buildRecoveryInventory(input: RecoveryInventoryInput): readonly 
         : entry.explanation,
   }
   const historyAllowed = !!input.selectedNote?.trim() && !input.settingsDirty && !input.recoveryRequired
+  const historyEvidence = input.history?.vaultId === id && input.history.notePath === input.selectedNote
+    ? input.history : undefined
+  const inspectedHistory = sourceEntry('note-history', id, historyEvidence)
   const history: RecoveryEntry = {
-    source: 'note-history', status: input.recoveryRequired ? 'needs-reopen'
-      : input.settingsDirty ? 'blocked' : 'unverified', count: null, readOnly: true,
+    ...inspectedHistory,
+    status: input.recoveryRequired ? 'needs-reopen' : input.settingsDirty || !input.selectedNote?.trim()
+      ? 'blocked' : inspectedHistory.status,
+    count: historyAllowed ? inspectedHistory.count : null,
     route: historyAllowed ? 'note-history' : null,
     explanation: input.recoveryRequired ? 'Restart and reopen the vault before reviewing note history.'
       : input.settingsDirty ? 'Save or discard Settings changes first.'
-      : input.selectedNote?.trim() ? 'Open the existing Note History panel to inspect revisions; no count has been verified.'
-        : 'Select a note to inspect its saved revisions.',
+      : !historyAllowed ? 'Select a note to inspect its saved revisions.'
+      : historyEvidence ? inspectedHistory.explanation
+        : 'Open the existing Note History panel to inspect revisions; no count has been verified.',
   }
   const entries: RecoveryEntry[] = [backups, history]
   const receipt = input.lastRestoreReceipt
