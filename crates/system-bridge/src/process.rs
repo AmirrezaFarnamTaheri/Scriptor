@@ -678,6 +678,38 @@ mod tests {
     }
 
     #[test]
+    fn cancelled_request_must_not_resolve_or_launch_an_executable() {
+        let cancelled = Arc::new(AtomicBool::new(true));
+        let spec = ProcessSpec::new("scriptor-mat021-executable-that-must-never-be-resolved")
+            .cancel_slot(cancelled);
+        let outcome = run_process(spec);
+        assert!(
+            matches!(outcome, Err(BridgeError::ProcessPolicy { ref message })
+                if message == "process cancelled by caller"),
+            "A cancelled request must be rejected before executable resolution: {outcome:?}"
+        );
+    }
+
+    #[test]
+    fn direct_spawn_rejects_a_pre_cancelled_process_spec() {
+        let cancelled = Arc::new(AtomicBool::new(true));
+        let spec = ProcessSpec::new("scriptor-mat021-executable-that-must-never-be-resolved")
+            .cancel_slot(cancelled);
+        let outcome = spawn_process(&spec);
+        // SpawnedProcess does not implement Debug, so inspect the error only.
+        match outcome {
+            Err(BridgeError::ProcessPolicy { message }) => {
+                assert_eq!(message, "process cancelled by caller");
+            }
+            Err(other) => panic!("Unexpected process error before cancellation: {other:?}"),
+            Ok(mut process) => {
+                terminate_process_tree(&mut process.child);
+                panic!("The broker started a pre-cancelled process.");
+            }
+        }
+    }
+
+    #[test]
     fn process_receipt_captures_output() {
         #[cfg(windows)]
         let spec = ProcessSpec::new("cmd").args(["/C", "echo", "hello"]);
