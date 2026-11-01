@@ -51,3 +51,13 @@ test('MAT-022: arbitrary external links do not satisfy the expected CI reference
   const input = packet(); input.tests.positive.url = 'https://example.org/passing'
   assert.deepEqual(assessCapabilityEvidence(input).missing, ['tests.positive'])
 })
+
+
+test('MAT-022: an unrelated GitHub repository cannot supply readiness evidence', () => {
+  const input = packet()
+  input.tests.positive.url = 'https://github.com/example-org/another-repo/actions/runs/100'
+  assert.deepEqual(assessCapabilityEvidence(input).missing, ['tests.positive'])
+})
+test('MAT-022: valid Scriptor workflow run links remain eligible for human review', () => {
+  assert.equal(assessCapabilityEvidence(packet()).readyForHumanReview, true)
+})
