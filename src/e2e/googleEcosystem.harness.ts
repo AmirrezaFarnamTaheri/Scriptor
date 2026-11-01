@@ -43,7 +43,10 @@ export function createGoogleEcosystemHarness() {
     if (cmd === 'vault_save_note' && sessionStorage.getItem('e2e:google-stale-note') === '1') throw new Error('content hash mismatch: note changed since preview')
     if (cmd === 'vault_save_note' || cmd === 'vault_read_note') return { handled: false }
     if (cmd.startsWith('google_gmail_')) return { handled: false }
-    if (cmd === 'collaboration_get_account') return delayed(sessionStorage.getItem('e2e:google-drive-connected') === '0' ? null : 'drive@example.com', 'account')
+    if (cmd === 'collaboration_get_account') {
+      if (sessionStorage.getItem('e2e:google-drive-auth-expired') === '1') throw new Error('GOOGLE_AUTH_REQUIRED: Google authorization expired. Reconnect the account.')
+      return delayed(sessionStorage.getItem('e2e:google-drive-connected') === '0' ? null : 'drive@example.com', 'account')
+    }
     if (cmd === 'collaboration_connect') { sessionStorage.setItem('e2e:google-drive-connected', '1'); return reply('drive@example.com') }
     if (cmd === 'collaboration_disconnect') { sessionStorage.setItem('e2e:google-drive-connected', '0'); return reply(null) }
     if (cmd === 'collaboration_read' || cmd === 'collaboration_write') {
@@ -67,7 +70,10 @@ export function createGoogleEcosystemHarness() {
     }
     if (cmd === 'google_calendar_start_auth') { sessionStorage.setItem('e2e:google-calendar-connected', '1'); return reply('calendar@example.com') }
     if (cmd === 'google_calendar_disconnect') { sessionStorage.setItem('e2e:google-calendar-connected', '0'); return reply(null) }
-    if (cmd.startsWith('google_calendar_') || cmd.startsWith('google_planner_')) requireAccount('calendar')
+    if (cmd.startsWith('google_calendar_') || cmd.startsWith('google_planner_')) {
+      if (sessionStorage.getItem('e2e:google-calendar-auth-expired') === '1') throw new Error('GOOGLE_AUTH_REQUIRED: Google authorization expired. Reconnect the account.')
+      requireAccount('calendar')
+    }
     if (cmd === 'google_calendar_get_authed_email') return reply('calendar@example.com')
     if (cmd === 'google_calendar_list_calendars') return reply(calendars)
     if (cmd === 'google_calendar_list_task_lists') return reply([{ id: '@default', title: 'Default tasks' }, { id: 'research-tasks', title: 'Research task list' }])
