@@ -33,7 +33,7 @@ import {
 import { safeExternalMarkdownDestination, safeExternalMarkdownText } from '../lib/safeExternalUrl.ts'
 import { googleAuthErrorMessage, isGoogleAuthRequiredError, isGoogleAccountNotConnectedError } from '../lib/googleAuthErrors.ts'
 import { getGoogleOAuthClientId } from '../lib/googleOAuthClient.ts'
-import { assertUnambiguousTaskTitles } from '../lib/workspace/taskMirrorIdentity.ts'
+import { assertNoAmbiguousTaskRebindings, assertUnambiguousTaskTitles } from '../lib/workspace/taskMirrorIdentity.ts'
 
 export type CalendarSyncStatus =
   | 'disconnected'
@@ -540,6 +540,10 @@ export function useGoogleCalendarSync({
       // a reorder those IDs can point to the opposite checkbox despite being
       // individually unique, so review ambiguous source titles before writes.
       assertUnambiguousTaskTitles(vaultNotes)
+      // An owned remote ID missing locally may be a renamed/moved task,
+      // not an intentional deletion followed by a new same-title task.
+      // Require review instead of silently committing both provider writes.
+      assertNoAmbiguousTaskRebindings(vaultId, vaultNotes, tasks)
 
       // An interrupted prior mirror can leave two remote records claiming
       // the same vault task. Choosing the first would wrongly complete the
