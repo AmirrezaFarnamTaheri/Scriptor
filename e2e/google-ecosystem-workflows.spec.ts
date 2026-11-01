@@ -396,3 +396,27 @@ test('A late initial Drive credential read cannot erase a newly completed connec
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('e2e:google-late-account'))).toBe('1')
   await expect(panel).toContainText('Connected as drive@example.com')
 })
+
+test('MAT-015: expired Drive and Calendar credentials show actionable recovery without provider writes', async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('e2e:google-drive-auth-expired', '1')
+    sessionStorage.setItem('e2e:google-calendar-auth-expired', '1')
+  })
+  await launchGoogle(page)
+  const { google } = await openGoogleSettings(page)
+  const drive = google.getByRole('group', { name: 'Google Drive & Docs', exact: true })
+  const calendar = google.getByRole('group', { name: 'Google Calendar & Tasks', exact: true })
+
+  await expect(drive.getByRole('status')).toContainText('Reconnect')
+  await expect(drive.getByRole('alert')).toContainText('Google authorization expired')
+  await expect(drive.getByRole('button', { name: 'Reconnect', exact: true })).toBeVisible()
+  await expect(drive).not.toContainText('drive@example.com')
+
+  await expect(calendar.getByRole('status')).toContainText('Reconnect')
+  await expect(calendar.getByRole('alert')).toContainText('Google authorization expired')
+  await expect(calendar.getByRole('button', { name: 'Reconnect', exact: true })).toBeVisible()
+  await expect(calendar).not.toContainText('calendar@example.com')
+
+  const history = await calls(page)
+  expect(history.filter(call => /^(collaboration_write|google_planner_write_event|google_planner_write_task|google_calendar_start_auth)$/.test(call.cmd))).toHaveLength(0)
+})
