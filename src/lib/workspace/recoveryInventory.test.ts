@@ -95,3 +95,17 @@ test('MAT-003: absent, loading, failed, and zero Git inspections have distinct s
   assert.equal(entry({ vaultId: 'v-a', state: 'unverified', count: 0 })?.status, 'unverified')
   assert.equal(entry({ vaultId: 'v-a', state: 'ready', count: 0 })?.status, 'empty')
 })
+
+test('MAT-003: a selected-note external mismatch must be labelled as partial, read-only evidence', () => {
+  const externalConflicts = { vaultId: 'v-a', state: 'ready' as const, count: 1 }
+  const entry = buildRecoveryInventory({ ...input, externalConflicts }).find(row => row.source === 'external-conflicts')
+  assert.equal(entry?.status, 'available')
+  assert.equal(entry?.count, 1)
+  assert.equal(entry?.route, null)
+  assert.match(entry?.explanation ?? '', /selected note/i)
+  assert.match(entry?.explanation ?? '', /not a vault-wide/i)
+  const otherVault = buildRecoveryInventory({ ...input, vaultId: 'v-b', externalConflicts })
+    .find(row => row.source === 'external-conflicts')
+  assert.equal(otherVault?.status, 'unverified')
+  assert.equal(otherVault?.count, null)
+})

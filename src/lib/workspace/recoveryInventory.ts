@@ -108,6 +108,12 @@ export function buildRecoveryInventory(input: RecoveryInventoryInput): readonly 
       ? `Native Git inspection reports ${git.count} Git-tracked conflicted paths. Non-Git external changes are not covered. No resolution has been authorized.`
       : git.explanation,
   })
-  entries.push(sourceEntry('external-conflicts', id, input.externalConflicts))
+  const external = sourceEntry('external-conflicts', id, input.externalConflicts)
+  entries.push({
+    ...external,
+    explanation: external.status === 'available'
+      ? 'The selected note has an external on-disk conflict detected by the editor. This is not a vault-wide scan; review the existing editor warning before writing.'
+      : external.explanation,
+  })
   return entries
 }
