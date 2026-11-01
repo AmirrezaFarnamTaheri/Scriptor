@@ -33,6 +33,7 @@ import {
 import { safeExternalMarkdownDestination, safeExternalMarkdownText } from '../lib/safeExternalUrl.ts'
 import { googleAuthErrorMessage, isGoogleAuthRequiredError, isGoogleAccountNotConnectedError } from '../lib/googleAuthErrors.ts'
 import { getGoogleOAuthClientId } from '../lib/googleOAuthClient.ts'
+import { assertUnambiguousTaskTitles } from '../lib/workspace/taskMirrorIdentity.ts'
 
 export type CalendarSyncStatus =
   | 'disconnected'
@@ -535,6 +536,10 @@ export function useGoogleCalendarSync({
           localIds.add(task.id)
         }
       }
+      // Rust assigns same-title stable IDs by authored occurrence order. After
+      // a reorder those IDs can point to the opposite checkbox despite being
+      // individually unique, so review ambiguous source titles before writes.
+      assertUnambiguousTaskTitles(vaultNotes)
 
       // An interrupted prior mirror can leave two remote records claiming
       // the same vault task. Choosing the first would wrongly complete the
