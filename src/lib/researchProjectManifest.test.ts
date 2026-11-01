@@ -25,7 +25,7 @@ test('MAT-014: altered bibliography or output requires a rebuild, without attemp
   })
 })
 test('MAT-014: absent source and unavailable tool are reported distinctly', () => {
-  const seen = evidence(); seen.reads[0] = { path: 'Notes/Study.md', state: 'missing' }; seen.tools = [{ name: 'pandoc', state: 'unavailable' }]
+  const seen = evidence(); seen.reads[0] = { path: 'Notes/Study.md', state: 'missing', sha256: a }; seen.tools = [{ name: 'pandoc', state: 'unavailable', version: '3.6' }]
   assert.deepEqual(reviewResearchProjectManifest(manifest(), seen), {
     status: 'stale', changed: [], missing: ['Notes/Study.md'], unverified: ['tool:pandoc'], executionAuthorized: false,
   })
