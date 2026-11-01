@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { collaborationConnect, collaborationDisconnect, collaborationGetAccount } from '../bridge/commands/collaboration'
 import { googleGmailDisconnect, googleGmailGetAuthedEmail, googleGmailStartAuth } from '../bridge/commands/google_gmail'
-import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors'
+import { googleAuthErrorMessage, isGoogleAuthRequiredError, isGoogleAccountNotConnectedError } from '../lib/googleAuthErrors'
 
 type Service = 'drive' | 'gmail'
 interface AccountState {
@@ -37,9 +37,10 @@ export function useGoogleIntegrationAccounts({ vaultId, clientId, persistClientI
       update(service, { ...disconnected, status: email ? 'connected' : 'disconnected', email })
     } catch (error) {
       if (sequence !== generation.current[service]) return
-      update(service, isGoogleAuthRequiredError(error)
-        ? { ...disconnected, status: 'reconnect-required', error: googleAuthErrorMessage(error) }
-        : { ...disconnected, status: 'error', error: googleAuthErrorMessage(error) })
+      update(service, isGoogleAccountNotConnectedError(error) ? disconnected
+        : isGoogleAuthRequiredError(error)
+          ? { ...disconnected, status: 'reconnect-required', error: googleAuthErrorMessage(error) }
+          : { ...disconnected, status: 'error', error: googleAuthErrorMessage(error) })
     }
   }, [gmailEnabled, update])
 
@@ -96,9 +97,10 @@ export function useGoogleIntegrationAccounts({ vaultId, clientId, persistClientI
       update(service, { ...disconnected, status: email ? 'connected' : 'disconnected', email })
     } catch (error) {
       if (sequence !== generation.current[service]) return
-      update(service, isGoogleAuthRequiredError(error)
-        ? { ...disconnected, status: 'reconnect-required', error: googleAuthErrorMessage(error) }
-        : { ...disconnected, status: 'error', email: email ?? previousEmail, error: googleAuthErrorMessage(error) })
+      update(service, isGoogleAccountNotConnectedError(error) ? disconnected
+        : isGoogleAuthRequiredError(error)
+          ? { ...disconnected, status: 'reconnect-required', error: googleAuthErrorMessage(error) }
+          : { ...disconnected, status: 'error', email: email ?? previousEmail, error: googleAuthErrorMessage(error) })
     } finally {
       if (running.current[service] === sequence) running.current[service] = 0
     }
