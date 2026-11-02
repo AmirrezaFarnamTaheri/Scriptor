@@ -54,3 +54,27 @@ test('the HTML sanitizer uses the fixed RustSec release and new maintenance noti
     assert.ok(notes.includes(`| ${advisory} |`), `${advisory} must have a security owner and expiry`)
   }
 })
+test('ignored maintenance advisories must still reference a locked crate', () => {
+  const row = ledger('2026-12-01').replace('| parser |', '| `obsolete-crate` via a dependency |')
+  const missing = validateRustSecExceptions({
+    denySource, ledgerSource: row, asOf: '2026-11-02',
+    lockSource: '[[package]]\nname = "other"\nversion = "1.0.0"\n',
+  })
+  assert.match(missing.failures.join('\n'), /obsolete-crate.*absent from Cargo.lock/)
+  const present = validateRustSecExceptions({
+    denySource, ledgerSource: row, asOf: '2026-11-02',
+    lockSource: '[[package]]\nname = "obsolete-crate"\nversion = "1.0.0"\n',
+  })
+  assert.deepEqual(present.failures, [])
+})
+
+test('active RustSec exceptions remain owned, current and present in the pinned lockfile', () => {
+  const root = new URL('../../', import.meta.url)
+  const current = validateRustSecExceptions({
+    denySource: readFileSync(new URL('deny.toml', root), 'utf8'),
+    ledgerSource: readFileSync(new URL('docs/security/RUSTSEC-EXCEPTIONS.md', root), 'utf8'),
+    lockSource: readFileSync(new URL('Cargo.lock', root), 'utf8'),
+    asOf: '2026-11-02',
+  })
+  assert.deepEqual(current.failures, [])
+})
