@@ -213,6 +213,10 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         if (!ownsBackupScope(requestedVault, requestedPath)) return
         deleted.add(old.name)
       }
+      // A vault/path switch can occur during the native deletion or its
+      // authorization. Preserve its original retry hold, but never publish
+      // old-destination inventory or errors over the newly selected owner.
+      if (!ownsBackupScope(requestedVault, requestedPath)) return
       // This native mutation's final inventory supersedes any read that
       // began before the create/retention sequence finished.
       backupListRequestEpochRef.current += 1
