@@ -96,13 +96,14 @@ test('sync never completes unscoped remote tasks whose owning vault is unknown',
   assert.equal(h.batches.length, 0)
 })
 
-test('sync does not adopt an unknown legacy task merely because its title matches', async () => {
+test('MAT-016: an unmatched legacy task with the same title cannot authorize adoption or duplicate creation', async () => {
   const h = harness([task('remote-b', 'Buy milk', 'Scriptor source: task-b')], local())
   await h.render().refresh()
-  await h.render().syncVaultTasks()
-  assert.equal(h.batches[0].length, 1)
-  assert.equal(h.batches[0][0].kind, 'create')
-  assert.equal(h.batches[0][0].notes, scoped('vault-a', 'task-a'))
+  const result = await h.render().syncVaultTasks()
+  assert.equal(h.batches.length, 0, 'unknown legacy ownership must not submit provider mutations')
+  assert.equal(result.created, 0)
+  assert.equal(result.updated, 0)
+  assert.match(h.render().error ?? '', /ambiguous|review|ownership/i)
 })
 
 test('legacy path-and-line markers cannot prove which vault owns a remote task', async () => {
