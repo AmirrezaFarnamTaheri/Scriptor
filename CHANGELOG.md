@@ -28,6 +28,8 @@
 
 ### Fixed
 
+- Show guided MCP recipes only for tools actually registered in the current permission-scoped server; withhold active-note recipes when no note is open, guard against late availability changes, and explain empty recipe availability in English, German and Persian.
+
 - Reject benchmark evidence repetitions that share the same UTC start instant despite distinct IDs or equivalent timestamp precision, rather than incorrectly counting them as independent runs.
 
 - Fix RUSTSEC-2026-0433 by raising all direct Rust Markdown parser constraints and the verified locked `pulldown-cmark` checksum from 0.13.5 to patched 0.13.6. Prevent quadratic parsing of nested image wikilinks without removing `ENABLE_WIKILINKS`, weakening cargo-deny, or introducing new dependencies.
