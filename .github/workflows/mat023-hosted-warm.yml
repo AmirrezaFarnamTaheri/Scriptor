@@ -8,6 +8,8 @@ on:
       - '.github/workflows/mat023-hosted-warm.yml'
       - 'scripts/benchmarks/collect-scale-smoke.mjs'
       - 'scripts/benchmarks/collect-scale-smoke.test.mjs'
+      - 'scripts/benchmarks/cli-precision-contract.test.mjs'
+      - 'crates/cli/src/bench.rs'
       - 'scripts/benchmarks/scale-evidence.mjs'
       - 'scripts/benchmarks/benchmark-utils.mjs'
   push:
@@ -16,6 +18,8 @@ on:
       - '.github/workflows/mat023-hosted-warm.yml'
       - 'scripts/benchmarks/collect-scale-smoke.mjs'
       - 'scripts/benchmarks/collect-scale-smoke.test.mjs'
+      - 'scripts/benchmarks/cli-precision-contract.test.mjs'
+      - 'crates/cli/src/bench.rs'
   workflow_dispatch:
 
 permissions:
@@ -63,7 +67,7 @@ jobs:
           key: mat023-native-cli-${{ matrix.os }}
 
       - name: Run warm-collector behavioral and evidence-integrity regressions
-        run: node --test scripts/benchmarks/collect-scale-smoke.test.mjs scripts/benchmarks/scale-evidence.test.mjs
+        run: node --test scripts/benchmarks/cli-precision-contract.test.mjs scripts/benchmarks/collect-scale-smoke.test.mjs scripts/benchmarks/scale-evidence.test.mjs
 
       - name: Compile the production Scriptor CLI
         run: cargo build --locked --release -p scriptor-cli
