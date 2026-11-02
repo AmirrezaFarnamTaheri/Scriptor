@@ -537,7 +537,7 @@ fn configure_process_group(command: &mut Command) {
 fn configure_process_group(_command: &mut Command) {}
 
 #[cfg(unix)]
-fn terminate_process_tree(child: &mut Child) {
+pub fn terminate_process_tree(child: &mut Child) {
     let group = format!("-{}", child.id());
     // A negative PID is a process-group operand, not another signal option.
     // Some external kill implementations continue parsing options after -TERM.
@@ -550,7 +550,7 @@ fn terminate_process_tree(child: &mut Child) {
 }
 
 #[cfg(windows)]
-fn terminate_process_tree(child: &mut Child) {
+pub fn terminate_process_tree(child: &mut Child) {
     let mut command = Command::new("taskkill");
     configure_process_group(&mut command);
     let _ = command
@@ -560,7 +560,7 @@ fn terminate_process_tree(child: &mut Child) {
 }
 
 #[cfg(not(any(unix, windows)))]
-fn terminate_process_tree(child: &mut Child) {
+pub fn terminate_process_tree(child: &mut Child) {
     let _ = child.kill();
 }
 
