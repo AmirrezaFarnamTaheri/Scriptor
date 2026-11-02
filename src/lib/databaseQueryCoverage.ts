@@ -21,7 +21,9 @@ export function evaluateDatabaseQueryCoverage(input: DatabaseQueryCoverageInput)
     throw new Error('Invalid query coverage counts')
   }
   const incomplete = input.candidatesExamined < input.candidatesReported || input.skipped > 0
-  const completeness = input.sourceCoverage === 'unverified' ? 'unverified'
+  // Runtime payloads may carry unknown/future coverage states. Only an
+  // explicit authoritative native marker can certify complete results.
+  const completeness = input.sourceCoverage !== 'exhaustive' ? 'unverified'
     : incomplete ? 'partial' : 'complete'
   const exact = completeness === 'complete'
   return {
