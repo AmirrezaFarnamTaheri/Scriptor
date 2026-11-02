@@ -6,9 +6,17 @@ This ledger owns every advisory temporarily ignored by `cargo-deny`. An ignore r
 
 **Review cadence:** monthly and before every production tag
 
-**Last full review:** 2026-10-10
+**Last full review:** 2026-11-02
 
-**Next full review:** 2026-11-01
+**Next full review:** 2026-12-01
+
+## 2026-11-02 pinned-graph re-review
+
+The 2026-11-01 exception-review deadlines expired and correctly blocked fast source validation and container smoke. The exact pinned `Cargo.lock` (blob `94f1ed4e2126c5fb3a5efff8b3ace8e464c9a649`) was checked against every ignore before renewal.
+
+**Remove five obsolete exceptions:** `unic-char-range`, `unic-common`, `unic-char-property`, `unic-ucd-version` and `unic-ucd-ident` no longer appear in `Cargo.lock` after `urlpattern` 0.6.0; their ignores and rows were deleted. **Retain eleven named crates** with unchanged scope/owner/exit conditions and renew their *informational unmaintained* reviews only through 2026-12-01. Official RustSec records still list no patched versions of those crates. The independent hosted `cargo deny check` passed on this exact lockfile in [CI #41424582704](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41424582704), while the expired-date check failed as intended.
+
+The new validator also refuses an ignored crate that is no longer present in the locked graph. See [review evidence](../validation/RUSTSEC-2026-11-02.md). This does not patch upstream code, establish installed-runtime/provider safety, waive cargo-deny, or authorize a production release. Recheck prior to every tag and at the next deadline.
 
 ## 2026-10-02 assessment
 
@@ -23,19 +31,14 @@ The current RustSec database, commit `db663534ae858abb3fbad408a041ce04209c377f`,
 
 | Advisory | Dependency family | Reachability | Owner | Upstream | Review by | Exit condition |
 |---|---|---|---|---|---|---|
-| RUSTSEC-2024-0370 | `proc-macro-error` 1.0.4 via `glib-macros` 0.18.5 / `gtk3-macros` 0.18.2 | Linux GTK/Tauri build-time procedural macros | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0370.html | 2026-11-01 | Remove when GTK macro parents migrate to maintained diagnostics macros or no longer resolve this crate |
-| RUSTSEC-2023-0089 | `atomic-polyfill` 1.0.3 via `heapless` 0.7.17 via `postcard` 1.1.3 | Locked heapless serialization compatibility graph; check production target/feature activation | Release/Security | https://rustsec.org/advisories/RUSTSEC-2023-0089.html | 2026-11-01 | Remove when postcard/heapless drops atomic-polyfill or validated feature removal eliminates it |
-| RUSTSEC-2024-0436 | `paste` 1.0.15 via `biblatex` 0.12.0 / `hayagriva` 0.10.1 | Citation-engine and Typst bibliography build-time macro expansion | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0436.html | 2026-11-01 | Remove when bibliography parents adopt maintained macro expansion or no longer resolve paste |
-| RUSTSEC-2024-0449 | `unsafe-libyaml` 0.2.11 via `serde_yaml` 0.9.34+deprecated through `hayagriva` 0.10.1 and `typst-library` 0.15.1 | Bibliography import and Typst YAML parsing; external bibliography input can be untrusted | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0449.html | 2026-11-01 | Migrate bibliography/Typst parents to maintained YAML parsing, remove the transitive crate and ignore after citation/PDF regression coverage |
-| RUSTSEC-2025-0075 | `unic-char-range` 0.9.0 via `urlpattern` 0.3.0 / `tauri-utils` 2.9.3 | Tauri URL-pattern Unicode processing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0075.html | 2026-11-01 | Remove when supported urlpattern/Tauri parents migrate to maintained Unicode APIs |
-| RUSTSEC-2025-0080 | `unic-common` 0.9.0 via `urlpattern` 0.3.0 / `tauri-utils` 2.9.3 | Tauri URL-pattern Unicode processing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0080.html | 2026-11-01 | Remove when supported urlpattern/Tauri parents migrate to maintained Unicode APIs |
-| RUSTSEC-2025-0081 | `unic-char-property` 0.9.0 via `urlpattern` 0.3.0 / `tauri-utils` 2.9.3 | Tauri URL-pattern Unicode processing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0081.html | 2026-11-01 | Remove when supported urlpattern/Tauri parents migrate to maintained Unicode APIs |
-| RUSTSEC-2025-0098 | `unic-ucd-version` 0.9.0 via `urlpattern` 0.3.0 / `tauri-utils` 2.9.3 | Tauri URL-pattern Unicode processing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0098.html | 2026-11-01 | Remove when supported urlpattern/Tauri parents migrate to maintained Unicode APIs |
-| RUSTSEC-2025-0100 | `unic-ucd-ident` 0.9.0 via `urlpattern` 0.3.0 / `tauri-utils` 2.9.3 | Tauri URL-pattern Unicode processing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0100.html | 2026-11-01 | Remove when supported urlpattern/Tauri parents migrate to maintained Unicode APIs |
-| RUSTSEC-2025-0141 | `bincode` 1.3.3 via `syntect` 5.3.0 / `two-face` 0.4.5 / Typst | Embedded PDF syntax highlighting dependency; no arbitrary syntax-definition file loading | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0141.html | 2026-11-01 | Migrate Typst highlighting to a maintained serialization parent or remove syntect after equivalent formatting tests |
-| RUSTSEC-2026-0206 | `rustybuzz` 0.20.1 via Typst layout / `krilla` 0.8.2 / `usvg` 0.47.0 | Font shaping in PDF export; bundled fonts only | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0206.html | 2026-11-01 | Upgrade Typst and layout parents to maintained harfrust after PDF visual parity testing |
-| RUSTSEC-2026-0192 | `ttf-parser` 0.25.1 via Typst, `fontdb`, `usvg` and rustybuzz | Bundled TrueType parser in PDF generation; arbitrary source fonts denied | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0192.html | 2026-11-01 | Upgrade to Typst font stack using maintained skrifa and verify shaping/embedding |
-| RUSTSEC-2024-0320 | `yaml-rust` 0.4.5 via `syntect` / `two-face` / Typst | PDF syntax highlighting graph; distinct from user frontmatter | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0320.html | 2026-11-01 | Upgrade syntect parent to yaml-rust2 or saphyr, confirm syntax parity |
+| RUSTSEC-2024-0370 | `proc-macro-error` 1.0.4 via `glib-macros` 0.18.5 / `gtk3-macros` 0.18.2 | Linux GTK/Tauri build-time procedural macros | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0370.html | 2026-12-01 | Remove when GTK macro parents migrate to maintained diagnostics macros or no longer resolve this crate |
+| RUSTSEC-2023-0089 | `atomic-polyfill` 1.0.3 via `heapless` 0.7.17 via `postcard` 1.1.3 | Locked heapless serialization compatibility graph; check production target/feature activation | Release/Security | https://rustsec.org/advisories/RUSTSEC-2023-0089.html | 2026-12-01 | Remove when postcard/heapless drops atomic-polyfill or validated feature removal eliminates it |
+| RUSTSEC-2024-0436 | `paste` 1.0.15 via `biblatex` 0.12.0 / `hayagriva` 0.10.1 | Citation-engine and Typst bibliography build-time macro expansion | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0436.html | 2026-12-01 | Remove when bibliography parents adopt maintained macro expansion or no longer resolve paste |
+| RUSTSEC-2024-0449 | `unsafe-libyaml` 0.2.11 via `serde_yaml` 0.9.34+deprecated through `hayagriva` 0.10.1 and `typst-library` 0.15.1 | Bibliography import and Typst YAML parsing; external bibliography input can be untrusted | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0449.html | 2026-12-01 | Migrate bibliography/Typst parents to maintained YAML parsing, remove the transitive crate and ignore after citation/PDF regression coverage |
+| RUSTSEC-2025-0141 | `bincode` 1.3.3 via `syntect` 5.3.0 / `two-face` 0.4.5 / Typst | Embedded PDF syntax highlighting dependency; no arbitrary syntax-definition file loading | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0141.html | 2026-12-01 | Migrate Typst highlighting to a maintained serialization parent or remove syntect after equivalent formatting tests |
+| RUSTSEC-2026-0206 | `rustybuzz` 0.20.1 via Typst layout / `krilla` 0.8.2 / `usvg` 0.47.0 | Font shaping in PDF export; bundled fonts only | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0206.html | 2026-12-01 | Upgrade Typst and layout parents to maintained harfrust after PDF visual parity testing |
+| RUSTSEC-2026-0192 | `ttf-parser` 0.25.1 via Typst, `fontdb`, `usvg` and rustybuzz | Bundled TrueType parser in PDF generation; arbitrary source fonts denied | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0192.html | 2026-12-01 | Upgrade to Typst font stack using maintained skrifa and verify shaping/embedding |
+| RUSTSEC-2024-0320 | `yaml-rust` 0.4.5 via `syntect` / `two-face` / Typst | PDF syntax highlighting graph; distinct from user frontmatter | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0320.html | 2026-12-01 | Upgrade syntect parent to yaml-rust2 or saphyr, confirm syntax parity |
 
 ## 2026-10-19 advisory refresh
 
@@ -45,9 +48,9 @@ The current RustSec database, commit `db663534ae858abb3fbad408a041ce04209c377f`,
 
 | Advisory | Dependency family | Reachability | Owner | Upstream | Review by | Exit condition |
 |---|---|---|---|---|---|---|
-| RUSTSEC-2026-0370 | `zvariant` 5.13.1 via `zbus` 5.18.0 and `zbus_names` 4.3.4 | Linux keyring: `scriptor-system-bridge` → `keyring` 4.2.0 → zbus-based Secret Service backend | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0370.html | 2026-11-01 | Switch the keyring backend to a maintained D-Bus implementation / zbus 6 and confirm Linux credentials and packaging |
-| RUSTSEC-2026-0371 | `zbus_names` 4.3.4 via `zbus` 5.18.0 | Linux keyring: `secret-service` 5.1.0 and `zbus-secret-service-keyring-store` 1.0.0 | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0371.html | 2026-11-01 | Migrate parents to `zbus::names` in zbus 6; verify D-Bus keyring integration |
-| RUSTSEC-2026-0372 | `zvariant_derive` 5.13.1 via `zvariant` 5.13.1 | Linux keyring via legacy zbus 5 wire-format dependencies | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0372.html | 2026-11-01 | Migrate parents to zbus 6 wire/derive implementation and drop standalone macros |
+| RUSTSEC-2026-0370 | `zvariant` 5.13.1 via `zbus` 5.18.0 and `zbus_names` 4.3.4 | Linux keyring: `scriptor-system-bridge` → `keyring` 4.2.0 → zbus-based Secret Service backend | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0370.html | 2026-12-01 | Switch the keyring backend to a maintained D-Bus implementation / zbus 6 and confirm Linux credentials and packaging |
+| RUSTSEC-2026-0371 | `zbus_names` 4.3.4 via `zbus` 5.18.0 | Linux keyring: `secret-service` 5.1.0 and `zbus-secret-service-keyring-store` 1.0.0 | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0371.html | 2026-12-01 | Migrate parents to `zbus::names` in zbus 6; verify D-Bus keyring integration |
+| RUSTSEC-2026-0372 | `zvariant_derive` 5.13.1 via `zvariant` 5.13.1 | Linux keyring via legacy zbus 5 wire-format dependencies | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0372.html | 2026-12-01 | Migrate parents to zbus 6 wire/derive implementation and drop standalone macros |
 
 ## 2026-10-21 advisory refresh
 

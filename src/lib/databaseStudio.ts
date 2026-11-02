@@ -421,7 +421,10 @@ export function parseScalarCell(raw: string): CellValue {
 export function formatScalarCell(value: CellValue): string {
   if (value === null) return 'null'
   if (typeof value === 'boolean') return value ? 'true' : 'false'
-  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'null'
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('Non-finite database number cannot be written as YAML.')
+    return String(value)
+  }
   // Plain text is only safe when it cannot be re-read as another type and
   // cannot be truncated by the reader (trailing `#` comments, edge spaces).
   if (value.length === 0) return '""'
