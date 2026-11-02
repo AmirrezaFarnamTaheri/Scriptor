@@ -62,6 +62,8 @@
 
 - Fail closed before Google Tasks mirroring when local identities, provider record IDs, current-vault markers or migratable legacy markers are duplicated or ambiguous. Reject malformed owners, multiple local tasks on one remote record and provider tasks claimed by different vaults before approving any create/update/completion; display a review-required explanation instead of guessing ownership.
 
+- Require review when an orphaned same-vault Google Task has a case-only or canonically equivalent Unicode title after a note move/rename, rather than silently completing the old provider task and creating a new one.
+
 - In Database Studio, invalidate rows, totals and edit authority when the query, filters, columns or vault change, and ignore late prior-scope queries; presentation-only layout and view-name changes preserve loaded results.
 
 - Keep Saved Views search results attached to their originating vault and filter, discarding late manual and automatic query responses instead of showing stale results after edits or vault switches.
