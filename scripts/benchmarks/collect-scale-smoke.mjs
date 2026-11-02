@@ -143,7 +143,7 @@ function readVersion(executable) {
 /** Prevent operator-supplied commit metadata from masquerading as checkout provenance. */
 export function assertExactSourceCommit(expected, checkedOut) {
   if (typeof expected !== 'string' || typeof checkedOut !== 'string'
-    || !/^[a-f\\d]{40}$/i.test(expected) || !/^[a-f\\d]{40}$/i.test(checkedOut)
+    || !/^[a-f0-9]{40}$/i.test(expected) || !/^[a-f0-9]{40}$/i.test(checkedOut)
     || expected.toLowerCase() !== checkedOut.toLowerCase()) {
     throw new Error('MAT-023 source SHA does not match the checked-out exact Git HEAD')
   }
