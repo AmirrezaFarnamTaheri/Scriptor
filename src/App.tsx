@@ -9,10 +9,7 @@ import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
 import { useVisualBlockRenderer } from './hooks/useVisualBlockRenderer'
 import { VaultSidebar } from './components/app/VaultSidebar'
-import {
-  PanelFallback,
-  SettingsPanel,
-} from './components/app/lazyPanels'
+import { PanelFallback, SettingsPanel } from './components/app/lazyPanels'
 import { isReaderDocumentPath } from './hooks/vault/helpers'
 import { buildPaletteCommands } from './lib/buildPaletteCommands'
 import { planDailyNotePreview } from './lib/knowledge/templates'
