@@ -9,7 +9,7 @@ import {
 } from '../bridge/commands'
 import type { VaultBackupEntry, VaultRestoreStatus } from '../bridge/commands'
 import { buildRestoreOperationReceipt, visibleOperationReceipt, type OperationReceipt } from '../lib/workspace/operationReceipt'
-import { backupDeleteKey, isBackupDeleteHeld, observeBackupDelete } from '../lib/workspace/backupDeleteOutcome'
+import { backupDeleteKey, hasUnconfirmedBackupDeleteInDestination, isBackupDeleteHeld, observeBackupDelete } from '../lib/workspace/backupDeleteOutcome'
 import type { TypedOperationOutcome } from '../lib/workspace/operationOutcome'
 import { classifyVaultRestoreStatus, classifyVaultRestoreFailure, isVaultRestoreQuarantined } from '../lib/restoreOutcome'
 import { backupRetentionCandidates, DEFAULT_VAULT_BACKUP_SETTINGS, validateVaultBackupSettings, type VaultBackupSettings } from '../lib/vaultBackupPolicy'
@@ -176,25 +176,51 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       )
       const deleted = new Set<string>()
-      const failedDeletes: string[] = []
+      if (hasUnconfirmedBackupDeleteInDestination(unconfirmedDeleteKeysRef.current, {
+        vaultId: requestedVault, backupPath: requestedPath,
+      })) {
+        // Creating a new snapshot remains safe. But an earlier automatic or
+        // manual deletion lacks a native reply: never blindly prune this
+        // destination until the user restarts and reconciles its inventory.
+        backupListRequestEpochRef.current += 1
+        setBackups(sorted)
+        setLastError('Automatic retention is paused: a previous backup deletion in this vault and destination is unconfirmed. Reopen Scriptor and inspect the backup folder before attempting more cleanup.')
+        return
+      }
+      let uncertainName: string | null = null
+      let deniedName: string | null = null
       // Shared external directories may contain backups from other vaults.
       // Never prune a backup merely because its timestamp is older.
       for (const old of backupRetentionCandidates(allBackups, entry.name, settings.maxSnapshots)) {
         if (!ownsBackupScope(requestedVault, requestedPath)) return
-        try {
-          await vaultDeleteBackup(old.name, requestedPath || undefined)
-          if (!ownsBackupScope(requestedVault, requestedPath)) return
-          deleted.add(old.name)
-        } catch {
-          failedDeletes.push(old.name)
+        const origin = {
+          operationId: crypto.randomUUID(),
+          vaultId: requestedVault, backupPath: requestedPath, backupName: old.name,
         }
+        const observed = await observeBackupDelete(origin, (markSubmitted) =>
+          vaultDeleteBackup(old.name, requestedPath || undefined, markSubmitted))
+        if (observed.outcome.commit === 'indeterminate') {
+          unconfirmedDeleteKeysRef.current.add(backupDeleteKey(origin))
+          setUnconfirmedDeleteKeys(new Set(unconfirmedDeleteKeysRef.current))
+          setDeleteReceiptView({ vaultId: requestedVault, backupPath: requestedPath, outcome: observed.outcome })
+          uncertainName = old.name
+          break
+        }
+        if (observed.outcome.commit === 'confirmed-none') {
+          deniedName = old.name
+          break
+        }
+        if (!ownsBackupScope(requestedVault, requestedPath)) return
+        deleted.add(old.name)
       }
       // This native mutation's final inventory supersedes any read that
       // began before the create/retention sequence finished.
       backupListRequestEpochRef.current += 1
       setBackups(sorted.filter((backup) => !deleted.has(backup.name)))
-      if (failedDeletes.length > 0) {
-        setLastError(`Could not delete ${failedDeletes.length} old backup(s): ${failedDeletes.join(', ')}`)
+      if (uncertainName) {
+        setLastError(`Automatic retention deletion of ${uncertainName} is unconfirmed. Native may have deleted it; remaining cleanup is paused until Scriptor is restarted and this backup destination has been inspected. No native delete was retried.`)
+      } else if (deniedName) {
+        setLastError(`Automatic retention stopped before deleting ${deniedName}. Permission was not granted, or the native submission was not started. Review the backup destination before continuing.`)
       }
     } catch (caught) {
       if (ownsBackupScope(requestedVault, requestedPath)) {
