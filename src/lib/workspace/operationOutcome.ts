@@ -40,6 +40,19 @@ function isVaultRelativePath(path: unknown): path is string {
     !/[\u0000-\u001F\u007F]/.test(path) &&
     path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
 }
+/**
+ * Native receipts can contain no more than 4,096 unique vault-relative paths.
+ * A sparse array is not an exhaustive inventory: Array.some would skip holes.
+ */
+function isValidAffectedPathInventory(paths: unknown): paths is readonly string[] {
+  if (!Array.isArray(paths) || paths.length > 4096) return false
+  const seen = new Set<string>()
+  for (const path of paths) {
+    if (!isVaultRelativePath(path) || seen.has(path)) return false
+    seen.add(path)
+  }
+  return true
+}
 export function buildOperationOutcome(scope: MutationScope, evidence: MutationEvidence): TypedOperationOutcome {
   for (const key of ['operationId', 'vaultId', 'operation', 'target'] as const) {
     if (!scope[key].trim()) throw new Error(`Missing mutation ${key}`)
@@ -64,8 +77,7 @@ export function buildOperationOutcome(scope: MutationScope, evidence: MutationEv
         throw new Error('Invalid native actual revision.')
       }
       if (evidence.affectedPaths !== undefined &&
-          (!Array.isArray(evidence.affectedPaths) ||
-           evidence.affectedPaths.some(path => !isVaultRelativePath(path)))) {
+          !isValidAffectedPathInventory(evidence.affectedPaths)) {
         throw new Error('Invalid native affected paths inventory.')
       }
       return { ...base, affectedPaths: evidence.affectedPaths === undefined ? null : [...evidence.affectedPaths],

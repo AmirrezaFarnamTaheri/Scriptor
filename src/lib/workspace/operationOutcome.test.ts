@@ -143,3 +143,26 @@ test('MAT-002: a native receipt cannot claim paths outside the originating vault
     ['notes/note.md'],
   )
 })
+
+test('MAT-002: duplicate, sparse or unbounded native path lists are not authoritative', async () => {
+  const sparse: string[] = new Array(2)
+  sparse[1] = 'notes/valid.md'
+  const tooMany = Array.from({ length: 4097 }, (_, index) => 'notes/' + index + '.md')
+  for (const paths of [['notes/a.md', 'notes/a.md'], sparse, tooMany]) {
+    assert.throws(() => buildOperationOutcome(scope, {
+      kind: 'committed', affectedPaths: paths,
+    }), /Invalid native affected paths inventory/)
+  }
+  const observed = await observeMutation({
+    scope, authorize: async () => true,
+    submit: async () => ({ status: 'accepted' }),
+    interpret: () => ({ kind: 'committed', affectedPaths: ['notes/a.md', 'notes/a.md'] }),
+  })
+  assert.equal(observed.outcome.commit, 'indeterminate')
+  assert.equal(observed.outcome.proof, 'invalid-native-result')
+  assert.equal(observed.outcome.retry, 'blocked-until-reconciliation')
+  assert.deepEqual(
+    buildOperationOutcome(scope, { kind: 'committed', affectedPaths: ['notes/a.md', 'notes/b.md'] }).affectedPaths,
+    ['notes/a.md', 'notes/b.md'],
+  )
+})
