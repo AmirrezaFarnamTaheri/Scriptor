@@ -29,7 +29,7 @@ test('MAT-004 native history restore denies stale vault before consuming approva
 })
 
 test('MAT-004 note history passes originating vault identity through approved restore', () => {
-  assert.match(panel, /vaultRestoreNoteHistoryRevision\(\s*path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash,\s*latest\.metadata\.content_hash,\s*isDraftSafe,\s*\)/, 'restore supplies the originating vault and exact reviewed revision hash')
+  assert.match(panel, /vaultRestoreNoteHistoryRevision\(\s*path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash,\s*latest\.metadata\.content_hash,\s*isDraftSafe,\s*onNativeSubmission,\s*\)/, 'restore supplies the originating vault and exact reviewed revision hash')
   assert.match(panel, /const canRestore = Boolean\([\s\S]{0,150}vaultId/, 'restore is disabled without originating vault identity')
 })
 
@@ -41,7 +41,7 @@ test('MAT-004 restores only against the destination bytes reviewed before author
   const panelRestore = panel.match(/const restore = async \(\) => \{[\s\S]*?\n\s{2}\}/)?.[0]
   assert.ok(panelRestore, 'history restore UI remains present')
   assert.match(panelRestore, /latest\.metadata\.content_hash/, 'reviewed disk hash must be captured before requesting authorization')
-  assert.match(panelRestore, /vaultRestoreNoteHistoryRevision\(\s*path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash,\s*latest\.metadata\.content_hash,\s*isDraftSafe,\s*\)/)
+  assert.match(panelRestore, /vaultRestoreNoteHistoryRevision\(\s*path,\s*selectedId,\s*vaultId,\s*selectedRevision\.content_hash,\s*latest\.metadata\.content_hash,\s*isDraftSafe,\s*onNativeSubmission,\s*\)/)
 
   const bridgeRestore = bridge.match(/export async function vaultRestoreNoteHistoryRevision\([\s\S]*?\n\}/)?.[0]
   assert.ok(bridgeRestore)
@@ -63,6 +63,7 @@ test('MAT-004 an edit during sensitive authorization aborts before the native re
   const invocations = []
   let grant
   let draftUnchanged = true
+  let submissionNotifications = 0
   const module = { exports: {} }
   vm.runInNewContext(transpiled, {
     module,
@@ -82,9 +83,54 @@ test('MAT-004 an edit during sensitive authorization aborts before the native re
   const restoring = module.exports.vaultRestoreNoteHistoryRevision(
     'note.md', 'revision-1', 'vault-alpha', 'reviewed-revision-hash',
     'reviewed-destination-hash', () => draftUnchanged,
+    () => { submissionNotifications++ },
   )
   draftUnchanged = false
   grant('authorization-token')
   await assert.rejects(restoring, /editor changed|save.*before|review.*again|cancelled/i)
   assert.equal(invocations.length, 0, 'native command must not run after an editor change during authorization')
+  assert.equal(submissionNotifications, 0, 'stale draft guard must not mark an unsubmitted native mutation as uncertain')
+})
+
+test('MAT-004 after native submission, a lost response must mark the operation unconfirmed', async () => {
+  const transpiled = ts.transpileModule(bridge, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText
+  const events = []
+  let grant
+  const module = { exports: {} }
+  vm.runInNewContext(transpiled, {
+    module, exports: module.exports,
+    require: (id) => {
+      if (id === '@tauri-apps/api/core') return { invoke: async () => {
+        events.push('native-submission')
+        throw Error('reply lost after native submission')
+      } }
+      if (id.includes('authorization')) return {
+        authorizeSensitiveOperation: () => new Promise(resolve => { grant = resolve }),
+      }
+      if (id.includes('native')) return { requireNative: () => {} }
+      return {}
+    },
+  })
+  const pending = module.exports.vaultRestoreNoteHistoryRevision(
+    'note.md', 'rev-1', 'vault-alpha', 'revision-hash', 'current-hash',
+    () => true, () => events.push('onNativeSubmission'),
+  )
+  assert.deepEqual(events, [], 'authorization pending must not be mistaken for submission')
+  grant('authorization-token')
+  await assert.rejects(pending, /reply lost/)
+  assert.deepEqual(events, ['onNativeSubmission', 'native-submission'],
+    'the receipt phase must be emitted before the native invoke even when the reply is lost')
+})
+
+test('MAT-004 once native submission is unconfirmed, the note-history UI forbids blind retry', () => {
+  assert.match(panel, /let nativeSubmitted = false/)
+  assert.match(panel, /const \[uncertainRestore, setUncertainRestore\] = useState/)
+  assert.match(panel, /const restoreUnconfirmed = uncertainRestore\?\.path === path && uncertainRestore\.vaultId === vaultId/)
+  assert.match(panel, /!restoreUnconfirmed/,
+    'a lost reply must disable restore only for the originating vault and note')
+  assert.match(panel, /if \(nativeSubmitted\) \{[\s\S]*?setUncertainRestore\(/)
+  assert.match(panel, /Restore outcome unconfirmed|Restore result unconfirmed/)
+  assert.match(panel, /setConfirmRestore\(false\)/)
 })

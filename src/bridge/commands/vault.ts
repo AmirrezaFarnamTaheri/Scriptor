@@ -352,6 +352,7 @@ export async function vaultRestoreNoteHistoryRevision(
   expectedRevisionHash: string,
   expectedCurrentHash: string,
   isRestoreStillSafe?: () => boolean,
+  onNativeSubmission?: () => void,
 ): Promise<SaveNoteOutput> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('restore_history', path)
@@ -360,6 +361,9 @@ export async function vaultRestoreNoteHistoryRevision(
   if (isRestoreStillSafe && !isRestoreStillSafe()) {
     throw new Error('The active note changed during authorization. Save your draft and review the revision again.')
   }
+  // A native call may commit even when its transport reply is lost.
+  // Notify the owner only after authorization and the late draft guard.
+  onNativeSubmission?.()
   return invoke<SaveNoteOutput>('vault_restore_note_history_revision', {
     path,
     revisionId,

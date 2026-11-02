@@ -84,6 +84,8 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
   const [currentError, setCurrentError] = useState<CurrentErrorState | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState(false)
+  // A lost response after native submission cannot prove rollback or safe retry.
+  const [uncertainRestore, setUncertainRestore] = useState<{ path: string; vaultId: string } | null>(null)
   // The raw panes stay available; the diff is an additional reading aid.
   const [showDiff, setShowDiff] = useState(true)
 
@@ -181,8 +183,10 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
   const previewErrorMessage =
     previewError?.path === path && previewError.vaultId === vaultId && previewError.revisionId === selectedId ? previewError.message : null
   const currentErrorMessage = currentError?.path === path && currentError.vaultId === vaultId ? currentError.message : null
+  // A late result from the previous note/vault cannot block this origin.
+  const restoreUnconfirmed = uncertainRestore?.path === path && uncertainRestore.vaultId === vaultId
   const canRestore = Boolean(
-    vaultId && selectedRevision && selectedId && previewReady && currentReady && !previewErrorMessage && !currentErrorMessage,
+    vaultId && selectedRevision && selectedId && previewReady && currentReady && !previewErrorMessage && !currentErrorMessage && !restoreUnconfirmed,
   )
 
   // The diff needs both sides in hand. It is derived from the two texts already
@@ -195,6 +199,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
 
   const restore = async () => {
     if (!path || !selectedId || !selectedRevision || !canRestore || !vaultId) return
+    let nativeSubmitted = false
     setBusy(true)
     setStatus('Restoring revision…')
     try {
@@ -211,6 +216,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
       if (!isDraftSafe()) {
         throw new Error('The editor changed while checking the note. Save it and review the revision again.')
       }
+      const onNativeSubmission = () => { nativeSubmitted = true }
       await vaultRestoreNoteHistoryRevision(
         path,
         selectedId,
@@ -218,6 +224,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
         selectedRevision.content_hash,
         latest.metadata.content_hash,
         isDraftSafe,
+        onNativeSubmission,
       )
       setCurrentState({ path, vaultId, markdown: preview })
       setConfirmRestore(false)
@@ -233,7 +240,21 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
           (error instanceof Error ? error.message : String(error)))
       }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Restore failed')
+      if (nativeSubmitted) {
+        // A transport failure after native invocation is not a rollback.
+        // Freeze repeat restore until the originating vault is reopened and
+        // the note has been inspected again under native authority.
+        setUncertainRestore({ path, vaultId })
+        setConfirmRestore(false)
+        setCurrentState(null)
+        setCurrentError({
+          path, vaultId,
+          message: 'Restore result unconfirmed. Reopen the originating vault and read the note again before retrying.',
+        })
+        setStatus('Restore outcome unconfirmed. The native write may have committed. Reopen the vault and review current content before retrying.')
+      } else {
+        setStatus(error instanceof Error ? error.message : 'Restore was not submitted')
+      }
     } finally {
       setBusy(false)
     }
@@ -413,6 +434,11 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, vaultId=n
           </section>
         </div>
       )}
+      {restoreUnconfirmed ? (
+        <p className="settings-status warn" role="alert">
+          The previous native history restore result is unconfirmed. Reopen this vault and review the current note before any further restore attempt.
+        </p>
+      ) : null}
       {status ? <p className="health-subtitle" role="status">{status}</p> : null}
     </UnifiedPanelShell>
   )
