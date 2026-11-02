@@ -70,6 +70,7 @@ export interface PaletteCommandContext {
   }) => Promise<string | null>
   pluginCommands?: Array<{ pluginId: string; command: import('@scriptor/core/contracts/plugin').PluginCommandContribution }>
   runPluginCommand?: (entry: { pluginId: string; command: import('@scriptor/core/contracts/plugin').PluginCommandContribution }) => void | Promise<void>
+  canExecutePluginCommand?: (pluginId: string, permission: import('@scriptor/core/contracts/plugin').PluginCommandContribution['permission']) => boolean
   deleteActiveNote?: () => void | Promise<void>
   openRecentNote?: (path: string) => void | Promise<void>
   recentNotes?: Array<{ path: string; title: string }>
@@ -130,6 +131,7 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     promptText,
     pluginCommands = [],
     runPluginCommand,
+    canExecutePluginCommand,
     deleteActiveNote,
     openRecentNote,
     recentNotes = [],
@@ -520,7 +522,8 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
   }
 
   for (const entry of pluginCommands) {
-    if (!runPluginCommand) break
+    if (!runPluginCommand || !canExecutePluginCommand) break
+    if (!canExecutePluginCommand(entry.pluginId, entry.command.permission)) continue
     commands.push({
       id: `plugin-${entry.pluginId}-${entry.command.commandId}`,
       label: `${entry.command.label} (${entry.command.category})`,

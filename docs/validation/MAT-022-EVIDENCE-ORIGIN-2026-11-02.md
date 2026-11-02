@@ -13,6 +13,9 @@ The check now requires a Scriptor repository Actions run URL, an exact 40-hex so
 - Reproduced the defect on the original source with `node --test capability-evidence.test.mjs`: the unrelated-repository regression **failed as expected** (`actual []`, `expected ['tests.positive']`).
 - Applied the smallest validator guard and ran the same focused tests: **8/8 passed** in local Node 22, no failures.
 - Verified the tested production source's Git blob SHA `6b855109542d656f532030125b31d90b51a53ba0` matches the committed production blob.
-- Full exact-head hosted CI, artifact links, installed platforms, manual privacy review and actual source-SHA/run linkage remain **independent pending acceptance**. A syntactically valid repo URL does not prove the run executed or passed, and readiness never means supported status.
+- Full exact-head hosted CI, CI-built runtime/artifact smoke, automated authorization/privacy tests and actual source-SHA/run linkage remain **independent pending acceptance**. A syntactically valid repo URL does not prove the run executed or passed, and readiness never means supported status.
 
 This is a MAT-022 validator hardening slice, **not** an issue-level acceptance or support-graduation claim.
+
+
+The 2026-11-02 [automated MAT acceptance policy](../MAT-AUTOMATED-ACCEPTANCE.md) replaces physical installation and external human sign-off gates; native in-product user consent remains mandatory.

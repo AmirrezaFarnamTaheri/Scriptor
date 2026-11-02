@@ -125,3 +125,31 @@ test('available optional palette actions execute their owner and unavailable clo
   commands.find((command) => command.id === 'reopen-closed-tab')?.run()
   assert.deepEqual(called, ['knowledge:tags', 'knowledge:collections', 'publish', 'history', 'reopen'])
 })
+
+
+test('MAT-018: palette only advertises contributed plugin commands the existing owner permits', () => {
+  const entry = { pluginId: 'sample-plugin', command: {
+    commandId: 'inspect', label: 'Inspect', category: 'Plugin', permission: 'read' as const,
+  } }
+  const context = availabilityFixture()
+  const invoked: string[] = []
+  let granted = false
+  context.pluginCommands = [entry]
+  context.runPluginCommand = (request) => { invoked.push(request.command.commandId) }
+  context.canExecutePluginCommand = (_pluginId, permission) => granted && permission === 'read'
+
+  let commands = buildPaletteCommands(context)
+  assert.equal(commands.some(command => command.id === 'plugin-sample-plugin-inspect'), false)
+  assert.deepEqual(invoked, [], 'denied contributions must not execute')
+
+  granted = true
+  commands = buildPaletteCommands(context)
+  const permitted = commands.find(command => command.id === 'plugin-sample-plugin-inspect')
+  assert.ok(permitted, 'a freshly granted contribution should be actionable')
+  permitted.run()
+  assert.deepEqual(invoked, ['inspect'])
+
+  context.canExecutePluginCommand = undefined
+  assert.equal(buildPaletteCommands(context).some(command => command.id === 'plugin-sample-plugin-inspect'), false,
+    'missing permission owner must fail closed instead of advertising a no-op')
+})

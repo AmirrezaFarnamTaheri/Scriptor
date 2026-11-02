@@ -204,8 +204,7 @@ mod tests {
         let started = Instant::now();
         while started.elapsed() < Duration::from_secs(5) {
             if descendant_pid.exists()
-                && std::fs::metadata(&heartbeat)
-                    .is_ok_and(|metadata| metadata.len() > 0)
+                && std::fs::metadata(&heartbeat).is_ok_and(|metadata| metadata.len() > 0)
             {
                 break;
             }
@@ -213,17 +212,22 @@ mod tests {
         }
         if !descendant_pid.exists() || !heartbeat.exists() {
             let _ = cancel_active_export(&slot);
+            // PROCESS_BROKER_EXCEPTION(export-cancel-test-unix-startup-cleanup)
             let _ = Command::new("kill")
                 .args(["-KILL", "--", &format!("-{group_id}")])
                 .output();
             panic!("descendant never started");
         }
-        assert_eq!(cancel_active_export(&slot).as_deref(), Some("descendant-cancel"));
+        assert_eq!(
+            cancel_active_export(&slot).as_deref(),
+            Some("descendant-cancel")
+        );
         let stopped_bytes = std::fs::metadata(&heartbeat).expect("heartbeat").len();
         thread::sleep(Duration::from_millis(250));
         let final_bytes = std::fs::metadata(&heartbeat).expect("heartbeat").len();
         // An intentionally failing RED regression must not leave its orphaned
         // descendant writing forever on a hosted CI runner.
+        // PROCESS_BROKER_EXCEPTION(export-cancel-test-unix-postcancel-cleanup)
         let _ = Command::new("kill")
             .args(["-KILL", "--", &format!("-{group_id}")])
             .output();

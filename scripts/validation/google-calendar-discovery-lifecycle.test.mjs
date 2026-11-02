@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import vm from 'node:vm'
 import ts from 'typescript'
+import { assertNoAmbiguousTaskRebindings, assertUnambiguousTaskTitles } from '../../src/lib/workspace/taskMirrorIdentity.ts'
 
 const source = ts.transpileModule(readFileSync(new URL('../../src/hooks/useGoogleCalendarSync.ts', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -58,6 +59,7 @@ function harness() {
     window, CustomEvent, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
     require: (id) => id === 'react' ? react : id.includes('/google_calendar.ts') ? bridge
       : id.endsWith('/googleOAuthClient.ts') ? { getGoogleOAuthClientId: (legacy) => legacy?.trim() ?? '' }
+      : id.endsWith('/taskMirrorIdentity.ts') ? { assertUnambiguousTaskTitles, assertNoAmbiguousTaskRebindings }
       : { googleAuthErrorMessage: String, isGoogleAuthRequiredError: (error) => String(error).startsWith('GOOGLE_AUTH_REQUIRED:'),
         isGoogleAccountNotConnectedError: (error) => ['GOOGLE_AUTH_REQUIRED: disconnected', 'GOOGLE_AUTH_REQUIRED: Google account is not connected.', 'GOOGLE_AUTH_REQUIRED: Gmail is not connected'].includes(String(error)) },
   })
