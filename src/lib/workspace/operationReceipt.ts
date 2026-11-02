@@ -95,6 +95,9 @@ export function buildRestoreOperationReceipt(input: {
         retry: 'blocked-until-reopen',
         recovery: 'reopen-vault',
       }
+    default:
+      // A malformed proof must never silently erase an observed restore.
+      throw new Error('Unsupported restore operation receipt evidence')
   }
 }
 
