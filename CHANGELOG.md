@@ -28,6 +28,8 @@
 
 ### Fixed
 
+- Fix RUSTSEC-2026-0433 by raising all direct Rust Markdown parser constraints and the verified locked `pulldown-cmark` checksum from 0.13.5 to patched 0.13.6. Prevent quadratic parsing of nested image wikilinks without removing `ENABLE_WIKILINKS`, weakening cargo-deny, or introducing new dependencies.
+
 - Reject MAT capability-graduation evidence links that point to GitHub Actions runs outside the Scriptor repository. A source SHA string alone is insufficient; automated verification of CI runs, artifacts, permission/privacy tests and source provenance remains mandatory.
 
 - Show reconnect-required status and native recovery explanations when Google Drive/Docs, Calendar/Tasks or Gmail authorization expires. Distinguish absent first-time credentials from expired ones, clear unverified account identity and expired Calendar caches across all mounted consumers, invalidate late provider task replies, and keep independent provider credentials and permissions unchanged.
