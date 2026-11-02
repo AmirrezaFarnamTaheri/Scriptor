@@ -71,6 +71,8 @@ scan/search only**. CLI exit 4 indicates a measured budget regression; the
 collector stores the negative samples before returning a nonzero exit status.
 An inconsistent exit code and `within_budget` report fails closed.
 
+For integrity, each measured sample and reported mean must be **strictly positive**. Real high-precision short operations may be fractions of a millisecond, but quantized `0 ms` values must not be counted as independent performance evidence. Historical integer-millisecond samples remain provenance only and cannot certify submillisecond latency.
+
 The existing `verify-scale-evidence.mjs` must continue to report a partial
 matrix for warm-only evidence. Neither this collector nor CI proves OS cache
 purges, cold starts, index-build duration, editor latency during rebuilding,
