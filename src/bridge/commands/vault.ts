@@ -489,9 +489,16 @@ export async function vaultRestoreBackup(backupName: string, backupPath?: string
   )
 }
 
-export async function vaultDeleteBackup(backupName: string, backupPath?: string): Promise<void> {
+export async function vaultDeleteBackup(
+  backupName: string,
+  backupPath?: string,
+  onNativeSubmission?: () => void,
+): Promise<void> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('delete_backup', backupName)
+  // Distinguish pre-submit approval denial from a native reply that may have
+  // been lost after durable deletion. The native broker remains authoritative.
+  onNativeSubmission?.()
   await invoke('vault_delete_backup', {
     backupName,
     backupPath: backupPath ?? null,
