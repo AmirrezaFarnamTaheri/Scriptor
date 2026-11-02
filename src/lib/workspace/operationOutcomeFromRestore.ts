@@ -27,6 +27,37 @@ export function outcomeFromRestoreReceipt(receipt: OperationReceipt): TypedOpera
       break
     default: throw new Error('Unknown restore proof')
   }
+  // A renderer-observed receipt is not native authority. Do not let a
+  // corrupted envelope assert rollback, committed effects or safe retry
+  // through fields that contradict the classified native status.
+  const expected = (() => {
+    if (receipt.proof === 'before-native-submission') {
+      return { effect: 'none', retry: 'review-and-reauthorize', recovery: 'none' }
+    }
+    if (receipt.proof === 'no-native-result') {
+      return { effect: 'unknown', retry: 'blocked-until-reopen', recovery: 'reopen-vault' }
+    }
+    switch (receipt.nativeStatus) {
+      case 'rolled-back':
+        return { effect: 'none', retry: 'review-and-reauthorize', recovery: 'none' }
+      case 'committed-ready':
+        return receipt.recovery === 'reopen-vault'
+          ? { effect: 'committed', retry: 'blocked-until-reopen', recovery: 'reopen-vault' }
+          : { effect: 'committed', retry: 'do-not-retry', recovery: 'none' }
+      case 'committed-needs-reopen':
+        return { effect: 'committed', retry: 'blocked-until-reopen', recovery: 'reopen-vault' }
+      case 'recovery-required':
+        return { effect: 'unreconciled', retry: 'blocked-until-reopen', recovery: 'reopen-vault' }
+      default:
+        throw new Error('Invalid restore receipt native status.')
+    }
+  })()
+  if (receipt.operationIdOrigin !== 'renderer' || receipt.operation !== 'restore-backup' ||
+    typeof receipt.target !== 'string' || !receipt.target.trim() ||
+    receipt.effect !== expected.effect || receipt.retry !== expected.retry ||
+    receipt.recovery !== expected.recovery) {
+    throw new Error('Invalid restore receipt: inconsistent origin, native status or effect.')
+  }
   return buildOperationOutcome({
     operationId: receipt.operationId,
     vaultId: receipt.vaultId,
