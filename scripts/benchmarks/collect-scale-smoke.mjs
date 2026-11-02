@@ -140,6 +140,15 @@ function readVersion(executable) {
   return result.stdout.trim()
 }
 
+/** Prevent operator-supplied commit metadata from masquerading as checkout provenance. */
+export function assertExactSourceCommit(expected, checkedOut) {
+  if (typeof expected !== 'string' || typeof checkedOut !== 'string'
+    || !/^[a-f\\d]{40}$/i.test(expected) || !/^[a-f\\d]{40}$/i.test(checkedOut)
+    || expected.toLowerCase() !== checkedOut.toLowerCase()) {
+    throw new Error('MAT-023 source SHA does not match the checked-out exact Git HEAD')
+  }
+}
+
 function parseOptions(args) {
   const values = {}
   for (let i = 0; i < args.length; i += 2) {
@@ -157,6 +166,9 @@ function parseOptions(args) {
 
 function main() {
   const opts = parseOptions(process.argv.slice(2))
+  const gitHead = runExecutable('git', ['rev-parse', 'HEAD'], 15_000)
+  ensureCommandSuccess(gitHead, 'git rev-parse HEAD')
+  assertExactSourceCommit(opts['--source-sha'], gitHead.stdout.trim())
   const cliPath = path.resolve(opts['--cli'])
   if (!fs.statSync(cliPath).isFile()) throw new Error('Compiled CLI binary not found')
   const workRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-warm-scale-'))
