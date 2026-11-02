@@ -30,7 +30,7 @@
 
 ### Fixed
 
-- Distinguish denied, acknowledged and lost-reply backup deletions at the native submission boundary; keep an unconfirmed deletion scoped to its original vault/destination, disallow same-session retry and explain restart/reinspection before further action.
+- Distinguish denied, acknowledged and lost-reply manual or automatic-retention backup deletions at the native submission boundary; hold unconfirmed deletions by vault/destination, pause blind retention retries, and explain restart/reinspection before further cleanup.
 
 - Show guided MCP recipes only for tools actually registered in the current permission-scoped server; withhold active-note recipes when no note is open, guard against late availability changes, and explain empty recipe availability in English, German and Persian.
 
