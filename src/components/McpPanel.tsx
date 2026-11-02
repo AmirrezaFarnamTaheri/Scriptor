@@ -4,7 +4,7 @@ import { AlertTriangle, Check, Copy, LockKeyhole, Server, ShieldCheck, Sparkles 
 
 import type { DraftPatch } from '@scriptor/mcp'
 import { McpDraftDiffEditor } from './editor/McpDraftDiffEditor'
-import { MCP_RECIPES } from '../lib/mcpRecipes'
+import { getAvailableMcpRecipes } from '../lib/mcpRecipes'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
 import { writeClipboardText } from '../lib/clipboardText'
@@ -128,6 +128,7 @@ export function McpPanel({
     [selectedTool, tools],
   )
 
+  const availableRecipes = useMemo(() => getAvailableMcpRecipes(tools.map((tool) => tool.name), activePath), [tools, activePath])
   const modeIds = useMemo(() => MODES.map((entry) => `mcp-mode-${entry}`), [])
 
   /**
@@ -158,6 +159,13 @@ export function McpPanel({
     onModeChange(target)
     document.getElementById(modeIds[next] ?? '')?.focus()
   }
+
+  const noRecipesState = (
+    <div className="plugin-empty-graphic">
+      <Server aria-hidden="true" size={32} className="text-muted" />
+      <p>{t('mcp.noRecipesAvailable')}</p>
+    </div>
+  )
 
   const noToolsState = (
     <div className="plugin-empty-graphic">
@@ -264,19 +272,24 @@ export function McpPanel({
       ) : (
         <>
           {tab === 'recipes' ? (
-            tools.length === 0 ? noToolsState : (
+            tools.length === 0 ? noToolsState : availableRecipes.length === 0 ? noRecipesState : (
               <section className="mcp-recipes" aria-label={t('mcp.guidedAutomationRecipes')}>
                 <p className="health-subtitle">{t('mcp.recipesDescription')}</p>
                 <div className="mcp-recipe-grid">
-                  {MCP_RECIPES.map((recipe) => (
+                  {availableRecipes.map((recipe) => (
                     <button
                       key={recipe.id}
                       type="button"
                       className="mcp-recipe-card"
                       onClick={() => {
+                        // An already-open panel may lose a tool or the active note
+                        // before invocation; keep the UI fail-closed as well.
+                        if (!tools.some((tool) => tool.name === recipe.toolName)
+                          || (recipe.requiresActiveNote && !activePath?.trim())) return
+                        const input = recipe.buildInput({ activePath })
                         setSelectedTool(recipe.toolName)
-                        setInputJson(JSON.stringify(recipe.buildInput({ activePath }), null, 2))
-                        onInvoke(recipe.toolName, recipe.buildInput({ activePath }))
+                        setInputJson(JSON.stringify(input, null, 2))
+                        onInvoke(recipe.toolName, input)
                         setTab('tools')
                       }}
                     >
