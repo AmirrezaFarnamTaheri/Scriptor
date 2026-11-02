@@ -550,7 +550,10 @@ mod tests {
         command
             .args(["-c", script])
             .env("SCRIPTOR_DIAGRAM_HEARTBEAT", heartbeat.as_os_str())
-            .env("SCRIPTOR_DIAGRAM_DESCENDANT_PID", descendant_pid.as_os_str());
+            .env(
+                "SCRIPTOR_DIAGRAM_DESCENDANT_PID",
+                descendant_pid.as_os_str(),
+            );
         let result = output_with_timeout(&mut command, Duration::from_millis(900));
         let first = fs::metadata(&heartbeat).map(|meta| meta.len()).unwrap_or(0);
         std::thread::sleep(Duration::from_millis(300));
