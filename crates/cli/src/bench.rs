@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn sample_summary_reports_tail_latency() {
-        let summary = summarize_samples(&[30, 10, 20, 40]);
+        let summary = summarize_samples(&[30.0, 10.0, 20.0, 40.0]);
         assert_eq!(summary.mean_ms, 25.0);
         assert_eq!(summary.min_ms, 10.0);
         assert_eq!(summary.p50_ms, 20.0);
