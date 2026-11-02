@@ -521,20 +521,20 @@ fn exit_code(status: ExitStatus) -> i32 {
 }
 
 #[cfg(unix)]
-fn configure_process_group(command: &mut Command) {
+pub fn configure_process_group(command: &mut Command) {
     use std::os::unix::process::CommandExt;
     command.process_group(0);
 }
 
 #[cfg(windows)]
-fn configure_process_group(command: &mut Command) {
+pub fn configure_process_group(command: &mut Command) {
     use std::os::windows::process::CommandExt;
     // Brokered tools are background operations, including Git and discovery.
     command.creation_flags(0x08000000); // CREATE_NO_WINDOW
 }
 
 #[cfg(not(any(unix, windows)))]
-fn configure_process_group(_command: &mut Command) {}
+pub fn configure_process_group(_command: &mut Command) {}
 
 #[cfg(unix)]
 pub fn terminate_process_tree(child: &mut Child) {
