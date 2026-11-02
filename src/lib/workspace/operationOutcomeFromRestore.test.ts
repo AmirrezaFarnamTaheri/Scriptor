@@ -20,12 +20,12 @@ test('committed-ready native status prevents retry', () => {
   assert.equal(result.retry, 'do-not-retry')
 })
 test('recovery-required remains indeterminate and blocked', () => {
-  const result = translate({ ...receipt, nativeStatus: 'recovery-required', effect: 'unreconciled', recovery: 'reopen-vault' })
+  const result = translate({ ...receipt, nativeStatus: 'recovery-required', effect: 'unreconciled', retry: 'blocked-until-reopen', recovery: 'reopen-vault' })
   assert.equal(result.commit, 'indeterminate')
   assert.equal(result.recovery, 'reopen-vault')
 })
 test('lost restore reply cannot imply a rollback', () => {
-  const result = translate({ ...receipt, proof: 'no-native-result', nativeStatus: null, effect: 'unknown' })
+  const result = translate({ ...receipt, proof: 'no-native-result', nativeStatus: null, effect: 'unknown', retry: 'blocked-until-reopen', recovery: 'reopen-vault' })
   assert.equal(result.commit, 'indeterminate')
   assert.equal(result.proof, 'no-native-result')
 })
@@ -40,4 +40,20 @@ test('confirmed native commit followed by workspace refresh failure requires reo
   })
   assert.equal(result.commit, 'confirmed-committed')
   assert.equal(result.retry, 'blocked-until-reconciliation')
+})
+
+test('MAT-003: inconsistent committed or rolled-back claims must never produce authoritative restore outcomes', () => {
+  for (const changes of [
+    { effect: 'committed' },
+    { retry: 'do-not-retry' },
+    { recovery: 'reopen-vault' },
+    { operationIdOrigin: 'untrusted' },
+    { operation: 'unknown-operation' },
+    { target: '' },
+  ]) {
+    assert.throws(() => translate({ ...receipt, ...changes } as OperationReceipt), /Invalid restore receipt|inconsistent/,
+      JSON.stringify(changes))
+  }
+  assert.throws(() => translate({ ...receipt, proof: 'no-native-result', nativeStatus: null,
+    effect: 'none', retry: 'review-and-reauthorize', recovery: 'none' }), /Invalid restore receipt|inconsistent/)
 })

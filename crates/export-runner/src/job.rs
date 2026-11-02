@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use scriptor_system_bridge::{ProcessSpec, spawn_process};
+use scriptor_system_bridge::{ProcessSpec, spawn_process, terminate_process_tree};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -109,7 +109,7 @@ fn wait_for_child_direct(mut child: Child, timeout: Duration) -> Result<ExitStat
                 thread::sleep(Duration::from_millis(50));
             }
             Ok(None) => {
-                let _ = child.kill();
+                terminate_process_tree(&mut child);
                 let _ = child.wait();
                 return Err(ExportError::Process(format!(
                     "pandoc timed out after {} seconds",
