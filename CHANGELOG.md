@@ -30,6 +30,9 @@
 
 ### Fixed
 
+- Recheck plugin command permission at palette invocation, so a command displayed before access was revoked cannot dispatch a stale plugin action.
+
+
 - Preserve fractional-millisecond scan, FTS5 search and optional Tantivy benchmark samples instead of truncating short operations to false `0 ms` results. Add source-bound hosted native warm measurements on Windows, macOS and Linux; keep cold-cache, startup, editor, memory and packaged acceptance explicitly unverified.
 
 
