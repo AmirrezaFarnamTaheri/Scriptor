@@ -117,25 +117,28 @@ export async function observeMutation<A, T>(request: {
   /** Must validate the native response at runtime before classifying effects. */
   readonly interpret: (value: T) => NativeMutationProof
 }): Promise<ObservedMutation<T>> {
-  buildOperationOutcome(request.scope, { kind: 'not-submitted' })
+  // Bind the observation to the initiating vault/revision before any await.
+  // Caller-owned scope objects may change during authorization or transport.
+  const scope: MutationScope = { ...request.scope }
+  buildOperationOutcome(scope, { kind: 'not-submitted' })
   let grant: A
   try {
     grant = await request.authorize()
   } catch (error) {
-    return { outcome: buildOperationOutcome(request.scope, { kind: 'not-submitted' }), error }
+    return { outcome: buildOperationOutcome(scope, { kind: 'not-submitted' }), error }
   }
   let value: T
   try {
     value = await request.submit(grant)
   } catch (error) {
-    return { outcome: buildOperationOutcome(request.scope, { kind: 'reply-missing' }), error }
+    return { outcome: buildOperationOutcome(scope, { kind: 'reply-missing' }), error }
   }
   try {
     const proof = request.interpret(value)
-    return { outcome: buildOperationOutcome(request.scope, proof), value }
+    return { outcome: buildOperationOutcome(scope, proof), value }
   } catch (error) {
     // A transport response arrived but did not satisfy its contract.
-    return { outcome: buildOperationOutcome(request.scope, { kind: 'invalid-native-result' }), error }
+    return { outcome: buildOperationOutcome(scope, { kind: 'invalid-native-result' }), error }
   }
 }
 /** A prior operation's receipt cannot appear after a vault, target, or request switch. */

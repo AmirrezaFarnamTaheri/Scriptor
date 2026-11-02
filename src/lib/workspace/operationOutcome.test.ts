@@ -166,3 +166,32 @@ test('MAT-002: duplicate, sparse or unbounded native path lists are not authorit
     ['notes/a.md', 'notes/b.md'],
   )
 })
+
+test('MAT-002: an in-flight mutation receipt retains its original vault and revision', async () => {
+  const mutableScope = { ...scope }
+  let releaseSubmission!: () => void
+  const submissionPending = new Promise<void>(resolve => { releaseSubmission = resolve })
+  let markSubmitted!: () => void
+  const submitted = new Promise<void>(resolve => { markSubmitted = resolve })
+  const pending = observeMutation({
+    scope: mutableScope,
+    authorize: async () => true,
+    submit: async () => {
+      markSubmitted()
+      await submissionPending
+      return { kind: 'no-change' as const }
+    },
+    interpret: value => value,
+  })
+  await submitted
+  mutableScope.vaultId = 'vault-b'
+  mutableScope.target = 'other-note.md'
+  mutableScope.expectedRevision = 'after-external-edit'
+  releaseSubmission()
+  const observed = await pending
+  assert.equal(observed.outcome.vaultId, 'vault-a', 'late vault changes cannot reattribute native results')
+  assert.equal(observed.outcome.target, 'draft.md')
+  assert.equal(observed.outcome.expectedRevision, 'before')
+  assert.equal(visibleOperationOutcome(observed.outcome, scope), observed.outcome)
+  assert.equal(visibleOperationOutcome(observed.outcome, mutableScope), null)
+})
