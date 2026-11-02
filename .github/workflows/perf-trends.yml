@@ -54,6 +54,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Configure pinned Rust 1.96.0
         shell: pwsh
@@ -101,7 +103,7 @@ jobs:
         run: |
           $cli = Join-Path (Get-Location) 'target/release/scriptor.exe'
           if (-not (Test-Path -LiteralPath $cli -PathType Leaf)) { throw 'Release-mode CLI binary missing after benchmark compilation' }
-          node scripts/benchmarks/collect-scale-smoke.mjs --cli "$cli" --source-sha "$env:GITHUB_SHA" --size 100 --output artifacts/performance/mat023-warm-cli.json
+          node scripts/benchmarks/collect-scale-smoke.mjs --cli "$cli" --source-sha "${{ github.event.pull_request.head.sha || github.sha }}" --size 100 --output artifacts/performance/mat023-warm-cli.json
           if ($LASTEXITCODE -ne 0) { throw "MAT-023 warm CLI measurement failed ($LASTEXITCODE)" }
           node --test scripts/benchmarks/cli-precision-contract.test.mjs scripts/benchmarks/collect-scale-smoke.test.mjs scripts/benchmarks/scale-evidence.test.mjs
           if ($LASTEXITCODE -ne 0) { throw "MAT-023 validator regression failed ($LASTEXITCODE)" }
