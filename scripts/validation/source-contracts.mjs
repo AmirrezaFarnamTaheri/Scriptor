@@ -293,5 +293,5 @@ test('citation UI uses the composed indexer backend and makes no Zotero sync cla
   assert.doesNotMatch(manifest, /citations\.sync|Zotero/)
   assert.match(dispatch, /case 'citations\.insert':[\s\S]*openBibliography/)
   assert.match(maturity, /Zotero read-only reference import \| Experimental/)
-  assert.match(maturity, /no automatic synchronization or live account verification/)
+  assert.match(maturity, /no automatic synchronization or claimed live-account compatibility/, 'Zotero importer must not claim automated synchronization or unverified live-service support')
 })
