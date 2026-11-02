@@ -9,6 +9,8 @@ import {
 } from '../bridge/commands'
 import type { VaultBackupEntry, VaultRestoreStatus } from '../bridge/commands'
 import { buildRestoreOperationReceipt, visibleOperationReceipt, type OperationReceipt } from '../lib/workspace/operationReceipt'
+import { backupDeleteKey, isBackupDeleteHeld, observeBackupDelete } from '../lib/workspace/backupDeleteOutcome'
+import type { TypedOperationOutcome } from '../lib/workspace/operationOutcome'
 import { classifyVaultRestoreStatus, classifyVaultRestoreFailure, isVaultRestoreQuarantined } from '../lib/restoreOutcome'
 import { backupRetentionCandidates, DEFAULT_VAULT_BACKUP_SETTINGS, validateVaultBackupSettings, type VaultBackupSettings } from '../lib/vaultBackupPolicy'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
@@ -59,6 +61,13 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const [messageView, setMessageView] = useState<{vaultId: string | null; path: string; value: string | null}>({vaultId: ownedVaultId, path: settings.backupPath, value: null})
   // Observational, renderer-owned receipt; native transaction state stays authoritative.
   const [restoreReceipt, setRestoreReceipt] = useState<OperationReceipt | null>(null)
+  const [deleteReceiptView, setDeleteReceiptView] = useState<{
+    vaultId: string; backupPath: string; outcome: TypedOperationOutcome
+  } | null>(null)
+  // An uncertain native delete is not a rollback. Keep its exact backup blocked
+  // through same-session vault/path switches until a restart and fresh review.
+  const [unconfirmedDeleteKeys, setUnconfirmedDeleteKeys] = useState<ReadonlySet<string>>(() => new Set())
+  const unconfirmedDeleteKeysRef = useRef<Set<string>>(new Set())
   const [isBusy, setIsBusy] = useState(false)
   // A lost native restore reply can hide already-promoted files. Keep this
   // affected vaults quarantined for the remainder of this app session, even if
@@ -76,6 +85,12 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
   const lastError = errorView.vaultId === ownedVaultId && errorView.path === settings.backupPath ? errorView.value : null
   const lastMessage = messageView.vaultId === ownedVaultId && messageView.path === settings.backupPath ? messageView.value : null
   const lastRestoreReceipt = visibleOperationReceipt(restoreReceipt, ownedVaultId, settings.backupPath)
+  const lastDeleteOutcome = deleteReceiptView?.vaultId === ownedVaultId
+    && deleteReceiptView.backupPath === settings.backupPath ? deleteReceiptView.outcome : null
+  const isBackupDeleteUnconfirmed = useCallback((backupName: string) =>
+    Boolean(ownedVaultId && isBackupDeleteHeld(unconfirmedDeleteKeys, {
+      vaultId: ownedVaultId, backupPath: settings.backupPath, backupName,
+    })), [ownedVaultId, settings.backupPath, unconfirmedDeleteKeys])
   const setBackups = useCallback((value: VaultBackupEntry[]) => setBackupView({vaultId: ownedVaultId, path: settings.backupPath, value, error: null, loading: false}), [ownedVaultId, settings.backupPath])
   const setBackupListError = useCallback(() => setBackupView({vaultId: ownedVaultId, path: settings.backupPath, value: [], error: 'Could not load backups from this location. Check its path and access permissions.', loading: false}), [ownedVaultId, settings.backupPath])
   const setLastError = useCallback((value: string | null) => setErrorView({vaultId: ownedVaultId, path: settings.backupPath, value}), [ownedVaultId, settings.backupPath])
@@ -314,19 +329,43 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
 
   const deleteBackup = useCallback(
     async (backupName: string) => {
-      if (!ownedVaultId || !beginOperation()) return
+      if (!ownedVaultId) return
       const requestedVault = ownedVaultId
+      const requestedPath = settings.backupPath
+      const origin = { operationId: crypto.randomUUID(), vaultId: requestedVault, backupPath: requestedPath, backupName }
+      // React state can lag after a rejected native reply. Use a synchronous
+      // owner-scoped hold so repeated taps never silently resubmit the delete.
+      if (isBackupDeleteHeld(unconfirmedDeleteKeysRef.current, origin) || !beginOperation()) return
       setLastError(null)
+      setDeleteReceiptView(null)
       try {
-        await vaultDeleteBackup(backupName, settings.backupPath || undefined)
-        if (ownsVault(requestedVault)) await listBackups()
+        const observed = await observeBackupDelete(origin, (markSubmitted) =>
+          vaultDeleteBackup(backupName, requestedPath || undefined, markSubmitted))
+        setDeleteReceiptView({ vaultId: requestedVault, backupPath: requestedPath, outcome: observed.outcome })
+        if (observed.outcome.commit === 'indeterminate') {
+          unconfirmedDeleteKeysRef.current.add(backupDeleteKey(origin))
+          setUnconfirmedDeleteKeys(new Set(unconfirmedDeleteKeysRef.current))
+          if (ownsBackupScope(requestedVault, requestedPath)) {
+            setLastError('Backup deletion is unconfirmed: native may have deleted this snapshot before its reply was lost. Reopen Scriptor, inspect the originating backup folder, and review before any new deletion. This request will not be retried.')
+          }
+          return
+        }
+        if (observed.outcome.commit === 'confirmed-none') {
+          if (ownsBackupScope(requestedVault, requestedPath)) {
+            setLastError(observed.error instanceof Error ? observed.error.message : 'Backup deletion was not submitted.')
+          }
+          return
+        }
+        if (ownsBackupScope(requestedVault, requestedPath)) await listBackups()
       } catch (caught) {
-        if (ownsVault(requestedVault)) setLastError(caught instanceof Error ? caught.message : 'Delete failed')
+        if (ownsBackupScope(requestedVault, requestedPath)) {
+          setLastError(caught instanceof Error ? caught.message : 'Backup deletion could not be classified.')
+        }
       } finally {
         finishOperation()
       }
     },
-    [ownedVaultId, settings.backupPath, listBackups, beginOperation, finishOperation, ownsVault, setLastError],
+    [ownedVaultId, settings.backupPath, listBackups, beginOperation, finishOperation, ownsBackupScope, setLastError],
   )
 
   useEffect(() => {
@@ -384,11 +423,13 @@ export function useVaultBackup(vaultOpen: boolean, vaultId: string | null) {
       lastError,
       lastMessage,
       lastRestoreReceipt,
+      lastDeleteOutcome,
+      isBackupDeleteUnconfirmed,
       triggerBackup,
       restoreBackup,
       deleteBackup,
       listBackups,
     }),
-    [settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, lastRestoreReceipt, triggerBackup, restoreBackup, deleteBackup, listBackups],
+    [settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, lastRestoreReceipt, lastDeleteOutcome, isBackupDeleteUnconfirmed, triggerBackup, restoreBackup, deleteBackup, listBackups],
   )
 }
