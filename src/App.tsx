@@ -9,10 +9,7 @@ import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
 import { useVisualBlockRenderer } from './hooks/useVisualBlockRenderer'
 import { VaultSidebar } from './components/app/VaultSidebar'
-import {
-  PanelFallback,
-  SettingsPanel,
-} from './components/app/lazyPanels'
+import { PanelFallback, SettingsPanel } from './components/app/lazyPanels'
 import { isReaderDocumentPath } from './hooks/vault/helpers'
 import { buildPaletteCommands } from './lib/buildPaletteCommands'
 import { planDailyNotePreview } from './lib/knowledge/templates'
@@ -864,6 +861,7 @@ function App() {
         publishStarlight: nativeReady ? () => void publishStarlight() : undefined,
         promptText,
         pluginCommands: pluginCommandEntries,
+        canExecutePluginCommand,
         runPluginCommand: (entry) => {
           if (!canExecutePluginCommand(entry.pluginId, entry.command.permission)) return
           void runPluginCommand(entry.command, pluginCommandRuntime, {

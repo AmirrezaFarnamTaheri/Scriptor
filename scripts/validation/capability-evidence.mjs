@@ -1,4 +1,4 @@
-/** MAT-022: review the 8 capability gates without automatically promoting labels. */
+/** MAT-022: index eight automated evidence gates without promoting support. */
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v)
 const nonblank = v => typeof v === 'string' && v.trim().length > 0 && v.length <= 500
 const relativePath = path => typeof path === 'string' && path.length <= 500 && path.length > 0 && !path.startsWith('/') && !path.includes('\\') && !path.includes(':') && path.split('/').every(p => p !== '' && p !== '.' && p !== '..')
@@ -23,13 +23,21 @@ export function assessCapabilityEvidence(packet) {
     if (!relativePath(p)) throw new Error('Invalid capability evidence document path')
   }
   const missing = []
+  const usedCaseIds = new Set()
+  const requireIndependentProof = (proof, name) => {
+    if (!goodProof(proof, packet.sourceHead) || usedCaseIds.has(proof.caseId)) {
+      missing.push(name)
+      return
+    }
+    usedCaseIds.add(proof.caseId)
+  }
   for (const [name, value] of [['owner', packet.owner], ['supportWindow', packet.supportWindow], ['contract.schemaPolicy', packet.contract?.schemaPolicy], ['authorization.model', packet.authorization?.model]]) {
     if (!nonblank(value)) missing.push(name)
   }
-  for (const name of GATES) if (!goodProof(packet.tests?.[name], packet.sourceHead)) missing.push('tests.' + name)
-  if (!goodProof(packet.authorization?.privacyReview, packet.sourceHead)) missing.push('authorization.privacyReview')
-  if (!goodProof(packet.performance, packet.sourceHead)) missing.push('performance')
-  if (!goodProof(packet.release?.inclusion, packet.sourceHead)) missing.push('release.inclusion')
-  if (!goodProof(packet.release?.installed, packet.sourceHead)) missing.push('release.installed')
-  return { readyForHumanReview: missing.length === 0, missing }
+  for (const name of GATES) requireIndependentProof(packet.tests?.[name], 'tests.' + name)
+  requireIndependentProof(packet.authorization?.privacyReview, 'authorization.privacyReview')
+  requireIndependentProof(packet.performance, 'performance')
+  requireIndependentProof(packet.release?.inclusion, 'release.inclusion')
+  requireIndependentProof(packet.release?.artifactSmoke, 'release.artifactSmoke')
+  return { evidenceIndexComplete: missing.length === 0, missing }
 }
