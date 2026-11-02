@@ -61,12 +61,14 @@ export function evaluateScaleEvidence(evidence) {
     } else if (row.warmed !== true) throw new Error('Warm run must attest its primed cache: ' + caseKey)
     const samples = row.report.samples_ms
     if (!Array.isArray(samples) || samples.length < 3 || samples.length > 1000
-      || samples.some((value) => !finite(value) || value < 0)) {
-      throw new Error('Invalid finite samples/iterations for ' + caseKey)
+      || samples.some((value) => !finite(value) || value <= 0)) {
+      throw new Error('Invalid strictly positive finite samples/iterations for ' + caseKey)
     }
     const mean = samples.reduce((sum, value) => sum + value, 0) / samples.length
-    if (!finite(row.report.mean_ms) || row.report.mean_ms < 0
-      || Math.abs(mean - row.report.mean_ms) > Math.max(0.5, mean * 0.01)) {
+    if (!finite(row.report.mean_ms) || row.report.mean_ms <= 0
+      || // Precision-aware consistency: the previous 0.5 ms absolute allowance
+      // could validate a mean hundreds of times larger than sub-ms samples.
+      Math.abs(mean - row.report.mean_ms) > Math.max(0.000001, mean * 0.01)) {
       throw new Error('Reported mean inconsistent with samples for ' + caseKey)
     }
     byCase.set(caseKey, row)

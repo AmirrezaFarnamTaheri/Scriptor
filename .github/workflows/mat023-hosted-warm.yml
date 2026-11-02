@@ -1,0 +1,92 @@
+name: MAT-023 Hosted Warm CLI Evidence
+
+# Produces actual compiled-native warm scan/search samples on hosted runners.
+# This is intentionally not a cold-cache, installed-desktop, or MAT acceptance gate.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/mat023-hosted-warm.yml'
+      - 'scripts/benchmarks/collect-scale-smoke.mjs'
+      - 'scripts/benchmarks/collect-scale-smoke.test.mjs'
+      - 'scripts/benchmarks/cli-precision-contract.test.mjs'
+      - 'crates/cli/src/bench.rs'
+      - 'scripts/benchmarks/scale-evidence.mjs'
+      - 'scripts/benchmarks/benchmark-utils.mjs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/mat023-hosted-warm.yml'
+      - 'scripts/benchmarks/collect-scale-smoke.mjs'
+      - 'scripts/benchmarks/collect-scale-smoke.test.mjs'
+      - 'scripts/benchmarks/cli-precision-contract.test.mjs'
+      - 'crates/cli/src/bench.rs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mat023-hosted-warm-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-warm-cli:
+    name: Native warm CLI on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            binary: target/release/scriptor
+          - os: windows-2025
+            binary: target/release/scriptor.exe
+          - os: macos-15
+            binary: target/release/scriptor
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - name: Checkout exact test source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Configure pinned Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.16.0
+
+      - name: Configure pinned Rust 1.96.0
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
+
+      - name: Cache compiled Rust dependencies
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          cache-all-crates: true
+          key: mat023-native-cli-${{ matrix.os }}
+
+      - name: Run warm-collector behavioral and evidence-integrity regressions
+        run: node --test scripts/benchmarks/cli-precision-contract.test.mjs scripts/benchmarks/collect-scale-smoke.test.mjs scripts/benchmarks/scale-evidence.test.mjs
+
+      - name: Compile the production Scriptor CLI
+        run: cargo build --locked --release -p scriptor-cli
+
+      - name: Measure two independent native warm scan/search runs
+        run: >-
+          node scripts/benchmarks/collect-scale-smoke.mjs
+          --cli "${{ matrix.binary }}"
+          --source-sha "${{ github.event.pull_request.head.sha || github.sha }}"
+          --size 100
+          --output "artifacts/performance/mat023-warm-${{ matrix.os }}.json"
+
+      - name: Upload source-bound measured evidence (even for budget failure)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mat023-native-warm-${{ matrix.os }}
+          path: artifacts/performance/mat023-warm-${{ matrix.os }}.json
+          if-no-files-found: warn
+          retention-days: 30

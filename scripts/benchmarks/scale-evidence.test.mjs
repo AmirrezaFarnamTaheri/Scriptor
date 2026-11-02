@@ -131,3 +131,31 @@ test('MAT-023: timestamp precision aliases cannot be counted as separate measure
   input.runs = [first, second]
   assert.throws(() => evaluateScaleEvidence(input), /independent|timestamp|start time/i)
 })
+
+
+test('MAT-023: zero-duration timing samples cannot certify instantaneous operation or hide clock quantization', () => {
+  const evidence = base()
+  const row = run()
+  evidence.runs = [row]
+  row.report.samples_ms = [0, 0, 0]
+  row.report.mean_ms = 0
+  assert.throws(() => evaluateScaleEvidence(evidence), /zero|positive|clock|precision/i)
+  row.report.samples_ms = [0, 0.25, 0.5]
+  row.report.mean_ms = 0.25
+  assert.throws(() => evaluateScaleEvidence(evidence), /zero|positive|clock|precision/i)
+  row.report.samples_ms = [0.125, 0.25, 0.375]
+  row.report.mean_ms = 0.25
+  assert.equal(evaluateScaleEvidence(evidence).validRunCount, 1)
+})
+
+
+test('MAT-023: fractional-millisecond samples cannot support an inflated claimed mean', () => {
+  const evidence = base()
+  const row = run()
+  evidence.runs = [row]
+  row.report.samples_ms = [0.125, 0.25, 0.375]
+  row.report.mean_ms = 0.65
+  assert.throws(() => evaluateScaleEvidence(evidence), /mean|inconsistent|samples/i)
+  row.report.mean_ms = 0.25
+  assert.equal(evaluateScaleEvidence(evidence).validRunCount, 1)
+})

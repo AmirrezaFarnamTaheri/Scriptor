@@ -28,6 +28,9 @@
 
 ### Fixed
 
+- Preserve fractional-millisecond scan, FTS5 search and optional Tantivy benchmark samples instead of truncating short operations to false `0 ms` results. Add source-bound hosted native warm measurements on Windows, macOS and Linux; keep cold-cache, startup, editor, memory and packaged acceptance explicitly unverified.
+
+
 - Reject benchmark evidence repetitions that share the same UTC start instant despite distinct IDs or equivalent timestamp precision, rather than incorrectly counting them as independent runs.
 
 - Fix RUSTSEC-2026-0433 by raising all direct Rust Markdown parser constraints and the verified locked `pulldown-cmark` checksum from 0.13.5 to patched 0.13.6. Prevent quadratic parsing of nested image wikilinks without removing `ENABLE_WIKILINKS`, weakening cargo-deny, or introducing new dependencies.

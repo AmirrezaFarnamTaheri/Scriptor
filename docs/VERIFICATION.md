@@ -8,6 +8,40 @@ Results from an older commit cannot certify a newer implementation.
 
 **MAT-001–024 policy effective 2026-11-02:** [Automated MAT acceptance](MAT-AUTOMATED-ACCEPTANCE.md) supersedes older passages below referring to manual approval, real-user studies, physical installation, live-account use and installed-app acceptance as *closure gates*. Those historical verification records remain valid evidence of what was or was not tested then; none becomes an automated pass retroactively. In-product user authorization is unaffected.
 
+## MAT-023 — native timing precision and warm-only hosted evidence (PR #281)
+
+[PR #281](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/281)
+adds a real, non-publishing hosted CLI benchmark collector for Windows,
+macOS, and Linux, and records its measured results alongside the exact
+checked-out Git SHA, host, toolchain, fixture digest, and binary SHA-256.
+Both native warm scan and FTS5 search have two separately started repeat
+processes on fresh deterministic fixtures. A benchmark budget breach is
+recorded as measured negative evidence, not silently discarded as an
+unparseable CLI exit code. The Rust producer retains fractional-millisecond
+samples and report distribution fields, replacing prior whole-millisecond
+truncation that incorrectly reported short searches as zero.
+
+- **Reproduced RED:** a source-contract test rejected the previous
+  `Instant::elapsed().as_millis() as u64` path; old 100-note hosted artifacts
+  contained genuinely quantized `0 ms` short-search samples.
+- **Focused local GREEN:** the precision source contract and related benchmark
+  validator tests passed (20/20), but this does not prove a compiled native
+  binary on every target.
+- **Hosted pre-precision evidence:** [run #41526502404](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41526502404)
+  completed its source-bound 100-note warm CLI matrix on all three hosted
+  desktop OS families. Its old integer samples **must not** be reused as
+  proof of submillisecond latency accuracy.
+- **Current implementation:** exact-head CI, host-specific compiled binaries,
+  numerical nonzero short-search samples, and platform evidence are verified
+  only after the current final PR commit passes its complete hosted workflows.
+
+**Not yet MAT-023 completion:** warm-only 100-note measurements do not
+establish cold-cache resets, 1k/5k/25k comparable two-repeat matrices,
+initial-open/index build/editor/attachment latency, memory and artifact
+size, reproducible thresholds, installed runtime evidence, or release
+readiness. Keep [issue #203](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/203)
+open. Benchmarks are not permission or capability-graduation proof.
+
 ## MAT-004 — read-side Note History vault identity (PR #242)
 
 This is a separate read-only provenance slice stacked on the destructive-restore
