@@ -15,12 +15,7 @@ ignore = [
     # Maintenance-only: unsafe-libyaml remains required by hayagriva/Typst via serde_yaml.
     # Owner, review deadline and migration are tracked in the RustSec ledger.
     "RUSTSEC-2024-0449",
-    # Tauri urlpattern's rust-unic dependency family.
-    "RUSTSEC-2025-0075",
-    "RUSTSEC-2025-0080",
-    "RUSTSEC-2025-0081",
-    "RUSTSEC-2025-0098",
-    "RUSTSEC-2025-0100",
+    # urlpattern 0.6.0 no longer resolves rust-unic: obsolete ignores removed 2026-11-02.
     # Linux desktop keyring's zbus 5 graph. Standalone name/wire-format crates
     # were merged into zbus 6; current keyring store/secret-service require
     # zbus 5. Maintenance-only, with time-limited reviews in the RustSec ledger.

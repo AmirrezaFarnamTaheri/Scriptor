@@ -34,10 +34,16 @@ export function parseLedger(source) {
   return rows
 }
 
-export function validateRustSecExceptions({ denySource, ledgerSource, asOf }) {
+export function parseCargoLockNames(source) {
+  return new Set([...source.matchAll(/^\[\[package\]\]\r?\nname = "([^"\r\n]+)"/gm)].map((match) => match[1]))
+}
+
+export function validateRustSecExceptions({ denySource, ledgerSource, asOf, lockSource }) {
   const ignored = parseIgnoredAdvisories(denySource)
   const ledger = parseLedger(ledgerSource)
   const failures = []
+  const locked = typeof lockSource === 'string' ? parseCargoLockNames(lockSource) : null
+  if (locked && locked.size === 0) failures.push('Cargo.lock has no package records')
   const asOfDate = parseIsoDate(asOf)
   if (!asOfDate) throw new Error(`invalid review date: ${asOf}`)
 
@@ -51,6 +57,11 @@ export function validateRustSecExceptions({ denySource, ledgerSource, asOf }) {
       if (!row[field]) failures.push(`${advisory}: ${field} is empty`)
     }
     if (!row.upstream.includes(advisory)) failures.push(`${advisory}: upstream link does not identify advisory`)
+    if (locked) {
+      const crateName = /^`([a-zA-Z0-9_-]+)`(?:\s|$)/.exec(row.dependency)?.[1]
+      if (!crateName) failures.push(`${advisory}: dependency family must begin with the locked advisory crate`)
+      else if (!locked.has(crateName)) failures.push(`${advisory}: ignored crate ${crateName} is absent from Cargo.lock`)
+    }
     const reviewDate = parseIsoDate(row.reviewBy)
     if (!reviewDate) {
       failures.push(`${advisory}: invalid Review by date ${row.reviewBy}`)
@@ -69,6 +80,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const result = validateRustSecExceptions({
     denySource: fs.readFileSync(path.join(ROOT, 'deny.toml'), 'utf8'),
     ledgerSource: fs.readFileSync(path.join(ROOT, 'docs/security/RUSTSEC-EXCEPTIONS.md'), 'utf8'),
+    lockSource: fs.readFileSync(path.join(ROOT, 'Cargo.lock'), 'utf8'),
     asOf,
   })
   if (result.failures.length) {

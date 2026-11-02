@@ -17,6 +17,13 @@ function utf8After(path: string, previous: string): boolean {
   }
   return a.length > b.length
 }
+/** A candidate or cursor must be vault-relative; native read authorization remains authoritative. */
+function isVaultRelativeNotePath(path: unknown): path is string {
+  return typeof path === 'string' && path.length > 0 && path.length <= 4096 &&
+    !path.startsWith('/') && !path.includes('\\') && !path.includes(':') &&
+    !/[\u0000-\u001F\u007F]/.test(path) &&
+    path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
+}
 export function selectDatabasePage(
   hits: readonly DatabasePageHit[],
   pageSize: number,
@@ -26,12 +33,12 @@ export function selectDatabasePage(
       !Array.isArray(hits) || hits.length > pageSize + 1) {
     throw new Error('Invalid indexed database page limit or response size.')
   }
-  if (afterPath !== null && (typeof afterPath !== 'string' || !afterPath)) {
+  if (afterPath !== null && !isVaultRelativeNotePath(afterPath)) {
     throw new Error('Invalid database pagination cursor.')
   }
   let previous = afterPath
   for (const hit of hits) {
-    if (!hit || typeof hit.path !== 'string' || !hit.path || hit.path.length > 4096 ||
+    if (!hit || !isVaultRelativeNotePath(hit.path) ||
         typeof hit.title !== 'string' || hit.title.length > 4096) {
       throw new Error('Invalid native database page result.')
     }
