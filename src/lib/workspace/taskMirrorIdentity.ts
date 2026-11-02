@@ -72,9 +72,13 @@ export function assertNoAmbiguousTaskRebindings(
         const id = marker.slice(scopedPrefix.length)
         if (localIds.has(id)) matchedIds.add(id)
         else staleOwned = true
-      } else if (marker.startsWith(legacyPrefix)) {
+      } else if (marker.startsWith(legacyPrefix) && !marker.startsWith('Scriptor source: vault:')) {
         const id = marker.slice(legacyPrefix.length)
         if (localIds.has(id)) matchedIds.add(id)
+        // Pre-vault markers are unscoped. An orphan may belong to this
+        // vault's moved task OR another vault, and its title cannot settle
+        // that ambiguity. Require review before any new provider write.
+        else staleOwned = true
       }
     }
     if (staleOwned) staleOwnedTitles.add(normalize(remote.title))
