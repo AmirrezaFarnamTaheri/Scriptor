@@ -268,6 +268,7 @@
     "generateWithAi": "Mit KI generieren",
     "disabledMessage": "MCP ist für diesen Tresor deaktiviert. Wählen Sie einen Modus, um Werkzeuge freizugeben.",
     "noToolsRegistered": "Für die aktuelle Serverkonfiguration sind keine MCP-Werkzeuge registriert.",
+    "noRecipesAvailable": "Für die aktuellen Werkzeuge und die aktive Notiz sind keine geführten Rezepte verfügbar.",
     "enableReadOnly": "MCP aktivieren (Nur Lesen)",
     "tabRecipes": "Rezepte",
     "tabTools": "Werkzeuge",
