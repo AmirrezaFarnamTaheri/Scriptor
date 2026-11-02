@@ -41,10 +41,28 @@ function assertReport(report, size, mode) {
     throw new Error(`Unexpected CLI scenario for ${size}/${mode}`)
   }
   if (report.note_count !== size) throw new Error(`Measured note count differs from ${size} for ${mode}`)
-  if (report.within_budget !== true || !Array.isArray(report.samples_ms)
+  if (typeof report.within_budget !== 'boolean' || !Array.isArray(report.samples_ms)
     || report.samples_ms.length < 3 || !Number.isFinite(report.mean_ms)) {
     throw new Error(`Missing successful measured samples/budget for ${size}/${mode}`)
   }
+}
+
+/**
+ * The Scriptor CLI deliberately exits 4 when a measured latency breaches its
+ * budget, AFTER emitting its authoritative JSON. Preserve that real result
+ * instead of silently losing negative performance evidence. All other errors
+ * and contradictory exit-status/report pairs fail closed.
+ */
+function measuredCliReport(result, size, mode, phase) {
+  if (!result || (result.status !== 0 && result.status !== 4)) {
+    ensureCommandSuccess(result, `${mode} ${phase}`)
+  }
+  const report = parseBenchmarkReport(`${size}/${mode}/${phase}`, result.stdout)
+  assertReport(report, size, mode)
+  if ((result.status === 0) !== report.within_budget) {
+    throw new Error(`Contradictory CLI budget exit code/report for ${size}/${mode}/${phase}`)
+  }
+  return report
 }
 
 /**
@@ -87,13 +105,10 @@ export function collectWarmScaleEvidence({
       ? ['bench-scan', dir, '--iterations', '3']
       : ['bench-search', dir, 'note', '--iterations', '3']
     const warmup = execute(commandArgs)
-    ensureCommandSuccess(warmup, `${mode} warm-up`)
-    assertReport(parseBenchmarkReport(`${size}/${mode}/warm-up`, warmup.stdout), size, mode)
+    measuredCliReport(warmup, size, mode, 'warm-up')
     const startedAt = now().toISOString()
     const observed = execute(commandArgs)
-    ensureCommandSuccess(observed, `${mode} measurement`)
-    const report = parseBenchmarkReport(`${size}/${mode}/measurement`, observed.stdout)
-    assertReport(report, size, mode)
+    const report = measuredCliReport(observed, size, mode, 'measurement')
     runs.push({
       size, mode, condition: 'warm', replicate,
       runId: `cli-${size}-${mode}-warm-${replicate}`,
@@ -107,6 +122,8 @@ export function collectWarmScaleEvidence({
       kind: 'real-cli-warm-only',
       coldCacheVerified: false, startupMeasured: false, editorMeasured: false,
       residentMemoryMeasured: false, packagedArtifactMeasured: false,
+      overBudgetCases: runs.filter(row => !row.report.within_budget)
+        .map(row => ({ size: row.size, mode: row.mode, replicate: row.replicate })),
       note: 'Two separate measurement processes with explicit warmup; no cold/OS-cache proof or capability acceptance.',
     },
   }
@@ -161,6 +178,9 @@ function main() {
     fs.writeFileSync(output, JSON.stringify(evidence, null, 2) + '\n', { flag: 'wx' })
     const assessment = evaluateScaleEvidence(evidence)
     process.stdout.write(`Measured ${evidence.runs.length} warm CLI scenarios, ${assessment.missing.length} cold/other cases outstanding. Evidence: ${output}\n`)
+    if (evidence.collector.overBudgetCases.length > 0) {
+      throw new Error(`${evidence.collector.overBudgetCases.length} benchmark runs exceeded their CLI performance budget; measured failure evidence was saved`)
+    }
   } finally {
     fs.rmSync(workRoot, { recursive: true, force: true })
   }
