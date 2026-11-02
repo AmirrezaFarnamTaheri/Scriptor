@@ -30,6 +30,8 @@
 
 ### Fixed
 
+- Correct Windows daemon/process liveness checks for an exited child whose exit code is 259 (the Win32 STILL_ACTIVE sentinel), using a zero-timeout handle wait and hosted Windows regression coverage.
+
 - Show guided MCP recipes only for tools actually registered in the current permission-scoped server; withhold active-note recipes when no note is open, guard against late availability changes, and explain empty recipe availability in English, German and Persian.
 
 - Preserve fractional-millisecond scan, FTS5 search and optional Tantivy benchmark samples instead of truncating short operations to false `0 ms` results. Add source-bound hosted native warm measurements on Windows, macOS and Linux; keep cold-cache, startup, editor, memory and packaged acceptance explicitly unverified.
