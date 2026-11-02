@@ -14,6 +14,10 @@ on:
       - 'scripts/benchmarks/bench-large.ps1'
       - 'scripts/benchmarks/collect-scale-smoke.mjs'
       - 'scripts/benchmarks/collect-scale-smoke.test.mjs'
+      - 'scripts/benchmarks/scale-evidence.mjs'
+      - 'scripts/benchmarks/scale-evidence.test.mjs'
+      - 'scripts/benchmarks/cli-precision-contract.test.mjs'
+      - 'crates/cli/src/bench.rs'
       - 'scripts/fixture-import/generate-synthetic-vault.ps1'
   workflow_dispatch:
     inputs:
@@ -99,7 +103,7 @@ jobs:
           if (-not (Test-Path -LiteralPath $cli -PathType Leaf)) { throw 'Release-mode CLI binary missing after benchmark compilation' }
           node scripts/benchmarks/collect-scale-smoke.mjs --cli "$cli" --source-sha "$env:GITHUB_SHA" --size 100 --output artifacts/performance/mat023-warm-cli.json
           if ($LASTEXITCODE -ne 0) { throw "MAT-023 warm CLI measurement failed ($LASTEXITCODE)" }
-          node --test scripts/benchmarks/collect-scale-smoke.test.mjs scripts/benchmarks/scale-evidence.test.mjs
+          node --test scripts/benchmarks/cli-precision-contract.test.mjs scripts/benchmarks/collect-scale-smoke.test.mjs scripts/benchmarks/scale-evidence.test.mjs
           if ($LASTEXITCODE -ne 0) { throw "MAT-023 validator regression failed ($LASTEXITCODE)" }
 
       - name: Upload benchmark report
