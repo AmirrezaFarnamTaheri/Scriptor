@@ -26,16 +26,23 @@ export function reviewResearchProjectManifest(manifest: unknown, observed: unkno
   if (!Array.isArray(manifest.inputs) || manifest.inputs.length === 0 || manifest.inputs.length > 500) throw new Error('Invalid research inputs')
   const entries: { path: string; sha256: string }[] = []
   const used = new Set<string>()
+  const assertDisjointPath = (filename: string): void => {
+    for (const previous of used) {
+      if (previous === filename || previous.startsWith(filename + '/') || filename.startsWith(previous + '/')) {
+        throw new Error('Duplicate or overlapping research manifest paths')
+      }
+    }
+    used.add(filename)
+  }
   for (const row of manifest.inputs) {
     if (!object(row) || !['note', 'bibliography', 'source'].includes(row.kind as string) || !sha(row.sha256)) throw new Error('Invalid research input sha256 or kind')
     const filename = path(row.path)
-    if (used.has(filename)) throw new Error('Duplicate research input path')
-    used.add(filename)
+    assertDisjointPath(filename)
     entries.push({ path: filename, sha256: row.sha256 })
   }
   if (!object(manifest.output) || !text(manifest.output.profile) || !sha(manifest.output.sha256)) throw new Error('Invalid research output sha256 or profile')
   const output = path(manifest.output.path)
-  if (used.has(output)) throw new Error('Duplicate or overlapping research input/output path')
+  assertDisjointPath(output)
   entries.push({ path: output, sha256: manifest.output.sha256 })
   if (!Array.isArray(manifest.tools) || manifest.tools.length > 32) throw new Error('Invalid research tools')
   const names = new Set<string>()
