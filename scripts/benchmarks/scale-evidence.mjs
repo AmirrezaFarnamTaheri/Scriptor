@@ -80,6 +80,9 @@ export function evaluateScaleEvidence(evidence) {
     if (!a) missing.push(size + '/' + mode + '/' + condition + '/1')
     if (!b) missing.push(size + '/' + mode + '/' + condition + '/2')
     if (a && b) {
+      if (Date.parse(a.startedAt) === Date.parse(b.startedAt)) {
+        throw new Error('Independent repeats require distinct UTC run start timestamps for ' + size + '/' + mode + '/' + condition)
+      }
       const smaller = Math.min(a.report.mean_ms, b.report.mean_ms)
       const larger = Math.max(a.report.mean_ms, b.report.mean_ms)
       const mean = (smaller + larger) / 2

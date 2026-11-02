@@ -6,6 +6,9 @@ Issue: [MAT-023 #203](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/20
 
 A schema-v1 JSON measurement envelope identifies the exact 40-hex application commit, host ID/OS/architecture/CPU/memory, and Node/Rust/Cargo toolchain. Every measurement record identifies a 100/1000/5000/25000-note vault; `scan` or `search`; cold or warm; independent run 1 or 2; a distinct run ID; UTC timestamp; per-size SHA-256 fixture identity; counted notes; and native CLI timing samples/mean. Cold runs require an explicitly described `fresh-volume` or `os-cache-purge` operation, while warm runs attest cache priming. This metadata is an auditable assertion by the runner, not cryptographic verification that caches were actually cleared.
 
+
+Two repeats for the same size/mode/cache condition must also record **different UTC run start timestamps**. Merely changing a `runId` cannot make two records from one timestamp count as independent. This is still an internal consistency check, not proof that the OS cache was cleared or that separate benchmark processes actually ran.
+
 `node scripts/benchmarks/verify-scale-evidence.mjs evidence.json` reports every missing case and two-run mean/spread when possible. Exit 0 indicates the **32-case scan/search matrix is present and internally consistent**, not that performance is acceptable. Exit 1 means incomplete; exit 2 indicates invalid evidence. No color or success badge may conflate completeness with benchmark budgets.
 
 The native source commands remain `scripts/benchmarks/bench-large.ps1`, `cargo run --release -p scriptor-cli -- bench-scan`, and `bench-search`; this slice neither executes commands nor changes benchmark thresholds, performance budgets, or cache behavior.
