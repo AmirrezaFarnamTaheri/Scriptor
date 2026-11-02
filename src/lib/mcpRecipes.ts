@@ -5,6 +5,7 @@ export interface McpRecipe {
   toolName: string
   buildInput: (context: { activePath: string | null }) => unknown
   modeHint?: string
+  requiresActiveNote?: boolean
 }
 
 export const MCP_RECIPES: McpRecipe[] = [
@@ -13,6 +14,7 @@ export const MCP_RECIPES: McpRecipe[] = [
     label: 'Outline active note',
     description: 'List headings and structure for the open note.',
     toolName: 'mcp.inspectOutline',
+    requiresActiveNote: true,
     buildInput: ({ activePath }) => ({ path: activePath ?? 'Research Plan.md' }),
   },
   {
@@ -20,6 +22,7 @@ export const MCP_RECIPES: McpRecipe[] = [
     label: 'Backlinks for active note',
     description: 'Show notes linking to the current document.',
     toolName: 'mcp.inspectBacklinks',
+    requiresActiveNote: true,
     buildInput: ({ activePath }) => ({ path: activePath ?? 'Research Plan.md' }),
   },
   {
@@ -34,6 +37,7 @@ export const MCP_RECIPES: McpRecipe[] = [
     label: 'Neighborhood graph',
     description: 'Export a depth-2 graph around the active note.',
     toolName: 'mcp.exportGraph',
+    requiresActiveNote: true,
     buildInput: ({ activePath }) => ({
       focusPath: activePath ?? 'Research Plan.md',
       depth: 2,
@@ -74,6 +78,7 @@ export const MCP_RECIPES: McpRecipe[] = [
     label: 'Export outline check',
     description: 'Validate heading structure on the active note before export.',
     toolName: 'mcp.inspectOutline',
+    requiresActiveNote: true,
     buildInput: ({ activePath }) => ({ path: activePath ?? 'Research Plan.md' }),
     modeHint: 'publish',
   },
@@ -82,7 +87,19 @@ export const MCP_RECIPES: McpRecipe[] = [
     label: 'Backlink repair triage',
     description: 'List inbound links to prioritize repair work on the active note.',
     toolName: 'mcp.inspectBacklinks',
+    requiresActiveNote: true,
     buildInput: ({ activePath }) => ({ path: activePath ?? 'Research Plan.md' }),
     modeHint: 'repair',
   },
 ]
+
+/** Present only recipes whose owning native MCP tools are registered.
+ * An active-note recipe cannot claim to operate on a missing document.
+ * Native MCP permission and vault admission remain authoritative at invoke.
+ */
+export function getAvailableMcpRecipes(toolNames: readonly string[], activePath: string | null): McpRecipe[] {
+  const registered = new Set(toolNames)
+  const hasActiveNote = Boolean(activePath?.trim())
+  return MCP_RECIPES.filter((recipe) => registered.has(recipe.toolName)
+    && (!recipe.requiresActiveNote || hasActiveNote))
+}
