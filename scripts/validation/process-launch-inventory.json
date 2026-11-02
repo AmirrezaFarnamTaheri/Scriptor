@@ -69,6 +69,32 @@
       ]
     },
     {
+      "id": "export-cancel-test-unix-startup-cleanup",
+      "file": "crates/export-runner/src/cancel.rs",
+      "owner": "export-tests",
+      "executableSource": "fixed local Unix kill command for test-only failed-startup cleanup",
+      "argumentPolicy": "-KILL -- negative process-group PID from a test-spawned scoped export",
+      "timeoutCancellation": "one-shot fail-fast cleanup after 5-second fixture initialization deadline",
+      "outputBounds": "captures no output; only test fixture process-tree cleanup",
+      "reviewExpires": "test-only",
+      "negativeTests": [
+        "a missing renderer descendant cannot leave an orphan process group"
+      ]
+    },
+    {
+      "id": "export-cancel-test-unix-postcancel-cleanup",
+      "file": "crates/export-runner/src/cancel.rs",
+      "owner": "export-tests",
+      "executableSource": "fixed local Unix kill command after test cancellation",
+      "argumentPolicy": "-KILL -- negative test-owned process group PID",
+      "timeoutCancellation": "bounded one-shot cleanup after observed cancellation and 250ms heartbeat check",
+      "outputBounds": "captures no output; process group belongs to isolated test fixture",
+      "reviewExpires": "test-only",
+      "negativeTests": [
+        "cancellation regression cleanup does not leave background writer alive"
+      ]
+    },
+    {
       "id": "mermaid-cli-render",
       "file": "crates/export-runner/src/diagram.rs",
       "owner": "export-runtime",
