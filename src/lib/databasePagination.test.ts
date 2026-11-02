@@ -26,3 +26,21 @@ test('a page above the native limit fails closed', () => {
   assert.throws(() => selectDatabasePage(items(202), 200), /limit/)
   assert.throws(() => selectDatabasePage(items(1), 0), /limit/)
 })
+
+test('MAT-009 rejects invalid vault-escaping note paths before native reads', () => {
+  const invalid = [
+    '../outside.md', 'notes/../../secret.md', '/etc/passwd',
+    'C:\\outside.md', 'notes\\bad.md', 'notes//bad.md', 'notes/./bad.md',
+    'notes/..', 'notes/a.md\u0000', 'notes/a.md\nmore',
+  ]
+  for (const path of invalid) {
+    assert.throws(() => selectDatabasePage([{ path, title: 'Candidate' }], 200), /native database page result/, path)
+  }
+  assert.deepEqual(selectDatabasePage([{ path: 'notes/valid page.md', title: 'Valid' }], 200).candidates,
+    [{ path: 'notes/valid page.md', title: 'Valid' }])
+})
+test('MAT-009 rejects malformed or out-of-vault continuation cursor even without hits', () => {
+  for (const cursor of ['../../secret.md', '/etc/passwd', 'C:\\escape.md', 'notes//bad.md', 'notes/./bad.md']) {
+    assert.throws(() => selectDatabasePage([], 200, cursor), /pagination cursor/, cursor)
+  }
+})
