@@ -676,6 +676,22 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
+    fn exited_windows_process_with_still_active_exit_code_is_not_live() {
+        // Win32 exit code 259 aliases STILL_ACTIVE. Keeping the Child handle
+        // prevents PID reuse until after the observation is complete.
+        let mut child = Command::new("cmd")
+            .args(["/C", "exit", "/B", "259"])
+            .spawn()
+            .expect("spawn child with exit code 259");
+        let pid = child.id();
+        let status = child.wait().expect("wait for child");
+        assert_eq!(status.code(), Some(259));
+        assert!(!process_alive(pid), "a completed process is not alive even when exit code is 259");
+        assert!(process_alive(std::process::id()), "the current process must be detected as running");
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn background_process_has_no_console_window() {
         const CHILD_MARKER: &str = "SCRIPTOR_CONSOLE_TEST_CHILD";
         if std::env::var_os(CHILD_MARKER).is_some() {
