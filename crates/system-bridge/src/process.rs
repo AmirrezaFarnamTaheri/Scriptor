@@ -688,7 +688,10 @@ mod tests {
         let pid = child.id();
         let status = child.wait().expect("wait for child");
         assert_eq!(status.code(), Some(259));
-        assert!(!process_alive(pid), "a completed process is not alive even when exit code is 259");
+        assert!(
+            !process_alive(pid),
+            "a completed process is not alive even when exit code is 259"
+        );
         assert!(
             process_alive(std::process::id()),
             "the current process must be detected as running"
