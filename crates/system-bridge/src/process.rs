@@ -31,6 +31,11 @@ pub fn process_alive(pid: u32) -> bool {
 
     #[cfg(unix)]
     {
+        // POSIX kill() interprets negative PIDs as process groups, and -1
+        // matches all permitted processes. Never wrap an unsigned remote PID.
+        if pid > i32::MAX as u32 {
+            return false;
+        }
         unsafe extern "C" {
             fn kill(pid: i32, sig: i32) -> i32;
         }
@@ -661,6 +666,13 @@ fn escape_sandbox_profile_string(value: &OsStr) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn out_of_range_unsigned_pid_is_never_probed_as_a_process_group() {
+        assert!(!process_alive(u32::MAX));
+        assert!(!process_alive(i32::MAX as u32 + 1));
+    }
 
     #[cfg(windows)]
     #[test]
