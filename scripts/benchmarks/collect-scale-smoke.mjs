@@ -1,0 +1,174 @@
+#!/usr/bin/env node
+/**
+ * MAT-023: collect source-bound, real CLI *warm* scan/search measurements.
+ * No OS cache purge or cold-start measurement is performed here. A partial
+ * matrix must NEVER be labeled ready for MAT-023 performance acceptance.
+ */
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { spawnSync } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
+import { hashDirectory, parseBenchmarkReport } from './benchmark-utils.mjs'
+import { evaluateScaleEvidence, SCALE_CASE_SIZES, SCALE_CASE_MODES } from './scale-evidence.mjs'
+
+const NAME_TO_COUNT = { '100': 100, '1k': 1000, '5k': 5000, '25k': 25000 }
+const SIZE_NAMES = Object.keys(NAME_TO_COUNT)
+
+export function parseCollectorSizes(value) {
+  if (value === 'all') return [...SCALE_CASE_SIZES]
+  if (Object.hasOwn(NAME_TO_COUNT, value)) return [NAME_TO_COUNT[value]]
+  throw new Error(`Unsupported benchmark size ${String(value)}; expected all, ${SIZE_NAMES.join(', ')}`)
+}
+
+function runExecutable(executable, args, timeout) {
+  const result = spawnSync(executable, args, {
+    encoding: 'utf8', windowsHide: true, timeout, maxBuffer: 1024 * 1024,
+  })
+  if (result.error) throw new Error(`CLI invocation failed: ${result.error.message}`)
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr }
+}
+
+function ensureCommandSuccess(result, command) {
+  if (!result || result.status !== 0) {
+    throw new Error(`CLI ${command} failed (exit ${result?.status ?? 'unknown'}): ${String(result?.stderr ?? '').slice(0, 400)}`)
+  }
+}
+
+function assertReport(report, size, mode) {
+  if (report.scenario !== (mode === 'scan' ? 'vault-scan' : 'warm-search')) {
+    throw new Error(`Unexpected CLI scenario for ${size}/${mode}`)
+  }
+  if (report.note_count !== size) throw new Error(`Measured note count differs from ${size} for ${mode}`)
+  if (report.within_budget !== true || !Array.isArray(report.samples_ms)
+    || report.samples_ms.length < 3 || !Number.isFinite(report.mean_ms)) {
+    throw new Error(`Missing successful measured samples/budget for ${size}/${mode}`)
+  }
+}
+
+/**
+ * Runs each repeated measurement in a distinct native process on a fresh
+ * generated fixture and invokes a separate warm-up process before recording.
+ * The CLI reports warm search samples after rebuilding the FTS5 index.
+ * Cold cache/first-open/startup/editor/RAM/package metrics are NOT measured.
+ */
+export function collectWarmScaleEvidence({
+  cliPath, sourceCommit, sizes, workRoot, host, toolchain,
+  execute = (args) => runExecutable(cliPath, args, 15 * 60 * 1000),
+  now = () => new Date(),
+}) {
+  if (typeof sourceCommit !== 'string' || !/^[a-f\d]{40}$/i.test(sourceCommit)) {
+    throw new Error('An exact source commit SHA is required')
+  }
+  if (!Array.isArray(sizes) || sizes.length === 0 || new Set(sizes).size !== sizes.length
+    || sizes.some(size => !SCALE_CASE_SIZES.includes(size))) {
+    throw new Error('Unsupported or duplicate benchmark sizes')
+  }
+  if (!fs.existsSync(workRoot) || !fs.statSync(workRoot).isDirectory()) {
+    throw new Error('Benchmark workRoot must exist as an isolated directory')
+  }
+  const runs = []
+  const repeatFixtureHashes = new Map()
+  for (const size of sizes) for (const mode of SCALE_CASE_MODES) for (const replicate of [1, 2]) {
+    const dir = path.join(workRoot, `vault-${size}-${mode}-${replicate}`)
+    if (fs.existsSync(dir)) throw new Error(`Refusing to reuse non-fresh benchmark fixture ${dir}`)
+    const generate = execute(['generate-vault', dir, '--count', String(size), '--prefix', 'notes'])
+    ensureCommandSuccess(generate, 'generate-vault')
+    if (JSON.parse(generate.stdout).note_count !== size) throw new Error('Generated note count mismatch')
+    const fixture = hashDirectory(dir)
+    if (fixture.fileCount !== size) throw new Error(`Synthetic fixture contains ${fixture.fileCount}, not ${size}, files`)
+    const priorHash = repeatFixtureHashes.get(size)
+    if (priorHash !== undefined && priorHash !== fixture.sha256) {
+      throw new Error(`Fixture drift across independently generated ${size}-note runs`)
+    }
+    repeatFixtureHashes.set(size, fixture.sha256)
+    const commandArgs = mode === 'scan'
+      ? ['bench-scan', dir, '--iterations', '3']
+      : ['bench-search', dir, 'note', '--iterations', '3']
+    const warmup = execute(commandArgs)
+    ensureCommandSuccess(warmup, `${mode} warm-up`)
+    assertReport(parseBenchmarkReport(`${size}/${mode}/warm-up`, warmup.stdout), size, mode)
+    const startedAt = now().toISOString()
+    const observed = execute(commandArgs)
+    ensureCommandSuccess(observed, `${mode} measurement`)
+    const report = parseBenchmarkReport(`${size}/${mode}/measurement`, observed.stdout)
+    assertReport(report, size, mode)
+    runs.push({
+      size, mode, condition: 'warm', replicate,
+      runId: `cli-${size}-${mode}-warm-${replicate}`,
+      startedAt, fixtureSha256: fixture.sha256,
+      noteCount: size, warmed: true, report,
+    })
+  }
+  const evidence = {
+    schemaVersion: 1, sourceCommit, host, toolchain, runs,
+    collector: {
+      kind: 'real-cli-warm-only',
+      coldCacheVerified: false, startupMeasured: false, editorMeasured: false,
+      residentMemoryMeasured: false, packagedArtifactMeasured: false,
+      note: 'Two separate measurement processes with explicit warmup; no cold/OS-cache proof or capability acceptance.',
+    },
+  }
+  const assessment = evaluateScaleEvidence(evidence)
+  if (assessment.readyForReview || assessment.missing.length === 0) {
+    throw new Error('Warm-only collector must never produce complete cold/warm MAT-023 evidence')
+  }
+  return evidence
+}
+
+function readVersion(executable) {
+  const result = runExecutable(executable, ['--version'], 15_000)
+  ensureCommandSuccess(result, `${executable} --version`)
+  return result.stdout.trim()
+}
+
+function parseOptions(args) {
+  const values = {}
+  for (let i = 0; i < args.length; i += 2) {
+    if (!args[i]?.startsWith('--') || i + 1 >= args.length) throw new Error('Expected --key value arguments')
+    if (!['--cli', '--source-sha', '--size', '--output'].includes(args[i]) || values[args[i]]) {
+      throw new Error(`Unknown or repeated option ${args[i]}`)
+    }
+    values[args[i]] = args[i + 1]
+  }
+  if (!values['--cli'] || !values['--source-sha'] || !values['--size'] || !values['--output']) {
+    throw new Error('Usage: node collect-scale-smoke.mjs --cli <binary> --source-sha <40-hex> --size all|100|1k|5k|25k --output <json>')
+  }
+  return values
+}
+
+function main() {
+  const opts = parseOptions(process.argv.slice(2))
+  const cliPath = path.resolve(opts['--cli'])
+  if (!fs.statSync(cliPath).isFile()) throw new Error('Compiled CLI binary not found')
+  const workRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-warm-scale-'))
+  try {
+    const host = {
+      id: process.env.RUNNER_NAME || os.hostname(),
+      os: os.platform(), arch: os.arch(), cpu: os.cpus()[0]?.model || 'unknown CPU',
+      memoryMb: Math.round(os.totalmem() / 1024 / 1024),
+    }
+    const toolchain = { node: process.version, rustc: readVersion('rustc'), cargo: readVersion('cargo') }
+    const evidence = collectWarmScaleEvidence({
+      cliPath, sourceCommit: opts['--source-sha'],
+      sizes: parseCollectorSizes(opts['--size']), workRoot, host, toolchain,
+    })
+    const binarySha256 = crypto.createHash('sha256').update(fs.readFileSync(cliPath)).digest('hex')
+    evidence.collector.cliSha256 = binarySha256
+    const output = path.resolve(opts['--output'])
+    fs.mkdirSync(path.dirname(output), { recursive: true })
+    fs.writeFileSync(output, JSON.stringify(evidence, null, 2) + '\n', { flag: 'wx' })
+    const assessment = evaluateScaleEvidence(evidence)
+    process.stdout.write(`Measured ${evidence.runs.length} warm CLI scenarios, ${assessment.missing.length} cold/other cases outstanding. Evidence: ${output}\n`)
+  } finally {
+    fs.rmSync(workRoot, { recursive: true, force: true })
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  try { main() } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exitCode = 1
+  }
+}
