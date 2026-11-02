@@ -325,3 +325,64 @@ test('MAT-002: lost native delete reply blocks same-backup retry but not another
     (window as Window & { __backupDeleteCalls?: number }).__backupDeleteCalls ?? 0,
   )).toBe(1)
 })
+
+test('MAT-002: lost retention-delete reply disables blind pruning after a later backup', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.evaluate(() => {
+    const host = window as Window & {
+      __TAURI_INTERNALS__?: NativeBridge
+      __mat002Retention?: { created: number; deleted: number }
+    }
+    const bridge = host.__TAURI_INTERNALS__
+    if (!bridge) throw new Error('Native fixture bridge unavailable')
+    const original = bridge.invoke.bind(bridge)
+    const state = { created: 0, deleted: 0 }
+    host.__mat002Retention = state
+    const newest = 'vault-backup-abcdef123456-20261103-120000-123'
+    const older = 'vault-backup-abcdef123456-20261102-120000-123'
+    const entry = (name: string) => ({
+      name, path: name, created_at: '2026-11-03T12:00:00Z',
+      size_bytes: 512, storage_kind: 'external_backup', verified: true,
+    })
+    bridge.invoke = (command, args) => {
+      if (command === 'authorize_sensitive_operation' &&
+        (args?.operation === 'create_backup' || args?.operation === 'delete_backup')) {
+        return Promise.resolve({ token: 'fixture-retention-approval', operation: args?.operation,
+          scope: args?.scope, expiresAtMs: Date.now() + 30000 })
+      }
+      if (command === 'vault_list_backups' && args?.backupPath === 'C:/RetentionNoReply') {
+        return Promise.resolve([entry(newest), entry(older)])
+      }
+      if (command === 'vault_create_backup') {
+        state.created += 1
+        return Promise.resolve(entry(newest))
+      }
+      if (command === 'vault_delete_backup') {
+        state.deleted += 1
+        return Promise.reject(new Error('native delete response lost after durable removal'))
+      }
+      return original(command, args)
+    }
+  })
+
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  const backup = settings.locator('[data-help-topic="backups"]')
+  const options = settings.locator('details.backup-options')
+  if (await options.getAttribute('open') === null) await options.locator('summary').click()
+  await settings.getByRole('spinbutton', { name: 'Recovery copies to keep' }).fill('1')
+  await settings.getByRole('textbox', { name: /Backup folder outside this vault/ }).fill('C:/RetentionNoReply')
+  await expect(backup.getByRole('button', { name: 'Back up now' })).toBeEnabled()
+  const counts = () => page.evaluate(() =>
+    (window as Window & { __mat002Retention?: { created: number; deleted: number } }).__mat002Retention)
+  await backup.getByRole('button', { name: 'Back up now' }).click()
+  await expect.poll(counts).toEqual({ created: 1, deleted: 1 })
+  await expect(backup.getByRole('alert').filter({ hasText: /retention.*unconfirmed|unconfirmed.*retention/i })).toBeVisible()
+  await expect(backup.getByRole('button', { name: 'Delete backup vault-backup-abcdef123456-20261102-120000-123' })).toBeDisabled()
+
+  // Native has not confirmed the effect. A second backup is allowed, but
+  // automatic retention must NOT repeat the same uncertain deletion.
+  await backup.getByRole('button', { name: 'Back up now' }).click()
+  await expect.poll(counts).toEqual({ created: 2, deleted: 1 })
+})
