@@ -52,3 +52,16 @@ test('an orphan owned remote without a matching local title can be completed as 
     { tasks: [{ id: 'new-task', text: 'Write report' }] },
   ], [{ title: 'Buy milk', notes: 'Scriptor source: vault:vault-a:old-task' }]))
 })
+
+
+test('MAT-016: a case-only task rename after moving notes cannot silently orphan and recreate a provider task', () => {
+  assert.throws(() => assertNoAmbiguousTaskRebindings('vault-a', [
+    { tasks: [{ id: 'moved-new-id', text: 'BUY MILK' }] },
+  ], [{ title: 'Buy milk', notes: 'Scriptor source: vault:vault-a:old-id' }]), /review|ambiguous/i)
+})
+
+test('MAT-016: canonically equivalent Unicode task title after a note move requires review', () => {
+  assert.throws(() => assertNoAmbiguousTaskRebindings('vault-a', [
+    { tasks: [{ id: 'moved-new-id', text: 'Cafe\u0301' }] },
+  ], [{ title: 'Caf\u00e9', notes: 'Scriptor source: vault:vault-a:old-id' }]), /review|ambiguous/i)
+})
