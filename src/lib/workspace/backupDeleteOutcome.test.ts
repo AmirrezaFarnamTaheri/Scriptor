@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { observeBackupDelete, isBackupDeleteHeld, backupDeleteKey } from './backupDeleteOutcome.ts'
+import { observeBackupDelete, isBackupDeleteHeld, backupDeleteKey, hasUnconfirmedBackupDeleteInDestination } from './backupDeleteOutcome.ts'
 
 const scope = {
   operationId: 'delete-1',
@@ -69,4 +69,13 @@ test('MAT-002: unresolved deletion holds only its originating vault, destination
   assert.equal(isBackupDeleteHeld([key], { ...scope, backupPath: '/other' }), false)
   assert.equal(isBackupDeleteHeld([key], { ...scope, backupName: 'other' }), false)
   assert.equal(isBackupDeleteHeld([], scope), false)
+})
+
+test('MAT-002: uncertain retention deletion pauses automatic pruning only in originating vault and folder', () => {
+  const current = backupDeleteKey(scope)
+  assert.equal(hasUnconfirmedBackupDeleteInDestination([current], { vaultId: 'vault-a', backupPath: '/trusted-backup' }), true)
+  assert.equal(hasUnconfirmedBackupDeleteInDestination([current], { vaultId: 'vault-b', backupPath: '/trusted-backup' }), false)
+  assert.equal(hasUnconfirmedBackupDeleteInDestination([current], { vaultId: 'vault-a', backupPath: '/other' }), false)
+  assert.equal(hasUnconfirmedBackupDeleteInDestination([], { vaultId: 'vault-a', backupPath: '/trusted-backup' }), false)
+  assert.equal(hasUnconfirmedBackupDeleteInDestination(['not-json'], { vaultId: 'vault-a', backupPath: '/trusted-backup' }), false)
 })
