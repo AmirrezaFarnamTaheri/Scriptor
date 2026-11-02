@@ -27,6 +27,24 @@ export function isBackupDeleteHeld(
   return false
 }
 
+/** Prevent automatic retention from pruning while an earlier deletion in
+ * this exact vault/destination has an indeterminate native result.
+ * JSON array framing avoids collision between embedded path/name characters.
+ */
+export function hasUnconfirmedBackupDeleteInDestination(
+  keys: Iterable<string>,
+  scope: Pick<BackupDeleteScope, 'vaultId' | 'backupPath'>,
+): boolean {
+  if (!scope.vaultId.trim() || typeof scope.backupPath !== 'string') {
+    throw new Error('Invalid backup deletion origin')
+  }
+  const prefix = `${JSON.stringify([scope.vaultId, scope.backupPath]).slice(0, -1)},`
+  for (const key of keys) {
+    if (key.startsWith(prefix)) return true
+  }
+  return false
+}
+
 /**
  * Observe the existing native deletion authority. The callback is invoked by
  * the bridge immediately after authorization, immediately before native invoke.
