@@ -151,6 +151,21 @@ test('a moved task with matching title must not silently create and complete dif
   assert.match(h.render().error ?? '', /move|rename|ambiguous|review/i)
 })
 
+test('MAT-016 case-only and Unicode-equivalent note moves cannot submit a provider batch', async () => {
+  for (const [remoteTitle, localTitle] of [
+    ['Buy milk', 'BUY MILK'],
+    ['Café', 'Cafe\u0301'],
+  ]) {
+    const h = harness([task('own', remoteTitle, scoped('vault-a', 'old-task-id'))], local('task-a', localTitle))
+    await h.render().refresh()
+    const result = await h.render().syncVaultTasks()
+    assert.equal(h.batches.length, 0, 'moved/reformatted identity needs review before provider writes')
+    assert.equal(result.created, 0)
+    assert.equal(result.updated, 0)
+    assert.match(h.render().error ?? '', /move|rename|ambiguous|review/i)
+  }
+})
+
 test('mirroring requires the active vault identity even for an empty task set', async () => {
   const h = harness([task('remote', 'Task', 'Scriptor source: task')])
   h.options.vaultId = null

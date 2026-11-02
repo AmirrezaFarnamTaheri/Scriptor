@@ -24,11 +24,16 @@
 
 - Do not classify a native `recovery-required` restore as a completed commit in operation receipts. Distinguish an unreconciled journal from a durable `committed-needs-reopen` result, and refuse impossible post-commit refresh evidence before it can generate a false completion claim.
 
+- Reject unrecognized restore-operation receipt evidence variants instead of silently returning no receipt, so a malformed proof cannot disappear from the renderer's observed mutation record.
+
 - Introduce read-only, vault-scoped restore operation receipts with explicit native confirmation, uncertain effects, retry safety and reopen requirements; retain unknown paths and revisions as unknown rather than inventing native evidence. The receipts are an internal foundation for future recovery UI, not an expanded restore authority.
 
 ### Fixed
 
 - Show guided MCP recipes only for tools actually registered in the current permission-scoped server; withhold active-note recipes when no note is open, guard against late availability changes, and explain empty recipe availability in English, German and Persian.
+
+- Preserve fractional-millisecond scan, FTS5 search and optional Tantivy benchmark samples instead of truncating short operations to false `0 ms` results. Add source-bound hosted native warm measurements on Windows, macOS and Linux; keep cold-cache, startup, editor, memory and packaged acceptance explicitly unverified.
+
 
 - Reject benchmark evidence repetitions that share the same UTC start instant despite distinct IDs or equivalent timestamp precision, rather than incorrectly counting them as independent runs.
 
@@ -63,6 +68,8 @@
 - Prevent duplicate Obsidian import submissions before React rerenders; late import responses from closed dialogs no longer update another workspace, while an explicit retry remains available after failure.
 
 - Fail closed before Google Tasks mirroring when local identities, provider record IDs, current-vault markers or migratable legacy markers are duplicated or ambiguous. Reject malformed owners, multiple local tasks on one remote record and provider tasks claimed by different vaults before approving any create/update/completion; display a review-required explanation instead of guessing ownership.
+
+- Require review when an orphaned same-vault Google Task has a case-only or canonically equivalent Unicode title after a note move/rename, rather than silently completing the old provider task and creating a new one.
 
 - In Database Studio, invalidate rows, totals and edit authority when the query, filters, columns or vault change, and ignore late prior-scope queries; presentation-only layout and view-name changes preserve loaded results.
 

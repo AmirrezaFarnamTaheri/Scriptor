@@ -61,7 +61,10 @@ export function assertNoAmbiguousTaskRebindings(
   const staleOwnedTitles = new Set<string>()
   const scopedPrefix = 'Scriptor source: vault:' + encodeURIComponent(vaultId) + ':'
   const legacyPrefix = 'Scriptor source: '
-  const normalize = (text: string) => text.trim().replace(/\s+/gu, ' ')
+  // A stale source marker is review-only evidence, not a key lookup. Case or
+  // Unicode-normalization changes after a move must not silently create and
+  // complete different provider tasks for the same human-readable title.
+  const normalize = (text: string) => text.trim().replace(/\s+/gu, ' ').toLowerCase().normalize('NFC')
   for (const remote of remotes) {
     let staleOwned = false
     for (const marker of (remote.notes ?? '').split('\n')) {

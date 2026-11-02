@@ -87,3 +87,9 @@ test('post-commit workspace refresh failure retains committed proof but demands 
   assert.equal(receipt.recovery, 'reopen-vault')
   assert.equal(receipt.affectedPaths, null)
 })
+
+
+test('MAT-002: an unknown restore receipt evidence variant must fail closed instead of returning no receipt', () => {
+  const unknown = { kind: 'invalid-native-proof' } as unknown as Parameters<typeof buildRestoreOperationReceipt>[0]['outcome']
+  assert.throws(() => buildRestoreOperationReceipt({ ...input, outcome: unknown }), /unsupported|invalid|unknown/i)
+})

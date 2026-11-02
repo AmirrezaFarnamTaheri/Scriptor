@@ -2,7 +2,7 @@
 
 use std::fs;
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use scriptor_indexer::{open_cache_for_session, rebuild_index, search_notes};
 #[cfg(feature = "tantivy")]
@@ -26,11 +26,11 @@ pub(crate) struct BenchScanReport {
     iterations: u32,
     note_count: u32,
     mean_ms: f64,
-    samples_ms: Vec<u64>,
-    min_ms: u64,
-    p50_ms: u64,
-    p95_ms: u64,
-    max_ms: u64,
+    samples_ms: Vec<f64>,
+    min_ms: f64,
+    p50_ms: f64,
+    p95_ms: f64,
+    max_ms: f64,
     budget_ms: u128,
     pub(crate) within_budget: bool,
 }
@@ -44,11 +44,11 @@ pub(crate) struct BenchSearchReport {
     note_count: u32,
     hit_count: u32,
     mean_ms: f64,
-    samples_ms: Vec<u64>,
-    min_ms: u64,
-    p50_ms: u64,
-    p95_ms: u64,
-    max_ms: u64,
+    samples_ms: Vec<f64>,
+    min_ms: f64,
+    p50_ms: f64,
+    p95_ms: f64,
+    max_ms: f64,
     budget_ms: u128,
     pub(crate) within_budget: bool,
 }
@@ -67,7 +67,7 @@ pub(crate) fn bench_scan(
     for _ in 0..iterations {
         let started = Instant::now();
         let entries = scan_vault(&session.root)?;
-        samples.push(started.elapsed().as_millis() as u64);
+        samples.push(high_precision_ms(started.elapsed()));
         note_count = entries
             .iter()
             .filter(|entry| entry.kind == ScannedEntryKind::Note)
@@ -114,7 +114,7 @@ pub(crate) fn bench_search(
     for _ in 0..iterations {
         let started = Instant::now();
         let hits = search_notes(&cache, &session.descriptor.id, query, 25)?;
-        samples.push(started.elapsed().as_millis() as u64);
+        samples.push(high_precision_ms(started.elapsed()));
         hit_count = hits.len() as u32;
     }
 
@@ -150,13 +150,13 @@ pub(crate) struct BenchTantivyReport {
     iterations: u32,
     note_count: u32,
     hit_count: u32,
-    index_build_ms: u64,
+    index_build_ms: f64,
     mean_ms: f64,
-    samples_ms: Vec<u64>,
-    min_ms: u64,
-    p50_ms: u64,
-    p95_ms: u64,
-    max_ms: u64,
+    samples_ms: Vec<f64>,
+    min_ms: f64,
+    p50_ms: f64,
+    p95_ms: f64,
+    max_ms: f64,
     budget_ms: u128,
     pub(crate) within_budget: bool,
 }
@@ -197,14 +197,14 @@ pub(crate) fn bench_tantivy(
         index.stage_note(&entry.path, &title, &markdown)?;
     }
     index.commit_batch()?;
-    let index_build_ms = build_started.elapsed().as_millis() as u64;
+    let index_build_ms = high_precision_ms(build_started.elapsed());
 
     let mut samples = Vec::with_capacity(iterations as usize);
     let mut hit_count = 0u32;
     for _ in 0..iterations {
         let started = Instant::now();
         let hits = index.search(query, 25)?;
-        samples.push(started.elapsed().as_millis() as u64);
+        samples.push(high_precision_ms(started.elapsed()));
         hit_count = hits.len() as u32;
     }
     let _ = fs::remove_dir_all(&index_dir);
@@ -229,28 +229,34 @@ pub(crate) fn bench_tantivy(
     })
 }
 
-struct SampleSummary {
-    mean_ms: f64,
-    min_ms: u64,
-    p50_ms: u64,
-    p95_ms: u64,
-    max_ms: u64,
+// Capture submillisecond operations without truncating real elapsed time to zero.
+// Retain the report field names and millisecond units for existing consumers.
+fn high_precision_ms(elapsed: Duration) -> f64 {
+    elapsed.as_secs_f64() * 1_000.0
 }
 
-fn summarize_samples(samples: &[u64]) -> SampleSummary {
+struct SampleSummary {
+    mean_ms: f64,
+    min_ms: f64,
+    p50_ms: f64,
+    p95_ms: f64,
+    max_ms: f64,
+}
+
+fn summarize_samples(samples: &[f64]) -> SampleSummary {
     let mut sorted = samples.to_vec();
-    sorted.sort_unstable();
-    let sum: u64 = sorted.iter().sum();
+    sorted.sort_by(f64::total_cmp);
+    let sum: f64 = sorted.iter().sum();
     SampleSummary {
-        mean_ms: sum as f64 / sorted.len() as f64,
+        mean_ms: sum / sorted.len() as f64,
         min_ms: sorted[0],
         p50_ms: percentile(&sorted, 0.50),
         p95_ms: percentile(&sorted, 0.95),
-        max_ms: *sorted.last().unwrap_or(&0),
+        max_ms: *sorted.last().unwrap_or(&0.0),
     }
 }
 
-fn percentile(sorted: &[u64], percentile: f64) -> u64 {
+fn percentile(sorted: &[f64], percentile: f64) -> f64 {
     let index = ((sorted.len() as f64 * percentile).ceil() as usize).saturating_sub(1);
     sorted[index.min(sorted.len() - 1)]
 }
@@ -323,16 +329,31 @@ mod tests {
 
     #[test]
     fn sample_summary_reports_tail_latency() {
-        let summary = summarize_samples(&[30, 10, 20, 40]);
+        let summary = summarize_samples(&[30.0, 10.0, 20.0, 40.0]);
         assert_eq!(summary.mean_ms, 25.0);
-        assert_eq!(summary.min_ms, 10);
-        assert_eq!(summary.p50_ms, 20);
-        assert_eq!(summary.p95_ms, 40);
-        assert_eq!(summary.max_ms, 40);
+        assert_eq!(summary.min_ms, 10.0);
+        assert_eq!(summary.p50_ms, 20.0);
+        assert_eq!(summary.p95_ms, 40.0);
+        assert_eq!(summary.max_ms, 40.0);
+    }
+
+    #[test]
+    fn measured_durations_keep_microsecond_precision() {
+        use super::high_precision_ms;
+        use std::time::Duration;
+
+        let submillisecond = high_precision_ms(Duration::from_micros(125));
+        assert!((submillisecond - 0.125).abs() < 0.000_001);
+        let summary = summarize_samples(&[0.125, 0.250, 0.375]);
+        assert!((summary.mean_ms - 0.250).abs() < 0.000_001);
+        assert_eq!(summary.min_ms, 0.125);
+        assert_eq!(summary.p50_ms, 0.250);
+        assert_eq!(summary.p95_ms, 0.375);
+        assert_eq!(summary.max_ms, 0.375);
     }
 
     #[test]
     fn percentile_uses_nearest_rank() {
-        assert_eq!(percentile(&[1, 2, 3, 4, 5], 0.95), 5);
+        assert_eq!(percentile(&[1.0, 2.0, 3.0, 4.0, 5.0], 0.95), 5.0);
     }
 }
