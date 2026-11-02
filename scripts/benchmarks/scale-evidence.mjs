@@ -66,7 +66,9 @@ export function evaluateScaleEvidence(evidence) {
     }
     const mean = samples.reduce((sum, value) => sum + value, 0) / samples.length
     if (!finite(row.report.mean_ms) || row.report.mean_ms <= 0
-      || Math.abs(mean - row.report.mean_ms) > Math.max(0.5, mean * 0.01)) {
+      || // Precision-aware consistency: the previous 0.5 ms absolute allowance
+      // could validate a mean hundreds of times larger than sub-ms samples.
+      Math.abs(mean - row.report.mean_ms) > Math.max(0.000001, mean * 0.01)) {
       throw new Error('Reported mean inconsistent with samples for ' + caseKey)
     }
     byCase.set(caseKey, row)
