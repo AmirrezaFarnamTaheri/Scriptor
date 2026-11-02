@@ -24,3 +24,13 @@ test('invalid or overcounted evidence is rejected', () => {
   assert.throws(() => check({ candidatesReported: 3, candidatesExamined: 4, loaded: 4, skipped: 0, sourceCoverage: 'unverified' }))
   assert.throws(() => check({ candidatesReported: 3, candidatesExamined: 3, loaded: 4, skipped: 0, sourceCoverage: 'unverified' }))
 })
+
+test('MAT-009: an unrecognized native coverage status cannot certify an exact full-vault query', () => {
+  const input = { candidatesReported: 4, candidatesExamined: 4, loaded: 4, skipped: 0 }
+  for (const untrusted of ['verified', 'future-status', null, undefined]) {
+    const result = check({ ...input, sourceCoverage: untrusted as never })
+    assert.equal(result.completeness, 'unverified')
+    assert.equal(result.exactMatchCount, null)
+    assert.equal(result.aggregatesComplete, false)
+  }
+})
