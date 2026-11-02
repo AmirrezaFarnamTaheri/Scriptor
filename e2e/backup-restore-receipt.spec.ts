@@ -311,7 +311,7 @@ test('MAT-002: lost native delete reply blocks same-backup retry but not another
     .getByRole('button', { name: 'Delete backup', exact: true }).click()
   await expect(backup.getByRole('status')).toContainText('indeterminate')
   await expect(deletion).toBeDisabled()
-  await expect(backup.getByRole('alert')).toContainText('same-session retry is blocked')
+  await expect(backup.locator('#vault-backup-list .backup-entry').getByRole('alert')).toContainText('same-session retry is blocked')
   await expect.poll(() => page.evaluate(() =>
     (window as Window & { __backupDeleteCalls?: number }).__backupDeleteCalls ?? 0,
   )).toBe(1)
