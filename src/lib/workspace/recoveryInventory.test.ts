@@ -109,3 +109,35 @@ test('MAT-003: a selected-note external mismatch must be labelled as partial, re
   assert.equal(otherVault?.status, 'unverified')
   assert.equal(otherVault?.count, null)
 })
+
+test('MAT-003: malformed matching restore receipt is never presented as a successful recovery', () => {
+  const invalid = {
+    operationId: 'op', operationIdOrigin: 'renderer' as const, vaultId: 'v-a',
+    operation: 'restore-backup' as const, target: 'snapshot', backupPath: '/backup',
+    affectedPaths: null, expectedRevision: null, actualRevision: null,
+    nativeStatus: 'unknown-untrusted-status' as never, proof: 'native-status' as const,
+    effect: 'committed' as const, retry: 'do-not-retry' as const, recovery: 'none' as const,
+  }
+  const entries = buildRecoveryInventory({ ...input, lastRestoreReceipt: invalid })
+  const row = entries.find(item => item.source === 'last-restore')
+  assert.equal(row?.status, 'needs-reopen')
+  assert.equal(row?.count, null)
+  assert.equal(row?.route, null)
+  assert.equal(row?.readOnly, true)
+  assert.match(row?.explanation ?? '', /unverified|invalid|unconfirmed/i)
+  assert.match(row?.explanation ?? '', /reopen|restart/i)
+  assert.doesNotMatch(row?.explanation ?? '', /confirmed-committed/i)
+  const unrelated = buildRecoveryInventory({ ...input, lastRestoreReceipt: { ...invalid, vaultId: 'other' } })
+  assert.equal(unrelated.some(row => row.source === 'last-restore'), false,
+    'a foreign-vault corrupt receipt must never be shown under the current vault')
+})
+
+test('MAT-003: structurally corrupt restore evidence never crashes the read-only recovery overview', () => {
+  const invalid = {
+    vaultId: 'v-a', backupPath: '/backup', operationId: null,
+    proof: 'unexpected-proof', nativeStatus: null,
+  } as never
+  const entries = buildRecoveryInventory({ ...input, lastRestoreReceipt: invalid })
+  assert.equal(entries.length, 6)
+  assert.equal(entries.find(item => item.source === 'last-restore')?.status, 'needs-reopen')
+})

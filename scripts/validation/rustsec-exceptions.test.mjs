@@ -78,3 +78,17 @@ test('active RustSec exceptions remain owned, current and present in the pinned 
   })
   assert.deepEqual(current.failures, [])
 })
+
+test('RUSTSEC-2026-0433: the locked Markdown parser must be patched without advisory suppression', () => {
+  const root = new URL('../../', import.meta.url)
+  const lock = readFileSync(new URL('Cargo.lock', root), 'utf8')
+  const deny = readFileSync(new URL('deny.toml', root), 'utf8')
+  const parser = lock.match(/\[\[package\]\]\s*name = "pulldown-cmark"\s*version = "(\d+)\.(\d+)\.(\d+)"/)
+  assert.ok(parser, 'pulldown-cmark package must be present in Cargo.lock')
+  const version = parser.slice(1).map(Number)
+  assert.ok(
+    version[0] > 0 || (version[0] === 0 && (version[1] > 13 || (version[1] === 13 && version[2] >= 6))),
+    'pulldown-cmark must remain at or above patched 0.13.6 for nested image wikilinks',
+  )
+  assert.doesNotMatch(deny, /RUSTSEC-2026-0433/, 'a vulnerability is not a maintenance exception')
+})
