@@ -24,6 +24,8 @@
 
 - Do not classify a native `recovery-required` restore as a completed commit in operation receipts. Distinguish an unreconciled journal from a durable `committed-needs-reopen` result, and refuse impossible post-commit refresh evidence before it can generate a false completion claim.
 
+- Reject unrecognized restore-operation receipt evidence variants instead of silently returning no receipt, so a malformed proof cannot disappear from the renderer's observed mutation record.
+
 - Introduce read-only, vault-scoped restore operation receipts with explicit native confirmation, uncertain effects, retry safety and reopen requirements; retain unknown paths and revisions as unknown rather than inventing native evidence. The receipts are an internal foundation for future recovery UI, not an expanded restore authority.
 
 ### Fixed
