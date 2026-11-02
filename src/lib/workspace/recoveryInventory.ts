@@ -92,13 +92,24 @@ export function buildRecoveryInventory(input: RecoveryInventoryInput): readonly 
   const entries: RecoveryEntry[] = [backups, history]
   const receipt = input.lastRestoreReceipt
   if (receipt && receipt.vaultId === id && receipt.backupPath === input.backupPath) {
-    const outcome = outcomeFromRestoreReceipt(receipt)
-    entries.push({
-      source: 'last-restore',
-      status: outcome.recovery === 'reopen-vault' ? 'needs-reopen' : 'available',
-      count: null, route: null, readOnly: true,
-      explanation: `Last observed restore: ${outcome.commit}; ${outcome.retry}. The native journal has not been re-read.`,
-    })
+    try {
+      const outcome = outcomeFromRestoreReceipt(receipt)
+      entries.push({
+        source: 'last-restore',
+        status: outcome.recovery === 'reopen-vault' ? 'needs-reopen' : 'available',
+        count: null, route: null, readOnly: true,
+        explanation: `Last observed restore: ${outcome.commit}; ${outcome.retry}. The native journal has not been re-read.`,
+      })
+    } catch {
+      // This renderer-observed envelope is not native recovery proof. A
+      // corrupted current-vault receipt must not crash the inventory or be
+      // mistaken for a confirmed rollback/safe retry.
+      entries.push({
+        source: 'last-restore', status: 'needs-reopen',
+        count: null, route: null, readOnly: true,
+        explanation: 'Last restore receipt is invalid or unverified. Native effects may have committed. Restart and reopen the originating vault to reconcile before retrying; no rollback has been established.',
+      })
+    }
   }
   entries.push(sourceEntry('canvas', id, input.canvas))
   const git = sourceEntry('git-conflicts', id, input.gitConflicts)

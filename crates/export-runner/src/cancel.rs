@@ -4,6 +4,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::error::ExportError;
+use scriptor_system_bridge::terminate_process_tree;
 
 /// Locks `mutex`, recovering the inner guard if a previous holder panicked.
 ///
@@ -32,7 +33,7 @@ pub fn cancel_active_export(slot: &ExportCancelSlot) -> Option<String> {
     let job_id = running.job_id.clone();
     let mut child = running.child;
     drop(guard);
-    let _ = child.kill();
+    terminate_process_tree(&mut child);
     let _ = child.wait();
     Some(job_id)
 }
@@ -58,7 +59,7 @@ pub fn wait_for_child_with_timeout(
         let mut guard = lock_recover(slot);
         if let Some(previous) = guard.take() {
             let mut previous_child = previous.child;
-            let _ = previous_child.kill();
+            terminate_process_tree(&mut previous_child);
             let _ = previous_child.wait();
         }
         *guard = Some(RunningExport {
@@ -104,7 +105,7 @@ pub fn wait_for_child_with_timeout(
                         }
                     };
                     if let Some(running) = running.as_mut() {
-                        let _ = running.child.kill();
+                        terminate_process_tree(&mut running.child);
                         let _ = running.child.wait();
                     }
                     return Err(ExportError::Process(format!(
@@ -176,6 +177,64 @@ mod tests {
             .stderr(Stdio::null())
             .spawn()
             .ok()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn cancelling_export_terminates_descendants_and_stops_their_output() {
+        use scriptor_system_bridge::{ProcessSpec, spawn_process};
+        let directory = tempfile::tempdir().expect("isolated export cancellation fixture");
+        let heartbeat = directory.path().join("descendant-heartbeat");
+        let descendant_pid = directory.path().join("descendant-pid");
+        let script = r#"sh -c 'while :; do printf x >> "$SCRIPTOR_EXPORT_HEARTBEAT"; sleep 0.05; done' & echo $! > "$SCRIPTOR_EXPORT_DESCENDANT_PID"; wait"#;
+        let spawned = spawn_process(
+            &ProcessSpec::new("sh")
+                .args(["-c", script])
+                .env("SCRIPTOR_EXPORT_HEARTBEAT", heartbeat.as_os_str())
+                .env("SCRIPTOR_EXPORT_DESCENDANT_PID", descendant_pid.as_os_str()),
+        )
+        .expect("spawn group-scoped export process");
+        let group_id = spawned.child.id();
+        let slot = new_cancel_slot();
+        *lock_recover(&slot) = Some(RunningExport {
+            job_id: "descendant-cancel".into(),
+            child: spawned.child,
+        });
+
+        let started = Instant::now();
+        while started.elapsed() < Duration::from_secs(5) {
+            if descendant_pid.exists()
+                && std::fs::metadata(&heartbeat).is_ok_and(|metadata| metadata.len() > 0)
+            {
+                break;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        if !descendant_pid.exists() || !heartbeat.exists() {
+            let _ = cancel_active_export(&slot);
+            // PROCESS_BROKER_EXCEPTION(export-cancel-test-unix-startup-cleanup)
+            let _ = Command::new("kill")
+                .args(["-KILL", "--", &format!("-{group_id}")])
+                .output();
+            panic!("descendant never started");
+        }
+        assert_eq!(
+            cancel_active_export(&slot).as_deref(),
+            Some("descendant-cancel")
+        );
+        let stopped_bytes = std::fs::metadata(&heartbeat).expect("heartbeat").len();
+        thread::sleep(Duration::from_millis(250));
+        let final_bytes = std::fs::metadata(&heartbeat).expect("heartbeat").len();
+        // An intentionally failing RED regression must not leave its orphaned
+        // descendant writing forever on a hosted CI runner.
+        // PROCESS_BROKER_EXCEPTION(export-cancel-test-unix-postcancel-cleanup)
+        let _ = Command::new("kill")
+            .args(["-KILL", "--", &format!("-{group_id}")])
+            .output();
+        assert_eq!(
+            stopped_bytes, final_bytes,
+            "cancelled export left a background compiler child writing outside the broker lifecycle",
+        );
     }
 
     #[test]
