@@ -2,7 +2,7 @@
 
 Historical baseline: 2026-10-30. **Current completion policy (2026-11-02):** [automated MAT acceptance](../../docs/MAT-AUTOMATED-ACCEPTANCE.md). Prior physical-install/human criteria are historical, not new closure gates. This register separates **source changes**, **hosted CI**, and **automated integration/artifact acceptance**. It does not repeat the implementation specification: each [MAT issue](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues) is authoritative for scope and required regression cases.
 
-**No feature in this register is marked graduated.** Results listed are historical, exact-source evidence; do not reuse a pass for a newer commit. Record every new accepted case with the exact SHA, runner/OS/architecture, test name, result, URL, and the remaining gap. An authored test without an observed failure is not failing-first proof. A rejected/missing native reply is not proof of rollback. The installed process/device and consented external-provider gates cannot be satisfied by browser mocks.
+**No feature in this register is marked graduated.** Results listed are historical, exact-source evidence; do not reuse a pass for a newer commit. Record every new accepted case with the exact SHA, runner/OS/architecture, test name, result, URL, and the remaining gap. An authored test without an observed failure is not failing-first proof. A rejected/missing native reply is not proof of rollback. Physical-device installation, live-provider accounts, and independent human sign-off are **not** MAT closure gates. Automated hosted/virtual native-process execution and deterministic provider-contract evidence are mandatory where applicable; mocked interfaces do not prove real-service compatibility.
 
 ## MAT-006 · [issue #185](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/185)
 
@@ -50,7 +50,7 @@ Historical baseline: 2026-10-30. **Current completion policy (2026-11-02):** [au
 
 - **Evidence present:** No dedicated implementation PR verified.
 - **Required acceptance assertions:** One complete capture→review→bibliography→literature note→citation→publish journey, missing tool, cancellation, dirty editor.
-- **Outstanding evidence:** Real task-based UI/RTL/keyboard and publishing artifact evidence; separate provider permissions.
+- **Outstanding evidence:** Automated task-journey UI/RTL/keyboard and source-bound publishing artifact evidence; separate provider permissions.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-013 · [issue #193](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/193)
@@ -78,7 +78,7 @@ Historical baseline: 2026-10-30. **Current completion policy (2026-11-02):** [au
 
 - **Evidence present:** #230 head a78322b had hosted CI 40905927612 pass; not integrated or accepted.
 - **Required acceptance assertions:** Duplicate indistinguishable task titles, reorder, note move, account change and ambiguous remote identity.
-- **Outstanding evidence:** Native/renderer mapping tests plus live provider reconciliation and unexpected-write prevention.
+- **Outstanding evidence:** Native/renderer identity tests plus deterministic simulated-provider reconciliation and unexpected-write prevention; live-provider compatibility not claimed.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-017 · [issue #197](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/197)
@@ -99,14 +99,14 @@ Historical baseline: 2026-10-30. **Current completion policy (2026-11-02):** [au
 
 - **Evidence present:** No dedicated implementation PR verified.
 - **Required acceptance assertions:** Plugin/MCP/native consent scope separation, revocation mid-flight, denial, cancellation, disabled plugin, zero actions.
-- **Outstanding evidence:** Keyboard/screen-reader permission UI evidence; native authority remains independent.
+- **Outstanding evidence:** Automated keyboard, focus and accessibility-tree permission UI assertions; native authority remains independent. No manual screen-reader trial is required.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-020 · [issue #200](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/200)
 
 - **Evidence present:** No dedicated MAT-020 acceptance artifact verified; existing design geometry alone is not a graduation.
 - **Required acceptance assertions:** 320/375/768/1024/1440px, 200% zoom, Persian RTL, German labels, focus and modal scroll ownership.
-- **Outstanding evidence:** Reviewed real captures at each target; no blind golden refresh or clipped controls.
+- **Outstanding evidence:** Source-bound CI screenshots at each target viewport, with automated clipping/focus/geometry assertions and controlled golden-diff checks; no blind golden refresh or manual screenshot approval.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-021 · [issue #201](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/201)
@@ -127,7 +127,7 @@ Historical baseline: 2026-10-30. **Current completion policy (2026-11-02):** [au
 
 - **Evidence present:** No new measured 100/1k/5k/25k report verified.
 - **Required acceptance assertions:** Two independent warm/cold runs, cache-cleared start, indexing, search, editor latency, RAM, distribution size and variance.
-- **Outstanding evidence:** Pinned environment, repeatable scripts, real measurements and regression thresholds.
+- **Outstanding evidence:** Pinned hosted environment, repeatable scripts, measured compiled-product performance and regression thresholds; no human benchmark run or physical device required.
 - **Status:** Open — source-level progress is not a feature graduation.
 
 ## MAT-024 · [issue #204](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues/204)
