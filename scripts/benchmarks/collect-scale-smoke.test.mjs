@@ -98,6 +98,8 @@ test('MAT-023: preserve actual over-budget CLI exit-4 measurements without prese
 
 test('MAT-023: CLI evidence must match checked-out exact Git HEAD and cannot accept an unrelated SHA', () => {
   assert.doesNotThrow(() => assertExactSourceCommit(sha, sha.toUpperCase()))
+  const realCommit = '5c307cf54f5d2bda80c982fd9c531096d2ff7686'
+  assert.doesNotThrow(() => assertExactSourceCommit(realCommit, realCommit))
   assert.throws(() => assertExactSourceCommit(sha, 'b'.repeat(40)), /source|checkout|HEAD|SHA/i)
   assert.throws(() => assertExactSourceCommit(sha, 'main'), /source|checkout|HEAD|SHA/i)
 })
