@@ -7,7 +7,7 @@ import { collectWarmScaleEvidence, parseCollectorSizes } from './collect-scale-s
 import { evaluateScaleEvidence } from './scale-evidence.mjs'
 
 const sha = 'a'.repeat(40)
-function harness(fail = '', wrongCount = false) {
+function harness(fail = '', wrongCount = false, overBudget = false) {
   const workRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-scale-test-'))
   const calls = []
   let tick = 0
@@ -30,10 +30,10 @@ function harness(fail = '', wrongCount = false) {
           }
           return { status: 0, stdout: JSON.stringify({ note_count: Number(count) }) }
         }
-        return { status: 0, stdout: JSON.stringify({
+        return { status: overBudget ? 4 : 0, stdout: JSON.stringify({
           scenario: args[0] === 'bench-scan' ? 'vault-scan' : 'warm-search',
           note_count: wrongCount ? 99 : 100, mean_ms: 12, samples_ms: [11, 12, 13],
-          within_budget: true, iterations: 3,
+          within_budget: !overBudget, iterations: 3,
         }) }
       },
     },
@@ -83,4 +83,15 @@ test('MAT-023: size selection is constrained to valid complete fixture counts', 
   assert.deepEqual(parseCollectorSizes('all'), [100, 1000, 5000, 25000])
   assert.deepEqual(parseCollectorSizes('5k'), [5000])
   assert.throws(() => parseCollectorSizes('../../vault'), /size/i)
+})
+
+test('MAT-023: preserve actual over-budget CLI exit-4 measurements without presenting them as a pass', () => {
+  const h = harness('', false, true)
+  try {
+    const evidence = collectWarmScaleEvidence(h.options)
+    assert.equal(evidence.runs.length, 4)
+    assert.equal(evidence.runs.every(run => run.report.within_budget === false), true)
+    assert.equal(evidence.collector.overBudgetCases.length, 4)
+    assert.equal(evaluateScaleEvidence(evidence).readyForReview, false)
+  } finally { h.cleanup() }
 })
