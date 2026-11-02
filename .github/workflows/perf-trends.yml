@@ -12,6 +12,8 @@ on:
     paths:
       - '.github/workflows/perf-trends.yml'
       - 'scripts/benchmarks/bench-large.ps1'
+      - 'scripts/benchmarks/collect-scale-smoke.mjs'
+      - 'scripts/benchmarks/collect-scale-smoke.test.mjs'
       - 'scripts/fixture-import/generate-synthetic-vault.ps1'
   workflow_dispatch:
     inputs:
@@ -90,6 +92,16 @@ jobs:
             throw 'benchmark evidence is incomplete'
           }
 
+      - name: Collect MAT-023 measured warm CLI evidence (not cold acceptance)
+        shell: pwsh
+        run: |
+          $cli = Join-Path (Get-Location) 'target/release/scriptor.exe'
+          if (-not (Test-Path -LiteralPath $cli -PathType Leaf)) { throw 'Release-mode CLI binary missing after benchmark compilation' }
+          node scripts/benchmarks/collect-scale-smoke.mjs --cli "$cli" --source-sha "$env:GITHUB_SHA" --size 100 --output artifacts/performance/mat023-warm-cli.json
+          if ($LASTEXITCODE -ne 0) { throw "MAT-023 warm CLI measurement failed ($LASTEXITCODE)" }
+          node --test scripts/benchmarks/collect-scale-smoke.test.mjs scripts/benchmarks/scale-evidence.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw "MAT-023 validator regression failed ($LASTEXITCODE)" }
+
       - name: Upload benchmark report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -98,5 +110,6 @@ jobs:
           path: |
             perf-baselines.json
             artifacts/performance/benchmark-report*.json
+            artifacts/performance/mat023-warm-cli.json
           if-no-files-found: error
           retention-days: 30
