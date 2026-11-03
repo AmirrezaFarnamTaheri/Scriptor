@@ -294,6 +294,7 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
 
     let started = Instant::now();
     let mut timed_out = false;
+    let mut output_drain_timed_out = false;
     let status = loop {
         if let Some(cancel) = spec.cancel_slot.as_ref()
             && cancel.load(Ordering::Relaxed)
@@ -326,11 +327,10 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         thread::sleep(POLL_INTERVAL);
     };
 
-    let drain_deadline = if timed_out {
-        Instant::now() + OUTPUT_DRAIN_GRACE
-    } else {
-        started + spec.timeout
-    };
+    // The direct child has exited (or its process tree was terminated after an
+    // execution timeout). Do not wait for the full execution deadline when a
+    // detached descendant keeps inherited stdout/stderr handles open.
+    let drain_deadline = Instant::now() + OUTPUT_DRAIN_GRACE;
     let mut stdout_result = None;
     let mut stderr_result = None;
     while stdout_result.is_none() || stderr_result.is_none() {
@@ -339,10 +339,13 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
             Ok((is_stdout, result)) if is_stdout => stdout_result = Some(result),
             Ok((_, result)) => stderr_result = Some(result),
             Err(mpsc::RecvTimeoutError::Timeout) => {
-                timed_out = true;
-                // The direct child can have exited while a descendant still owns a
-                // captured pipe. Terminating the launch tree closes those handles.
-                terminate_process_tree(&mut child);
+                if !timed_out {
+                    output_drain_timed_out = true;
+                    // The direct child exited normally, but a descendant still owns
+                    // a captured pipe. Terminate the launch tree and report this as
+                    // an output-drain failure, not an executable timeout.
+                    terminate_process_tree(&mut child);
+                }
                 break;
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
@@ -357,19 +360,24 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
     if timed_out {
         let (stdout_bytes, _) = stdout_result.and_then(|res| res.ok()).unwrap_or_default();
         let (stderr_bytes, _) = stderr_result.and_then(|res| res.ok()).unwrap_or_default();
-        let stdout = match String::from_utf8(stdout_bytes) {
-            Ok(s) => s,
-            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
-        };
-        let stderr = match String::from_utf8(stderr_bytes) {
-            Ok(s) => s,
-            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
-        };
+        let stdout = output_text(stdout_bytes);
+        let stderr = output_text(stderr_bytes);
         return Err(BridgeError::ProcessTimeout {
             program: resolved,
             timeout_ms: spec.timeout.as_millis().try_into().unwrap_or(u64::MAX),
             stdout,
             stderr,
+        });
+    }
+
+    if output_drain_timed_out {
+        let (stdout_bytes, _) = stdout_result.and_then(|result| result.ok()).unwrap_or_default();
+        let (stderr_bytes, _) = stderr_result.and_then(|result| result.ok()).unwrap_or_default();
+        return Err(BridgeError::ProcessOutputDrainTimeout {
+            program: resolved,
+            timeout_ms: OUTPUT_DRAIN_GRACE.as_millis().try_into().unwrap_or(u64::MAX),
+            stdout: output_text(stdout_bytes),
+            stderr: output_text(stderr_bytes),
         });
     }
 
@@ -389,19 +397,20 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         exit_code: exit_code(status),
         duration_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
         timed_out: false,
-        stdout: match String::from_utf8(stdout) {
-            Ok(s) => s,
-            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
-        },
-        stderr: match String::from_utf8(stderr) {
-            Ok(s) => s,
-            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
-        },
+        stdout: output_text(stdout),
+        stderr: output_text(stderr),
         stdout_truncated,
         stderr_truncated,
     };
 
     Ok(receipt)
+}
+
+fn output_text(bytes: Vec<u8>) -> String {
+    match String::from_utf8(bytes) {
+        Ok(text) => text,
+        Err(error) => String::from_utf8_lossy(error.as_bytes()).into_owned(),
+    }
 }
 
 fn join_reader_bounded(handle: thread::JoinHandle<()>, timeout: Duration) {
