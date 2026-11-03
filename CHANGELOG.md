@@ -30,6 +30,8 @@
 
 ### Fixed
 
+- Reject case- or Unicode-equivalent native read-evidence aliases and overlapping file paths before presenting a research manifest as source-verified.
+
 - Reuse a single immutable vault-path resolver across read-only lint and lint-fix instead of rebuilding the entire index for every wikilink; guard the 5k-linked-note performance path and preserve ambiguous/hand-authored reference behavior.
 
 - Distinguish denied, acknowledged and lost-reply manual or automatic-retention backup deletions at the native submission boundary; hold unconfirmed deletions by vault/destination, pause blind retention retries, and explain restart/reinspection before further cleanup.
