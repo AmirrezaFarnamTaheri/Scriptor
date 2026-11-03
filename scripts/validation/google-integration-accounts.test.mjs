@@ -164,3 +164,36 @@ test('MAT-015: first-time Gmail account stays disconnected when native credentia
   assert.equal(h.render().gmail.email, null)
   assert.equal(h.render().gmail.error, null)
 })
+
+test('MAT-015: malformed provider account identity is not advertised as a verified connection', async () => {
+  for (const invalid of ['   ', 'not-an-email', 'account@example.invalid\\nInjected', { email: 'account@example.invalid' }]) {
+    const h = harness()
+    h.bridge.collaborationGetAccount = async () => invalid
+    await h.render().check('drive')
+    assert.equal(h.render().drive.status, 'error', String(invalid))
+    assert.equal(h.render().drive.email, null, String(invalid))
+    assert.match(h.render().drive.error ?? '', /account identity/i)
+  }
+})
+
+test('MAT-015/017: malformed Google OAuth reply cannot persist a stale client or claim connection', async () => {
+  for (const invalid of ['   ', 'no-at-sign', { email: 'gmail@example.invalid' }]) {
+    const h = harness()
+    h.bridge.googleGmailStartAuth = async () => invalid
+    await h.render().connect('gmail')
+    assert.equal(h.persisted(), 0, 'unverified OAuth reply cannot save a client ID')
+    assert.equal(h.render().gmail.status, 'error')
+    assert.equal(h.render().gmail.email, null)
+    assert.match(h.render().gmail.error ?? '', /account identity/i)
+    assert.equal(h.events.length, 1, 'native credential changes still invalidate other consumers')
+  }
+})
+
+test('MAT-015: validated Google account identity is normalized without pretending transfer succeeded', async () => {
+  const h = harness()
+  h.bridge.collaborationGetAccount = async () => '  person@example.invalid  '
+  await h.render().check('drive')
+  assert.equal(h.render().drive.status, 'connected')
+  assert.equal(h.render().drive.email, 'person@example.invalid')
+  assert.equal(h.persisted(), 0, 'read-only credential check never saves configuration')
+})
