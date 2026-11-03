@@ -18,6 +18,7 @@ export function createGithubRunProvider(token, fetcher = fetch) {
         Accept: 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28',
       },
+      redirect: 'error',
     })
     if (!response.ok) throw new Error('GitHub metadata HTTP ' + response.status)
     return response.json()

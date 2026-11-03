@@ -54,3 +54,16 @@ test('MAT-022: malformed or unbounded job collections cannot falsely establish c
   await assert.rejects(oversized.getJobs(100), /too many|limit|page/i)
   assert.equal(requests, 10)
 })
+
+test('MAT-022: authenticated workflow metadata refuses redirects before forwarding the bearer', async () => {
+  let requests = 0
+  const provider = createGithubRunProvider('test-token', async (_url, options) => {
+    requests += 1
+    assert.equal(options.redirect, 'error', 'authenticated metadata cannot follow an external redirect')
+    assert.equal(options.headers.Authorization, 'Bearer test-token')
+    return new Response(null, { status: 302, headers: { location: 'https://untrusted.example/metadata' } })
+  })
+  await assert.rejects(provider.getRun(100), /HTTP 302/)
+  await assert.rejects(provider.getJobs(100), /HTTP 302/)
+  assert.equal(requests, 2)
+})
