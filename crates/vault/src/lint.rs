@@ -704,4 +704,52 @@ mod tests {
         assert_eq!(output.files_fixed, 1);
         assert_eq!(output.report.total_issues, 0);
     }
+
+    #[test]
+    fn prebuilt_wikilink_resolver_preserves_explicit_and_ambiguous_reference_behavior() {
+        let paths = vec![
+            "notes/only.md".to_string(),
+            "a/leaf.md".to_string(),
+            "b/leaf.md".to_string(),
+        ];
+        let index = WikilinkIndex::from_note_paths(&paths);
+        let markdown = "# Index\n\n[[only]] [[leaf]] [[Missing]]\n\n[spec]: ./paper.pdf\n";
+        let rewritten = rebuild_with_definitions_using_index(markdown, &index)
+            .expect("resolved references need a regenerated definition");
+        assert!(rewritten.contains("[only]: notes/only"), "{rewritten}");
+        assert!(rewritten.contains("[spec]: ./paper.pdf"), "{rewritten}");
+        assert!(!rewritten.contains("[leaf]:"), "ambiguous links must never be manufactured");
+        assert!(!rewritten.contains("[Missing]:"), "unresolved links must remain unresolved");
+    }
+
+    #[test]
+    fn lint_vault_5000_linked_notes_finishes_with_bounded_shared_resolution() {
+        use std::time::{Duration, Instant};
+        let temp = tempdir().expect("tempdir");
+        let count = 5_000_usize;
+        for index in 0..count {
+            let next = (index + 1) % count;
+            let next2 = (index + 2) % count;
+            std::fs::write(
+                temp.path().join(format!("note-{index:05}.md")),
+                format!("# note-{index:05}\n\n[[note-{next:05}]] [[note-{next2:05}]]\n"),
+            )
+            .expect("generate linked synthetic note");
+        }
+        let session = open_vault(temp.path()).expect("open synthetic vault");
+        let started = Instant::now();
+        let report = lint_vault(
+            &session.descriptor.id,
+            &session.root,
+            &[RULE_STALE_DEFINITIONS.to_string()],
+        )
+        .expect("read-only lint");
+        assert_eq!(report.total_issues, count as u32);
+        assert_eq!(report.files.len(), count);
+        assert!(
+            started.elapsed() < Duration::from_secs(20),
+            "per-link rebuilding the full 5k-path resolver is quadratic: {:?}",
+            started.elapsed()
+        );
+    }
 }
