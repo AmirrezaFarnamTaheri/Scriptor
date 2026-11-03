@@ -132,7 +132,7 @@ pub fn render_mermaid_svg(source: &str) -> Result<String, ExportError> {
 ///
 /// Split out from [`render_mermaid_svg`] so the read-before-cleanup ordering is
 /// directly testable without a real `mmdc` install.
-fn collect_rendered_svg(result: io::Result<Output>, output_path: &Path) -> Result<String, String> {
+fn collect_rendered_svg(result: io::Result<DiagramOutput>, output_path: &Path) -> Result<String, String> {
     match result {
         Ok(output) => {
             let stderr = diagnostic_stderr(&output);
