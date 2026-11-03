@@ -131,7 +131,7 @@ test('MAT-022: a failed earlier workflow attempt cannot be certified by a later 
   const input = packet()
   input.tests.negative.url = runUrl + '/attempts/1'
   const laterSuccess = { ...succeededRun(), run_attempt: 2 }
-  const result = await verifyCapabilityWorkflowMetadata(input, provider(laterSuccess))
+  const result = await verifyCapabilityWorkflowMetadata(input, provider(laterSuccess, succeededJobs(2)))
   assert.equal(result.evidenceIndexComplete, true)
   assert.equal(result.runMetadataVerified, false)
   assert.deepEqual(result.unverified, ['tests.negative'])
@@ -150,7 +150,7 @@ test('MAT-022: malformed run URL suffixes cannot substitute for exact CI proof',
   for (const suffix of ['/attempts/0', '/attempts/2/jobs/999', '/unrelated']) {
     const input = packet()
     input.tests.negative.url = runUrl + suffix
-    const result = await verifyCapabilityWorkflowMetadata(input, provider({ ...succeededRun(), run_attempt: 2 }))
+    const result = await verifyCapabilityWorkflowMetadata(input, provider({ ...succeededRun(), run_attempt: 2 }, succeededJobs(2)))
     assert.equal(result.runMetadataVerified, false, suffix)
     assert.ok(result.unverified.includes('tests.negative'), suffix)
   }
