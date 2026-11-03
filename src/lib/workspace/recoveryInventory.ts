@@ -30,7 +30,7 @@ export interface RecoveryEntry {
   readonly status: RecoveryStatus
   readonly count: number | null
   readonly explanation: string
-  readonly route: 'backup-settings' | 'note-history' | 'canvas' | null
+  readonly route: 'backup-settings' | 'note-history' | 'canvas' | 'git' | 'external-conflict' | null
   readonly readOnly: true
 }
 function sourceEntry(source: RecoverySource, vaultId: string, evidence: ScopedEvidence | undefined): RecoveryEntry {
@@ -142,16 +142,30 @@ export function buildRecoveryInventory(input: RecoveryInventoryInput): readonly 
   const git = sourceEntry('git-conflicts', id, input.gitConflicts)
   entries.push({
     ...git,
-    explanation: git.status === 'available' || git.status === 'empty'
-      ? `Native Git inspection reports ${git.count} Git-tracked conflicted paths. Non-Git external changes are not covered. No resolution has been authorized.`
-      : git.explanation,
+    status: input.recoveryRequired && git.status === 'available' ? 'needs-reopen' : git.status,
+    count: input.recoveryRequired ? null : git.count,
+    route: git.status === 'available' && !input.recoveryRequired && !input.settingsDirty ? 'git' : null,
+    explanation: input.recoveryRequired && git.status === 'available'
+      ? 'Reopen the vault before opening the Git panel.'
+      : input.settingsDirty && git.status === 'available'
+        ? 'Save or discard Settings changes before opening the Git panel.'
+        : git.status === 'available' || git.status === 'empty'
+          ? `Native Git inspection reports ${git.count} Git-tracked conflicted paths. Non-Git external changes are not covered. No resolution has been authorized.`
+          : git.explanation,
   })
   const external = sourceEntry('external-conflicts', id, input.externalConflicts)
   entries.push({
     ...external,
-    explanation: external.status === 'available'
-      ? 'The selected note has an external on-disk conflict detected by the editor. This is not a vault-wide scan; review the existing editor warning before writing.'
-      : external.explanation,
+    status: input.recoveryRequired && external.status === 'available' ? 'needs-reopen' : external.status,
+    count: input.recoveryRequired ? null : external.count,
+    route: external.status === 'available' && !input.recoveryRequired && !input.settingsDirty ? 'external-conflict' : null,
+    explanation: input.recoveryRequired && external.status === 'available'
+      ? 'Reopen the vault before reviewing the selected note external conflict.'
+      : input.settingsDirty && external.status === 'available'
+        ? 'Save or discard Settings changes before returning to the editor conflict warning.'
+        : external.status === 'available'
+          ? 'The selected note has an external on-disk conflict detected by the editor. This is not a vault-wide scan; review the existing editor warning before writing.'
+          : external.explanation,
   })
   return entries
 }
