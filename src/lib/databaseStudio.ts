@@ -42,7 +42,7 @@ export function validateDatabaseView(value: unknown): DatabaseView {
   const columns = view.columns.map((raw) => {
     const column = record(raw); const key = text(column.key, 64)
     if (!FIELD.test(key) || ['__proto__','constructor','prototype'].includes(key)) throw new Error('Invalid column field.')
-    return { key, label: text(column.label, 64), ...(column.formula ? { formula: validateFormula(column.formula) } : {}) }
+    return { key, label: text(column.label, 64), ...(column.formula !== undefined ? { formula: validateFormula(column.formula) } : {}) }
   })
   if (new Set(columns.map((column) => column.key)).size !== columns.length) throw new Error('Column fields must be unique.')
   return { schemaVersion: 1, id: text(view.id, 128), label: text(view.label, 128), mode: view.mode as DatabaseView['mode'], combine: view.combine as DatabaseView['combine'], filters, columns }
