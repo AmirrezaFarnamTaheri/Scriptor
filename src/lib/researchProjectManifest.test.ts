@@ -73,3 +73,30 @@ test('MAT-014: nested source/output paths cannot masquerade as independent manif
   nestedOutput.output.path = 'Notes/Study.md/rendered.pdf'
   assert.throws(() => reviewResearchProjectManifest(nestedOutput, evidence()), /duplicate|overlap/i)
 })
+
+test('MAT-014: portable manifest identity rejects case and Unicode-equivalent file aliases', () => {
+  const aliases: [string, string][] = [
+    ['Notes/Study.md', 'notes/study.md'],
+    ['Notes/Study.md', 'notes/study.MD/report.pdf'],
+    ['Café.md', 'Cafe\u0301.md'],
+    ['Research', 'research/output.pdf'],
+  ]
+  for (const [source, output] of aliases) {
+    const project = manifest()
+    project.inputs[0].path = source
+    project.output.path = output
+    assert.throws(
+      () => reviewResearchProjectManifest(project, evidence()),
+      /duplicate|overlap/i,
+      `portable source path ${source} must not be independent of ${output}`,
+    )
+  }
+
+  const distinct = manifest()
+  distinct.output.path = 'Notes/Study.md2'
+  assert.equal(
+    reviewResearchProjectManifest(distinct, evidence()).status,
+    'unverified',
+    'sibling filenames sharing a prefix are not ancestor/descendant aliases',
+  )
+})
