@@ -352,6 +352,18 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         }
     }
 
+    if output_drain_timed_out {
+        let cleanup_deadline = Instant::now() + OUTPUT_DRAIN_GRACE;
+        while stdout_result.is_none() || stderr_result.is_none() {
+            let remaining = cleanup_deadline.saturating_duration_since(Instant::now());
+            match output_receiver.recv_timeout(remaining) {
+                Ok((is_stdout, result)) if is_stdout => stdout_result = Some(result),
+                Ok((_, result)) => stderr_result = Some(result),
+                Err(mpsc::RecvTimeoutError::Timeout | mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+        }
+    }
+
     // Wait for reader results only within a bounded grace period instead of joining
     // indefinitely, ensuring detached or stuck readers cannot block the process execution flow.
     join_reader_bounded(stdout_reader, OUTPUT_DRAIN_GRACE);
