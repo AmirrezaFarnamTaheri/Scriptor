@@ -942,7 +942,7 @@ mod tests {
         let heartbeat = directory.path().join("heartbeat");
         // The direct shell exits successfully while its background descendant
         // keeps inherited stdout/stderr open and continues writing outside them.
-        let script = r#"sh -c 'trap "" TERM; printf "%s\\n" "$" > "$1"; while :; do printf x >> "$2"; sleep 0.02; done' descendant "$1" "$2" & exit 0"#;
+        let script = r#"sh -c 'trap "" TERM; printf "%s\n" "$" > "$1"; while :; do printf x >> "$2"; sleep 0.02; done' descendant "$1" "$2" & exit 0"#;
         struct DescendantCleanup(PathBuf);
         impl Drop for DescendantCleanup {
             fn drop(&mut self) {
