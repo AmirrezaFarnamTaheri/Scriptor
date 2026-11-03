@@ -50,6 +50,14 @@ function sourceEntry(source: RecoverySource, vaultId: string, evidence: ScopedEv
     source, status: 'unavailable', count: null, route: null, readOnly: true,
     explanation: 'Could not inspect this recovery source.',
   }
+  // Native/IPC and persisted data are runtime values despite this module's
+  // static state union. Only an explicitly verified ready result may certify
+  // an inventory count or unlock a recovery entry point.
+  const observedState: unknown = evidence.state
+  if (observedState !== 'ready') return {
+    source, status: 'unverified', count: null, route: null, readOnly: true,
+    explanation: 'Unrecognized recovery inspection state. Reinspect this source in the originating vault; its count is not verified.',
+  }
   return {
     source, status: evidence.count > 0 ? 'available' : 'empty', count: evidence.count,
     route: null, readOnly: true, explanation: `${evidence.count} items reported by the current-vault source.`,
@@ -61,15 +69,22 @@ export function buildRecoveryInventory(input: RecoveryInventoryInput): readonly 
   const backup = input.backups?.vaultId === id && input.backups.backupPath === input.backupPath
     ? input.backups : undefined
   const entry = sourceEntry('backups', id, backup)
-  const verified = backup && Number.isSafeInteger(backup.verifiedCount) && backup.verifiedCount >= 0 &&
-    backup.verifiedCount <= backup.count ? backup.verifiedCount : 0
+  // A ready count is still unverified if its claimed verified subset is
+  // contradictory, nonintegral, or nonfinite. In particular, ready+count=0
+  // must not certify "no backups" while verifiedCount says otherwise.
+  const verifiedCountValid = Boolean(backup && Number.isSafeInteger(backup.verifiedCount) &&
+    backup.verifiedCount >= 0 && backup.verifiedCount <= backup.count)
+  const inconsistentBackup = (entry.status === 'available' || entry.status === 'empty') && !verifiedCountValid
+  const verified = verifiedCountValid ? backup!.verifiedCount : 0
   const backups: RecoveryEntry = {
     ...entry,
-    status: !backup ? 'loading' : entry.status === 'available' && verified === 0 ? 'unverified'
+    status: inconsistentBackup ? 'unverified'
+      : !backup ? 'loading' : entry.status === 'available' && verified === 0 ? 'unverified'
       : input.recoveryRequired && entry.status === 'available' ? 'needs-reopen' : entry.status,
-    count: entry.count,
-    route: !input.recoveryRequired && entry.status === 'available' && verified > 0 ? 'backup-settings' : null,
-    explanation: !backup ? 'Loading backup inventory for this vault and destination.'
+    count: inconsistentBackup ? null : entry.count,
+    route: !inconsistentBackup && !input.recoveryRequired && entry.status === 'available' && verified > 0 ? 'backup-settings' : null,
+    explanation: inconsistentBackup ? 'Backup inspection and verification counts disagree. Reinspect the current vault and destination; no absence or restore-ready set is proven.'
+      : !backup ? 'Loading backup inventory for this vault and destination.'
       : entry.status === 'available' ? `${verified} of ${backup.count} backups verified for review. ${input.recoveryRequired ? 'Reopen the vault before further writes.' : 'Restore still requires separate approval.'}`
         : entry.explanation,
   }

@@ -164,3 +164,72 @@ test('MAT-003: current-vault native Canvas checkpoint evidence links to owner wo
   assert.equal(needsReopen?.count, null)
   assert.equal(needsReopen?.route, null)
 })
+
+test('MAT-003: unknown native source-state values cannot certify zero items or authorize a backup route', () => {
+  const state = 'unrecognized-native-state' as never
+  const rows = buildRecoveryInventory({
+    ...input,
+    backups: { ...input.backups, state },
+    history: { vaultId: 'v-a', notePath: 'note.md', state, count: 3 },
+    canvas: { vaultId: 'v-a', state, count: 0 },
+    gitConflicts: { vaultId: 'v-a', state, count: 2 },
+    externalConflicts: { vaultId: 'v-a', state, count: 1 },
+  })
+  for (const source of ['backups', 'note-history', 'canvas', 'git-conflicts', 'external-conflicts']) {
+    const row = rows.find(item => item.source === source)
+    assert.equal(row?.status, 'unverified', source)
+    assert.equal(row?.count, null, source)
+    assert.equal(row?.readOnly, true, source)
+    assert.notEqual(row?.explanation, '0 items reported by the current-vault source.', source)
+  }
+  assert.equal(rows.find(item => item.source === 'backups')?.route, null,
+    'unknown evidence must not send a user into a restore flow')
+  assert.equal(rows.find(item => item.source === 'canvas')?.route, null)
+})
+
+test('MAT-003: missing state on otherwise plausible native inventory is not verified-empty', () => {
+  const rows = buildRecoveryInventory({
+    ...input,
+    canvas: { vaultId: 'v-a', count: 0 } as never,
+    gitConflicts: { vaultId: 'v-a', count: 0 } as never,
+  })
+  assert.equal(rows.find(item => item.source === 'canvas')?.status, 'unverified')
+  assert.equal(rows.find(item => item.source === 'canvas')?.count, null)
+  assert.equal(rows.find(item => item.source === 'git-conflicts')?.status, 'unverified')
+  assert.equal(rows.find(item => item.source === 'git-conflicts')?.count, null)
+})
+
+test('MAT-003: inconsistent backup verified-count evidence cannot certify an empty inventory', () => {
+  for (const verifiedCount of [1, -1, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const entries = buildRecoveryInventory({
+      ...input,
+      backups: { ...input.backups, state: 'ready', count: 0, verifiedCount },
+    })
+    const backup = entries.find(row => row.source === 'backups')
+    assert.equal(backup?.status, 'unverified', String(verifiedCount))
+    assert.equal(backup?.count, null, String(verifiedCount))
+    assert.equal(backup?.route, null, String(verifiedCount))
+  }
+})
+
+test('MAT-003: contradictory positive backup verification counts fail closed without masking load/error states', () => {
+  for (const verifiedCount of [3, -5, 1.5, Number.NaN]) {
+    const inventory = buildRecoveryInventory({
+      ...input,
+      backups: { ...input.backups, state: 'ready', count: 2, verifiedCount },
+    })
+    const backup = inventory.find(row => row.source === 'backups')
+    assert.equal(backup?.status, 'unverified')
+    assert.equal(backup?.count, null)
+    assert.equal(backup?.route, null)
+  }
+  for (const [state, status] of [['loading', 'loading'], ['error', 'unavailable']] as const) {
+    const inventory = buildRecoveryInventory({
+      ...input,
+      backups: { ...input.backups, state, count: 0, verifiedCount: 2 },
+    })
+    const backup = inventory.find(row => row.source === 'backups')
+    assert.equal(backup?.status, status)
+    assert.equal(backup?.route, null)
+  }
+})

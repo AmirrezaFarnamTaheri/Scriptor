@@ -8,6 +8,45 @@ Results from an older commit cannot certify a newer implementation.
 
 **MAT-001–024 policy effective 2026-11-02:** [Automated MAT acceptance](MAT-AUTOMATED-ACCEPTANCE.md) supersedes older passages below referring to manual approval, real-user studies, physical installation, live-account use and installed-app acceptance as *closure gates*. Those historical verification records remain valid evidence of what was or was not tested then; none becomes an automated pass retroactively. In-product user authorization is unaffected.
 
+## MAT-003 — malformed read-only recovery inventory states (partial, PR #308)
+
+An unrecognized/missing source-state value at the bridge or stored-evidence
+boundary must not be interpreted as a verified `ready` inspection. Previously
+`sourceEntry` accepted any unrecognized state with a finite `count`, turning a
+malformed zero count into **verified empty**, or a malformed backup with a
+positive `verifiedCount` into an **available restore navigation route**.
+
+- **Test-first commit:** `dd78ef6dbf60e99b7b3b3aec5aefa624053b76a6` adds real
+  `buildRecoveryInventory` regressions covering backup, history, Canvas, Git
+  and external-conflict states, plus absent state metadata. The test-only
+  source precedes the implementation; its hosted result must be checked
+  independently before any claim of observed behavioral RED.
+- **Implementation:** accept `ready` only when explicitly observed; malformed
+  source state produces `unverified` with null count and no newly enabled
+  backup/Canvas route. Explicit `loading`, `error` and `unverified` states
+  retain their existing separate, read-only behavior. The native restore
+  authority is unchanged.
+- **Acceptance boundary:** full exact-head hosted source/Rust/browser/visual
+  results, native corruption/restart cases, multi-source recovery navigation,
+  keyboard/RTL/320px/200%-zoom and CI-built artifact runtime are still needed
+  for MAT-003. This is a focused regression, **not MAT closure**.
+
+### MAT-003 — inconsistent backup verified counts (stacked PR #309)
+
+The backup inventory owns both the observed snapshot `count` and the
+`verifiedCount` eligible for a reviewed restore. A contradictory, negative,
+fractional, nonfinite, or greater-than-count verification claim must not make
+a zero-count backup source appear **verified empty** or leave an impossible
+positive-count value displayed as reliable. The read-only overview returns
+`unverified`, a null count, no navigation route and a reinvestigation hint
+for inconsistent **ready** evidence. Explicit loading/error states remain
+unchanged; the native restore authority is not modified.
+
+- The test-only parent commit of PR #309 is `b46e6ec1bc0cff15e58359cc18147e5e773e1091`.
+- These source-level assertions cover inconsistent empty/positive inventories;
+  they do not prove native journal integrity, OS restarts, hosted artifacts,
+  navigation, keyboard or RTL acceptance. Parent MAT-003 stays **open**.
+
 ## MAT-002 — Canvas uncertain native save (partial acceptance)
 
 Canvas full-document native saves previously re-enqueued a failed submitted payload, and an
