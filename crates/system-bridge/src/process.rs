@@ -359,7 +359,9 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
             match output_receiver.recv_timeout(remaining) {
                 Ok((is_stdout, result)) if is_stdout => stdout_result = Some(result),
                 Ok((_, result)) => stderr_result = Some(result),
-                Err(mpsc::RecvTimeoutError::Timeout | mpsc::RecvTimeoutError::Disconnected) => break,
+                Err(mpsc::RecvTimeoutError::Timeout | mpsc::RecvTimeoutError::Disconnected) => {
+                    break;
+                }
             }
         }
     }
@@ -383,11 +385,18 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
     }
 
     if output_drain_timed_out {
-        let (stdout_bytes, _) = stdout_result.and_then(|result| result.ok()).unwrap_or_default();
-        let (stderr_bytes, _) = stderr_result.and_then(|result| result.ok()).unwrap_or_default();
+        let (stdout_bytes, _) = stdout_result
+            .and_then(|result| result.ok())
+            .unwrap_or_default();
+        let (stderr_bytes, _) = stderr_result
+            .and_then(|result| result.ok())
+            .unwrap_or_default();
         return Err(BridgeError::ProcessOutputDrainTimeout {
             program: resolved,
-            timeout_ms: OUTPUT_DRAIN_GRACE.as_millis().try_into().unwrap_or(u64::MAX),
+            timeout_ms: OUTPUT_DRAIN_GRACE
+                .as_millis()
+                .try_into()
+                .unwrap_or(u64::MAX),
             stdout: output_text(stdout_bytes),
             stderr: output_text(stderr_bytes),
         });
