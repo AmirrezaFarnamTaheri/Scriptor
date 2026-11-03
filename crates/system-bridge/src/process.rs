@@ -934,6 +934,57 @@ mod tests {
         assert_eq!(before, after, "descendant continued running after timeout");
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn exited_process_with_orphaned_output_pipe_is_reaped_promptly() {
+        let directory = tempfile::tempdir().expect("fixture directory");
+        let ready = directory.path().join("orphan.pid");
+        let heartbeat = directory.path().join("heartbeat");
+        // The direct shell exits successfully while its background descendant
+        // keeps inherited stdout/stderr open and continues writing outside them.
+        let script = r#"sh -c 'trap "" TERM; printf "%s\\n" "$" > "$1"; while :; do printf x >> "$2"; sleep 0.02; done' descendant "$1" "$2" & exit 0"#;
+        struct DescendantCleanup(PathBuf);
+        impl Drop for DescendantCleanup {
+            fn drop(&mut self) {
+                if let Ok(pid) = std::fs::read_to_string(&self.0)
+                    && let Ok(pid) = pid.trim().parse::<u32>()
+                {
+                    let _ = Command::new("kill")
+                        .args(["-KILL", &pid.to_string()])
+                        .status();
+                }
+            }
+        }
+        let _cleanup = DescendantCleanup(ready.clone());
+        let started = Instant::now();
+        let result = run_process(
+            ProcessSpec::new("sh")
+                .args([
+                    OsStr::new("-c"),
+                    OsStr::new(script),
+                    OsStr::new("leader"),
+                    ready.as_os_str(),
+                    heartbeat.as_os_str(),
+                ])
+                .timeout(Duration::from_secs(5)),
+        );
+        let elapsed = started.elapsed();
+        let error = result.expect_err("orphaned output pipe must not be accepted as complete");
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "the exited process waited for its full five-second execution deadline: {elapsed:?}"
+        );
+        assert!(
+            error.to_string().to_lowercase().contains("output"),
+            "the result must distinguish a descendant-held output pipe from an executable timeout: {error}"
+        );
+        assert!(ready.exists(), "the descendant must start before the parent exits");
+        let before = std::fs::metadata(&heartbeat).expect("heartbeat").len();
+        thread::sleep(Duration::from_millis(150));
+        let after = std::fs::metadata(&heartbeat).expect("heartbeat").len();
+        assert_eq!(before, after, "the orphan descendant survived output-drain cleanup");
+    }
+
     #[test]
     fn macos_sandbox_paths_cannot_inject_profile_rules() {
         let escaped = escape_sandbox_profile_string(OsStr::new(
