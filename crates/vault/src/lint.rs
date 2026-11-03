@@ -97,12 +97,16 @@ pub fn lint_vault(
         .into_iter()
         .map(|path| path.to_string())
         .collect();
+    // A single immutable index serves all linked notes. Building it inside
+    // every wikilink lookup was O(notes * links * notes) and dominated the
+    // observed 25k-note native index/health benchmark.
+    let shared_index = WikilinkIndex::from_note_paths(&note_paths);
     let mut files = Vec::new();
 
     for path in &note_paths {
         let relative = RelativeVaultPath::parse(path)?;
         let document = read_note(vault_id, root, &relative)?;
-        let issues = lint_note_markdown(path, &document.markdown, &note_paths, rules);
+        let issues = lint_note_markdown(path, &document.markdown, &shared_index, rules);
         if !issues.is_empty() {
             files.push(LintFileResult {
                 path: path.clone(),
@@ -125,6 +129,7 @@ pub fn lint_vault_fix(
         .map(|path| path.to_string())
         .collect();
 
+    let shared_index = WikilinkIndex::from_note_paths(&note_paths);
     let mut files_fixed = 0u32;
     let mut edits_applied = 0u32;
     let mut fixed_paths = Vec::new();
@@ -132,7 +137,8 @@ pub fn lint_vault_fix(
     for path in &note_paths {
         let relative = RelativeVaultPath::parse(path)?;
         let document = read_note(vault_id, root, &relative)?;
-        let (updated, count) = apply_fixes(path, &document.markdown, &note_paths, rules)?;
+        let (updated, count) =
+            apply_fixes_using_index(path, &document.markdown, &shared_index, rules)?;
         if count > 0 && updated != document.markdown {
             save_note(vault_id, root, &relative, &updated, None)?;
             files_fixed += 1;
@@ -195,7 +201,7 @@ fn summarize_report(files: Vec<LintFileResult>) -> LintReport {
 fn lint_note_markdown(
     path: &str,
     markdown: &str,
-    note_paths: &[String],
+    index: &WikilinkIndex,
     rules: &[String],
 ) -> Vec<LintIssue> {
     let markdown = &crate::text::to_lf(markdown);
@@ -203,17 +209,28 @@ fn lint_note_markdown(
     for rule in rules {
         match rule.as_str() {
             RULE_MISSING_HEADING => issues.extend(check_missing_heading(path, markdown)),
-            RULE_STALE_DEFINITIONS => issues.extend(check_stale_definitions(markdown, note_paths)),
+            RULE_STALE_DEFINITIONS => issues.extend(check_stale_definitions(markdown, index)),
             _ => {}
         }
     }
     issues
 }
 
+#[cfg(test)]
 fn apply_fixes(
     path: &str,
     markdown: &str,
     note_paths: &[String],
+    rules: &[String],
+) -> Result<(String, u32), VaultError> {
+    let index = WikilinkIndex::from_note_paths(note_paths);
+    apply_fixes_using_index(path, markdown, &index, rules)
+}
+
+fn apply_fixes_using_index(
+    path: &str,
+    markdown: &str,
+    index: &WikilinkIndex,
     rules: &[String],
 ) -> Result<(String, u32), VaultError> {
     // Work on an LF-normalized copy and restore the document's own line-ending
@@ -232,7 +249,7 @@ fn apply_fixes(
                 }
             }
             RULE_STALE_DEFINITIONS => {
-                if let Some(fixed) = rebuild_with_definitions(&updated, note_paths) {
+                if let Some(fixed) = rebuild_with_definitions_using_index(&updated, index) {
                     updated = fixed;
                     count += 1;
                 }
@@ -301,8 +318,8 @@ fn missing_heading_edit(path: &str, markdown: &str) -> Option<TextEdit> {
     })
 }
 
-fn check_stale_definitions(markdown: &str, note_paths: &[String]) -> Vec<LintIssue> {
-    if rebuild_with_definitions(markdown, note_paths).is_none() {
+fn check_stale_definitions(markdown: &str, index: &WikilinkIndex) -> Vec<LintIssue> {
+    if rebuild_with_definitions_using_index(markdown, index).is_none() {
         return Vec::new();
     }
 
@@ -315,9 +332,15 @@ fn check_stale_definitions(markdown: &str, note_paths: &[String]) -> Vec<LintIss
     }]
 }
 
+#[cfg(test)]
 fn rebuild_with_definitions(markdown: &str, note_paths: &[String]) -> Option<String> {
+    let index = WikilinkIndex::from_note_paths(note_paths);
+    rebuild_with_definitions_using_index(markdown, &index)
+}
+
+fn rebuild_with_definitions_using_index(markdown: &str, index: &WikilinkIndex) -> Option<String> {
     let split = split_body_and_definitions(markdown);
-    let expected = expected_link_definitions(&split.body, note_paths);
+    let expected = expected_link_definitions(&split.body, index);
 
     let desired: Vec<String> = expected
         .iter()
@@ -410,7 +433,7 @@ fn wikilink_labels(body: &str) -> BTreeSet<String> {
         .collect()
 }
 
-fn expected_link_definitions(body: &str, note_paths: &[String]) -> BTreeMap<String, String> {
+fn expected_link_definitions(body: &str, index: &WikilinkIndex) -> BTreeMap<String, String> {
     let mut expected = BTreeMap::new();
 
     for capture in WIKILINK_RE.captures_iter(body) {
@@ -422,7 +445,7 @@ fn expected_link_definitions(body: &str, note_paths: &[String]) -> BTreeMap<Stri
         if label.is_empty() {
             continue;
         }
-        if let Some(url) = resolve_wikilink_url(&label, note_paths) {
+        if let Some(url) = resolve_wikilink_url(&label, index) {
             expected.insert(label, url);
         }
     }
@@ -430,9 +453,9 @@ fn expected_link_definitions(body: &str, note_paths: &[String]) -> BTreeMap<Stri
     expected
 }
 
-fn resolve_wikilink_url(target: &str, note_paths: &[String]) -> Option<String> {
+fn resolve_wikilink_url(target: &str, index: &WikilinkIndex) -> Option<String> {
     let trimmed = target.trim();
-    let resolution = WikilinkIndex::from_note_paths(note_paths).resolve(trimmed);
+    let resolution = index.resolve(trimmed);
     if resolution.kind == WikilinkResolutionKind::Resolved {
         return resolution
             .path
@@ -703,5 +726,59 @@ mod tests {
         .expect("fix");
         assert_eq!(output.files_fixed, 1);
         assert_eq!(output.report.total_issues, 0);
+    }
+
+    #[test]
+    fn prebuilt_wikilink_resolver_preserves_explicit_and_ambiguous_reference_behavior() {
+        let paths = vec![
+            "notes/only.md".to_string(),
+            "a/leaf.md".to_string(),
+            "b/leaf.md".to_string(),
+        ];
+        let index = WikilinkIndex::from_note_paths(&paths);
+        let markdown = "# Index\n\n[[only]] [[leaf]] [[Missing]]\n\n[spec]: ./paper.pdf\n";
+        let rewritten = rebuild_with_definitions_using_index(markdown, &index)
+            .expect("resolved references need a regenerated definition");
+        assert!(rewritten.contains("[only]: notes/only"), "{rewritten}");
+        assert!(rewritten.contains("[spec]: ./paper.pdf"), "{rewritten}");
+        assert!(
+            !rewritten.contains("[leaf]:"),
+            "ambiguous links must never be manufactured"
+        );
+        assert!(
+            !rewritten.contains("[Missing]:"),
+            "unresolved links must remain unresolved"
+        );
+    }
+
+    #[test]
+    fn lint_vault_5000_linked_notes_finishes_with_bounded_shared_resolution() {
+        use std::time::{Duration, Instant};
+        let temp = tempdir().expect("tempdir");
+        let count = 5_000_usize;
+        for index in 0..count {
+            let next = (index + 1) % count;
+            let next2 = (index + 2) % count;
+            std::fs::write(
+                temp.path().join(format!("note-{index:05}.md")),
+                format!("# note-{index:05}\n\n[[note-{next:05}]] [[note-{next2:05}]]\n"),
+            )
+            .expect("generate linked synthetic note");
+        }
+        let session = open_vault(temp.path()).expect("open synthetic vault");
+        let started = Instant::now();
+        let report = lint_vault(
+            &session.descriptor.id,
+            &session.root,
+            &[RULE_STALE_DEFINITIONS.to_string()],
+        )
+        .expect("read-only lint");
+        assert_eq!(report.total_issues, count as u32);
+        assert_eq!(report.files.len(), count);
+        assert!(
+            started.elapsed() < Duration::from_secs(20),
+            "per-link rebuilding the full 5k-path resolver is quadratic: {:?}",
+            started.elapsed()
+        );
     }
 }

@@ -1,6 +1,6 @@
 name: MAT-023 Hosted Warm CLI Evidence
 
-# Produces actual compiled-native warm scan/search samples on hosted runners.
+# Produces actual compiled-native warm scan/search samples at 100/1k/5k/25k on hosted runners.
 # This is intentionally not a cold-cache, installed-desktop, or MAT acceptance gate.
 on:
   pull_request:
@@ -10,6 +10,10 @@ on:
       - 'scripts/benchmarks/collect-scale-smoke.test.mjs'
       - 'scripts/benchmarks/cli-precision-contract.test.mjs'
       - 'crates/cli/src/bench.rs'
+      - 'crates/vault/src/lint.rs'
+      - 'crates/indexer/src/rebuild.rs'
+      - 'crates/indexer/src/health.rs'
+      - 'crates/indexer/src/links.rs'
       - 'scripts/benchmarks/scale-evidence.mjs'
       - 'scripts/benchmarks/benchmark-utils.mjs'
   push:
@@ -20,6 +24,10 @@ on:
       - 'scripts/benchmarks/collect-scale-smoke.test.mjs'
       - 'scripts/benchmarks/cli-precision-contract.test.mjs'
       - 'crates/cli/src/bench.rs'
+      - 'crates/vault/src/lint.rs'
+      - 'crates/indexer/src/rebuild.rs'
+      - 'crates/indexer/src/health.rs'
+      - 'crates/indexer/src/links.rs'
   workflow_dispatch:
 
 permissions:
@@ -43,7 +51,7 @@ jobs:
           - os: macos-15
             binary: target/release/scriptor
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 150
     steps:
       - name: Checkout exact test source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -74,12 +82,12 @@ jobs:
       - name: Compile the production Scriptor CLI
         run: cargo build --locked --release -p scriptor-cli
 
-      - name: Measure two independent native warm scan/search runs
+      - name: Measure two independent warm native scans and searches for 100/1k/5k/25k notes
         run: >-
           node scripts/benchmarks/collect-scale-smoke.mjs
           --cli "${{ matrix.binary }}"
           --source-sha "${{ github.event.pull_request.head.sha || github.sha }}"
-          --size 100
+          --size all
           --output "artifacts/performance/mat023-warm-${{ matrix.os }}.json"
 
       - name: Upload source-bound measured evidence (even for budget failure)

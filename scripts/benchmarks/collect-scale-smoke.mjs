@@ -75,6 +75,7 @@ export function collectWarmScaleEvidence({
   cliPath, sourceCommit, sizes, workRoot, host, toolchain,
   execute = (args) => runExecutable(cliPath, args, 15 * 60 * 1000),
   now = () => new Date(),
+  onProgress = () => {},
 }) {
   if (typeof sourceCommit !== 'string' || !/^[a-f\d]{40}$/i.test(sourceCommit)) {
     throw new Error('An exact source commit SHA is required')
@@ -87,6 +88,21 @@ export function collectWarmScaleEvidence({
     throw new Error('Benchmark workRoot must exist as an isolated directory')
   }
   const runs = []
+  // Every report, including the first empty snapshot, is valid incomplete
+  // evidence. Timed-out 25k operations must not erase independently measured
+  // smaller cases from the uploaded artifact.
+  const snapshot = () => ({
+    schemaVersion: 1, sourceCommit, host, toolchain, runs: [...runs],
+    collector: {
+      kind: 'real-cli-warm-only',
+      coldCacheVerified: false, startupMeasured: false, editorMeasured: false,
+      residentMemoryMeasured: false, packagedArtifactMeasured: false,
+      overBudgetCases: runs.filter(row => !row.report.within_budget)
+        .map(row => ({ size: row.size, mode: row.mode, replicate: row.replicate })),
+      note: 'Partial or complete warm-only CLI collection, not cold/OS-cache proof or capability acceptance.',
+    },
+  })
+  onProgress(snapshot())
   const repeatFixtureHashes = new Map()
   for (const size of sizes) for (const mode of SCALE_CASE_MODES) for (const replicate of [1, 2]) {
     const dir = path.join(workRoot, `vault-${size}-${mode}-${replicate}`)
@@ -115,23 +131,35 @@ export function collectWarmScaleEvidence({
       startedAt, fixtureSha256: fixture.sha256,
       noteCount: size, warmed: true, report,
     })
+    onProgress(snapshot())
   }
-  const evidence = {
-    schemaVersion: 1, sourceCommit, host, toolchain, runs,
-    collector: {
-      kind: 'real-cli-warm-only',
-      coldCacheVerified: false, startupMeasured: false, editorMeasured: false,
-      residentMemoryMeasured: false, packagedArtifactMeasured: false,
-      overBudgetCases: runs.filter(row => !row.report.within_budget)
-        .map(row => ({ size: row.size, mode: row.mode, replicate: row.replicate })),
-      note: 'Two separate measurement processes with explicit warmup; no cold/OS-cache proof or capability acceptance.',
-    },
-  }
+  const evidence = snapshot()
   const assessment = evaluateScaleEvidence(evidence)
   if (assessment.readyForReview || assessment.missing.length === 0) {
     throw new Error('Warm-only collector must never produce complete cold/warm MAT-023 evidence')
   }
   return evidence
+}
+
+/** Commit only validated, source-bound partial evidence to disk.
+ * A temporary file and rename keep a killed benchmark from publishing
+ * truncated or synthesized JSON. This output is never MAT acceptance.
+ */
+export function writeWarmScaleEvidence(outputPath, evidence, cliSha256) {
+  if (typeof cliSha256 !== 'string' || !/^[a-f0-9]{64}$/i.test(cliSha256)) {
+    throw new Error('The compiled CLI must have a SHA-256 identity')
+  }
+  const snapshot = { ...evidence, collector: { ...evidence.collector, cliSha256 } }
+  const assessment = evaluateScaleEvidence(snapshot)
+  if (assessment.readyForReview) {
+    throw new Error('Warm-only measurements cannot certify the complete scale matrix')
+  }
+  const output = path.resolve(outputPath)
+  const temporary = output + '.tmp'
+  fs.mkdirSync(path.dirname(output), { recursive: true })
+  fs.writeFileSync(temporary, JSON.stringify(snapshot, null, 2) + '\n')
+  fs.renameSync(temporary, output)
+  return snapshot
 }
 
 function readVersion(executable) {
@@ -179,15 +207,20 @@ function main() {
       memoryMb: Math.round(os.totalmem() / 1024 / 1024),
     }
     const toolchain = { node: process.version, rustc: readVersion('rustc'), cargo: readVersion('cargo') }
+    const output = path.resolve(opts['--output'])
+    fs.mkdirSync(path.dirname(output), { recursive: true })
+    // Preserve the original no-overwrite rule for an operator-supplied path,
+    // while allowing this one collector to atomically replace its own progress.
+    fs.closeSync(fs.openSync(output, 'wx'))
+    const binarySha256 = crypto.createHash('sha256').update(fs.readFileSync(cliPath)).digest('hex')
     const evidence = collectWarmScaleEvidence({
       cliPath, sourceCommit: opts['--source-sha'],
       sizes: parseCollectorSizes(opts['--size']), workRoot, host, toolchain,
+      onProgress: partial => {
+        writeWarmScaleEvidence(output, partial, binarySha256)
+        process.stdout.write(`Recorded ${partial.runs.length} native warm cases so far; cold matrix incomplete.\n`)
+      },
     })
-    const binarySha256 = crypto.createHash('sha256').update(fs.readFileSync(cliPath)).digest('hex')
-    evidence.collector.cliSha256 = binarySha256
-    const output = path.resolve(opts['--output'])
-    fs.mkdirSync(path.dirname(output), { recursive: true })
-    fs.writeFileSync(output, JSON.stringify(evidence, null, 2) + '\n', { flag: 'wx' })
     const assessment = evaluateScaleEvidence(evidence)
     process.stdout.write(`Measured ${evidence.runs.length} warm CLI scenarios, ${assessment.missing.length} cold/other cases outstanding. Evidence: ${output}\n`)
     if (evidence.collector.overBudgetCases.length > 0) {
