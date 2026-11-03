@@ -978,11 +978,17 @@ mod tests {
             error.to_string().to_lowercase().contains("output"),
             "the result must distinguish a descendant-held output pipe from an executable timeout: {error}"
         );
-        assert!(ready.exists(), "the descendant must start before the parent exits");
+        assert!(
+            ready.exists(),
+            "the descendant must start before the parent exits"
+        );
         let before = std::fs::metadata(&heartbeat).expect("heartbeat").len();
         thread::sleep(Duration::from_millis(150));
         let after = std::fs::metadata(&heartbeat).expect("heartbeat").len();
-        assert_eq!(before, after, "the orphan descendant survived output-drain cleanup");
+        assert_eq!(
+            before, after,
+            "the orphan descendant survived output-drain cleanup"
+        );
     }
 
     #[test]
