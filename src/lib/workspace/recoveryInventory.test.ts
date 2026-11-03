@@ -198,3 +198,38 @@ test('MAT-003: missing state on otherwise plausible native inventory is not veri
   assert.equal(rows.find(item => item.source === 'git-conflicts')?.status, 'unverified')
   assert.equal(rows.find(item => item.source === 'git-conflicts')?.count, null)
 })
+
+test('MAT-003: inconsistent backup verified-count evidence cannot certify an empty inventory', () => {
+  for (const verifiedCount of [1, -1, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const entries = buildRecoveryInventory({
+      ...input,
+      backups: { ...input.backups, state: 'ready', count: 0, verifiedCount },
+    })
+    const backup = entries.find(row => row.source === 'backups')
+    assert.equal(backup?.status, 'unverified', String(verifiedCount))
+    assert.equal(backup?.count, null, String(verifiedCount))
+    assert.equal(backup?.route, null, String(verifiedCount))
+  }
+})
+
+test('MAT-003: contradictory positive backup verification counts fail closed without masking load/error states', () => {
+  for (const verifiedCount of [3, -5, 1.5, Number.NaN]) {
+    const inventory = buildRecoveryInventory({
+      ...input,
+      backups: { ...input.backups, state: 'ready', count: 2, verifiedCount },
+    })
+    const backup = inventory.find(row => row.source === 'backups')
+    assert.equal(backup?.status, 'unverified')
+    assert.equal(backup?.count, null)
+    assert.equal(backup?.route, null)
+  }
+  for (const [state, status] of [['loading', 'loading'], ['error', 'unavailable']] as const) {
+    const inventory = buildRecoveryInventory({
+      ...input,
+      backups: { ...input.backups, state, count: 0, verifiedCount: 2 },
+    })
+    const backup = inventory.find(row => row.source === 'backups')
+    assert.equal(backup?.status, status)
+    assert.equal(backup?.route, null)
+  }
+})
