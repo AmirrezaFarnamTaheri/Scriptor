@@ -139,6 +139,34 @@ and the reviewed-revision hash validation in
   Native read binding does not establish full MAT-004, MAT-008 or
   installed-app acceptance. Keep issues #183 and #188 open.
 
+## MAT-021 — diagram renderer process broker delegation (PR #314)
+
+The Mermaid and PlantUML export adapters now use the shared
+`scriptor_system_bridge::ProcessSpec` / `run_process` lifecycle instead of
+constructing direct `Command` processes. The shared broker owns process-group
+setup, timeout/descendant termination, bounded stdout/stderr draining and
+minimal environment inheritance. Diagram streams retain at most 16 MiB each;
+truncated stderr is identified in renderer diagnostics. Browser/cache settings
+required by Puppeteer are passed explicitly, not by inheriting the parent
+environment. Executable discovery now scans PATH/PATHEXT directly rather than
+spawning `which` / `where` helper processes.
+
+- **Failing-first proof:** test-only head
+  `8c5134e28de8735d2cd0a52f87d023c31ef6c63e`, CI run
+  [#41709275787](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41709275787),
+  source job `126175523939`, observed the new
+  `process-broker-diagram.test.mjs` regression fail: **1,115 passed / 1 failed
+  / 1,116 total**. The failure was the expected missing broker import on the
+  pre-fix implementation.
+- **Implementation:** all diagram production and test process launches now
+  delegate through the shared broker. The diagram-specific direct-spawn
+  inventory entries are removed. Regression coverage includes fast completion,
+  timeout, descendant writer termination and independent stdout/stderr caps.
+- **Acceptance boundary:** this is one adapter slice, not MAT-021 closure.
+  Desktop daemon lifecycle, OAuth URL openers, LaTeX/Pandoc/Typst/Python and
+  publishing adapters still need their full cancellation, restart, path,
+  authorization and output-fault audit with exact-head hosted evidence.
+
 ## Evidence and current status
 
 All executable verification for the current review runs on GitHub-hosted workers.
