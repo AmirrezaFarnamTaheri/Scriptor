@@ -28,11 +28,11 @@ export function validateFormula(value: unknown): DatabaseFormula {
 }
 export function validateDatabaseView(value: unknown): DatabaseView {
   const view = record(value)
-  if (view.schemaVersion !== 1 || !['table','list','gallery'].includes(String(view.mode)) || !['all','any'].includes(String(view.combine))) throw new Error('Unsupported database view version or layout.')
+  if (view.schemaVersion !== 1 || typeof view.mode !== 'string' || !['table','list','gallery'].includes(view.mode) || typeof view.combine !== 'string' || !['all','any'].includes(view.combine)) throw new Error('Unsupported database view version or layout.')
   if (!Array.isArray(view.filters) || view.filters.length > 10 || !Array.isArray(view.columns) || view.columns.length > 12) throw new Error('Views allow at most 10 filters and 12 columns.')
   const filters = view.filters.map((raw) => {
     const filter = record(raw)
-    if (!['title','tag','path','days','metadata'].includes(String(filter.field))) throw new Error('Unsupported filter field.')
+    if (typeof filter.field !== 'string' || !['title','tag','path','days','metadata'].includes(filter.field)) throw new Error('Unsupported filter field.')
     const value = text(filter.value, 256)
     if (filter.field === 'days' && (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 36500)) throw new Error('Days must be between 1 and 36500.')
     const key=filter.field==='metadata'?text(filter.key,64):undefined
