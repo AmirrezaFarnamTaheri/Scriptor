@@ -30,6 +30,8 @@
 
 ### Fixed
 
+- Reuse a single immutable vault-path resolver across read-only lint and lint-fix instead of rebuilding the entire index for every wikilink; guard the 5k-linked-note performance path and preserve ambiguous/hand-authored reference behavior.
+
 - Show guided MCP recipes only for tools actually registered in the current permission-scoped server; withhold active-note recipes when no note is open, guard against late availability changes, and explain empty recipe availability in English, German and Persian.
 
 - Preserve fractional-millisecond scan, FTS5 search and optional Tantivy benchmark samples instead of truncating short operations to false `0 ms` results. Add source-bound hosted native warm measurements on Windows, macOS and Linux; keep cold-cache, startup, editor, memory and packaged acceptance explicitly unverified.
