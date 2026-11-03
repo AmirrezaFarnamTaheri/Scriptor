@@ -30,6 +30,8 @@
 
 ### Fixed
 
+- Reject stale GitHub Actions attempt links in capability evidence when a later rerun succeeds, and disallow ambiguous workflow proof URL suffixes.
+
 - Preserve indeterminate backup-deletion retry and retention holds across common Windows drive/UNC path aliases (case, slash, dot segments and Unicode normalization), without merging distinct POSIX or vault owners.
 
 - Reuse a single immutable vault-path resolver across read-only lint and lint-fix instead of rebuilding the entire index for every wikilink; guard the 5k-linked-note performance path and preserve ambiguous/hand-authored reference behavior.
