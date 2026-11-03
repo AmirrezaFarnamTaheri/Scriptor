@@ -741,8 +741,14 @@ mod tests {
             .expect("resolved references need a regenerated definition");
         assert!(rewritten.contains("[only]: notes/only"), "{rewritten}");
         assert!(rewritten.contains("[spec]: ./paper.pdf"), "{rewritten}");
-        assert!(!rewritten.contains("[leaf]:"), "ambiguous links must never be manufactured");
-        assert!(!rewritten.contains("[Missing]:"), "unresolved links must remain unresolved");
+        assert!(
+            !rewritten.contains("[leaf]:"),
+            "ambiguous links must never be manufactured"
+        );
+        assert!(
+            !rewritten.contains("[Missing]:"),
+            "unresolved links must remain unresolved"
+        );
     }
 
     #[test]
