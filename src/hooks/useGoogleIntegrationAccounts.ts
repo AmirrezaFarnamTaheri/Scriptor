@@ -14,7 +14,7 @@ const disconnected: AccountState = { status: 'disconnected', email: null, error:
 
 /** IPC account identity is runtime evidence, not trusted from TypeScript types. */
 function verifiedGoogleAccountEmail(value: unknown): string | null {
-  if (typeof value !== 'string' || value.length > 254 || /[\u0000-\u001F\u007F]/.test(value)) return null
+  if (typeof value !== 'string' || value.length > 254 || /[\u0000-\u001F\u007F]/.test(value) || value.includes('\\')) return null
   const email = value.trim()
   return /^[^\s@<>]+@[^\s@<>]+$/.test(email) ? email : null
 }
