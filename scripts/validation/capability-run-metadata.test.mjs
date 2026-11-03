@@ -155,3 +155,23 @@ test('MAT-022: malformed run URL suffixes cannot substitute for exact CI proof',
     assert.ok(result.unverified.includes('tests.negative'), suffix)
   }
 })
+
+test('MAT-022: passing steps from a previous attempt must not certify the latest successful run', async () => {
+  const run = { ...succeededRun(), run_attempt: 2 }
+  const jobs = succeededJobs()
+  jobs.jobs[0].run_attempt = 1
+  jobs.jobs[0].run_id = 100
+  const result = await verifyCapabilityWorkflowMetadata(packet(), provider(run, jobs))
+  assert.equal(result.runMetadataVerified, false, 'a newer successful run must not inherit earlier attempt steps')
+  assert.deepEqual(result.unverified, ids)
+})
+
+test('MAT-022: successful named steps from a different workflow run must not verify this run', async () => {
+  const run = { ...succeededRun(), run_attempt: 1 }
+  const jobs = succeededJobs()
+  jobs.jobs[0].run_attempt = 1
+  jobs.jobs[0].run_id = 999
+  const result = await verifyCapabilityWorkflowMetadata(packet(), provider(run, jobs))
+  assert.equal(result.runMetadataVerified, false, 'job run_id must match the attested workflow run')
+  assert.deepEqual(result.unverified, ids)
+})
