@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { validateDatabaseView, databaseFilterJson, scalarFields, calculateValue, aggregateColumn, matchesMetadataFilters, matchesTag, pathMatches, parseScalarCell, formatScalarCell, isMissingDatabasePreset } from './databaseStudio.ts'
+import { validateDatabaseView, validateFormula, databaseFilterJson, scalarFields, calculateValue, aggregateColumn, matchesMetadataFilters, matchesTag, pathMatches, parseScalarCell, formatScalarCell, isMissingDatabasePreset } from './databaseStudio.ts'
 
 test('calendar calculations reject rollover dates', () => {
   assert.equal(calculateValue({op:'days-between',fields:['a','b']},{a:'2026-02-30',b:'2026-03-04'}),null)
@@ -166,4 +166,60 @@ test('MAT-010: non-finite numeric cells must not be silently written as YAML nul
   assert.equal(formatScalarCell(0), '0')
   assert.equal(formatScalarCell(1e21), '1e+21')
   assert.equal(formatScalarCell(null), 'null')
+})
+
+test('MAT-010: a corrupted formula in a saved view must not silently disappear', () => {
+  const view = {
+    schemaVersion: 1, id: 'formula-review', label: 'Calculated fields',
+    mode: 'table', combine: 'all', filters: [],
+    columns: [{ key: 'score', label: 'Score' }],
+  }
+  for (const malformed of [null, false, 0, '']) {
+    const invalid = { ...view, columns: [{ ...view.columns[0], formula: malformed }] }
+    assert.throws(
+      () => validateDatabaseView(invalid),
+      /view object|calculated column|formula/i,
+      'a present but malformed formula must trigger review instead of being dropped',
+    )
+  }
+  assert.deepEqual(validateDatabaseView(view).columns, view.columns)
+  const valid = { op: 'length', fields: ['score'] }
+  assert.deepEqual(
+    validateDatabaseView({ ...view, columns: [{ ...view.columns[0], formula: valid }] }).columns[0].formula,
+    valid,
+  )
+})
+
+test('MAT-010: corrupted persisted layout/filter types are not coerced into valid schema fields', () => {
+  const view = {
+    schemaVersion: 1, id: 'type-review', label: 'Typed view',
+    mode: 'table', combine: 'all',
+    filters: [{ field: 'tag', value: 'research' }],
+    columns: [{ key: 'status', label: 'Status' }],
+  }
+  for (const invalid of [
+    { ...view, mode: ['table'] },
+    { ...view, combine: ['all'] },
+    { ...view, filters: [{ field: ['tag'], value: 'research' }] },
+  ]) {
+    assert.throws(() => validateDatabaseView(invalid), /Unsupported .*view|Unsupported filter field/i)
+  }
+  const validated = validateDatabaseView(view)
+  assert.equal(validated.mode, 'table')
+  assert.equal(validated.combine, 'all')
+  assert.equal(validated.filters[0].field, 'tag')
+})
+
+test('MAT-010: calculated fields cannot read inherited JavaScript properties as user metadata', () => {
+  for (const key of ['constructor', 'prototype', '__proto__']) {
+    assert.throws(
+      () => validateFormula({ op: 'upper', fields: [key] }),
+      /valid field names/i,
+      'prototype metadata selectors cannot be saved as calculated columns',
+    )
+  }
+  assert.equal(calculateValue({ op: 'upper', fields: ['toString'] }, {}), null)
+  assert.equal(calculateValue({ op: 'length', fields: ['valueOf'] }, {}), null)
+  const owned = Object.assign(Object.create(null), { toString: 'draft' })
+  assert.equal(calculateValue({ op: 'upper', fields: ['toString'] }, owned), 'DRAFT')
 })
