@@ -55,15 +55,32 @@ fn output_with_timeout(spec: ProcessSpec) -> io::Result<DiagramOutput> {
     })
 }
 
-fn diagnostic_stderr(output: &DiagramOutput) -> String {
-    let mut stderr = output.stderr.clone();
+fn diagnostic_output(output: &DiagramOutput) -> String {
+    let mut diagnostic = String::new();
+    if !output.stdout.is_empty() {
+        diagnostic.push_str("stdout: ");
+        diagnostic.push_str(&output.stdout);
+    }
+    if !output.stderr.is_empty() {
+        if !diagnostic.is_empty() {
+            diagnostic.push('\n');
+        }
+        diagnostic.push_str("stderr: ");
+        diagnostic.push_str(&output.stderr);
+    }
+    if output.stdout_truncated {
+        diagnostic.push_str(&format!(
+            "\n[stdout truncated after {} bytes]",
+            MAX_DIAGRAM_OUTPUT_BYTES
+        ));
+    }
     if output.stderr_truncated {
-        stderr.push_str(&format!(
+        diagnostic.push_str(&format!(
             "\n[stderr truncated after {} bytes]",
             MAX_DIAGRAM_OUTPUT_BYTES
         ));
     }
-    stderr
+    diagnostic
 }
 
 /// Render a Mermaid diagram source to SVG using `mmdc` (mermaid-cli).
@@ -135,8 +152,8 @@ pub fn render_mermaid_svg(source: &str) -> Result<String, ExportError> {
 fn collect_rendered_svg(result: io::Result<DiagramOutput>, output_path: &Path) -> Result<String, String> {
     match result {
         Ok(output) => {
-            let stderr = diagnostic_stderr(&output);
-            svg_from_run(output.success, &stderr, output_path)
+            let diagnostic = diagnostic_output(&output);
+            svg_from_run(output.success, &diagnostic, output_path)
         },
         Err(error) => Err(format!("failed to run renderer: {error}")),
     }
@@ -232,7 +249,7 @@ pub(crate) fn run_plantuml_engine_with(
         if !output.success {
             return Err(EngineError::Configured(format!(
                 "PLANTUML_BIN exited non-zero: {}",
-                diagnostic_stderr(&output)
+                diagnostic_output(&output)
             )));
         }
         return fs::read_to_string(svg_path)
@@ -251,7 +268,7 @@ pub(crate) fn run_plantuml_engine_with(
         if !output.success {
             return Err(EngineError::Configured(format!(
                 "PLANTUML_JAR run exited non-zero: {}",
-                diagnostic_stderr(&output)
+                diagnostic_output(&output)
             )));
         }
         return fs::read_to_string(svg_path)
@@ -268,7 +285,7 @@ pub(crate) fn run_plantuml_engine_with(
     if !output.success {
         return Err(EngineError::Discovered(format!(
             "PlantUML failed: {}",
-            diagnostic_stderr(&output)
+            diagnostic_output(&output)
         )));
     }
     fs::read_to_string(svg_path).map_err(|error| EngineError::Discovered(error.to_string()))
@@ -558,6 +575,23 @@ mod tests {
         let output = output_with_timeout(spec).expect("ran");
         assert!(output.success);
         assert!(output.stdout.contains("hi"));
+    }
+
+    #[test]
+    fn diagnostic_output_reports_captured_streams_and_truncation() {
+        let output = DiagramOutput {
+            success: false,
+            stdout: "renderer detail".to_owned(),
+            stderr: "renderer warning".to_owned(),
+            stdout_truncated: true,
+            stderr_truncated: true,
+        };
+
+        let diagnostic = diagnostic_output(&output);
+        assert!(diagnostic.contains("stdout: renderer detail"));
+        assert!(diagnostic.contains("stderr: renderer warning"));
+        assert!(diagnostic.contains("[stdout truncated"));
+        assert!(diagnostic.contains("[stderr truncated"));
     }
 
     #[cfg(unix)]
