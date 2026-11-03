@@ -167,3 +167,25 @@ test('MAT-010: non-finite numeric cells must not be silently written as YAML nul
   assert.equal(formatScalarCell(1e21), '1e+21')
   assert.equal(formatScalarCell(null), 'null')
 })
+
+test('MAT-010: a corrupted formula in a saved view must not silently disappear', () => {
+  const view = {
+    schemaVersion: 1, id: 'formula-review', label: 'Calculated fields',
+    mode: 'table', combine: 'all', filters: [],
+    columns: [{ key: 'score', label: 'Score' }],
+  }
+  for (const malformed of [null, false, 0, '']) {
+    const invalid = { ...view, columns: [{ ...view.columns[0], formula: malformed }] }
+    assert.throws(
+      () => validateDatabaseView(invalid),
+      /view object|calculated column|formula/i,
+      'a present but malformed formula must trigger review instead of being dropped',
+    )
+  }
+  assert.deepEqual(validateDatabaseView(view).columns, view.columns)
+  const valid = { op: 'length', fields: ['score'] }
+  assert.deepEqual(
+    validateDatabaseView({ ...view, columns: [{ ...view.columns[0], formula: valid }] }).columns[0].formula,
+    valid,
+  )
+})
