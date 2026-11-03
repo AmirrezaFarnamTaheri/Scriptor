@@ -25,8 +25,8 @@ struct DiagramOutput {
 /// Run a renderer through the shared process broker. The broker owns process
 /// groups, bounded pipe draining, timeout handling and descendant termination.
 fn output_with_timeout(spec: ProcessSpec) -> io::Result<DiagramOutput> {
-    let receipt = run_process(spec.max_output_bytes(MAX_DIAGRAM_OUTPUT_BYTES)).map_err(|error| {
-        match error {
+    let receipt = run_process(spec.max_output_bytes(MAX_DIAGRAM_OUTPUT_BYTES)).map_err(
+        |error| match error {
             BridgeError::ProcessTimeout {
                 program,
                 timeout_ms,
@@ -43,8 +43,8 @@ fn output_with_timeout(spec: ProcessSpec) -> io::Result<DiagramOutput> {
                 ),
             ),
             other => io::Error::other(other.to_string()),
-        }
-    })?;
+        },
+    )?;
 
     Ok(DiagramOutput {
         success: receipt.exit_code == 0,
@@ -149,12 +149,15 @@ pub fn render_mermaid_svg(source: &str) -> Result<String, ExportError> {
 ///
 /// Split out from [`render_mermaid_svg`] so the read-before-cleanup ordering is
 /// directly testable without a real `mmdc` install.
-fn collect_rendered_svg(result: io::Result<DiagramOutput>, output_path: &Path) -> Result<String, String> {
+fn collect_rendered_svg(
+    result: io::Result<DiagramOutput>,
+    output_path: &Path,
+) -> Result<String, String> {
     match result {
         Ok(output) => {
             let diagnostic = diagnostic_output(&output);
             svg_from_run(output.success, &diagnostic, output_path)
-        },
+        }
         Err(error) => Err(format!("failed to run renderer: {error}")),
     }
 }
