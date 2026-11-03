@@ -1754,6 +1754,7 @@ function App() {
           externalChangeConflict={workspace.externalChangeConflict}
           onOpenNoteHistory={() => { setSettingsOpen(false); setNoteHistoryOpen(true) }}
           onOpenCanvas={() => { setSettingsOpen(false); setPanel('canvasOpen', true) }}
+          onOpenGitPanel={() => setGitPanelOpen(true)}
           onConfigSaved={handleSettingsConfigSaved}
           onClose={handleCloseSettings}
           workspaceMode={workspaceMode}
