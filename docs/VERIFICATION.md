@@ -8,6 +8,24 @@ Results from an older commit cannot certify a newer implementation.
 
 **MAT-001–024 policy effective 2026-11-02:** [Automated MAT acceptance](MAT-AUTOMATED-ACCEPTANCE.md) supersedes older passages below referring to manual approval, real-user studies, physical installation, live-account use and installed-app acceptance as *closure gates*. Those historical verification records remain valid evidence of what was or was not tested then; none becomes an automated pass retroactively. In-product user authorization is unaffected.
 
+## MAT-014 — cross-platform manifest/read-evidence path identity (partial PR #311)
+
+Read-only `reviewResearchProjectManifest` must not claim reproducibility when
+an authored input/output or native observed read path aliases Windows device
+names (CON/PRN/NUL/AUX, COM1–9, LPT1–9), ends a segment with a dot/space, or
+contains controls and bidirectional spoofing markers. Such filenames cannot be
+assumed to refer to a distinct filesystem artifact on all three hosted OSes.
+
+- Test-only head `cc6b2841ea32cd97c64b9734e56ffadca914759c` adds
+  executable negative/positive path identity fixtures to the existing
+  manifest comparator tests. Observe its RED behavior separately.
+- Source validation applies symmetrically to authored project manifest paths
+  and observed native-read evidence, not just output filenames. Existing
+  NFC/case and parent/descendant-alias checks are retained.
+- No native build/write permission or generated receipt is implied.
+  MAT-014 still requires the versioned native manifest writer, review/consent,
+  publication receipts, restart and artifact proof; MAT-024 stays open.
+
 ## MAT-003 — malformed read-only recovery inventory states (partial, PR #308)
 
 An unrecognized/missing source-state value at the bridge or stored-evidence
