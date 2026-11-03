@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Route Mermaid and PlantUML renderer execution through the shared native process broker with bounded output capture and process-tree timeout handling; remove direct diagram process launches and their temporary inventory exceptions.
+
 ### In progress — MAT maturation foundations
 
 - Make native mutation reply loss distinguishable from confirmed commit/rollback in renderer-observed operation receipts; preserve vault-scoped backup receipt semantics.
