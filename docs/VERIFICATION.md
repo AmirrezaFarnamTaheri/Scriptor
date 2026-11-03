@@ -167,6 +167,33 @@ spawning `which` / `where` helper processes.
   publishing adapters still need their full cancellation, restart, path,
   authorization and output-fault audit with exact-head hosted evidence.
 
+## MAT-021 — descendant-held process output pipes (PR #314)
+
+The shared native process broker now distinguishes an executable timeout from
+a successful direct-child exit whose descendant keeps inherited stdout/stderr
+handles open. Once the direct child exits, the broker waits only for the bounded
+output-drain grace. If a descendant still owns either pipe, it terminates the
+launch process tree, collects any remaining bounded output, and returns
+`BridgeError::ProcessOutputDrainTimeout`; it no longer waits for the full
+executable deadline or mislabels this condition as an executable timeout.
+
+- **Failing-first proof:** test-only head
+  `f713a8eec00ee0a2448651732eb870ed59eff6c1`, hosted CI
+  [#41716350760](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41716350760),
+  Rust job `126199419949`: **14 passed / 1 failed**. The new regression
+  `exited_process_with_orphaned_output_pipe_is_reaped_promptly` observed the
+  direct shell returning after 5.2589 seconds, waiting for the full configured
+  five-second execution deadline while a descendant held both output pipes.
+- **Implementation:** current candidate head
+  `64f2e6333ed8343352e0ec831d330e4f98cca395` applies a separate bounded
+  output-drain deadline after direct-child exit and returns an explicit
+  output-drain error with partial captured stdout/stderr. Exact-head CI,
+  desktop compile, visual review and localization are pending.
+- **Acceptance boundary:** this closes one process-broker lifecycle gap, not
+  MAT-021. Export-job streaming readers and the daemon/OAuth/LaTeX/Pandoc/
+  Typst/Python/publishing adapters still require their complete cancellation,
+  restart, path, authorization, output-flood and process-tree fault matrix.
+
 ## Evidence and current status
 
 All executable verification for the current review runs on GitHub-hosted workers.
