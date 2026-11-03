@@ -61,3 +61,15 @@ test('MAT-014: no unverifiable duplicate or malformed native evidence may establ
   seen.reads.pop(); seen.reads[0].sha256 = 'wrong'
   assert.throws(() => reviewResearchProjectManifest(manifest(), seen), /sha256/i)
 })
+
+test('MAT-014: nested source/output paths cannot masquerade as independent manifest files', () => {
+  const inputAncestor = manifest()
+  inputAncestor.inputs.push({ path: 'Notes', kind: 'source', sha256: a })
+  assert.throws(() => reviewResearchProjectManifest(inputAncestor, evidence()), /duplicate|overlap/i)
+  const outputAncestor = manifest()
+  outputAncestor.output.path = 'References'
+  assert.throws(() => reviewResearchProjectManifest(outputAncestor, evidence()), /duplicate|overlap/i)
+  const nestedOutput = manifest()
+  nestedOutput.output.path = 'Notes/Study.md/rendered.pdf'
+  assert.throws(() => reviewResearchProjectManifest(nestedOutput, evidence()), /duplicate|overlap/i)
+})

@@ -30,6 +30,8 @@
 
 ### Fixed
 
+- Reject research project manifests whose input or output paths overlap as filesystem ancestors/descendants, not just exact duplicates, before presenting reproducibility evidence.
+
 - Require explicit review before Google Tasks mirroring when an orphaned legacy, unscoped provider ownership marker shares a normalized title with a new local task identity after a note move; foreign-vault scoped markers remain distinct.
 
 - Correct Windows daemon/process liveness checks for an exited child whose exit code is 259 (the Win32 STILL_ACTIVE sentinel), using a zero-timeout handle wait and hosted Windows regression coverage.
