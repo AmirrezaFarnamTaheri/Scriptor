@@ -51,22 +51,24 @@ pub fn process_alive(pid: u32) -> bool {
         use std::ffi::c_void;
         unsafe extern "system" {
             fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
-            fn GetExitCodeProcess(handle: *mut c_void, exit_code: *mut u32) -> i32;
+            fn WaitForSingleObject(handle: *mut c_void, milliseconds: u32) -> u32;
             fn CloseHandle(handle: *mut c_void) -> i32;
         }
-        const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
-        const STILL_ACTIVE: u32 = 259;
+        const SYNCHRONIZE: u32 = 0x0010_0000;
+        const WAIT_TIMEOUT: u32 = 0x0000_0102;
+        // GetExitCodeProcess alone is ambiguous: an exited process can
+        // legitimately return 259, the same value as STILL_ACTIVE. Observe
+        // the process handle's signaled state without sending any signal.
         // SAFETY: Win32 receives a numeric pid; the returned handle is checked
         // for null and closed exactly once before it can escape this function.
         unsafe {
-            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+            let handle = OpenProcess(SYNCHRONIZE, 0, pid);
             if handle.is_null() {
                 return false;
             }
-            let mut exit_code = 0u32;
-            let queried = GetExitCodeProcess(handle, &mut exit_code);
+            let wait_result = WaitForSingleObject(handle, 0);
             CloseHandle(handle);
-            queried != 0 && exit_code == STILL_ACTIVE
+            wait_result == WAIT_TIMEOUT
         }
     }
 }
@@ -672,6 +674,28 @@ mod tests {
     fn out_of_range_unsigned_pid_is_never_probed_as_a_process_group() {
         assert!(!process_alive(u32::MAX));
         assert!(!process_alive(i32::MAX as u32 + 1));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn exited_windows_process_with_still_active_exit_code_is_not_live() {
+        // Win32 exit code 259 aliases STILL_ACTIVE. Keeping the Child handle
+        // prevents PID reuse until after the observation is complete.
+        let mut child = Command::new("cmd")
+            .args(["/C", "exit", "/B", "259"])
+            .spawn()
+            .expect("spawn child with exit code 259");
+        let pid = child.id();
+        let status = child.wait().expect("wait for child");
+        assert_eq!(status.code(), Some(259));
+        assert!(
+            !process_alive(pid),
+            "a completed process is not alive even when exit code is 259"
+        );
+        assert!(
+            process_alive(std::process::id()),
+            "the current process must be detected as running"
+        );
     }
 
     #[cfg(windows)]

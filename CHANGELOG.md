@@ -30,6 +30,8 @@
 
 ### Fixed
 
+- Correct Windows daemon/process liveness checks for an exited child whose exit code is 259 (the Win32 STILL_ACTIVE sentinel), using a zero-timeout handle wait and hosted Windows regression coverage.
+
 - Recheck plugin command permission at palette invocation, so a command displayed before access was revoked cannot dispatch a stale plugin action.
 
 - Show guided MCP recipes only for tools actually registered in the current permission-scoped server; withhold active-note recipes when no note is open, guard against late availability changes, and explain empty recipe availability in English, German and Persian.
