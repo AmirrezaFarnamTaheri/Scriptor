@@ -25,14 +25,19 @@ export function reviewResearchProjectManifest(manifest: unknown, observed: unkno
   identity(manifest.projectId)
   if (!Array.isArray(manifest.inputs) || manifest.inputs.length === 0 || manifest.inputs.length > 500) throw new Error('Invalid research inputs')
   const entries: { path: string; sha256: string }[] = []
+  // Cross-platform project evidence must not claim two independent files
+  // where a case-insensitive or canonically normalized filesystem can only
+  // represent one. Keep exact original paths for native reads and receipts;
+  // this comparison key is not a substitute for native filesystem ownership.
   const used = new Set<string>()
   const assertDisjointPath = (filename: string): void => {
+    const portable = filename.normalize('NFC').toLowerCase()
     for (const previous of used) {
-      if (previous === filename || previous.startsWith(filename + '/') || filename.startsWith(previous + '/')) {
+      if (previous === portable || previous.startsWith(portable + '/') || portable.startsWith(previous + '/')) {
         throw new Error('Duplicate or overlapping research manifest paths')
       }
     }
-    used.add(filename)
+    used.add(portable)
   }
   for (const row of manifest.inputs) {
     if (!object(row) || !['note', 'bibliography', 'source'].includes(row.kind as string) || !sha(row.sha256)) throw new Error('Invalid research input sha256 or kind')
