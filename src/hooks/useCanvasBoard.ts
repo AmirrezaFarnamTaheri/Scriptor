@@ -465,13 +465,19 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
 
         let creationWarning: string | null = null
         if (native) {
+          let submitted = false
           try {
             // Keep the current board editable until the replacement is durable.
             // A failed creation must not become the selected unsaved board.
-            const result = await canvasSaveDocument(JSON.stringify(created), vaultId)
+            const sceneJson = JSON.stringify(created)
+            submitted = true
+            const result = await canvasSaveDocument(sceneJson, vaultId)
             creationWarning = result.indexWarning ?? null
           } catch (error) {
-            if (canSelect()) setStatus(error instanceof Error ? error.message : 'Could not create board.')
+            if (submitted) unconfirmedSaveVaultRef.current = { vaultId }
+            if (canSelect()) setStatus(submitted
+              ? 'Canvas creation unconfirmed. Native changes may have committed; reopen the vault and inspect before retrying.'
+              : error instanceof Error ? error.message : 'Could not create board.')
             return
           }
         }
