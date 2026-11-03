@@ -33,6 +33,8 @@
 
 ### Fixed
 
+- Keep the command palette open and show an accessible localized unavailable reason when a previously listed plugin permission is revoked, while preserving native permission checks.
+
 - Reject stale GitHub Actions attempt links in capability evidence when a later rerun succeeds, and disallow ambiguous workflow proof URL suffixes.
 
 
