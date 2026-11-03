@@ -37,3 +37,58 @@ test('export readiness never skips missing capture or export-profile checks', ()
   assert.equal(checkpoint({ captureReviewed: true, trace: verified, exportProfileValidated: false }).next, 'validate-export-profile')
   assert.equal(checkpoint({ captureReviewed: true, trace: review(trace, { ...ctx, bibliographyKeys: [] }), exportProfileValidated: true }).next, 'repair-evidence')
 })
+
+test('MAT-011: empty reference and ownership paths cannot appear ready even when indexes contain matching blanks', () => {
+  for (const corrupted of [
+    { ...trace, referenceKey: '' },
+    { ...trace, literatureNotePath: '' },
+    { ...trace, manuscriptPath: '' },
+  ]) {
+    const result = review(corrupted, {
+      ...ctx, bibliographyKeys: ['', 'cite2026'],
+      notePaths: ['', 'literature/a.md', 'draft.md'],
+      manuscriptCitationKeys: ['', 'cite2026'],
+    })
+    assert.notEqual(result.status, 'ready', 'empty identity must not match a malformed index')
+    assert.equal(result.requiresReview, true)
+  }
+})
+
+test('MAT-011: traversal paths and missing source revision cannot certify a current-vault trace', () => {
+  const bad = [
+    { ...trace, sourcePath: '../outside.md' },
+    { ...trace, literatureNotePath: 'literature/../../outside.md' },
+    { ...trace, manuscriptPath: '/external/draft.md' },
+    { ...trace, sourceRevision: '' },
+  ]
+  for (const item of bad) {
+    const result = review(item, {
+      ...ctx,
+      source: { ...ctx.source!, path: item.sourcePath, revision: item.sourceRevision },
+      notePaths: ['literature/a.md', 'draft.md', item.literatureNotePath, item.manuscriptPath],
+    })
+    assert.equal(result.status, 'invalid-evidence', JSON.stringify(item))
+    assert.equal(result.requiresReview, true)
+    assert.equal(result.proposedSourcePath, null)
+  }
+})
+
+test('MAT-012: contradictory or absent review outcomes cannot authorize publication', () => {
+  const ready = review(trace, ctx)
+  const contradictory = { ...ready, requiresReview: true }
+  assert.deepEqual(checkpoint({ captureReviewed: true, trace: contradictory, exportProfileValidated: true }),
+    { ready: false, next: 'repair-evidence' })
+  const missing = checkpoint({ captureReviewed: true,
+    trace: null as unknown as Parameters<typeof checkpoint>[0]['trace'], exportProfileValidated: true })
+  assert.deepEqual(missing, { ready: false, next: 'repair-evidence' })
+})
+
+test('MAT-012: truthy invalid approvals cannot bypass capture or export-profile validation', () => {
+  const ready = review(trace, ctx)
+  assert.deepEqual(checkpoint({
+    captureReviewed: 'yes' as unknown as boolean, trace: ready, exportProfileValidated: true,
+  }), { ready: false, next: 'review-capture' })
+  assert.deepEqual(checkpoint({
+    captureReviewed: true, trace: ready, exportProfileValidated: 'yes' as unknown as boolean,
+  }), { ready: false, next: 'validate-export-profile' })
+})

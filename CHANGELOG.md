@@ -12,6 +12,8 @@
 
 ### Improved
 
+- Fail closed when research trace keys, revisions or vault-relative paths are malformed, and require non-contradictory capture, trace and export approvals before suggesting publication.
+
 - Inspect vault-owned Canvas template undo checkpoints through a bounded, read-only native Recovery Center inventory. Corrupt, overlarge, symlinked or foreign-vault evidence stays unverified; verified checkpoints link back to Canvas without restoring files or changing native consent.
 
 

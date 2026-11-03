@@ -32,19 +32,42 @@ export interface ResearchReadContext {
 export type TraceIssue = 'ready' | 'wrong-vault' | 'missing-source' |
   'moved-source' | 'stale-revision' | 'stale-passage' |
   'missing-reference' | 'missing-literature-note' |
-  'missing-manuscript' | 'missing-manuscript-citation'
+  'missing-manuscript' | 'missing-manuscript-citation' | 'invalid-evidence'
 export interface TraceReview {
   readonly status: TraceIssue
   readonly proposedSourcePath: string | null
   readonly requiresReview: boolean
 }
+// Evidence is read-only, but paths and identifiers still cross an index/IPC
+// boundary; matching two malformed observations must never certify provenance.
+const nonblank = (value: unknown): value is string =>
+  typeof value === 'string' && value.trim().length > 0 && value.length <= 500
+const vaultRelativePath = (value: unknown): value is string =>
+  nonblank(value) && !value.startsWith('/') && !value.includes('\\') &&
+  !value.includes(':') && !value.includes('\0') &&
+  value.split('/').every(part => part.length > 0 && part !== '.' && part !== '..')
+
 export function reviewResearchEvidence(trace: ResearchEvidenceTrace, ctx: ResearchReadContext): TraceReview {
   const report = (status: TraceIssue, proposedSourcePath: string | null): TraceReview => ({
     status, proposedSourcePath, requiresReview: status !== 'ready',
   })
-  if (!trace.vaultId || trace.vaultId !== ctx.vaultId || (ctx.source && ctx.source.vaultId !== ctx.vaultId)) return report('wrong-vault', null)
+  if (!trace || !ctx || !nonblank(trace.vaultId) || !nonblank(ctx.vaultId) ||
+      trace.vaultId !== ctx.vaultId || (ctx.source && ctx.source.vaultId !== ctx.vaultId)) {
+    return report('wrong-vault', null)
+  }
+  if (!nonblank(trace.sourceId) || !vaultRelativePath(trace.sourcePath) ||
+      !nonblank(trace.sourceRevision) || !nonblank(trace.referenceKey) ||
+      !vaultRelativePath(trace.literatureNotePath) || !vaultRelativePath(trace.manuscriptPath)) {
+    return report('invalid-evidence', null)
+  }
   const source = ctx.source
-  if (!source || !trace.sourceId || source.sourceId !== trace.sourceId) return report('missing-source', null)
+  if (!source || source.sourceId !== trace.sourceId) return report('missing-source', null)
+  if (!vaultRelativePath(source.path) || !nonblank(source.revision) ||
+      typeof source.markdown !== 'string' ||
+      !Array.isArray(ctx.bibliographyKeys) || !Array.isArray(ctx.notePaths) ||
+      !Array.isArray(ctx.manuscriptCitationKeys)) {
+    return report('invalid-evidence', null)
+  }
   if (source.path !== trace.sourcePath) return report('moved-source', source.path)
   if (source.revision !== trace.sourceRevision) return report('stale-revision', source.path)
   const { passageStartUtf16: start, passageEndUtf16: end } = trace
@@ -64,8 +87,10 @@ export function researchWorkflowCheckpoint(input: {
   readonly trace: TraceReview
   readonly exportProfileValidated: boolean
 }): { readonly ready: boolean; readonly next: ResearchNextStep } {
-  if (!input.captureReviewed) return { ready: false, next: 'review-capture' }
-  if (input.trace.status !== 'ready') return { ready: false, next: 'repair-evidence' }
-  if (!input.exportProfileValidated) return { ready: false, next: 'validate-export-profile' }
+  if (input.captureReviewed !== true) return { ready: false, next: 'review-capture' }
+  if (!input.trace || input.trace.status !== 'ready' || input.trace.requiresReview !== false) {
+    return { ready: false, next: 'repair-evidence' }
+  }
+  if (input.exportProfileValidated !== true) return { ready: false, next: 'validate-export-profile' }
   return { ready: true, next: 'request-publish-authorization' }
 }
