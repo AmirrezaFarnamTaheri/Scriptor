@@ -8,6 +8,61 @@ Results from an older commit cannot certify a newer implementation.
 
 **MAT-001–024 policy effective 2026-11-02:** [Automated MAT acceptance](MAT-AUTOMATED-ACCEPTANCE.md) supersedes older passages below referring to manual approval, real-user studies, physical installation, live-account use and installed-app acceptance as *closure gates*. Those historical verification records remain valid evidence of what was or was not tested then; none becomes an automated pass retroactively. In-product user authorization is unaffected.
 
+## MAT-011 / MAT-012 — portable read-only research provenance identities (partial PR #312)
+
+Existing source/indexer evidence can be current and still malformed at an IPC
+boundary. A read-only trace must not certify `ready` when source/manuscript,
+literature-note or revision/reference identity uses Windows reserved device
+names, trailing-dot/space aliases, controls or bidi filename spoofing. Such
+identities are not portable across hosted Windows/macOS/Linux environments and
+are not suitable as source-bound publication proof.
+
+- Behavioral failing-first source tests cover malformed source, literature,
+  manuscript, and reference keys with matching index observations, plus a safe
+  internally-spaced path. Test-first SHA:
+  `cbe117e7c6b3c8518babddeafd6b5a4e49c433f6`.
+- The read-only comparator refuses to classify these inputs as current; it
+  never grants source reading, citation modification or publish authority.
+- MAT-011/MAT-012 remain open for durable lineage, native capture/review/export,
+  vault/restart and CI-built task-level acceptance across platforms.
+
+## MAT-014 — cross-platform manifest/read-evidence path identity (partial PR #311)
+
+Read-only `reviewResearchProjectManifest` must not claim reproducibility when
+an authored input/output or native observed read path aliases Windows device
+names (CON/PRN/NUL/AUX, COM1–9, LPT1–9), ends a segment with a dot/space, or
+contains controls and bidirectional spoofing markers. Such filenames cannot be
+assumed to refer to a distinct filesystem artifact on all three hosted OSes.
+
+- Test-only head `cc6b2841ea32cd97c64b9734e56ffadca914759c` adds
+  executable negative/positive path identity fixtures to the existing
+  manifest comparator tests. Observe its RED behavior separately.
+- Source validation applies symmetrically to authored project manifest paths
+  and observed native-read evidence, not just output filenames. Existing
+  NFC/case and parent/descendant-alias checks are retained.
+- No native build/write permission or generated receipt is implied.
+  MAT-014 still requires the versioned native manifest writer, review/consent,
+  publication receipts, restart and artifact proof; MAT-024 stays open.
+
+## MAT-015 / MAT-017 — provider credential identity truthfulness (partial PR #310)
+
+Provider credential checks can return runtime-invalid data even when bridge
+types promise an email. A null native read means disconnected; an object,
+blank, non-email, oversized or control-character identity is **not a verified
+connection**, cannot be persisted as a client ID, and must display a recoverable
+error with no asserted account. Drive and Gmail retain separate credential
+lanes; existing vault generation fences still block stale post-OAuth writes.
+The global native account-change signal is retained even when the local
+identity is invalid, so other mounted consumers can invalidate caches.
+
+- Failing-first test commit `92baa6f2b2c04555595c0e75afc81a06f3c6fded`
+  runs the actual React-hook harness and checks invalid credential read,
+  invalid OAuth completion and whitespace-normalized verified identity.
+- The change does not perform a remote transfer, certify connectivity, or
+  bypass native authorization. Still requires token/reconnect, account/vault
+  switching, offline, and CI-built cross-platform provider fixture evidence.
+- MAT-015 and MAT-017 remain **open**; a green source test is partial proof.
+
 ## MAT-003 — malformed read-only recovery inventory states (partial, PR #308)
 
 An unrecognized/missing source-state value at the bridge or stored-evidence

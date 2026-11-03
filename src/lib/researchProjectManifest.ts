@@ -10,7 +10,14 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 const sha = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{64}$/i.test(v)
 const text = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= 255
 function path(v: unknown): string {
-  if (!text(v) || v.startsWith('/') || v.includes('\\') || v.includes(':') || v.includes('\0') || v.split('/').some(x => !x || x === '.' || x === '..')) {
+  // Research receipts must represent the same files on Windows, macOS and
+  // Linux. Windows device names and trailing period/space aliases do not
+  // have distinct safe file identities; controls can spoof path evidence.
+  if (!text(v) || v.startsWith('/') || v.includes('\\') || v.includes(':') ||
+      /[\u0000-\u001F\u007F-\u009F\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/u.test(v) ||
+      v.split('/').some(segment => !segment || segment === '.' || segment === '..' ||
+        /[. ]$/u.test(segment) ||
+        /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/iu.test(segment))) {
     throw new Error('Unsafe vault-relative path in research manifest')
   }
   return v
