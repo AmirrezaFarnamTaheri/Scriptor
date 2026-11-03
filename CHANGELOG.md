@@ -12,6 +12,9 @@
 
 ### Improved
 
+- Inspect vault-owned Canvas template undo checkpoints through a bounded, read-only native Recovery Center inventory. Corrupt, overlarge, symlinked or foreign-vault evidence stays unverified; verified checkpoints link back to Canvas without restoring files or changing native consent.
+
+
 - Replace MAT project-completion requirements for physical installation, live accounts and human sign-off with exact-head automated native/browser/accessibility/platform/artifact evidence, preserving user authorization and release integrity.
 
 - Preview incoming local BibTeX citation keys against the currently indexed bibliography before a create-only import. Block duplicate or malformed key structures and collisions with existing keys without changing authored manuscript citations or bypassing native destination protection.

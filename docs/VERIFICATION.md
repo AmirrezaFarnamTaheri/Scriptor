@@ -182,6 +182,40 @@ PR [#219](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/219) addresses r
 A closed dialog does **not** cancel, roll back or establish the outcome of an already submitted native import. It only prevents late renderer feedback.
 
 Source acceptance (October 29, 2026): [CI #40881174514](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174514), [visual #40881174519](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174519), and [docs #40881174543](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/40881174543) passed at exact branch head `c088066`. This establishes hosted source verification, not installed-client vault-switch, restart or lost-response reconciliation acceptance. The initial test-only RED was not observed.
+## MAT-003 — native Canvas template checkpoint inventory (incremental, November 3, 2026)
+
+The Recovery Center previously exposed Canvas recovery as permanently unverified, even
+though native Canvas template undo checkpoints exist under
+`.scriptor/canvas/patches/`. A new read-only Canvas-engine inspection enumerates
+bounded checkpoint metadata and returns only counts and originating vault ID.
+The desktop command requires the existing Canvas capability and checks the
+initiating vault before scanning. It never restores files or creates a new
+write/permission framework. Symlinks and directory escapes are refused;
+corrupt, foreign-vault and oversized checkpoints are reported as invalid,
+not silently presented as an authoritative zero. A successful finite scan
+with no invalid entries is the only basis for an empty count.
+
+- **Source-bound focused test:** Node 22.16.0 `node --experimental-strip-types
+  --test src/lib/workspace/canvasRecoveryEvidence.test.ts
+  src/lib/workspace/recoveryInventory.test.ts` passed **20/20**. The test
+  was written before its helper existed and initially failed; after adding
+  the real evidence validator and owner-route wiring it passed, with no skips.
+- **Native tests authored, not yet executed locally:** Rust Canvas engine tests
+  cover missing source, one valid template checkpoint, corrupt JSON,
+  foreign-vault metadata, oversized files and symlinked directory refusal.
+  This execution environment lacks `cargo`/`rustc`; the hosted exact-head
+  Rust/Clippy/security jobs must establish compilation and native behavior.
+- **Browser tests authored, not yet hosted:** E2E fixtures cover verified
+  checkpoint count, navigation to existing Canvas without invoking a mutator,
+  and malformed/corrupt checkpoint evidence staying unverified. The default
+  simulated bridge deliberately does not return a verified-empty inventory.
+- **Limits:** the overview reads native metadata only and does **not** expose
+  one-click template restoration. Saved Canvas boards are not themselves
+  recovery checkpoints. This is neither installed-client acceptance nor MAT-003
+  completion: interrupted-restore journal recovery, all error/empty/stale
+  surfaces, keyboard/RTL/zoom and source-bound CI-built artifacts remain gates
+  under `docs/MAT-AUTOMATED-ACCEPTANCE.md`.
+
 ## MAT-001–MAT-003 recovery work — October 27, 2026
 
 The parent-to-child review stack is [PR #180](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/180) → [PR #186](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/186) → [PR #205](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/205). This section records **execution evidence**, distinct from the implementation checklist in [the MAT-003 plan](../tasks/plans/2026-10-27-mat-003-restore-status-preview.md). A pass at an older source commit does not certify a newer head.

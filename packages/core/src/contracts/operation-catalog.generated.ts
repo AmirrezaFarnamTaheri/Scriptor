@@ -2751,6 +2751,22 @@ export const OPERATION_CATALOG = {
       ]
     },
     {
+      "name": "canvas_list_template_checkpoints",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/canvas.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "canvas_list_templates",
       "surface": "tauri",
       "owner": "apps/desktop/src-tauri/src/commands/canvas.rs",

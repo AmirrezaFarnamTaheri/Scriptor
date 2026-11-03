@@ -1753,6 +1753,7 @@ function App() {
           activeNoteVaultId={workspace.activeNote?.metadata.vault_id ?? null}
           externalChangeConflict={workspace.externalChangeConflict}
           onOpenNoteHistory={() => { setSettingsOpen(false); setNoteHistoryOpen(true) }}
+          onOpenCanvas={() => { setSettingsOpen(false); setPanel('canvasOpen', true) }}
           onConfigSaved={handleSettingsConfigSaved}
           onClose={handleCloseSettings}
           workspaceMode={workspaceMode}

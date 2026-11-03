@@ -30,7 +30,7 @@ export interface RecoveryEntry {
   readonly status: RecoveryStatus
   readonly count: number | null
   readonly explanation: string
-  readonly route: 'backup-settings' | 'note-history' | null
+  readonly route: 'backup-settings' | 'note-history' | 'canvas' | null
   readonly readOnly: true
 }
 function sourceEntry(source: RecoverySource, vaultId: string, evidence: ScopedEvidence | undefined): RecoveryEntry {
@@ -111,7 +111,19 @@ export function buildRecoveryInventory(input: RecoveryInventoryInput): readonly 
       })
     }
   }
-  entries.push(sourceEntry('canvas', id, input.canvas))
+  const inspectedCanvas = sourceEntry('canvas', id, input.canvas)
+  entries.push({
+    ...inspectedCanvas,
+    status: input.recoveryRequired ? 'needs-reopen' : inspectedCanvas.status,
+    count: input.recoveryRequired ? null : inspectedCanvas.count,
+    route: !input.recoveryRequired && inspectedCanvas.status === 'available' ? 'canvas' : null,
+    explanation: input.recoveryRequired ? 'Reopen the vault before inspecting Canvas recovery checkpoints.'
+      : inspectedCanvas.status === 'available'
+        ? `${inspectedCanvas.count} valid Canvas template undo checkpoints detected by native inspection. Open Canvas to review boards; checkpoint recovery requires separate authorization.`
+        : inspectedCanvas.status === 'empty'
+          ? 'Native inspection found no Canvas template undo checkpoints; saved Canvas boards are not recovery copies.'
+          : inspectedCanvas.explanation,
+  })
   const git = sourceEntry('git-conflicts', id, input.gitConflicts)
   entries.push({
     ...git,

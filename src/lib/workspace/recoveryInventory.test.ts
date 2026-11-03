@@ -141,3 +141,26 @@ test('MAT-003: structurally corrupt restore evidence never crashes the read-only
   assert.equal(entries.length, 6)
   assert.equal(entries.find(item => item.source === 'last-restore')?.status, 'needs-reopen')
 })
+
+
+test('MAT-003: current-vault native Canvas checkpoint evidence links to owner workspace without restoration', () => {
+  const entries = buildRecoveryInventory({
+    ...input, canvas: { vaultId: 'v-a', state: 'ready', count: 2 },
+  })
+  const canvas = entries.find(row => row.source === 'canvas')
+  assert.equal(canvas?.status, 'available')
+  assert.equal(canvas?.count, 2)
+  assert.equal(canvas?.route, 'canvas')
+  assert.equal(canvas?.readOnly, true)
+  assert.match(canvas?.explanation ?? '', /separate authorization/i)
+  const empty = buildRecoveryInventory({ ...input, canvas: { vaultId: 'v-a', state: 'ready', count: 0 } })
+    .find(row => row.source === 'canvas')
+  assert.equal(empty?.status, 'empty')
+  assert.equal(empty?.route, null)
+  const needsReopen = buildRecoveryInventory({ ...input, recoveryRequired: true,
+    canvas: { vaultId: 'v-a', state: 'ready', count: 2 },
+  }).find(row => row.source === 'canvas')
+  assert.equal(needsReopen?.status, 'needs-reopen')
+  assert.equal(needsReopen?.count, null)
+  assert.equal(needsReopen?.route, null)
+})
