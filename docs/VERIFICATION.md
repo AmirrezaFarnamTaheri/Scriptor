@@ -31,6 +31,22 @@ positive `verifiedCount` into an **available restore navigation route**.
   keyboard/RTL/320px/200%-zoom and CI-built artifact runtime are still needed
   for MAT-003. This is a focused regression, **not MAT closure**.
 
+### MAT-003 — inconsistent backup verified counts (stacked PR #309)
+
+The backup inventory owns both the observed snapshot `count` and the
+`verifiedCount` eligible for a reviewed restore. A contradictory, negative,
+fractional, nonfinite, or greater-than-count verification claim must not make
+a zero-count backup source appear **verified empty** or leave an impossible
+positive-count value displayed as reliable. The read-only overview returns
+`unverified`, a null count, no navigation route and a reinvestigation hint
+for inconsistent **ready** evidence. Explicit loading/error states remain
+unchanged; the native restore authority is not modified.
+
+- The test-only parent commit of PR #309 is `b46e6ec1bc0cff15e58359cc18147e5e773e1091`.
+- These source-level assertions cover inconsistent empty/positive inventories;
+  they do not prove native journal integrity, OS restarts, hosted artifacts,
+  navigation, keyboard or RTL acceptance. Parent MAT-003 stays **open**.
+
 ## MAT-002 — Canvas uncertain native save (partial acceptance)
 
 Canvas full-document native saves previously re-enqueued a failed submitted payload, and an
