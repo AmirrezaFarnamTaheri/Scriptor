@@ -35,6 +35,7 @@
 
 ### Fixed
 
+- Treat inconsistent backup inventory verification counts as unverified rather than implying verified-empty snapshots or enabling restore review.
 - Keep read-only Recovery Center counts and restore navigation unverified when a native inventory returns an unknown or missing inspection state instead of an explicit ready result.
 - Keep the Command Palette open and show an accessible localized denial when a stale plugin action loses permission, while preserving native authority.
 - Reject malformed or cross-vault research trace identities, unsafe relative paths, and contradictory capture/export review flags before suggesting publication.
