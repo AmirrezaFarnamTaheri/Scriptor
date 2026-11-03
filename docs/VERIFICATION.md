@@ -8,6 +8,39 @@ Results from an older commit cannot certify a newer implementation.
 
 **MAT-001–024 policy effective 2026-11-02:** [Automated MAT acceptance](MAT-AUTOMATED-ACCEPTANCE.md) supersedes older passages below referring to manual approval, real-user studies, physical installation, live-account use and installed-app acceptance as *closure gates*. Those historical verification records remain valid evidence of what was or was not tested then; none becomes an automated pass retroactively. In-product user authorization is unaffected.
 
+## MAT-002 — Canvas uncertain native save (partial acceptance)
+
+Canvas full-document native saves previously re-enqueued a failed submitted payload, and an
+explicit flush or component teardown could replay it even if the first write
+had durably committed before its response was lost. The serialized hook queue
+now places an in-session hold on further Canvas writes for that vault when a
+submitted native save has no confirmed result. The editor retains newer local
+draft state and tells the user to reopen and inspect instead of claiming a
+rollback, automatically resubmitting, or switching/creating another board.
+Separate vaults retain independent write authority. This uses the existing
+native Canvas save path; it adds no new authorization framework.
+
+- **Failing-first proof:** on the pre-fix real Canvas hook, two new behavioral
+  regressions failed (22 passed, 2 failed): explicit flush retried the failed
+  payload and component teardown dispatched newer work behind an indeterminate
+  native result. A subsequent interaction test also reproduced the misleading
+  board-switch status (26 passed, 1 failed).
+- **Focused local proof:** Node 22.16.0 ran the actual
+  `scripts/validation/canvas-persistence-flush.test.mjs` hook harness:
+  **27/27 passed** after the change. A targeted operation-safety suite
+  including native-outcome classification, backup-deletion holds, restore
+  receipts, recovery inventory and mutation authority passed **80/80**.
+- **Scope and limits:** native submitted rejections are conservatively
+  indeterminate, even when the provider might know it refused the write.
+  The guard is in-session, not a durable post-restart native mutation ledger.
+  A fresh vault reopen must re-inspect authoritative file bytes before
+  retrying. This evidence **does not close MAT-002 or MAT-005**: remaining
+  native operation types, durable reconciliation, all entrypoints,
+  CI-built artifacts and exact integrated-head acceptance are outstanding.
+- **Hosted evidence:** exact PR-head full CI, visual/browser, native and
+  packaged-artifact checks are pending and must not be inferred from local
+  tests.
+
 ## MAT-023 — native timing precision and warm-only hosted evidence (PR #281)
 
 [PR #281](https://github.com/AmirrezaFarnamTaheri/Scriptor/pull/281)
