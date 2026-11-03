@@ -41,8 +41,15 @@ export function evaluateScaleEvidence(evidence) {
     requireText(row.runId, 'runId')
     if (usedRuns.has(row.runId)) throw new Error('Duplicate runId ' + row.runId + '; independent runs need distinct IDs')
     usedRuns.add(row.runId)
+    const startedAtMs = typeof row.startedAt === 'string' ? Date.parse(row.startedAt) : Number.NaN
+    // Date.parse normalizes impossible dates (e.g. 2026-02-30 -> March 2).
+    // Evidence timestamps must name the actual observed Gregorian UTC day;
+    // retain support for fractional precision beyond milliseconds.
     if (typeof row.startedAt !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z$/.test(row.startedAt)
-      || !Number.isFinite(Date.parse(row.startedAt))) throw new Error('Invalid startedAt for ' + caseKey)
+      || !Number.isFinite(startedAtMs)
+      || new Date(startedAtMs).toISOString().slice(0, 19) !== row.startedAt.slice(0, 19)) {
+      throw new Error('Invalid startedAt for ' + caseKey)
+    }
     if (typeof row.fixtureSha256 !== 'string' || !/^[a-f\d]{64}$/i.test(row.fixtureSha256)) {
       throw new Error('Invalid fixture SHA256 for ' + caseKey)
     }
