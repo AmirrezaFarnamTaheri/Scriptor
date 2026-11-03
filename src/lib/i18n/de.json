@@ -82,6 +82,7 @@
     "placeholder": "Befehl oder Notiz eingeben...",
     "searchingNotes": "Notizen werden gesucht...",
     "noResults": "Keine passenden Befehle oder Notizen.",
+    "unavailable": "Dieser Befehl ist nicht mehr verfügbar. Prüfen Sie die Berechtigungen und öffnen Sie die Befehlspalette erneut.",
     "ariaLabel": "Befehlspalette",
     "scopeHint": "Befehle sind sofort verfügbar; die Notizsuche startet ab 2 Zeichen.",
     "noteCategory": "Notiz",

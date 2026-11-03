@@ -82,6 +82,7 @@
     "placeholder": "Type a command or note...",
     "searchingNotes": "Searching notes...",
     "noResults": "No matching commands or notes.",
+    "unavailable": "This command is no longer available. Check its permissions and reopen the palette.",
     "ariaLabel": "Command palette",
     "scopeHint": "Commands are available immediately; note search starts after 2 characters.",
     "noteCategory": "Note",
