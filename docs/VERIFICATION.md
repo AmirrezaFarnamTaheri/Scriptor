@@ -27,9 +27,9 @@ native Canvas save path; it adds no new authorization framework.
   board-switch status (26 passed, 1 failed).
 - **Focused local proof:** Node 22.16.0 ran the actual
   `scripts/validation/canvas-persistence-flush.test.mjs` hook harness:
-  **27/27 passed** after the change. A targeted operation-safety suite
+  **28/28 passed** after the change (including unknown native board creation). A targeted operation-safety suite
   including native-outcome classification, backup-deletion holds, restore
-  receipts, recovery inventory and mutation authority passed **80/80**.
+  receipts, recovery inventory and mutation authority passed **81/81**.
 - **Scope and limits:** native submitted rejections are conservatively
   indeterminate, even when the provider might know it refused the write.
   The guard is in-session, not a durable post-restart native mutation ledger.
