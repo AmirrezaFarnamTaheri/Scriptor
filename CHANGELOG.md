@@ -30,7 +30,7 @@
 
 ### Fixed
 
-- Reject malformed-but-falsy calculated column formulas in saved Database Studio views instead of silently stripping the configured calculation.
+- Reject malformed-but-falsy calculated column formulas and array-shaped layout/filter fields in saved Database Studio views instead of silently discarding calculations or coercing invalid schema values.
 
 - Reuse a single immutable vault-path resolver across read-only lint and lint-fix instead of rebuilding the entire index for every wikilink; guard the 5k-linked-note performance path and preserve ambiguous/hand-authored reference behavior.
 
