@@ -23,7 +23,7 @@ export function validateFormula(value: unknown): DatabaseFormula {
   if (!CALCULATION_OPERATORS.includes(item.op as CalculationOperator) || !Array.isArray(item.fields)) throw new Error('Unsupported calculated column operator.')
   const op = item.op as CalculationOperator
   const count = ['lower','upper','length'].includes(op) ? 1 : 2
-  if (item.fields.length !== count || item.fields.some((field) => typeof field !== 'string' || !FIELD.test(field))) throw new Error('Calculated column requires valid field names.')
+  if (item.fields.length !== count || item.fields.some((field) => typeof field !== 'string' || !FIELD.test(field) || ['constructor','prototype','__proto__'].includes(field))) throw new Error('Calculated column requires valid field names.')
   return { op, fields: item.fields as string[] }
 }
 export function validateDatabaseView(value: unknown): DatabaseView {
@@ -457,7 +457,7 @@ export function scalarFields(markdown: string): Record<string, CellValue> {
 }
 export function calculateValue(raw: DatabaseFormula, fields: Record<string, CellValue>): CellValue {
   const formula = validateFormula(raw)
-  const values = formula.fields.map((key) => fields[key])
+  const values = formula.fields.map((key) => Object.hasOwn(fields, key) ? fields[key] : undefined)
   if (values.some((value) => value === undefined || value === null)) return null
   const [a,b] = values
   if (formula.op === 'concat') return `${a}${b}`.slice(0,4096)
