@@ -30,6 +30,8 @@
 
 ### Fixed
 
+- Distinguish denied, acknowledged and lost-reply manual or automatic-retention backup deletions at the native submission boundary; hold unconfirmed deletions by vault/destination, pause blind retention retries, and explain restart/reinspection before further cleanup.
+
 - Treat unknown or future Database Studio query-coverage statuses as unverified instead of reporting an authoritative full-vault match count or complete aggregates.
 
 - Reject research project manifests whose input or output paths overlap as filesystem ancestors/descendants, not just exact duplicates, before presenting reproducibility evidence.
