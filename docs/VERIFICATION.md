@@ -8,6 +8,24 @@ Results from an older commit cannot certify a newer implementation.
 
 **MAT-001–024 policy effective 2026-11-02:** [Automated MAT acceptance](MAT-AUTOMATED-ACCEPTANCE.md) supersedes older passages below referring to manual approval, real-user studies, physical installation, live-account use and installed-app acceptance as *closure gates*. Those historical verification records remain valid evidence of what was or was not tested then; none becomes an automated pass retroactively. In-product user authorization is unaffected.
 
+## MAT-011 / MAT-012 — portable read-only research provenance identities (partial PR #312)
+
+Existing source/indexer evidence can be current and still malformed at an IPC
+boundary. A read-only trace must not certify `ready` when source/manuscript,
+literature-note or revision/reference identity uses Windows reserved device
+names, trailing-dot/space aliases, controls or bidi filename spoofing. Such
+identities are not portable across hosted Windows/macOS/Linux environments and
+are not suitable as source-bound publication proof.
+
+- Behavioral failing-first source tests cover malformed source, literature,
+  manuscript, and reference keys with matching index observations, plus a safe
+  internally-spaced path. Test-first SHA:
+  `cbe117e7c6b3c8518babddeafd6b5a4e49c433f6`.
+- The read-only comparator refuses to classify these inputs as current; it
+  never grants source reading, citation modification or publish authority.
+- MAT-011/MAT-012 remain open for durable lineage, native capture/review/export,
+  vault/restart and CI-built task-level acceptance across platforms.
+
 ## MAT-003 — malformed read-only recovery inventory states (partial, PR #308)
 
 An unrecognized/missing source-state value at the bridge or stored-evidence
