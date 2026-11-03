@@ -27,6 +27,8 @@ interface VaultBackupSettingsProps {
   settingsDirty: boolean
   onOpenNoteHistory: () => void
   onOpenCanvas: () => void
+  onOpenGitPanel: () => void
+  onOpenExternalConflict: () => void
 }
 
 function formatBytes(bytes: number): string {
@@ -46,7 +48,7 @@ function formatDate(iso: string): string {
   }
 }
 
-export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, vaultId, activePath, activeNoteVaultId, externalChangeConflict, settingsDirty, onOpenNoteHistory, onOpenCanvas }: VaultBackupSettingsProps) {
+export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, vaultId, activePath, activeNoteVaultId, externalChangeConflict, settingsDirty, onOpenNoteHistory, onOpenCanvas, onOpenGitPanel, onOpenExternalConflict }: VaultBackupSettingsProps) {
   const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, lastRestoreReceipt, lastDeleteOutcome, isBackupDeleteUnconfirmed, triggerBackup, restoreBackup, deleteBackup } =
     backup
 
@@ -247,6 +249,10 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
             <p className="backup-meta">{entry.explanation}</p>
             {entry.route === 'canvas' ? <button type="button" className="toolbar-button"
               onClick={onOpenCanvas}>Open Canvas workspace</button> : null}
+            {entry.route === 'git' ? <button type="button" className="toolbar-button"
+              onClick={onOpenGitPanel}>Open Git panel</button> : null}
+            {entry.route === 'external-conflict' ? <button type="button" className="toolbar-button"
+              onClick={onOpenExternalConflict}>Show editor conflict warning</button> : null}
           </li>)}
         </ul>
       </section> : null}
