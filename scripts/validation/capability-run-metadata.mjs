@@ -7,7 +7,7 @@ import { assessCapabilityEvidence } from './capability-evidence.mjs'
  * or capability support status. No automatic support label is written.
  */
 const REPOSITORY = 'AmirrezaFarnamTaheri/Scriptor'
-const RUN_PATH = /^\/AmirrezaFarnamTaheri\/Scriptor\/actions\/runs\/([1-9]\d*)(?:\/.*)?$/i
+const RUN_PATH = /^\/AmirrezaFarnamTaheri\/Scriptor\/actions\/runs\/([1-9]\d*)(?:\/attempts\/([1-9]\d*))?\/?$/i
 const CASE_PATHS = Object.freeze([
   'tests.positive', 'tests.negative', 'tests.restart',
   'tests.cancellation', 'tests.recovery',
@@ -20,7 +20,7 @@ function readProof(packet, name) {
   return name.split('.').reduce((value, key) => value?.[key], packet)
 }
 
-function runIdFromUrl(url) {
+function runReferenceFromUrl(url) {
   try {
     const parsed = new URL(url)
     if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' ||
@@ -28,19 +28,24 @@ function runIdFromUrl(url) {
     const match = RUN_PATH.exec(parsed.pathname)
     if (!match) return null
     const id = Number(match[1])
-    return Number.isSafeInteger(id) && id > 0 ? id : null
+    const attempt = match[2] === undefined ? null : Number(match[2])
+    return Number.isSafeInteger(id) && id > 0 &&
+      (attempt === null || (Number.isSafeInteger(attempt) && attempt > 0)) ? { id, attempt } : null
   } catch {
     return null
   }
 }
 
-function isExpectedSuccessfulRun(run, id, sourceHead) {
-  return isObject(run) && run.id === id &&
+function isExpectedSuccessfulRun(run, reference, sourceHead) {
+  if (!isObject(run) || !reference) return false
+  const canonicalUrl = runReferenceFromUrl(run.html_url)
+  return run.id === reference.id &&
     typeof run.repository?.full_name === 'string' &&
     run.repository.full_name.toLowerCase() === REPOSITORY.toLowerCase() &&
     run.head_sha === sourceHead &&
     run.status === 'completed' && run.conclusion === 'success' &&
-    runIdFromUrl(run.html_url) === id
+    canonicalUrl?.id === reference.id && canonicalUrl.attempt === null &&
+    (reference.attempt === null || run.run_attempt === reference.attempt)
 }
 
 function hasPassingNamedStep(jobs, caseId) {
@@ -84,17 +89,17 @@ export async function verifyCapabilityWorkflowMetadata(packet, provider) {
   let verifiedCases = 0
   for (const name of CASE_PATHS) {
     const proof = readProof(packet, name)
-    const id = runIdFromUrl(proof?.url)
-    if (id === null) {
+    const reference = runReferenceFromUrl(proof?.url)
+    if (reference === null) {
       unverified.push(name)
       continue
     }
-    const run = await readCached(runCache, id, provider.getRun)
-    if (!isExpectedSuccessfulRun(run, id, packet.sourceHead)) {
+    const run = await readCached(runCache, reference.id, provider.getRun)
+    if (!isExpectedSuccessfulRun(run, reference, packet.sourceHead)) {
       unverified.push(name)
       continue
     }
-    const jobs = await readCached(jobCache, id, provider.getJobs)
+    const jobs = await readCached(jobCache, reference.id, provider.getJobs)
     if (!hasPassingNamedStep(jobs, proof.caseId)) {
       unverified.push(name)
       continue

@@ -126,3 +126,32 @@ test('MAT-022: malformed run repository metadata is unverified rather than throw
   assert.equal(result.runMetadataVerified, false)
   assert.deepEqual(result.unverified, ids)
 })
+
+test('MAT-022: a failed earlier workflow attempt cannot be certified by a later successful rerun', async () => {
+  const input = packet()
+  input.tests.negative.url = runUrl + '/attempts/1'
+  const laterSuccess = { ...succeededRun(), run_attempt: 2 }
+  const result = await verifyCapabilityWorkflowMetadata(input, provider(laterSuccess))
+  assert.equal(result.evidenceIndexComplete, true)
+  assert.equal(result.runMetadataVerified, false)
+  assert.deepEqual(result.unverified, ['tests.negative'])
+  assert.equal(result.verifiedCases, 8)
+})
+
+test('MAT-022: a pinned successful attempt is accepted only for matching run metadata', async () => {
+  const input = packet()
+  input.tests.negative.url = runUrl + '/attempts/2'
+  const result = await verifyCapabilityWorkflowMetadata(input, provider({ ...succeededRun(), run_attempt: 2 }))
+  assert.equal(result.runMetadataVerified, true)
+  assert.deepEqual(result.unverified, [])
+})
+
+test('MAT-022: malformed run URL suffixes cannot substitute for exact CI proof', async () => {
+  for (const suffix of ['/attempts/0', '/attempts/2/jobs/999', '/unrelated']) {
+    const input = packet()
+    input.tests.negative.url = runUrl + suffix
+    const result = await verifyCapabilityWorkflowMetadata(input, provider({ ...succeededRun(), run_attempt: 2 }))
+    assert.equal(result.runMetadataVerified, false, suffix)
+    assert.ok(result.unverified.includes('tests.negative'), suffix)
+  }
+})
