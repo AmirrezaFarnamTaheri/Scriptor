@@ -12,6 +12,13 @@ interface AccountState {
 }
 const disconnected: AccountState = { status: 'disconnected', email: null, error: null, busy: false }
 
+/** IPC account identity is runtime evidence, not trusted from TypeScript types. */
+function verifiedGoogleAccountEmail(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 254 || /[\u0000-\u001F\u007F]/.test(value)) return null
+  const email = value.trim()
+  return /^[^\s@<>]+@[^\s@<>]+$/.test(email) ? email : null
+}
+
 /** Independent credential lanes; configuration stores only the shared public client ID. */
 export function useGoogleIntegrationAccounts({ vaultId, clientId, persistClientId, gmailEnabled = true }: {
   vaultId: string
@@ -32,8 +39,12 @@ export function useGoogleIntegrationAccounts({ vaultId, clientId, persistClientI
     const sequence = ++generation.current[service]
     update(service, { ...disconnected, status: 'checking', busy: true })
     try {
-      const email = service === 'drive' ? await collaborationGetAccount() : await googleGmailGetAuthedEmail()
+      const rawEmail = service === 'drive' ? await collaborationGetAccount() : await googleGmailGetAuthedEmail()
       if (sequence !== generation.current[service]) return
+      const email = rawEmail === null ? null : verifiedGoogleAccountEmail(rawEmail)
+      if (rawEmail !== null && email === null) {
+        throw new Error('Google account identity cannot be verified. Refresh or reconnect before trusting this connection.')
+      }
       update(service, { ...disconnected, status: email ? 'connected' : 'disconnected', email })
     } catch (error) {
       if (sequence !== generation.current[service]) return
@@ -80,13 +91,22 @@ export function useGoogleIntegrationAccounts({ vaultId, clientId, persistClientI
     running.current[service] = sequence
     const previousEmail = accounts[service].email
     let email: string | null = null
+    let invalidIdentity = false
     const notifyCredentialChange = () => window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', { detail: { service, origin: 'settings' } }))
     update(service, { ...disconnected, status: connect ? 'authorizing' : 'checking', busy: true })
     try {
       if (connect) {
-        email = service === 'drive' ? await collaborationConnect(clientId.trim()) : await googleGmailStartAuth(clientId.trim())
+        const rawEmail = service === 'drive' ? await collaborationConnect(clientId.trim()) : await googleGmailStartAuth(clientId.trim())
+        // The native credential owner may have changed globally even when this
+        // vault panel is stale. Invalidate other consumers, but never persist
+        // an unverified account or an old vault's public client ID.
         notifyCredentialChange()
         if (sequence !== generation.current[service]) return
+        email = verifiedGoogleAccountEmail(rawEmail)
+        if (!email) {
+          invalidIdentity = true
+          throw new Error('Google account identity cannot be verified. Refresh or reconnect before trusting this connection.')
+        }
         await persistClientId(clientId)
       } else {
         if (service === 'drive') await collaborationDisconnect()
@@ -100,7 +120,7 @@ export function useGoogleIntegrationAccounts({ vaultId, clientId, persistClientI
       update(service, isGoogleAccountNotConnectedError(error) ? disconnected
         : isGoogleAuthRequiredError(error)
           ? { ...disconnected, status: 'reconnect-required', error: googleAuthErrorMessage(error) }
-          : { ...disconnected, status: 'error', email: email ?? previousEmail, error: googleAuthErrorMessage(error) })
+          : { ...disconnected, status: 'error', email: invalidIdentity ? null : email ?? previousEmail, error: googleAuthErrorMessage(error) })
     } finally {
       if (running.current[service] === sequence) running.current[service] = 0
     }

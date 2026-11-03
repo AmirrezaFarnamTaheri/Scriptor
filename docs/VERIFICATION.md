@@ -8,6 +8,25 @@ Results from an older commit cannot certify a newer implementation.
 
 **MAT-001–024 policy effective 2026-11-02:** [Automated MAT acceptance](MAT-AUTOMATED-ACCEPTANCE.md) supersedes older passages below referring to manual approval, real-user studies, physical installation, live-account use and installed-app acceptance as *closure gates*. Those historical verification records remain valid evidence of what was or was not tested then; none becomes an automated pass retroactively. In-product user authorization is unaffected.
 
+## MAT-015 / MAT-017 — provider credential identity truthfulness (partial PR #310)
+
+Provider credential checks can return runtime-invalid data even when bridge
+types promise an email. A null native read means disconnected; an object,
+blank, non-email, oversized or control-character identity is **not a verified
+connection**, cannot be persisted as a client ID, and must display a recoverable
+error with no asserted account. Drive and Gmail retain separate credential
+lanes; existing vault generation fences still block stale post-OAuth writes.
+The global native account-change signal is retained even when the local
+identity is invalid, so other mounted consumers can invalidate caches.
+
+- Failing-first test commit `92baa6f2b2c04555595c0e75afc81a06f3c6fded`
+  runs the actual React-hook harness and checks invalid credential read,
+  invalid OAuth completion and whitespace-normalized verified identity.
+- The change does not perform a remote transfer, certify connectivity, or
+  bypass native authorization. Still requires token/reconnect, account/vault
+  switching, offline, and CI-built cross-platform provider fixture evidence.
+- MAT-015 and MAT-017 remain **open**; a green source test is partial proof.
+
 ## MAT-003 — malformed read-only recovery inventory states (partial, PR #308)
 
 An unrecognized/missing source-state value at the bridge or stored-evidence
