@@ -30,6 +30,9 @@
 
 ### Fixed
 
+- Reject stale GitHub Actions attempt links in capability evidence when a later rerun succeeds, and disallow ambiguous workflow proof URL suffixes.
+
+
 - Refuse HTTP redirects for bearer-authenticated GitHub Actions workflow metadata so untrusted destinations cannot receive capability-verification credentials.
 
 - Hold Canvas saves after a native save response is lost or rejected after submission; block same-vault queued, debounce, flush, and teardown replays until vault reopening and inspection, without blocking another vault.
