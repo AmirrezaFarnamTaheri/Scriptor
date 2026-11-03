@@ -30,6 +30,8 @@
 
 ### Fixed
 
+- Treat unknown or future Database Studio query-coverage statuses as unverified instead of reporting an authoritative full-vault match count or complete aggregates.
+
 - Reject research project manifests whose input or output paths overlap as filesystem ancestors/descendants, not just exact duplicates, before presenting reproducibility evidence.
 
 - Require explicit review before Google Tasks mirroring when an orphaned legacy, unscoped provider ownership marker shares a normalized title with a new local task identity after a note move; foreign-vault scoped markers remain distinct.
