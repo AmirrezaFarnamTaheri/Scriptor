@@ -435,7 +435,7 @@ test('failed board creation keeps the previous document selected and editable', 
   const originalTitle = board.document.title
   await board.createBoard('Unsaved board')
   assert.equal(h.currentDocument().title, originalTitle)
-  assert.match(h.currentStatus(), /disk full/)
+  assert.match(h.currentStatus(), /unconfirmed|may have committed|reopen/)
 })
 
 test('a late successful board creation cannot replace intervening local edits', async () => {
@@ -837,4 +837,23 @@ test('MAT-002: board switching and creation explain an unresolved native save be
   assert.match(h.currentStatus(), /unconfirmed|reopen|inspect/i)
   assert.equal(loads, 0)
   assert.equal(saves, 1, 'neither an attempted switch nor create can trigger another write')
+})
+
+test('MAT-002: lost reply from new-board creation cannot trigger a second create request', async () => {
+  let creations = 0
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async () => {
+        creations++
+        throw new Error('transport lost reply after native board creation')
+      },
+    },
+  })
+  const board = h.render('vault-a')
+  await flushMicrotasks()
+  await board.createBoard('First requested board')
+  assert.match(h.currentStatus(), /unconfirmed|may have committed|reopen/i)
+  await board.createBoard('Unreviewed duplicate')
+  assert.equal(creations, 1, 'the unknown first result must block another board-creation write')
+  assert.equal(h.currentDocument().title, 'Research board', 'an unconfirmed new board cannot replace the existing editor')
 })
