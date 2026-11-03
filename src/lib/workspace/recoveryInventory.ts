@@ -50,6 +50,14 @@ function sourceEntry(source: RecoverySource, vaultId: string, evidence: ScopedEv
     source, status: 'unavailable', count: null, route: null, readOnly: true,
     explanation: 'Could not inspect this recovery source.',
   }
+  // Native/IPC and persisted data are runtime values despite this module's
+  // static state union. Only an explicitly verified ready result may certify
+  // an inventory count or unlock a recovery entry point.
+  const observedState: unknown = evidence.state
+  if (observedState !== 'ready') return {
+    source, status: 'unverified', count: null, route: null, readOnly: true,
+    explanation: 'Unrecognized recovery inspection state. Reinspect this source in the originating vault; its count is not verified.',
+  }
   return {
     source, status: evidence.count > 0 ? 'available' : 'empty', count: evidence.count,
     route: null, readOnly: true, explanation: `${evidence.count} items reported by the current-vault source.`,

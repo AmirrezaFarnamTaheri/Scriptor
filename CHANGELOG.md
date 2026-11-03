@@ -35,6 +35,7 @@
 
 ### Fixed
 
+- Keep read-only Recovery Center counts and restore navigation unverified when a native inventory returns an unknown or missing inspection state instead of an explicit ready result.
 - Keep the Command Palette open and show an accessible localized denial when a stale plugin action loses permission, while preserving native authority.
 - Reject malformed or cross-vault research trace identities, unsafe relative paths, and contradictory capture/export review flags before suggesting publication.
 - Bind successful GitHub Actions capability evidence to each passing job's exact run ID and attempt; stale or unrelated job steps never certify support.
