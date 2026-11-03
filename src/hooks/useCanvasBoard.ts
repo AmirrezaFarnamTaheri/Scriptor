@@ -55,6 +55,10 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const saveGuardRef = useRef(new OperationGuard())
   const templateGuardRef = useRef(new OperationGuard())
   const saveTailRef = useRef<Promise<boolean>>(Promise.resolve(true))
+  // A transport error after native save submission is not proof of rollback.
+  // Retain an in-session vault hold so queued/debounced writes cannot replay an
+  // operation whose durable effects may already exist. Reopen for inspection.
+  const unconfirmedSaveVaultRef = useRef<{ vaultId: string | null } | null>(null)
   const latestSaveSequenceRef = useRef(0)
   const mountedRef = useRef(true)
   const createInProgressRef = useRef(false)
@@ -135,8 +139,18 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       updateUi = true,
     ): Promise<boolean> => {
       const task = saveTailRef.current.then(async () => {
+        if (unconfirmedSaveVaultRef.current !== null && unconfirmedSaveVaultRef.current.vaultId === payload.vaultId) {
+          if (updateUi && mountedRef.current && isCurrent()) {
+            setStatus('Canvas save unconfirmed. Reopen the vault and inspect the saved board before saving again.')
+          }
+          return false
+        }
+        let submitted = false
         try {
-          const result = await canvasSaveDocument(JSON.stringify(payload.document), payload.vaultId)
+          const sceneJson = JSON.stringify(payload.document)
+          // From this point on, even a rejected promise is not native rollback proof.
+          submitted = true
+          const result = await canvasSaveDocument(sceneJson, payload.vaultId)
           if (updateUi && mountedRef.current && isCurrent()) {
             setStatus(result.indexWarning ? 'Canvas saved, but relation indexing needs attention.' : 'Canvas saved.')
             setActiveBoardId(payload.document.id)
@@ -152,16 +166,14 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
           }
           return true
         } catch (error) {
-          // Only the newest full-document payload is worth retrying. An older
-          // failed payload is superseded by a newer queued document snapshot.
-          if (payload.sequence === latestSaveSequenceRef.current) {
-            const pending = pendingSavePayloadRef.current
-            if (!pending || pending.sequence <= payload.sequence) {
-              pendingSavePayloadRef.current = payload
-            }
-          }
+          if (submitted) unconfirmedSaveVaultRef.current = { vaultId: payload.vaultId }
+          // Never put a failed submitted operation back into the save queue:
+          // a lost response could follow a successful durable native commit.
+          // Keep newer unsaved document state visible for reviewed recovery.
           if (updateUi && mountedRef.current && isCurrent()) {
-            setStatus(error instanceof Error ? error.message : 'Save failed')
+            setStatus(submitted
+              ? 'Canvas save unconfirmed. Native changes may have committed; reopen the vault and inspect before retrying.'
+              : error instanceof Error ? error.message : 'Canvas save was not submitted.')
           }
           return false
         }
@@ -183,7 +195,8 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         saveTimer.current = null
       }
       const pending = pendingSavePayloadRef.current
-      if (pending && isNativeBridgeAvailable()) {
+      if (pending && isNativeBridgeAvailable() &&
+          (unconfirmedSaveVaultRef.current === null || unconfirmedSaveVaultRef.current.vaultId !== pending.vaultId)) {
         pendingSavePayloadRef.current = null
         // Keep teardown writes on the same serialization tail as ordinary
         // persistence. React cannot await cleanup, but it must never start a
@@ -328,6 +341,12 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   )
 
   const flushPendingSave = useCallback(async (): Promise<boolean> => {
+    if (unconfirmedSaveVaultRef.current !== null && unconfirmedSaveVaultRef.current.vaultId === vaultId) {
+      if (mountedRef.current) {
+        setStatus('Canvas save unconfirmed. Reopen the vault and inspect the board before saving again.')
+      }
+      return false
+    }
     // A successful old native write must never claim that another vault or
     // a newer local document is already saved.
     const originLifecycle = lifecycleGuardRef.current.snapshot()
@@ -352,15 +371,9 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       if (!ok) return false
     } else {
       const inFlightOk = await inFlightAtStart
-      if (!inFlightOk) {
-        // A debounced payload may already have moved into the in-flight tail and
-        // failed while this flush was waiting. enqueueSave re-inserts the newest
-        // failed payload so the explicit flush gets one deterministic retry.
-        const retry = pendingSavePayloadRef.current
-        if (!retry || retry.sequence > flushSequence || !isNativeBridgeAvailable() || !vaultOpen) return false
-        pendingSavePayloadRef.current = null
-        return enqueueSave(retry, isCurrent)
-      }
+      // The prior save may have committed without replying; re-submission is
+      // unsafe even for a manual flush until the owning vault is reopened.
+      if (!inFlightOk) return false
     }
 
     const retry = pendingSavePayloadRef.current
@@ -371,7 +384,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     // A newer payload may have joined the save queue while this flush awaited
     // its original write. Its durability belongs to that newer operation.
     return true
-  }, [enqueueSave, vaultOpen])
+  }, [enqueueSave, vaultId, vaultOpen])
 
   useEffect(() => {
     persistRef.current = persist
@@ -403,7 +416,9 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       const saved = await flushPendingSave()
       if (!lifecycleGuardRef.current.isCurrent(lifecycle)) return
       if (!saved) {
-        setStatus('Could not switch boards because the current board has unsaved changes.')
+        setStatus(unconfirmedSaveVaultRef.current?.vaultId === vaultId
+          ? 'Canvas save unconfirmed. Reopen the vault and inspect the board before switching.'
+          : 'Could not switch boards because the current board has unsaved changes.')
         return
       }
       if (documentRef.current !== beforeSwitch) {
@@ -416,7 +431,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         setStatus(error instanceof Error ? error.message : 'Could not switch board.')
       }
     },
-    [activeBoardId, flushPendingSave, loadBoard],
+    [activeBoardId, flushPendingSave, loadBoard, vaultId],
   )
 
   const createBoard = useCallback(
@@ -431,7 +446,9 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         const saved = await flushPendingSave()
         if (!lifecycleGuardRef.current.isCurrent(lifecycle)) return
         if (!saved) {
-          setStatus('Could not create a board because the current board has unsaved changes.')
+          setStatus(unconfirmedSaveVaultRef.current?.vaultId === vaultId
+            ? 'Canvas save unconfirmed. Reopen the vault and inspect the board before creating another.'
+            : 'Could not create a board because the current board has unsaved changes.')
           return
         }
         if (documentRef.current !== original) {
