@@ -65,3 +65,15 @@ test('MAT-016: canonically equivalent Unicode task title after a note move requi
     { tasks: [{ id: 'moved-new-id', text: 'Cafe\u0301' }] },
   ], [{ title: 'Caf\u00e9', notes: 'Scriptor source: vault:vault-a:old-id' }]), /review|ambiguous/i)
 })
+
+test('MAT-016: orphan legacy source marker with matching title requires review before creating a new provider task', () => {
+  assert.throws(() => assertNoAmbiguousTaskRebindings('vault-a', [
+    { tasks: [{ id: 'new-id-after-note-move', text: ' Submit   report ' }] },
+  ], [{ title: 'Submit report', notes: 'Scriptor source: old-id-before-note-move' }]), /review|ambiguous/i)
+})
+
+test('MAT-016: a legacy marker with unrelated title does not imply ownership of a different local task', () => {
+  assert.doesNotThrow(() => assertNoAmbiguousTaskRebindings('vault-a', [
+    { tasks: [{ id: 'new-id', text: 'Write draft' }] },
+  ], [{ title: 'Unrelated research', notes: 'Scriptor source: old-id' }]))
+})
