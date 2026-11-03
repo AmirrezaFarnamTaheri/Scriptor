@@ -126,8 +126,8 @@ test('MAT-014: portable aliases in observed read evidence cannot certify indepen
 test('MAT-014: platform-reserved and control-character manifest paths cannot certify reproducible inputs', () => {
   const unsafe = [
     'Research/CON', 'Research/aux.bib', 'Exports/NUL.txt', 'Notes/COM1/report.md',
-    'Notes/LPT9.md', 'Notes/file.', 'Notes/file ', 'Notes/report.md\\nspoofed',
-    'Notes/report.md\\u0001', 'Notes/\\u202Egpj.elif',
+    'Notes/LPT9.md', 'Notes/file.', 'Notes/file ', 'Notes/report.md\nspoofed',
+    'Notes/report.md\u0001', 'Notes/\u202Egpj.elif',
   ]
   for (const candidate of unsafe) {
     const project = manifest()
@@ -137,7 +137,7 @@ test('MAT-014: platform-reserved and control-character manifest paths cannot cer
 })
 
 test('MAT-014: native read evidence cannot use a platform-alias or spoofed file path', () => {
-  for (const candidate of ['Notes/CON.md', 'Notes/summary.', 'Notes/\\u202Etxt.pdf', 'Notes/report.md\\tmeta']) {
+  for (const candidate of ['Notes/CON.md', 'Notes/summary.', 'Notes/\u202Etxt.pdf', 'Notes/report.md\tmeta']) {
     const seen = evidence()
     seen.reads[0].path = candidate
     assert.throws(() => reviewResearchProjectManifest(manifest(), seen), /unsafe|path/i, candidate)
