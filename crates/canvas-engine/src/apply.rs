@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Read;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -100,20 +101,26 @@ pub fn list_template_checkpoints(
     let directory = patches_dir(vault_root);
     // An absent source is a real empty directory. An unreadable or symlinked
     // source is NOT evidence of zero recovery checkpoints.
-    let metadata = match fs::symlink_metadata(&directory) {
-        Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(inventory),
-        Err(source) => {
-            return Err(CanvasError::IoRead {
-                path: directory,
-                source,
-            });
+    // Inspect every existing ancestor before treating an absent final folder
+    // as a verified empty source. A symlinked parent may hide checkpoints
+    // outside the vault even when its `patches` child is missing.
+    for relative in [".scriptor", ".scriptor/canvas", ".scriptor/canvas/patches"] {
+        let ancestor = vault_root.join(relative);
+        let metadata = match fs::symlink_metadata(&ancestor) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(inventory),
+            Err(source) => {
+                return Err(CanvasError::IoRead {
+                    path: ancestor,
+                    source,
+                });
+            }
+        };
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(CanvasError::InvalidDocument(
+                "unsafe Canvas recovery checkpoint directory".into(),
+            ));
         }
-    };
-    if !metadata.is_dir() || metadata.file_type().is_symlink() {
-        return Err(CanvasError::InvalidDocument(
-            "unsafe Canvas recovery checkpoint directory".into(),
-        ));
     }
     let canonical_root = fs::canonicalize(vault_root).map_err(|source| CanvasError::IoRead {
         path: vault_root.to_path_buf(),
@@ -178,9 +185,20 @@ pub fn list_template_checkpoints(
             inventory.invalid_count += 1;
             continue;
         }
-        let valid = fs::read(&path)
+        // Metadata size is not an allocation cap if the file grows between
+        // stat and read. Limit the actual bytes consumed as well.
+        let valid = fs::File::open(&path)
             .ok()
-            .and_then(|bytes| serde_json::from_slice::<TemplateUndoCheckpoint>(&bytes).ok())
+            .and_then(|file| {
+                let mut bytes = Vec::new();
+                file.take(MAX_CHECKPOINT_BYTES + 1)
+                    .read_to_end(&mut bytes)
+                    .ok()?;
+                if bytes.len() as u64 > MAX_CHECKPOINT_BYTES {
+                    return None;
+                }
+                serde_json::from_slice::<TemplateUndoCheckpoint>(&bytes).ok()
+            })
             .and_then(|record| {
                 let document = parse_document_json(&record.previous_document_json).ok()?;
                 Some(
@@ -338,6 +356,23 @@ mod tests {
         symlink(outside.path(), &folder).expect("symlinked directory");
         let error = list_template_checkpoints(vault.path(), "vault-1").expect_err("escape denied");
         assert!(matches!(error, CanvasError::InvalidDocument(_)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mat003_checkpoint_inventory_rejects_symlinked_ancestors_with_missing_patch_folder() {
+        use std::os::unix::fs::symlink;
+        for ancestor in [".scriptor", ".scriptor/canvas"] {
+            let vault = tempfile::tempdir().expect("vault");
+            let outside = tempfile::tempdir().expect("outside");
+            let path = vault.path().join(ancestor);
+            fs::create_dir_all(path.parent().expect("ancestor parent"))
+                .expect("ancestor parent");
+            symlink(outside.path(), &path).expect("symlink ancestor");
+            let error = list_template_checkpoints(vault.path(), "vault-1")
+                .expect_err("symlinked parent cannot certify empty checkpoints");
+            assert!(matches!(error, CanvasError::InvalidDocument(_)), "{ancestor}");
+        }
     }
 
     #[test]
