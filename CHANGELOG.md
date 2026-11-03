@@ -30,6 +30,8 @@
 
 ### Fixed
 
+- Preserve indeterminate backup-deletion retry and retention holds across common Windows drive/UNC path aliases (case, slash, dot segments and Unicode normalization), without merging distinct POSIX or vault owners.
+
 - Distinguish denied, acknowledged and lost-reply manual or automatic-retention backup deletions at the native submission boundary; hold unconfirmed deletions by vault/destination, pause blind retention retries, and explain restart/reinspection before further cleanup.
 
 - Treat unknown or future Database Studio query-coverage statuses as unverified instead of reporting an authoritative full-vault match count or complete aggregates.
