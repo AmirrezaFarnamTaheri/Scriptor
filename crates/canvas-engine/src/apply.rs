@@ -366,12 +366,14 @@ mod tests {
             let vault = tempfile::tempdir().expect("vault");
             let outside = tempfile::tempdir().expect("outside");
             let path = vault.path().join(ancestor);
-            fs::create_dir_all(path.parent().expect("ancestor parent"))
-                .expect("ancestor parent");
+            fs::create_dir_all(path.parent().expect("ancestor parent")).expect("ancestor parent");
             symlink(outside.path(), &path).expect("symlink ancestor");
             let error = list_template_checkpoints(vault.path(), "vault-1")
                 .expect_err("symlinked parent cannot certify empty checkpoints");
-            assert!(matches!(error, CanvasError::InvalidDocument(_)), "{ancestor}");
+            assert!(
+                matches!(error, CanvasError::InvalidDocument(_)),
+                "{ancestor}"
+            );
         }
     }
 
