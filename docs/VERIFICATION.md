@@ -146,7 +146,7 @@ The Mermaid and PlantUML export adapters now use the shared
 constructing direct `Command` processes. The shared broker owns process-group
 setup, timeout/descendant termination, bounded stdout/stderr draining and
 minimal environment inheritance. Diagram streams retain at most 16 MiB each;
-truncated stderr is identified in renderer diagnostics. Browser/cache settings
+captured stdout/stderr and both truncation states are included in renderer failure diagnostics. Browser/cache settings
 required by Puppeteer are passed explicitly, not by inheriting the parent
 environment. Executable discovery now scans PATH/PATHEXT directly rather than
 spawning `which` / `where` helper processes.
