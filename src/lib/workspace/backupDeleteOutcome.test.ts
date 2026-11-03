@@ -79,3 +79,33 @@ test('MAT-002: uncertain retention deletion pauses automatic pruning only in ori
   assert.equal(hasUnconfirmedBackupDeleteInDestination([], { vaultId: 'vault-a', backupPath: '/trusted-backup' }), false)
   assert.equal(hasUnconfirmedBackupDeleteInDestination(['not-json'], { vaultId: 'vault-a', backupPath: '/trusted-backup' }), false)
 })
+
+
+test('MAT-002: Windows drive aliases cannot bypass an indeterminate backup delete hold', () => {
+  const windows = { ...scope, backupPath: String.raw`C:\Research\Backups`, backupName: 'Snapshot-01' }
+  const key = backupDeleteKey(windows)
+  for (const backupPath of ['c:/research/backups/', 'C:/RESEARCH/./Backups', 'c:/research/other/../backups']) {
+    const alias = { ...windows, backupPath, backupName: 'snapshot-01' }
+    assert.equal(isBackupDeleteHeld([key], alias), true, `uncertain backup deletion must hold ${backupPath}`)
+    assert.equal(hasUnconfirmedBackupDeleteInDestination([key], alias), true, `retention must remain paused in ${backupPath}`)
+  }
+  assert.equal(isBackupDeleteHeld([key], { ...windows, backupPath: 'D:/research/backups' }), false)
+  assert.equal(isBackupDeleteHeld([key], { ...windows, vaultId: 'vault-b', backupPath: 'c:/research/backups/' }), false)
+})
+
+test('MAT-002: UNC and Unicode path aliases cannot bypass a destination-scoped hold', () => {
+  const windows = { ...scope, backupPath: String.raw`\\Server\Share\Café` }
+  const key = backupDeleteKey(windows)
+  const alias = { ...windows, backupPath: '//server/share/Cafe\u0301/' }
+  assert.equal(isBackupDeleteHeld([key], alias), true)
+  assert.equal(hasUnconfirmedBackupDeleteInDestination([key], alias), true)
+})
+
+test('MAT-002: POSIX backup paths keep their case-sensitive owner and malformed keys are ignored', () => {
+  const unix = { ...scope, backupPath: '/mnt/Archive' }
+  const key = backupDeleteKey(unix)
+  assert.equal(isBackupDeleteHeld([key], { ...unix, backupPath: '/mnt/archive' }), false)
+  assert.equal(hasUnconfirmedBackupDeleteInDestination([key], { ...unix, backupPath: '/mnt/archive' }), false)
+  assert.equal(isBackupDeleteHeld(['not-json', '{"bad": true}'], unix), false)
+  assert.equal(hasUnconfirmedBackupDeleteInDestination(['not-json'], unix), false)
+})
