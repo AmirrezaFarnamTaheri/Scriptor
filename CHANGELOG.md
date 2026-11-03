@@ -32,6 +32,8 @@
 
 - Reject malformed-but-falsy calculated column formulas and array-shaped layout/filter fields in saved Database Studio views instead of silently discarding calculations or coercing invalid schema values.
 
+- Reject case- or Unicode-equivalent native read-evidence aliases and overlapping file paths before presenting a research manifest as source-verified.
+
 - Preserve indeterminate backup-deletion retry and retention holds across common Windows drive/UNC path aliases (case, slash, dot segments and Unicode normalization), without merging distinct POSIX or vault owners.
 
 - Reuse a single immutable vault-path resolver across read-only lint and lint-fix instead of rebuilding the entire index for every wikilink; guard the 5k-linked-note performance path and preserve ambiguous/hand-authored reference behavior.
