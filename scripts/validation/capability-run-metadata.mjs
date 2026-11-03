@@ -44,13 +44,15 @@ function isExpectedSuccessfulRun(run, reference, sourceHead) {
     run.repository.full_name.toLowerCase() === REPOSITORY.toLowerCase() &&
     run.head_sha === sourceHead &&
     run.status === 'completed' && run.conclusion === 'success' &&
+    Number.isSafeInteger(run.run_attempt) && run.run_attempt > 0 &&
     canonicalUrl?.id === reference.id && canonicalUrl.attempt === null &&
     (reference.attempt === null || run.run_attempt === reference.attempt)
 }
 
-function hasPassingNamedStep(jobs, caseId) {
+function hasPassingNamedStep(jobs, caseId, run) {
   return isObject(jobs) && Array.isArray(jobs.jobs) &&
     jobs.jobs.some(job => isObject(job) &&
+      job.run_id === run.id && job.run_attempt === run.run_attempt &&
       job.status === 'completed' && job.conclusion === 'success' &&
       Array.isArray(job.steps) && job.steps.some(step =>
         isObject(step) && step.name === caseId &&
@@ -100,7 +102,7 @@ export async function verifyCapabilityWorkflowMetadata(packet, provider) {
       continue
     }
     const jobs = await readCached(jobCache, reference.id, provider.getJobs)
-    if (!hasPassingNamedStep(jobs, proof.caseId)) {
+    if (!hasPassingNamedStep(jobs, proof.caseId, run)) {
       unverified.push(name)
       continue
     }

@@ -167,7 +167,9 @@ test('MAT-018: a visible plugin command must not run after permission is revoked
   context.runPluginCommand = (request) => { invoked.push(request.command.commandId) }
   const command = buildPaletteCommands(context).find(x => x.id === 'plugin-revocable-write')
   assert.ok(command, 'granted command appears in the palette')
+  assert.equal(command.isAvailable?.(), true, 'freshly granted command is executable')
   permitted = false
+  assert.equal(command.isAvailable?.(), false, 'visible command detects revoked permission at dispatch')
   command.run()
   assert.deepEqual(invoked, [], 'stale palette callbacks must not invoke revoked plugin commands')
   permitted = true
