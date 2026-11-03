@@ -10,6 +10,10 @@ on:
       - 'scripts/benchmarks/collect-scale-smoke.test.mjs'
       - 'scripts/benchmarks/cli-precision-contract.test.mjs'
       - 'crates/cli/src/bench.rs'
+      - 'crates/vault/src/lint.rs'
+      - 'crates/indexer/src/rebuild.rs'
+      - 'crates/indexer/src/health.rs'
+      - 'crates/indexer/src/links.rs'
       - 'scripts/benchmarks/scale-evidence.mjs'
       - 'scripts/benchmarks/benchmark-utils.mjs'
   push:
@@ -20,6 +24,10 @@ on:
       - 'scripts/benchmarks/collect-scale-smoke.test.mjs'
       - 'scripts/benchmarks/cli-precision-contract.test.mjs'
       - 'crates/cli/src/bench.rs'
+      - 'crates/vault/src/lint.rs'
+      - 'crates/indexer/src/rebuild.rs'
+      - 'crates/indexer/src/health.rs'
+      - 'crates/indexer/src/links.rs'
   workflow_dispatch:
 
 permissions:
