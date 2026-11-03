@@ -44,7 +44,7 @@ function formatDate(iso: string): string {
 }
 
 export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, vaultId, activePath, activeNoteVaultId, externalChangeConflict, settingsDirty, onOpenNoteHistory }: VaultBackupSettingsProps) {
-  const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, lastRestoreReceipt, triggerBackup, restoreBackup, deleteBackup } =
+  const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, lastRestoreReceipt, lastDeleteOutcome, isBackupDeleteUnconfirmed, triggerBackup, restoreBackup, deleteBackup } =
     backup
 
   const receiptView = lastRestoreReceipt ? describeRestoreReceipt(lastRestoreReceipt) : null
@@ -192,6 +192,12 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
         </div>
       </details>
 
+      {lastDeleteOutcome ? (
+        <p role="status" className={lastDeleteOutcome.commit === 'indeterminate' ? 'settings-status warn' : 'settings-status'}>
+          Last observed backup deletion: {lastDeleteOutcome.commit}; retry: {lastDeleteOutcome.retry}.
+          {lastDeleteOutcome.commit === 'indeterminate' ? ' Native deletion may have committed. Reopen and inspect before taking further action.' : ''}
+        </p>
+      ) : null}
       {recoveryRequired ? <p className="settings-status warn" role="alert">This vault needs recovery before backup operations can continue. Backup, restore and delete are paused. Restart Scriptor and reopen the vault before editing or retrying.</p> : null}
       {lastMessage ? <p className="settings-status ok">{lastMessage}</p> : null}
       {lastError ? <p className="settings-status warn" role="alert">{lastError}</p> : null}
@@ -243,6 +249,11 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
                     This backup could not be verified, so it cannot be restored. Keep it for investigation or delete it after reviewing the consequences.
                   </p>
                 ) : null}
+                {isBackupDeleteUnconfirmed(entry.name) ? (
+                  <p className="settings-status warn" role="alert">
+                    Deletion of this backup was submitted but not confirmed. Automatic or same-session retry is blocked; restart Scriptor and inspect this destination before reviewing another deletion.
+                  </p>
+                ) : null}
                 <div className="backup-actions">
                   <button
                     type="button"
@@ -257,7 +268,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
                   <button
                     type="button"
                     className="toolbar-button danger"
-                    disabled={isBusy || recoveryRequired}
+                    disabled={isBusy || recoveryRequired || isBackupDeleteUnconfirmed(entry.name)}
                     aria-label={`Delete backup ${entry.name}`}
                     onClick={() => setPendingAction(createPendingBackupAction(backupScope, entry.name, 'delete'))}
                   >
@@ -277,7 +288,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
                     // Never transfer an approval to a different vault or backup location.
                     if (!matchesBackupActionScope(selected, backupScope, entry.name) || isBusy || recoveryRequired) return
                     if (selected?.action === 'restore') void restoreBackup(selected.name)
-                    else if (selected?.action === 'delete') void deleteBackup(selected.name)
+                    else if (selected?.action === 'delete' && !isBackupDeleteUnconfirmed(selected.name)) void deleteBackup(selected.name)
                   }}
                   busy={isBusy || recoveryRequired}
                 /> : null}
