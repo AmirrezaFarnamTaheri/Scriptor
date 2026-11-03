@@ -32,6 +32,8 @@
 
 - Hold Canvas saves after a native save response is lost or rejected after submission; block same-vault queued, debounce, flush, and teardown replays until vault reopening and inspection, without blocking another vault.
 
+- Reject malformed-but-falsy formulas and array-shaped layout/filter fields in saved Database Studio views, and prevent calculated columns from reading inherited JavaScript prototype properties as user metadata.
+
 - Reject case- or Unicode-equivalent native read-evidence aliases and overlapping file paths before presenting a research manifest as source-verified.
 
 - Preserve indeterminate backup-deletion retry and retention holds across common Windows drive/UNC path aliases (case, slash, dot segments and Unicode normalization), without merging distinct POSIX or vault owners.
