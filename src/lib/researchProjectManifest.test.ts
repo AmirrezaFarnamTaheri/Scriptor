@@ -100,3 +100,25 @@ test('MAT-014: portable manifest identity rejects case and Unicode-equivalent fi
     'sibling filenames sharing a prefix are not ancestor/descendant aliases',
   )
 })
+
+test('MAT-014: portable aliases in observed read evidence cannot certify independent files', () => {
+  for (const [source, alias] of [
+    ['Notes/Study.md', 'notes/study.md'],
+    ['Notes/Study.md', 'NOTES/STUDY.MD/derived.json'],
+    ['Café.md', 'Cafe\u0301.md'],
+  ]) {
+    const project = manifest()
+    project.inputs[0].path = source
+    const seen = evidence()
+    seen.reads[0].path = source
+    seen.reads.push({ path: alias, state: 'present', sha256: a })
+    assert.throws(
+      () => reviewResearchProjectManifest(project, seen),
+      /duplicate|overlap/i,
+      'an alias of an already observed file must not count as independent native evidence',
+    )
+  }
+  const distinct = evidence()
+  distinct.reads.push({ path: 'Notes/Study.md2', state: 'present', sha256: a })
+  assert.equal(reviewResearchProjectManifest(manifest(), distinct).status, 'current')
+})

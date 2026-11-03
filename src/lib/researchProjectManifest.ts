@@ -66,10 +66,21 @@ export function reviewResearchProjectManifest(manifest: unknown, observed: unkno
     throw new Error('Malformed research evidence')
   }
   const byPath = new Map<string, Record<string, unknown>>()
+  // Read receipts are observations, not proof that case- or Unicode-aliasing
+  // filesystem paths represent independent source files. Keep exact authored
+  // paths for matching the manifest and native evidence, but reject aliases.
+  const observedPortablePaths = new Set<string>()
   for (const row of observed.reads) {
     if (!object(row)) throw new Error('Invalid research read evidence')
     const name = path(row.path)
     if (byPath.has(name)) throw new Error('Duplicate research read evidence')
+    const portable = name.normalize('NFC').toLowerCase()
+    for (const previous of observedPortablePaths) {
+      if (previous === portable || previous.startsWith(portable + '/') || portable.startsWith(previous + '/')) {
+        throw new Error('Duplicate or overlapping research read evidence')
+      }
+    }
+    observedPortablePaths.add(portable)
     if (!['present', 'missing', 'unavailable'].includes(row.state as string)) throw new Error('Invalid research read state')
     if (row.state === 'present' && !sha(row.sha256)) throw new Error('Invalid research evidence sha256')
     byPath.set(name, row)
