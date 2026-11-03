@@ -35,7 +35,7 @@ fn output_with_timeout(spec: ProcessSpec) -> io::Result<DiagramOutput> {
             } => io::Error::new(
                 io::ErrorKind::TimedOut,
                 format!(
-                    "process {} timed out after {}ms\\nstdout: {}\\nstderr: {}",
+                    "process {} timed out after {}ms\nstdout: {}\nstderr: {}",
                     program.display(),
                     timeout_ms,
                     stdout,
@@ -59,7 +59,7 @@ fn diagnostic_stderr(output: &DiagramOutput) -> String {
     let mut stderr = output.stderr.clone();
     if output.stderr_truncated {
         stderr.push_str(&format!(
-            "\\n[stderr truncated after {} bytes]",
+            "\n[stderr truncated after {} bytes]",
             MAX_DIAGRAM_OUTPUT_BYTES
         ));
     }
