@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { assertExactSourceCommit, collectWarmScaleEvidence, parseCollectorSizes } from './collect-scale-smoke.mjs'
+import { assertExactSourceCommit, collectWarmScaleEvidence, parseCollectorSizes, writeWarmScaleEvidence } from './collect-scale-smoke.mjs'
 import { evaluateScaleEvidence } from './scale-evidence.mjs'
 
 const sha = 'a'.repeat(40)
@@ -102,4 +102,50 @@ test('MAT-023: CLI evidence must match checked-out exact Git HEAD and cannot acc
   assert.doesNotThrow(() => assertExactSourceCommit(realCommit, realCommit))
   assert.throws(() => assertExactSourceCommit(sha, 'b'.repeat(40)), /source|checkout|HEAD|SHA/i)
   assert.throws(() => assertExactSourceCommit(sha, 'main'), /source|checkout|HEAD|SHA/i)
+})
+
+test('MAT-023: completed runs are emitted as partial, source-bound, never-cold measurement evidence', () => {
+  const h = harness()
+  const snapshots = []
+  try {
+    const evidence = collectWarmScaleEvidence({
+      ...h.options,
+      onProgress: snapshot => snapshots.push(snapshot),
+    })
+    assert.deepEqual(snapshots.map(snapshot => snapshot.runs.length), [0, 1, 2, 3, 4])
+    assert.equal(snapshots[1].runs[0].runId, evidence.runs[0].runId)
+    assert.equal(snapshots[1].collector.coldCacheVerified, false)
+    assert.equal(snapshots[1].sourceCommit, sha)
+    assert.equal(evaluateScaleEvidence(snapshots[1]).readyForReview, false)
+    assert.equal(evaluateScaleEvidence(snapshots.at(-1)).missing.length, 28)
+  } finally { h.cleanup() }
+})
+
+test('MAT-023: a later native timeout preserves earlier real runs in an atomic partial artifact', () => {
+  const h = harness()
+  const output = path.join(h.options.workRoot, 'warm-evidence.json')
+  const checksum = 'b'.repeat(64)
+  const originalExecute = h.options.execute
+  try {
+    assert.throws(() => collectWarmScaleEvidence({
+      ...h.options,
+      sizes: [100, 1000],
+      execute: args => {
+        if (args[0] === 'bench-scan' && args[1].includes('vault-1000-')) {
+          throw new Error('spawnSync native CLI ETIMEDOUT')
+        }
+        return originalExecute(args)
+      },
+      onProgress: evidence => writeWarmScaleEvidence(output, evidence, checksum),
+    }), /ETIMEDOUT/)
+    const saved = JSON.parse(fs.readFileSync(output, 'utf8'))
+    assert.equal(saved.runs.length, 4)
+    assert.deepEqual(saved.runs.map(run => run.size), [100, 100, 100, 100])
+    assert.equal(saved.sourceCommit, sha)
+    assert.equal(saved.collector.cliSha256, checksum)
+    assert.equal(saved.collector.coldCacheVerified, false)
+    assert.equal(evaluateScaleEvidence(saved).readyForReview, false)
+    assert.equal(evaluateScaleEvidence(saved).missing.length, 28)
+    assert.equal(fs.existsSync(output + '.tmp'), false)
+  } finally { h.cleanup() }
 })
