@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { validateDatabaseView, databaseFilterJson, scalarFields, calculateValue, aggregateColumn, matchesMetadataFilters, matchesTag, pathMatches, parseScalarCell, formatScalarCell, isMissingDatabasePreset } from './databaseStudio.ts'
+import { validateDatabaseView, validateFormula, databaseFilterJson, scalarFields, calculateValue, aggregateColumn, matchesMetadataFilters, matchesTag, pathMatches, parseScalarCell, formatScalarCell, isMissingDatabasePreset } from './databaseStudio.ts'
 
 test('calendar calculations reject rollover dates', () => {
   assert.equal(calculateValue({op:'days-between',fields:['a','b']},{a:'2026-02-30',b:'2026-03-04'}),null)
@@ -208,4 +208,18 @@ test('MAT-010: corrupted persisted layout/filter types are not coerced into vali
   assert.equal(validated.mode, 'table')
   assert.equal(validated.combine, 'all')
   assert.equal(validated.filters[0].field, 'tag')
+})
+
+test('MAT-010: calculated fields cannot read inherited JavaScript properties as user metadata', () => {
+  for (const key of ['constructor', 'prototype', '__proto__']) {
+    assert.throws(
+      () => validateFormula({ op: 'upper', fields: [key] }),
+      /valid field names/i,
+      'prototype metadata selectors cannot be saved as calculated columns',
+    )
+  }
+  assert.equal(calculateValue({ op: 'upper', fields: ['toString'] }, {}), null)
+  assert.equal(calculateValue({ op: 'length', fields: ['valueOf'] }, {}), null)
+  const owned = Object.assign(Object.create(null), { toString: 'draft' })
+  assert.equal(calculateValue({ op: 'upper', fields: ['toString'] }, owned), 'DRAFT')
 })
