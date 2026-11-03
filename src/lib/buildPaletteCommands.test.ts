@@ -153,3 +153,24 @@ test('MAT-018: palette only advertises contributed plugin commands the existing 
   assert.equal(buildPaletteCommands(context).some(command => command.id === 'plugin-sample-plugin-inspect'), false,
     'missing permission owner must fail closed instead of advertising a no-op')
 })
+
+
+test('MAT-018: a visible plugin command must not run after permission is revoked', () => {
+  const entry = { pluginId: 'revocable', command: {
+    commandId: 'write', label: 'Update note', category: 'Plugin', permission: 'write' as const,
+  } }
+  const context = availabilityFixture()
+  let permitted = true
+  const invoked: string[] = []
+  context.pluginCommands = [entry]
+  context.canExecutePluginCommand = () => permitted
+  context.runPluginCommand = (request) => { invoked.push(request.command.commandId) }
+  const command = buildPaletteCommands(context).find(x => x.id === 'plugin-revocable-write')
+  assert.ok(command, 'granted command appears in the palette')
+  permitted = false
+  command.run()
+  assert.deepEqual(invoked, [], 'stale palette callbacks must not invoke revoked plugin commands')
+  permitted = true
+  command.run()
+  assert.deepEqual(invoked, ['write'], 'restored permission allows the retained callback')
+})
