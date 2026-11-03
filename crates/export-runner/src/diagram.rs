@@ -1,94 +1,69 @@
 use std::fs;
-use std::io::{self, Read};
+use std::io;
 use std::path::Path;
-use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 use crate::error::ExportError;
-use scriptor_system_bridge::{configure_process_group, terminate_process_tree};
+use scriptor_system_bridge::{BridgeError, ProcessSpec, run_process};
 
 /// Wall-clock budget for a single diagram render. A pathological diagram (or a
 /// renderer that waits on stdin) must never hang the whole export job.
 pub(crate) const DIAGRAM_TIMEOUT: Duration = Duration::from_secs(60);
 
-/// Budget for the cheap `which`/`where` PATH probe.
-const WHICH_TIMEOUT: Duration = Duration::from_secs(10);
+/// Maximum bytes retained for each renderer output stream.
+const MAX_DIAGRAM_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
 
-/// How often the timeout loop polls the child.
-const POLL_INTERVAL: Duration = Duration::from_millis(25);
+#[derive(Debug)]
+struct DiagramOutput {
+    success: bool,
+    stdout: String,
+    stderr: String,
+    stdout_truncated: bool,
+    stderr_truncated: bool,
+}
 
-/// Maximum bytes read from a diagram subprocess to prevent unbounded memory growth.
-const MAX_DIAGRAM_OUTPUT_BYTES: u64 = 16 * 1024 * 1024;
-
-/// Run `command` to completion, capturing stdout/stderr, but kill it if it
-/// outlives `timeout`.
-///
-/// `Command::output()` waits forever; every diagram engine below goes through
-/// this helper instead so a wedged subprocess surfaces as a `TimedOut` error.
-fn output_with_timeout(command: &mut Command, timeout: Duration) -> io::Result<Output> {
-    // The native broker owns the child process-group setup on each platform.
-    configure_process_group(command);
-    let mut child = command
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-
-    // Drain both pipes concurrently with a bounded limit: polling try_wait() while the child
-    // fills the pipe buffer would deadlock, and unbounded reading can exhaust memory.
-    let stdout_reader = child.stdout.take().map(|mut pipe| {
-        std::thread::spawn(move || {
-            let mut buffer = Vec::new();
-            let _ = pipe
-                .by_ref()
-                .take(MAX_DIAGRAM_OUTPUT_BYTES)
-                .read_to_end(&mut buffer);
-            let _ = io::copy(&mut pipe, &mut io::sink());
-            buffer
-        })
-    });
-    let stderr_reader = child.stderr.take().map(|mut pipe| {
-        std::thread::spawn(move || {
-            let mut buffer = Vec::new();
-            let _ = pipe
-                .by_ref()
-                .take(MAX_DIAGRAM_OUTPUT_BYTES)
-                .read_to_end(&mut buffer);
-            let _ = io::copy(&mut pipe, &mut io::sink());
-            buffer
-        })
-    });
-
-    let deadline = Instant::now() + timeout;
-    let status = loop {
-        match child.try_wait()? {
-            Some(status) => break status,
-            None => {
-                if Instant::now() >= deadline {
-                    terminate_process_tree(&mut child);
-                    let _ = child.wait();
-                    return Err(io::Error::new(
-                        io::ErrorKind::TimedOut,
-                        format!("process exceeded {}s timeout", timeout.as_secs()),
-                    ));
-                }
-                std::thread::sleep(POLL_INTERVAL);
-            }
+/// Run a renderer through the shared process broker. The broker owns process
+/// groups, bounded pipe draining, timeout handling and descendant termination.
+fn output_with_timeout(spec: ProcessSpec) -> io::Result<DiagramOutput> {
+    let receipt = run_process(spec.max_output_bytes(MAX_DIAGRAM_OUTPUT_BYTES)).map_err(|error| {
+        match error {
+            BridgeError::ProcessTimeout {
+                program,
+                timeout_ms,
+                stdout,
+                stderr,
+            } => io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!(
+                    "process {} timed out after {}ms\\nstdout: {}\\nstderr: {}",
+                    program.display(),
+                    timeout_ms,
+                    stdout,
+                    stderr
+                ),
+            ),
+            other => io::Error::other(other.to_string()),
         }
-    };
+    })?;
 
-    let stdout = stdout_reader
-        .map(|handle| handle.join().unwrap_or_default())
-        .unwrap_or_default();
-    let stderr = stderr_reader
-        .map(|handle| handle.join().unwrap_or_default())
-        .unwrap_or_default();
-
-    Ok(Output {
-        status,
-        stdout,
-        stderr,
+    Ok(DiagramOutput {
+        success: receipt.exit_code == 0,
+        stdout: receipt.stdout,
+        stderr: receipt.stderr,
+        stdout_truncated: receipt.stdout_truncated,
+        stderr_truncated: receipt.stderr_truncated,
     })
+}
+
+fn diagnostic_stderr(output: &DiagramOutput) -> String {
+    let mut stderr = output.stderr.clone();
+    if output.stderr_truncated {
+        stderr.push_str(&format!(
+            "\\n[stderr truncated after {} bytes]",
+            MAX_DIAGRAM_OUTPUT_BYTES
+        ));
+    }
+    stderr
 }
 
 /// Render a Mermaid diagram source to SVG using `mmdc` (mermaid-cli).
@@ -116,17 +91,21 @@ pub fn render_mermaid_svg(source: &str) -> Result<String, ExportError> {
 
     let output_path = temp_dir.join("diagram.svg");
 
-    let result = output_with_timeout(
-        // PROCESS_BROKER_EXCEPTION(mermaid-cli-render)
-        Command::new(&mmdc_path).args([
-            "-i",
-            &input_path.display().to_string(),
-            "-o",
-            &output_path.display().to_string(),
-            "--quiet",
-        ]),
-        DIAGRAM_TIMEOUT,
-    );
+    let mut spec = ProcessSpec::new(&mmdc_path)
+        .arg("-i")
+        .arg(input_path.as_os_str())
+        .arg("-o")
+        .arg(output_path.as_os_str())
+        .arg("--quiet")
+        .timeout(DIAGRAM_TIMEOUT);
+    // Puppeteer uses these two documented environment settings to select a
+    // browser binary and cache without inheriting unrelated parent variables.
+    for name in ["PUPPETEER_EXECUTABLE_PATH", "PUPPETEER_CACHE_DIR"] {
+        if let Some(value) = std::env::var_os(name) {
+            spec = spec.env(name, value);
+        }
+    }
+    let result = output_with_timeout(spec);
 
     // The rendered SVG lives *inside* `temp_dir`, so it has to be read before
     // the directory is removed -- reading afterwards made the success arm dead
@@ -155,11 +134,10 @@ pub fn render_mermaid_svg(source: &str) -> Result<String, ExportError> {
 /// directly testable without a real `mmdc` install.
 fn collect_rendered_svg(result: io::Result<Output>, output_path: &Path) -> Result<String, String> {
     match result {
-        Ok(output) => svg_from_run(
-            output.status.success(),
-            &String::from_utf8_lossy(&output.stderr),
-            output_path,
-        ),
+        Ok(output) => {
+            let stderr = diagnostic_stderr(&output);
+            svg_from_run(output.success, &stderr, output_path)
+        },
         Err(error) => Err(format!("failed to run renderer: {error}")),
     }
 }
@@ -245,15 +223,16 @@ pub(crate) fn run_plantuml_engine_with(
         let binary = std::path::PathBuf::from(path);
         validate_binary_path(&binary, "PLANTUML_BIN").map_err(EngineError::Configured)?;
         let output = output_with_timeout(
-            // PROCESS_BROKER_EXCEPTION(plantuml-configured-binary)
-            Command::new(&binary).args(["-tsvg", &input_path.display().to_string()]),
-            DIAGRAM_TIMEOUT,
+            ProcessSpec::new(&binary)
+                .arg("-tsvg")
+                .arg(input_path.as_os_str())
+                .timeout(DIAGRAM_TIMEOUT),
         )
         .map_err(|error| EngineError::Configured(error.to_string()))?;
-        if !output.status.success() {
+        if !output.success {
             return Err(EngineError::Configured(format!(
                 "PLANTUML_BIN exited non-zero: {}",
-                String::from_utf8_lossy(&output.stderr)
+                diagnostic_stderr(&output)
             )));
         }
         return fs::read_to_string(svg_path)
@@ -263,15 +242,16 @@ pub(crate) fn run_plantuml_engine_with(
     if let Some(jar) = plantuml_jar.filter(|value| !value.is_empty()) {
         validate_binary_path(Path::new(jar), "PLANTUML_JAR").map_err(EngineError::Configured)?;
         let output = output_with_timeout(
-            // PROCESS_BROKER_EXCEPTION(plantuml-jar-java)
-            Command::new("java").args(["-jar", jar, "-tsvg", &input_path.display().to_string()]),
-            DIAGRAM_TIMEOUT,
+            ProcessSpec::new("java")
+                .args(["-jar", jar, "-tsvg"])
+                .arg(input_path.as_os_str())
+                .timeout(DIAGRAM_TIMEOUT),
         )
         .map_err(|error| EngineError::Configured(error.to_string()))?;
-        if !output.status.success() {
+        if !output.success {
             return Err(EngineError::Configured(format!(
                 "PLANTUML_JAR run exited non-zero: {}",
-                String::from_utf8_lossy(&output.stderr)
+                diagnostic_stderr(&output)
             )));
         }
         return fs::read_to_string(svg_path)
@@ -279,15 +259,16 @@ pub(crate) fn run_plantuml_engine_with(
     }
 
     let output = output_with_timeout(
-        // PROCESS_BROKER_EXCEPTION(plantuml-path-render)
-        Command::new("plantuml").args(["-tsvg", &input_path.display().to_string()]),
-        DIAGRAM_TIMEOUT,
+        ProcessSpec::new("plantuml")
+            .arg("-tsvg")
+            .arg(input_path.as_os_str())
+            .timeout(DIAGRAM_TIMEOUT),
     )
     .map_err(|error| EngineError::Discovered(error.to_string()))?;
-    if !output.status.success() {
+    if !output.success {
         return Err(EngineError::Discovered(format!(
             "PlantUML failed: {}",
-            String::from_utf8_lossy(&output.stderr)
+            diagnostic_stderr(&output)
         )));
     }
     fs::read_to_string(svg_path).map_err(|error| EngineError::Discovered(error.to_string()))
@@ -319,54 +300,31 @@ fn validate_binary_path(binary: &Path, env_var: &str) -> Result<(), String> {
 }
 
 fn which_binary(name: &str) -> Option<std::path::PathBuf> {
-    if let Some(path_var) = std::env::var_os("PATH") {
-        #[cfg(windows)]
-        {
-            let pathext_var =
-                std::env::var_os("PATHEXT").unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into());
-            let pathexts: Vec<String> = std::env::split_paths(&pathext_var)
-                .filter_map(|p| p.to_str().map(|s| s.to_ascii_lowercase()))
-                .collect();
-            let has_ext = Path::new(name).extension().is_some();
+    let path_var = std::env::var_os("PATH")?;
 
-            for dir in std::env::split_paths(&path_var) {
-                if has_ext {
-                    let candidate = dir.join(name);
-                    if candidate.is_file() {
-                        return Some(candidate);
-                    }
-                } else {
-                    for ext in &pathexts {
-                        let candidate = dir.join(format!("{name}{ext}"));
-                        if candidate.is_file() {
-                            return Some(candidate);
-                        }
-                    }
-                    let candidate = dir.join(name);
-                    if candidate.is_file() {
-                        return Some(candidate);
-                    }
-                }
-            }
-        }
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            for dir in std::env::split_paths(&path_var) {
-                let candidate = dir.join(name);
-                if candidate.is_file()
-                    && candidate
-                        .metadata()
-                        .is_ok_and(|metadata| metadata.permissions().mode() & 0o111 != 0)
-                {
+    #[cfg(windows)]
+    {
+        let pathext_var =
+            std::env::var_os("PATHEXT").unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into());
+        let pathexts: Vec<String> = std::env::split_paths(&pathext_var)
+            .filter_map(|path| path.to_str().map(|value| value.to_ascii_lowercase()))
+            .collect();
+        let has_ext = Path::new(name).extension().is_some();
+
+        for directory in std::env::split_paths(&path_var) {
+            if has_ext {
+                let candidate = directory.join(name);
+                if candidate.is_file() {
                     return Some(candidate);
                 }
-            }
-        }
-        #[cfg(not(any(windows, unix)))]
-        {
-            for dir in std::env::split_paths(&path_var) {
-                let candidate = dir.join(name);
+            } else {
+                for extension in &pathexts {
+                    let candidate = directory.join(format!("{name}{extension}"));
+                    if candidate.is_file() {
+                        return Some(candidate);
+                    }
+                }
+                let candidate = directory.join(name);
                 if candidate.is_file() {
                     return Some(candidate);
                 }
@@ -374,29 +332,32 @@ fn which_binary(name: &str) -> Option<std::path::PathBuf> {
         }
     }
 
-    if cfg!(windows) {
-        // PROCESS_BROKER_EXCEPTION(diagram-discovery-windows)
-        output_with_timeout(Command::new("where").arg(name), WHICH_TIMEOUT)
-            .ok()
-            .and_then(|output| {
-                String::from_utf8_lossy(&output.stdout)
-                    .lines()
-                    .next()
-                    .map(|line| std::path::PathBuf::from(line.trim()))
-            })
-    } else {
-        // PROCESS_BROKER_EXCEPTION(diagram-discovery-unix)
-        output_with_timeout(Command::new("which").arg(name), WHICH_TIMEOUT)
-            .ok()
-            .and_then(|output| {
-                let line = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                if line.is_empty() {
-                    None
-                } else {
-                    Some(std::path::PathBuf::from(line))
-                }
-            })
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        for directory in std::env::split_paths(&path_var) {
+            let candidate = directory.join(name);
+            if candidate.is_file()
+                && candidate
+                    .metadata()
+                    .is_ok_and(|metadata| metadata.permissions().mode() & 0o111 != 0)
+            {
+                return Some(candidate);
+            }
+        }
     }
+
+    #[cfg(not(any(windows, unix)))]
+    {
+        for directory in std::env::split_paths(&path_var) {
+            let candidate = directory.join(name);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    None
 }
 
 fn placeholder_svg(title: &str, source: &str) -> String {
@@ -543,52 +504,39 @@ mod tests {
     fn timed_out_diagram_renderer_must_stop_its_background_writer() {
         let directory = tempfile::tempdir().expect("isolated diagram timeout fixture");
         let heartbeat = directory.path().join("diagram-heartbeat");
-        let descendant_pid = directory.path().join("diagram-descendant-pid");
-        let script = r#"sh -c 'while :; do printf x >> "$SCRIPTOR_DIAGRAM_HEARTBEAT"; sleep 0.05; done' & echo $! > "$SCRIPTOR_DIAGRAM_DESCENDANT_PID"; wait"#;
-        // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-unix-descendant)
-        let mut command = Command::new("sh");
-        command
-            .args(["-c", script])
-            .env("SCRIPTOR_DIAGRAM_HEARTBEAT", heartbeat.as_os_str())
-            .env(
-                "SCRIPTOR_DIAGRAM_DESCENDANT_PID",
-                descendant_pid.as_os_str(),
-            );
-        let result = output_with_timeout(&mut command, Duration::from_millis(900));
+        let script = r#"sh -c 'while :; do printf x >> "$SCRIPTOR_DIAGRAM_HEARTBEAT"; sleep 0.05; done' & wait"#;
+        let result = output_with_timeout(
+            ProcessSpec::new("sh")
+                .args(["-c", script])
+                .env("SCRIPTOR_DIAGRAM_HEARTBEAT", heartbeat.as_os_str())
+                .timeout(Duration::from_millis(900)),
+        );
         let first = fs::metadata(&heartbeat).map(|meta| meta.len()).unwrap_or(0);
         std::thread::sleep(Duration::from_millis(300));
         let second = fs::metadata(&heartbeat).map(|meta| meta.len()).unwrap_or(0);
-        // RED cleanup must not leave a runaway writer behind. Kill the captured
-        // descendant PID specifically: the old launch has no isolated group.
-        if let Ok(pid) = fs::read_to_string(&descendant_pid) {
-            // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-unix-cleanup)
-            let _ = Command::new("kill").args(["-KILL", pid.trim()]).status();
-        }
+
         let error = result.expect_err("diagram renderer and descendants must time out");
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
         assert!(first > 0, "background writer did not start in the fixture");
         assert_eq!(
             first, second,
-            "a renderer child kept writing after the timeout returned",
+            "a renderer descendant kept writing after broker timeout returned",
         );
     }
 
     #[test]
     fn output_with_timeout_kills_a_hanging_child() {
-        let mut command = if cfg!(windows) {
-            // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-windows-hang)
-            let mut cmd = Command::new("cmd");
-            cmd.args(["/C", "ping -n 30 127.0.0.1 > NUL"]);
-            cmd
+        let spec = if cfg!(windows) {
+            ProcessSpec::new("cmd")
+                .args(["/C", "ping -n 30 127.0.0.1 > NUL"])
+                .timeout(Duration::from_millis(200))
         } else {
-            // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-unix-hang)
-            let mut cmd = Command::new("sleep");
-            cmd.arg("30");
-            cmd
+            ProcessSpec::new("sleep")
+                .arg("30")
+                .timeout(Duration::from_millis(200))
         };
         let started = Instant::now();
-        let error = output_with_timeout(&mut command, Duration::from_millis(200))
-            .expect_err("hanging child must time out");
+        let error = output_with_timeout(spec).expect_err("hanging child must time out");
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
         assert!(
             started.elapsed() < Duration::from_secs(20),
@@ -598,19 +546,35 @@ mod tests {
 
     #[test]
     fn output_with_timeout_returns_output_for_fast_child() {
-        let mut command = if cfg!(windows) {
-            // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-windows-fast)
-            let mut cmd = Command::new("cmd");
-            cmd.args(["/C", "echo hi"]);
-            cmd
+        let spec = if cfg!(windows) {
+            ProcessSpec::new("cmd")
+                .args(["/C", "echo hi"])
+                .timeout(Duration::from_secs(30))
         } else {
-            // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-unix-fast)
-            let mut cmd = Command::new("echo");
-            cmd.arg("hi");
-            cmd
+            ProcessSpec::new("echo")
+                .arg("hi")
+                .timeout(Duration::from_secs(30))
         };
-        let output = output_with_timeout(&mut command, Duration::from_secs(30)).expect("ran");
-        assert!(output.status.success());
-        assert!(String::from_utf8_lossy(&output.stdout).contains("hi"));
+        let output = output_with_timeout(spec).expect("ran");
+        assert!(output.success);
+        assert!(output.stdout.contains("hi"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn output_with_timeout_bounds_stdout_and_stderr_independently() {
+        let script = "yes x | head -c 17000000; yes y | head -c 17000000 >&2";
+        let output = output_with_timeout(
+            ProcessSpec::new("sh")
+                .args(["-c", script])
+                .timeout(Duration::from_secs(30)),
+        )
+        .expect("bounded output fixture completes");
+
+        assert!(output.success);
+        assert!(output.stdout_truncated, "stdout overflow must be reported");
+        assert!(output.stderr_truncated, "stderr overflow must be reported");
+        assert!(output.stdout.len() <= MAX_DIAGRAM_OUTPUT_BYTES);
+        assert!(output.stderr.len() <= MAX_DIAGRAM_OUTPUT_BYTES);
     }
 }
