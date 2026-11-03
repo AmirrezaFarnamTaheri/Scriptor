@@ -189,3 +189,23 @@ test('MAT-010: a corrupted formula in a saved view must not silently disappear',
     valid,
   )
 })
+
+test('MAT-010: corrupted persisted layout/filter types are not coerced into valid schema fields', () => {
+  const view = {
+    schemaVersion: 1, id: 'type-review', label: 'Typed view',
+    mode: 'table', combine: 'all',
+    filters: [{ field: 'tag', value: 'research' }],
+    columns: [{ key: 'status', label: 'Status' }],
+  }
+  for (const invalid of [
+    { ...view, mode: ['table'] },
+    { ...view, combine: ['all'] },
+    { ...view, filters: [{ field: ['tag'], value: 'research' }] },
+  ]) {
+    assert.throws(() => validateDatabaseView(invalid), /Unsupported .*view|Unsupported filter field/i)
+  }
+  const validated = validateDatabaseView(view)
+  assert.equal(validated.mode, 'table')
+  assert.equal(validated.combine, 'all')
+  assert.equal(validated.filters[0].field, 'tag')
+})
