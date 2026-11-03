@@ -321,6 +321,9 @@ test('MAT-002: lost native delete reply blocks same-backup retry but not another
   await expect(deletion).toBeEnabled()
   await folder.fill('C:/NoReplyA')
   await expect(deletion).toBeDisabled()
+  // Windows aliases of the same physical destination must not bypass the hold.
+  await folder.fill('c:/noreplya/')
+  await expect(deletion).toBeDisabled()
   await expect.poll(() => page.evaluate(() =>
     (window as Window & { __backupDeleteCalls?: number }).__backupDeleteCalls ?? 0,
   )).toBe(1)
