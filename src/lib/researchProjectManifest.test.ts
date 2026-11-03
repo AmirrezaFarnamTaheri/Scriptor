@@ -122,3 +122,28 @@ test('MAT-014: portable aliases in observed read evidence cannot certify indepen
   distinct.reads.push({ path: 'Notes/Study.md2', state: 'present', sha256: a })
   assert.equal(reviewResearchProjectManifest(manifest(), distinct).status, 'current')
 })
+
+test('MAT-014: platform-reserved and control-character manifest paths cannot certify reproducible inputs', () => {
+  const unsafe = [
+    'Research/CON', 'Research/aux.bib', 'Exports/NUL.txt', 'Notes/COM1/report.md',
+    'Notes/LPT9.md', 'Notes/file.', 'Notes/file ', 'Notes/report.md\nspoofed',
+    'Notes/report.md\u0001', 'Notes/\u202Egpj.elif',
+  ]
+  for (const candidate of unsafe) {
+    const project = manifest()
+    project.inputs[0].path = candidate
+    assert.throws(() => reviewResearchProjectManifest(project, evidence()), /unsafe|path/i, candidate)
+  }
+})
+
+test('MAT-014: native read evidence cannot use a platform-alias or spoofed file path', () => {
+  for (const candidate of ['Notes/CON.md', 'Notes/summary.', 'Notes/\u202Etxt.pdf', 'Notes/report.md\tmeta']) {
+    const seen = evidence()
+    seen.reads[0].path = candidate
+    assert.throws(() => reviewResearchProjectManifest(manifest(), seen), /unsafe|path/i, candidate)
+  }
+  const seen = evidence()
+  seen.reads.push({ path: 'Notes/subdirectory/valid name.md', state: 'present', sha256: a })
+  assert.equal(reviewResearchProjectManifest(manifest(), seen).status, 'current',
+    'unrelated portable filenames remain safe read-only observations')
+})

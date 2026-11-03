@@ -42,10 +42,16 @@ export interface TraceReview {
 // boundary; matching two malformed observations must never certify provenance.
 const nonblank = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0 && value.length <= 500
+// Native/indexed strings are runtime input even when the bridge has typed
+// fields. Controls and bidirectional marks can make a different source appear
+// to carry an already-reviewed citation or revision.
+const provenanceIdentity = (value: unknown): value is string =>
+  nonblank(value) && !/[\u0000-\u001F\u007F-\u009F\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/u.test(value)
 const vaultRelativePath = (value: unknown): value is string =>
-  nonblank(value) && !value.startsWith('/') && !value.includes('\\') &&
-  !value.includes(':') && !value.includes('\0') &&
-  value.split('/').every(part => part.length > 0 && part !== '.' && part !== '..')
+  provenanceIdentity(value) && !value.startsWith('/') && !value.includes('\\') &&
+  !value.includes(':') &&
+  value.split('/').every(part => part.length > 0 && part !== '.' && part !== '..' &&
+    !/[. ]$/u.test(part) && !/^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/iu.test(part))
 
 export function reviewResearchEvidence(trace: ResearchEvidenceTrace, ctx: ResearchReadContext): TraceReview {
   const report = (status: TraceIssue, proposedSourcePath: string | null): TraceReview => ({
@@ -55,14 +61,14 @@ export function reviewResearchEvidence(trace: ResearchEvidenceTrace, ctx: Resear
       trace.vaultId !== ctx.vaultId || (ctx.source && ctx.source.vaultId !== ctx.vaultId)) {
     return report('wrong-vault', null)
   }
-  if (!nonblank(trace.sourceId) || !vaultRelativePath(trace.sourcePath) ||
-      !nonblank(trace.sourceRevision) || !nonblank(trace.referenceKey) ||
+  if (!provenanceIdentity(trace.sourceId) || !vaultRelativePath(trace.sourcePath) ||
+      !provenanceIdentity(trace.sourceRevision) || !provenanceIdentity(trace.referenceKey) ||
       !vaultRelativePath(trace.literatureNotePath) || !vaultRelativePath(trace.manuscriptPath)) {
     return report('invalid-evidence', null)
   }
   const source = ctx.source
   if (!source || source.sourceId !== trace.sourceId) return report('missing-source', null)
-  if (!vaultRelativePath(source.path) || !nonblank(source.revision) ||
+  if (!vaultRelativePath(source.path) || !provenanceIdentity(source.revision) ||
       typeof source.markdown !== 'string' ||
       !Array.isArray(ctx.bibliographyKeys) || !Array.isArray(ctx.notePaths) ||
       !Array.isArray(ctx.manuscriptCitationKeys)) {

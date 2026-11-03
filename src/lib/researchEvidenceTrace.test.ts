@@ -92,3 +92,38 @@ test('MAT-012: truthy invalid approvals cannot bypass capture or export-profile 
     captureReviewed: true, trace: ready, exportProfileValidated: 'yes' as unknown as boolean,
   }), { ready: false, next: 'validate-export-profile' })
 })
+
+test('MAT-011: Windows device aliases and bidi/control source paths never certify ready provenance', () => {
+  const badSources = ['sources/CON.md', 'sources/aux.bib', 'sources/report.', 'sources/report ',
+    'sources/note' + String.fromCharCode(10) + '.md',
+    'sources/' + String.fromCharCode(0x202e) + 'spoof.md']
+  for (const bad of badSources) {
+    const actual = review({ ...trace, sourcePath: bad }, { ...ctx, source: { ...ctx.source, path: bad } })
+    assert.equal(actual.status, 'invalid-evidence', JSON.stringify(bad))
+    assert.equal(actual.proposedSourcePath, null)
+  }
+})
+
+test('MAT-011: even matching malformed literature, manuscript or citation identities cannot certify ready', () => {
+  for (const bad of ['literature/NUL.txt', 'literature/notes.', 'literature/sub ']) {
+    const actual = review({ ...trace, literatureNotePath: bad },
+      { ...ctx, notePaths: [bad, trace.manuscriptPath] })
+    assert.equal(actual.status, 'invalid-evidence', JSON.stringify(bad))
+  }
+  for (const bad of ['COM1.md', 'draft.md.', 'draft' + String.fromCharCode(0x202e) + '.md']) {
+    const actual = review({ ...trace, manuscriptPath: bad },
+      { ...ctx, notePaths: [trace.literatureNotePath, bad] })
+    assert.equal(actual.status, 'invalid-evidence', JSON.stringify(bad))
+  }
+  for (const bad of ['reference' + String.fromCharCode(10) + 'key', 'reference' + String.fromCharCode(0x202e) + 'key']) {
+    const actual = review({ ...trace, referenceKey: bad },
+      { ...ctx, bibliographyKeys: [bad], manuscriptCitationKeys: [bad] })
+    assert.equal(actual.status, 'invalid-evidence', JSON.stringify(bad))
+  }
+})
+
+test('MAT-011: normal source paths containing internal spaces remain valid', () => {
+  const valid = 'sources/Research field notes.md'
+  assert.equal(review({ ...trace, sourcePath: valid },
+    { ...ctx, source: { ...ctx.source, path: valid } }).status, 'ready')
+})
