@@ -12,6 +12,8 @@
 
 ### Improved
 
+- Validate actual Gregorian UTC benchmark dates instead of accepting impossible dates normalized by JavaScript, while preserving fractional timestamp precision.
+
 - Inspect vault-owned Canvas template undo checkpoints through a bounded, read-only native Recovery Center inventory. Corrupt, overlarge, symlinked or foreign-vault evidence stays unverified; verified checkpoints link back to Canvas without restoring files or changing native consent.
 
 
@@ -32,6 +34,10 @@
 - Introduce read-only, vault-scoped restore operation receipts with explicit native confirmation, uncertain effects, retry safety and reopen requirements; retain unknown paths and revisions as unknown rather than inventing native evidence. The receipts are an internal foundation for future recovery UI, not an expanded restore authority.
 
 ### Fixed
+
+- Keep the Command Palette open and show an accessible localized denial when a stale plugin action loses permission, while preserving native authority.
+- Reject malformed or cross-vault research trace identities, unsafe relative paths, and contradictory capture/export review flags before suggesting publication.
+- Bind successful GitHub Actions capability evidence to each passing job's exact run ID and attempt; stale or unrelated job steps never certify support.
 
 - Reject stale GitHub Actions attempt links in capability evidence when a later rerun succeeds, and disallow ambiguous workflow proof URL suffixes.
 

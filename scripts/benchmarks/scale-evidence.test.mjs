@@ -159,3 +159,17 @@ test('MAT-023: fractional-millisecond samples cannot support an inflated claimed
   row.report.mean_ms = 0.25
   assert.equal(evaluateScaleEvidence(evidence).validRunCount, 1)
 })
+
+test('MAT-023: impossible Gregorian UTC benchmark dates cannot certify independent measurements', () => {
+  const input = base()
+  for (const startedAt of [
+    '2026-02-30T10:00:00.000Z',
+    '2026-11-31T10:00:00.000Z',
+    '2025-02-29T10:00:00.000Z',
+  ]) {
+    input.runs = [{ ...run(), startedAt }]
+    assert.throws(() => evaluateScaleEvidence(input), /invalid.*startedAt|invalid.*date|timestamp/i, startedAt)
+  }
+  input.runs = [{ ...run(), startedAt: '2024-02-29T10:00:00.000Z' }]
+  assert.equal(evaluateScaleEvidence(input).validRunCount, 1, 'valid leap day is accepted')
+})

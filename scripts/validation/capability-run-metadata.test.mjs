@@ -19,11 +19,11 @@ const packet = () => ({
 const ids = [...cases.map(name => 'tests.' + name), 'authorization.privacyReview',
   'performance', 'release.inclusion', 'release.artifactSmoke']
 const succeededRun = () => ({
-  id: 100, head_sha: sourceHead, status: 'completed', conclusion: 'success',
+  id: 100, run_attempt: 1, head_sha: sourceHead, status: 'completed', conclusion: 'success',
   html_url: runUrl, repository: { full_name: repo },
 })
-const succeededJobs = () => ({
-  jobs: [{ id: 50, status: 'completed', conclusion: 'success',
+const succeededJobs = (attempt = 1) => ({
+  jobs: [{ id: 50, run_id: 100, run_attempt: attempt, status: 'completed', conclusion: 'success',
     steps: ids.map((name, index) => ({ number: index + 1, name, status: 'completed', conclusion: 'success' })) }],
 })
 const provider = (run = succeededRun(), jobs = succeededJobs()) => ({
@@ -131,7 +131,7 @@ test('MAT-022: a failed earlier workflow attempt cannot be certified by a later 
   const input = packet()
   input.tests.negative.url = runUrl + '/attempts/1'
   const laterSuccess = { ...succeededRun(), run_attempt: 2 }
-  const result = await verifyCapabilityWorkflowMetadata(input, provider(laterSuccess))
+  const result = await verifyCapabilityWorkflowMetadata(input, provider(laterSuccess, succeededJobs(2)))
   assert.equal(result.evidenceIndexComplete, true)
   assert.equal(result.runMetadataVerified, false)
   assert.deepEqual(result.unverified, ['tests.negative'])
@@ -141,7 +141,7 @@ test('MAT-022: a failed earlier workflow attempt cannot be certified by a later 
 test('MAT-022: a pinned successful attempt is accepted only for matching run metadata', async () => {
   const input = packet()
   input.tests.negative.url = runUrl + '/attempts/2'
-  const result = await verifyCapabilityWorkflowMetadata(input, provider({ ...succeededRun(), run_attempt: 2 }))
+  const result = await verifyCapabilityWorkflowMetadata(input, provider({ ...succeededRun(), run_attempt: 2 }, succeededJobs(2)))
   assert.equal(result.runMetadataVerified, true)
   assert.deepEqual(result.unverified, [])
 })
@@ -150,8 +150,51 @@ test('MAT-022: malformed run URL suffixes cannot substitute for exact CI proof',
   for (const suffix of ['/attempts/0', '/attempts/2/jobs/999', '/unrelated']) {
     const input = packet()
     input.tests.negative.url = runUrl + suffix
-    const result = await verifyCapabilityWorkflowMetadata(input, provider({ ...succeededRun(), run_attempt: 2 }))
+    const result = await verifyCapabilityWorkflowMetadata(input, provider({ ...succeededRun(), run_attempt: 2 }, succeededJobs(2)))
     assert.equal(result.runMetadataVerified, false, suffix)
     assert.ok(result.unverified.includes('tests.negative'), suffix)
   }
+})
+
+test('MAT-022: passing steps from a previous attempt must not certify the latest successful run', async () => {
+  const run = { ...succeededRun(), run_attempt: 2 }
+  const jobs = succeededJobs()
+  jobs.jobs[0].run_attempt = 1
+  jobs.jobs[0].run_id = 100
+  const result = await verifyCapabilityWorkflowMetadata(packet(), provider(run, jobs))
+  assert.equal(result.runMetadataVerified, false, 'a newer successful run must not inherit earlier attempt steps')
+  assert.deepEqual(result.unverified, ids)
+})
+
+test('MAT-022: successful named steps from a different workflow run must not verify this run', async () => {
+  const run = { ...succeededRun(), run_attempt: 1 }
+  const jobs = succeededJobs()
+  jobs.jobs[0].run_attempt = 1
+  jobs.jobs[0].run_id = 999
+  const result = await verifyCapabilityWorkflowMetadata(packet(), provider(run, jobs))
+  assert.equal(result.runMetadataVerified, false, 'job run_id must match the attested workflow run')
+  assert.deepEqual(result.unverified, ids)
+})
+
+test('MAT-022: missing run or job attempt metadata cannot certify passing evidence', async () => {
+  const missingRunAttempt = await verifyCapabilityWorkflowMetadata(packet(), provider({
+    ...succeededRun(), run_attempt: undefined,
+  }))
+  assert.equal(missingRunAttempt.runMetadataVerified, false)
+  assert.deepEqual(missingRunAttempt.unverified, ids)
+
+  const missingJobAttempt = succeededJobs()
+  delete missingJobAttempt.jobs[0].run_attempt
+  const missingJob = await verifyCapabilityWorkflowMetadata(packet(), provider(succeededRun(), missingJobAttempt))
+  assert.equal(missingJob.runMetadataVerified, false)
+  assert.deepEqual(missingJob.unverified, ids)
+})
+
+test('MAT-022: successful stale jobs cannot mask a failed job in the actual successful attempt', async () => {
+  const stale = succeededJobs(1).jobs[0]
+  const latest = { ...stale, id: 51, run_attempt: 2, conclusion: 'failure' }
+  const result = await verifyCapabilityWorkflowMetadata(packet(),
+    provider({ ...succeededRun(), run_attempt: 2 }, { jobs: [stale, latest] }))
+  assert.equal(result.runMetadataVerified, false)
+  assert.deepEqual(result.unverified, ids)
 })

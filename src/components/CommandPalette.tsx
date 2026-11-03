@@ -16,6 +16,8 @@ export interface PaletteCommand {
   shortcut?: string
   category?: string
   tone?: 'default' | 'maintenance' | 'danger'
+  /** Rechecked at activation; native authority still enforces permission. */
+  isAvailable?: () => boolean
   run: () => void
   group?: 'command' | 'note'
 }
@@ -36,6 +38,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
     hits: Array<{ path: string; title: string }>
   }>({ query: '', hits: [] })
   const [searchingQuery, setSearchingQuery] = useState<string | null>(null)
+  const [commandUnavailable, setCommandUnavailable] = useState(false)
   const listRef = useRef<HTMLUListElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const searchTimer = useRef<number | null>(null)
@@ -114,7 +117,21 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
   useEscapeToClose(true, onClose)
   useFocusTrap(containerRef, { active: true })
 
-  const runSelected = (command: PaletteCommand) => { command.run(); onClose() }
+  const runSelected = (command: PaletteCommand) => {
+    // A plugin grant may be revoked while an older palette item is visible.
+    // Do not dispatch or close the palette for a newly unauthorized command.
+    try {
+      if (command.isAvailable && !command.isAvailable()) {
+        setCommandUnavailable(true)
+        return
+      }
+    } catch {
+      setCommandUnavailable(true)
+      return
+    }
+    command.run()
+    onClose()
+  }
   const hasNoteResults = mergedCommands.some((command) => command.group === 'note')
 
   return (
@@ -127,6 +144,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
             onChange={(event) => {
               isKeyboardNav.current = false
               setSearchingQuery(null)
+              setCommandUnavailable(false)
               setQuery(event.target.value)
               setSelectedIndex(0)
             }}
@@ -160,6 +178,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
             </span>
           ) : null}
         </p>
+        {commandUnavailable ? <p className="command-palette-hint" role="status">{t('commandPalette.unavailable')}</p> : null}
         <ul id="command-palette-list" ref={listRef} role="listbox" aria-busy={isSearchingNotes}>
           {mergedCommands.map((command, index) => {
             const previousGroup = mergedCommands[index - 1]?.group

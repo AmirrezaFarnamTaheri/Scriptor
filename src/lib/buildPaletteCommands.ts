@@ -527,6 +527,7 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     commands.push({
       id: `plugin-${entry.pluginId}-${entry.command.commandId}`,
       label: `${entry.command.label} (${entry.command.category})`,
+      isAvailable: () => canExecutePluginCommand(entry.pluginId, entry.command.permission),
       run: () => {
         // Plugin permissions may be revoked while the palette is open.
         // The native permission owner remains authoritative on dispatch.

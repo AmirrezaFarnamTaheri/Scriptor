@@ -17,7 +17,7 @@ const source = ts.transpileModule(
 
 // Execute the actual CommandPalette component with controlled React state.
 // Mock only its React rendering scheduler and external i18n/help/search boundaries.
-function renderPalette(onOpenNote) {
+function renderPalette(onOpenNote, commands = []) {
   const values = ['note', 0, {
     query: 'note',
     hits: [{ path: 'notes/selected.md', title: 'Selected note' }],
@@ -71,7 +71,7 @@ function renderPalette(onOpenNote) {
   })
 
   const tree = module.exports.CommandPalette({
-    commands: [],
+    commands,
     onClose: () => { closed++ },
     searchNotes: async (query) => {
       searches.push(query)
@@ -98,9 +98,10 @@ function renderPalette(onOpenNote) {
     if (pred(node)) return node
     return match(node.props?.children, pred)
   }
-  const hit = match(tree, (node) =>
-    node.type === 'button' && node.props?.id === 'command-palette-item-note:notes/selected.md')
-  return { hit, opened, searches, runTimers, get scheduledTimers() { return timers.size }, get closed() { return closed } }
+  const getButton = (id) => match(tree, (node) =>
+    node.type === 'button' && node.props?.id === 'command-palette-item-' + id)
+  const hit = getButton('note:notes/selected.md')
+  return { hit, getButton, opened, searches, runTimers, get scheduledTimers() { return timers.size }, get closed() { return closed } }
 }
 
 test('note search never advertises a selectable result without an open-note handler', () => {
@@ -121,4 +122,24 @@ test('note results remain actionable when an owner callback exists', () => {
   palette.hit.props.onClick()
   assert.deepEqual(palette.opened, ['notes/selected.md'])
   assert.equal(palette.closed, 1)
+})
+
+test('MAT-018: a revoked plugin command cannot execute or dismiss an open palette', () => {
+  let permitted = true
+  let invoked = 0
+  const palette = renderPalette(false, [{
+    id: 'plugin-example-edit', label: 'Edit note', category: 'Plugin',
+    isAvailable: () => permitted,
+    run: () => { invoked += 1 },
+  }])
+  const button = palette.getButton('plugin-example-edit')
+  assert.ok(button, 'available plugin command remains visible for review')
+  permitted = false
+  button.props.onClick()
+  assert.equal(invoked, 0, 'revoked permission must prevent a stale command from executing')
+  assert.equal(palette.closed, 0, 'revoked permission must not silently dismiss the palette')
+  permitted = true
+  button.props.onClick()
+  assert.equal(invoked, 1, 'fresh permission permits the same command on retry')
+  assert.equal(palette.closed, 1, 'confirmed action dismisses the palette')
 })
