@@ -292,7 +292,11 @@ test.describe('workspace flows', () => {
     await expect(external).toContainText('available')
     await expect(external).toContainText('1 reported')
     await expect(external).toContainText('not a vault-wide')
-    await expect(external.getByRole('button')).toHaveCount(0)
+    const openConflict = external.getByRole('button', { name: 'Show editor conflict warning' })
+    await expect(openConflict).toBeVisible()
+    await openConflict.click()
+    await expect(settings).toHaveCount(0)
+    await expect(page.getByRole('alert').filter({ hasText: 'This note changed on disk' })).toBeVisible()
   })
 
   test('reload from disk discards local edits after a hash mismatch', async ({ page }) => {
