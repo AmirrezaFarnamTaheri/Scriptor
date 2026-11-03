@@ -232,7 +232,7 @@ test('adding a card followed by immediate flushPendingSave writes board to disk'
   assert.equal(savedDoc.blocks[0].content, 'Card 1 content')
 })
 
-test('an already in-flight failure cannot make flush report success', async () => {
+test('an already in-flight ambiguous failure cannot make flush report success or retry', async () => {
   let attempts = 0
   const h = harness({
     commandOverrides: {
@@ -250,7 +250,7 @@ test('an already in-flight failure cannot make flush report success', async () =
 
   const saved = await board.flushPendingSave()
   assert.equal(saved, false)
-  assert.equal(attempts, 2, 'explicit flush retries the newest failed full-document payload once')
+  assert.equal(attempts, 1, 'a lost native result cannot trigger a second submission')
 })
 
 test('unmount enqueues the newest pending save behind an in-flight write', async () => {
@@ -435,7 +435,7 @@ test('failed board creation keeps the previous document selected and editable', 
   const originalTitle = board.document.title
   await board.createBoard('Unsaved board')
   assert.equal(h.currentDocument().title, originalTitle)
-  assert.match(h.currentStatus(), /disk full/)
+  assert.match(h.currentStatus(), /unconfirmed|may have committed|reopen/)
 })
 
 test('a late successful board creation cannot replace intervening local edits', async () => {
@@ -707,4 +707,153 @@ test('an older explicit flush must not claim that newer unsaved Canvas edits are
   assert.equal(await board.flushPendingSave(), true, 'newer edits should remain flushable')
   assert.deepEqual(savedPayloads, ['Old submitted revision', 'New unsaved revision'])
   assert.equal(h.currentStatus(), 'Canvas saved.')
+})
+
+test('MAT-002: lost Canvas save reply must not automatically replay on flush or unmount', async () => {
+  let submissions = 0
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async () => {
+        submissions++
+        throw new Error('native transport lost the response after submission')
+      },
+    },
+  })
+  const board = h.render('vault-a')
+  await flushMicrotasks()
+  board.updateDocument(current => ({ ...current, title: 'Unconfirmed revision' }))
+  h.fireTimers()
+  await flushMicrotasks()
+  assert.equal(submissions, 1)
+  assert.equal(await board.flushPendingSave(), false)
+  h.unmount()
+  await flushMicrotasks()
+  assert.equal(submissions, 1, 'a failed native request may have committed; never silently replay it')
+  assert.match(h.currentStatus(), /unconfirmed|may have saved|reopen/i)
+})
+
+test('MAT-002: queued newer Canvas edits cannot cross an unresolved earlier native save', async () => {
+  const pending = deferred()
+  const entered = deferred()
+  const submissions = []
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async json => {
+        submissions.push(JSON.parse(json).title)
+        if (submissions.length === 1) {
+          entered.resolve()
+          return pending.promise
+        }
+        return { indexWarning: null }
+      },
+    },
+  })
+  const board = h.render('vault-a')
+  await flushMicrotasks()
+  board.updateDocument(current => ({ ...current, title: 'Original request with unknown commit' }))
+  h.fireTimers()
+  await entered.promise
+  board.updateDocument(current => ({ ...current, title: 'Newer unsaved local work' }))
+  h.unmount()
+  pending.reject(new Error('reply lost after the native save may have committed'))
+  await flushMicrotasks(20)
+  assert.deepEqual(submissions, ['Original request with unknown commit'],
+    'the teardown queue must not dispatch newer data before reconciling an earlier ambiguous save')
+  assert.equal(h.currentDocument().title, 'Newer unsaved local work')
+})
+
+test('MAT-002: native Canvas bytes committed before lost reply are not blindly overwritten', async () => {
+  const committed = new Map()
+  const submissions = []
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async (json, vaultId) => {
+        submissions.push(vaultId)
+        committed.set(vaultId, JSON.parse(json).title)
+        throw new Error('response lost after durable native write')
+      },
+    },
+  })
+  const board = h.render('vault-a')
+  await flushMicrotasks()
+  board.updateDocument(current => ({ ...current, title: 'Durably stored with unknown reply' }))
+  assert.equal(await board.flushPendingSave(), false)
+  assert.equal(committed.get('vault-a'), 'Durably stored with unknown reply')
+  board.updateDocument(current => ({ ...current, title: 'New local edit needs reconciliation' }))
+  h.fireTimers()
+  await flushMicrotasks()
+  assert.equal(await board.flushPendingSave(), false)
+  assert.deepEqual(submissions, ['vault-a'], 'neither debounce nor explicit flush resubmits an ambiguous operation')
+  assert.equal(h.currentDocument().title, 'New local edit needs reconciliation')
+})
+
+test('MAT-002: an unconfirmed Canvas write in vault A never blocks independent vault B', async () => {
+  const submissions = []
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async (json, vaultId) => {
+        submissions.push({ vaultId, title: JSON.parse(json).title })
+        if (vaultId === 'vault-a') throw new Error('lost native reply')
+        return { indexWarning: null }
+      },
+    },
+  })
+  const old = h.render('vault-a')
+  await flushMicrotasks()
+  old.updateDocument(current => ({ ...current, title: 'A unknown' }))
+  assert.equal(await old.flushPendingSave(), false)
+  const next = h.render('vault-b')
+  await flushMicrotasks()
+  next.updateDocument(current => ({ ...current, title: 'B independent' }))
+  assert.equal(await next.flushPendingSave(), true)
+  assert.deepEqual(submissions, [
+    { vaultId: 'vault-a', title: 'A unknown' },
+    { vaultId: 'vault-b', title: 'B independent' },
+  ])
+})
+
+test('MAT-002: board switching and creation explain an unresolved native save before any more writes', async () => {
+  let saves = 0
+  let loads = 0
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async () => {
+        saves++
+        throw new Error('native committed but response was dropped')
+      },
+      canvasLoadDocument: async () => {
+        loads++
+        return JSON.stringify({ id: 'another', title: 'Another board', layers: [], blocks: [] })
+      },
+    },
+  })
+  const board = h.render('vault-a')
+  await flushMicrotasks()
+  board.updateDocument(current => ({ ...current, title: 'Unconfirmed board' }))
+  assert.equal(await board.flushPendingSave(), false)
+  await board.switchBoard('another')
+  assert.match(h.currentStatus(), /unconfirmed|reopen|inspect/i)
+  await board.createBoard('New board')
+  assert.match(h.currentStatus(), /unconfirmed|reopen|inspect/i)
+  assert.equal(loads, 0)
+  assert.equal(saves, 1, 'neither an attempted switch nor create can trigger another write')
+})
+
+test('MAT-002: lost reply from new-board creation cannot trigger a second create request', async () => {
+  let creations = 0
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async () => {
+        creations++
+        throw new Error('transport lost reply after native board creation')
+      },
+    },
+  })
+  const board = h.render('vault-a')
+  await flushMicrotasks()
+  await board.createBoard('First requested board')
+  assert.match(h.currentStatus(), /unconfirmed|may have committed|reopen/i)
+  await board.createBoard('Unreviewed duplicate')
+  assert.equal(creations, 1, 'the unknown first result must block another board-creation write')
+  assert.equal(h.currentDocument().title, 'Research board', 'an unconfirmed new board cannot replace the existing editor')
 })

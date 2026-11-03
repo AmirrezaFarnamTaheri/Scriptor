@@ -23,16 +23,16 @@ export function validateFormula(value: unknown): DatabaseFormula {
   if (!CALCULATION_OPERATORS.includes(item.op as CalculationOperator) || !Array.isArray(item.fields)) throw new Error('Unsupported calculated column operator.')
   const op = item.op as CalculationOperator
   const count = ['lower','upper','length'].includes(op) ? 1 : 2
-  if (item.fields.length !== count || item.fields.some((field) => typeof field !== 'string' || !FIELD.test(field))) throw new Error('Calculated column requires valid field names.')
+  if (item.fields.length !== count || item.fields.some((field) => typeof field !== 'string' || !FIELD.test(field) || ['constructor','prototype','__proto__'].includes(field))) throw new Error('Calculated column requires valid field names.')
   return { op, fields: item.fields as string[] }
 }
 export function validateDatabaseView(value: unknown): DatabaseView {
   const view = record(value)
-  if (view.schemaVersion !== 1 || !['table','list','gallery'].includes(String(view.mode)) || !['all','any'].includes(String(view.combine))) throw new Error('Unsupported database view version or layout.')
+  if (view.schemaVersion !== 1 || typeof view.mode !== 'string' || !['table','list','gallery'].includes(view.mode) || typeof view.combine !== 'string' || !['all','any'].includes(view.combine)) throw new Error('Unsupported database view version or layout.')
   if (!Array.isArray(view.filters) || view.filters.length > 10 || !Array.isArray(view.columns) || view.columns.length > 12) throw new Error('Views allow at most 10 filters and 12 columns.')
   const filters = view.filters.map((raw) => {
     const filter = record(raw)
-    if (!['title','tag','path','days','metadata'].includes(String(filter.field))) throw new Error('Unsupported filter field.')
+    if (typeof filter.field !== 'string' || !['title','tag','path','days','metadata'].includes(filter.field)) throw new Error('Unsupported filter field.')
     const value = text(filter.value, 256)
     if (filter.field === 'days' && (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 36500)) throw new Error('Days must be between 1 and 36500.')
     const key=filter.field==='metadata'?text(filter.key,64):undefined
@@ -42,7 +42,7 @@ export function validateDatabaseView(value: unknown): DatabaseView {
   const columns = view.columns.map((raw) => {
     const column = record(raw); const key = text(column.key, 64)
     if (!FIELD.test(key) || ['__proto__','constructor','prototype'].includes(key)) throw new Error('Invalid column field.')
-    return { key, label: text(column.label, 64), ...(column.formula ? { formula: validateFormula(column.formula) } : {}) }
+    return { key, label: text(column.label, 64), ...(column.formula !== undefined ? { formula: validateFormula(column.formula) } : {}) }
   })
   if (new Set(columns.map((column) => column.key)).size !== columns.length) throw new Error('Column fields must be unique.')
   return { schemaVersion: 1, id: text(view.id, 128), label: text(view.label, 128), mode: view.mode as DatabaseView['mode'], combine: view.combine as DatabaseView['combine'], filters, columns }
@@ -457,7 +457,7 @@ export function scalarFields(markdown: string): Record<string, CellValue> {
 }
 export function calculateValue(raw: DatabaseFormula, fields: Record<string, CellValue>): CellValue {
   const formula = validateFormula(raw)
-  const values = formula.fields.map((key) => fields[key])
+  const values = formula.fields.map((key) => Object.hasOwn(fields, key) ? fields[key] : undefined)
   if (values.some((value) => value === undefined || value === null)) return null
   const [a,b] = values
   if (formula.op === 'concat') return `${a}${b}`.slice(0,4096)
