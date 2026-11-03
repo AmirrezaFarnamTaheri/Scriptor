@@ -274,6 +274,61 @@ test('MAT-003: read-only Recovery Center reports native Git conflicts without tr
   expect(await page.evaluate(() => (window as Window & { __gitRecoveryWrites?: string[] }).__gitRecoveryWrites ?? [])).toEqual([])
 })
 
+test('MAT-003: Canvas Recovery Center uses current-vault native checkpoint counts and only navigates on review', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.evaluate(() => {
+    const host = window as Window & { __TAURI_INTERNALS__?: NativeBridge; __canvasRecoveryMutations?: string[] }
+    const native = host.__TAURI_INTERNALS__
+    if (!native) throw new Error('Native bridge missing')
+    const invoke = native.invoke.bind(native)
+    host.__canvasRecoveryMutations = []
+    native.invoke = (command, args) => {
+      if (command === 'canvas_list_template_checkpoints') {
+        return Promise.resolve({ vaultId: args?.expectedVaultId, checkpointCount: 2,
+          invalidCount: 0, complete: true })
+      }
+      if (command === 'canvas_restore_template' || command === 'canvas_save_document') {
+        host.__canvasRecoveryMutations?.push(command)
+      }
+      return invoke(command, args)
+    }
+  })
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  const recovery = settings.locator('section.backup-recovery-tools').filter({ hasText: 'Recovery Center' })
+  const canvas = recovery.locator('li').filter({ hasText: 'Canvas recovery' })
+  await expect(canvas).toContainText('available')
+  await expect(canvas).toContainText('2 reported')
+  await expect(canvas).toContainText('separate authorization')
+  await canvas.getByRole('button', { name: 'Open Canvas workspace', exact: true }).click()
+  await expect(settings).toBeHidden()
+  await expect(page.getByRole('dialog', { name: 'Canvas board', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => (window as Window & { __canvasRecoveryMutations?: string[] }).__canvasRecoveryMutations ?? [])).toEqual([])
+})
+
+test('MAT-003: corrupt Canvas native checkpoint metadata never becomes a safe empty recovery status', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.evaluate(() => {
+    const host = window as Window & { __TAURI_INTERNALS__?: NativeBridge }
+    const native = host.__TAURI_INTERNALS__
+    if (!native) throw new Error('Native bridge missing')
+    const invoke = native.invoke.bind(native)
+    native.invoke = (command, args) => command === 'canvas_list_template_checkpoints'
+      ? Promise.resolve({ vaultId: args?.expectedVaultId, checkpointCount: 0,
+          invalidCount: 1, complete: true })
+      : invoke(command, args)
+  })
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const recovery = page.getByRole('dialog', { name: 'Settings' })
+    .locator('section.backup-recovery-tools').filter({ hasText: 'Recovery Center' })
+  const canvas = recovery.locator('li').filter({ hasText: 'Canvas recovery' })
+  await expect(canvas).toContainText('unverified')
+  await expect(canvas).not.toContainText('0 reported')
+  await expect(canvas.getByRole('button')).toHaveCount(0)
+})
+
 test('MAT-002: lost native delete reply blocks same-backup retry but not another destination', async ({ page }) => {
   await launchApp(page)
   await waitForWorkspace(page)

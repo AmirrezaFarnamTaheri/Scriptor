@@ -597,6 +597,20 @@
       ]
     },
     {
+      "name": "canvas_list_template_checkpoints",
+      "owner": "apps/desktop/src-tauri/src/commands/canvas.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "canvas_list_templates",
       "owner": "apps/desktop/src-tauri/src/commands/canvas.rs",
       "authorizationClass": "read-only",

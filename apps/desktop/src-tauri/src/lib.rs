@@ -12,9 +12,10 @@ use commands::backup::{
     vault_create_backup, vault_delete_backup, vault_list_backups, vault_restore_backup,
 };
 use commands::canvas::{
-    canvas_apply_template, canvas_hit_test, canvas_list_documents, canvas_list_templates,
-    canvas_load_document, canvas_query_blocks, canvas_render_svg, canvas_restore_template,
-    canvas_save_document, canvas_snapshot, canvas_template_dry_run,
+    canvas_apply_template, canvas_hit_test, canvas_list_documents,
+    canvas_list_template_checkpoints, canvas_list_templates, canvas_load_document,
+    canvas_query_blocks, canvas_render_svg, canvas_restore_template, canvas_save_document,
+    canvas_snapshot, canvas_template_dry_run,
 };
 use commands::code_chunk::code_chunk_run;
 use commands::code_chunk::runtime::{
@@ -282,6 +283,7 @@ pub fn run() {
             canvas_save_document,
             canvas_load_document,
             canvas_list_documents,
+            canvas_list_template_checkpoints,
             code_chunk_run,
             runtime_kernel_start,
             runtime_kernel_run,

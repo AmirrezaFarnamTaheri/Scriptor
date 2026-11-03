@@ -1,8 +1,9 @@
 use scriptor_canvas_engine::{
-    CanvasDocumentSummary, CanvasPoint, CanvasRect, HitTestResult, SnapshotFormat,
-    TemplateApplyOutput, TemplateApplyPreview, apply_template, apply_template_dry_run,
-    document_to_json, hit_test, list_documents, list_templates, load_document, parse_document_json,
-    query_blocks_in_bounds, render_svg, restore_template_checkpoint, save_document, write_snapshot,
+    CanvasDocumentSummary, CanvasPoint, CanvasRecoveryInventory, CanvasRect, HitTestResult,
+    SnapshotFormat, TemplateApplyOutput, TemplateApplyPreview, apply_template,
+    apply_template_dry_run, document_to_json, hit_test, list_documents, list_template_checkpoints,
+    list_templates, load_document, parse_document_json, query_blocks_in_bounds, render_svg,
+    restore_template_checkpoint, save_document, write_snapshot,
 };
 
 use crate::state::{ActiveSession, AppState, active_session};
@@ -196,6 +197,23 @@ pub fn canvas_load_document(
     let document =
         load_document(session.root.root(), &canvas_id).map_err(|error| error.to_string())?;
     document_to_json(&document).map_err(|error| error.to_string())
+}
+
+/// Read-only, vault-authorized template checkpoint inventory. The frontend
+/// cannot use this operation to restore or mutate files, and a mismatched
+/// active vault fails before any filesystem inspection.
+#[tauri::command]
+pub fn canvas_list_template_checkpoints(
+    state: tauri::State<AppState>,
+    expected_vault_id: String,
+) -> Result<CanvasRecoveryInventory, String> {
+    let session = require_canvas_capability(&state)?;
+    crate::commands::vault::validate_expected_vault(
+        &session.descriptor.id,
+        Some(&expected_vault_id),
+    )?;
+    list_template_checkpoints(session.root.root(), &session.descriptor.id)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

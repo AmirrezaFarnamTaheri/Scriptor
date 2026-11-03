@@ -735,6 +735,12 @@ export function installE2eBridge(): void {
       }
       default:
         if (cmd.startsWith('canvas_')) {
+          // E2E fixture has no native on-disk checkpoint scan. Never fabricate
+          // a verified empty inventory from a simulated Canvas bridge.
+          if (cmd === 'canvas_list_template_checkpoints') {
+            return { vaultId: String((payload as { expectedVaultId?: string }).expectedVaultId ?? ''),
+              checkpointCount: 0, invalidCount: 0, complete: false }
+          }
           if (cmd === 'canvas_list_documents') {
             const document = JSON.parse(canvasDocumentJson) as {
               id: string

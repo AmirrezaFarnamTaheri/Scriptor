@@ -89,6 +89,18 @@ export async function canvasSnapshot(
   })
 }
 
+export interface CanvasTemplateCheckpointInventory {
+  vaultId: string
+  checkpointCount: number
+  invalidCount: number
+  complete: boolean
+}
+
+/** Read-only Canvas recovery metadata; cannot restore files or authorize writes. */
+export async function canvasListTemplateCheckpoints(expectedVaultId: string): Promise<CanvasTemplateCheckpointInventory> {
+  return nativeInvoke<CanvasTemplateCheckpointInventory>('canvas_list_template_checkpoints', { expectedVaultId })
+}
+
 export async function canvasListDocuments(): Promise<
   Array<{
     id: string

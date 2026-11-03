@@ -10,7 +10,8 @@ pub mod store;
 pub mod templates;
 
 pub use apply::{
-    TemplateApplyOutput, TemplateUndoCheckpoint, apply_template, restore_template_checkpoint,
+    CanvasRecoveryInventory, TemplateApplyOutput, TemplateUndoCheckpoint, apply_template,
+    list_template_checkpoints, restore_template_checkpoint,
 };
 
 pub use error::CanvasError;

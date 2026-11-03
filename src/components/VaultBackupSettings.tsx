@@ -9,6 +9,8 @@ import { vaultListNoteHistory } from '../bridge/commands/vault'
 import { gitStatus } from '../bridge/commands/git'
 import { inspectGitConflictEvidence } from '../lib/workspace/gitConflictRecoveryEvidence'
 import { inspectActiveExternalConflict } from '../lib/workspace/externalConflictRecoveryEvidence'
+import { inspectCanvasRecoveryEvidence, type CanvasRecoveryEvidence } from '../lib/workspace/canvasRecoveryEvidence'
+import { canvasListTemplateCheckpoints } from '../bridge/canvas'
 import type { ExternalChangeConflict } from '../types/vault'
 
 import type { useVaultBackup } from '../hooks/useVaultBackup'
@@ -24,6 +26,7 @@ interface VaultBackupSettingsProps {
   externalChangeConflict: ExternalChangeConflict | null
   settingsDirty: boolean
   onOpenNoteHistory: () => void
+  onOpenCanvas: () => void
 }
 
 function formatBytes(bytes: number): string {
@@ -43,7 +46,7 @@ function formatDate(iso: string): string {
   }
 }
 
-export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, vaultId, activePath, activeNoteVaultId, externalChangeConflict, settingsDirty, onOpenNoteHistory }: VaultBackupSettingsProps) {
+export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, vaultId, activePath, activeNoteVaultId, externalChangeConflict, settingsDirty, onOpenNoteHistory, onOpenCanvas }: VaultBackupSettingsProps) {
   const { settings, setSettings, backups, backupListError, backupListLoading, isBusy, recoveryRequired, lastError, lastMessage, lastRestoreReceipt, lastDeleteOutcome, isBackupDeleteUnconfirmed, triggerBackup, restoreBackup, deleteBackup } =
     backup
 
@@ -91,6 +94,28 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
     })
     return () => { current = false }
   }, [vaultId, recoveryRequired])
+  const [canvasRecoveryView, setCanvasRecoveryView] = useState<CanvasRecoveryEvidence | null>(null)
+  useEffect(() => {
+    const originVault = vaultId
+    if (!originVault || recoveryRequired) return
+    let current = true
+    // Native authority checks the active session and the initiating vault ID.
+    // Do not let a late inspection from an older vault certify the new owner.
+    void canvasListTemplateCheckpoints(originVault).then((reported) => {
+      if (current) {
+        setCanvasRecoveryView(inspectCanvasRecoveryEvidence(originVault, reported) ??
+          { vaultId: originVault, state: 'unverified', count: 0 })
+      }
+    }).catch(() => {
+      if (current) setCanvasRecoveryView({ vaultId: originVault, state: 'error', count: 0 })
+    })
+    return () => { current = false }
+  }, [vaultId, recoveryRequired])
+  const scopedCanvasRecovery = vaultId && !recoveryRequired
+    ? canvasRecoveryView?.vaultId === vaultId
+      ? canvasRecoveryView
+      : { vaultId, state: 'loading' as const, count: 0 }
+    : undefined
   const scopedGitConflicts = vaultId && !recoveryRequired
     ? gitConflictView?.vaultId === vaultId
       ? gitConflictView
@@ -108,7 +133,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
   const recoveryEntries = buildRecoveryInventory({
     vaultId, backupPath: settings.backupPath, recoveryRequired,
     selectedNote: activePath, settingsDirty, lastRestoreReceipt,
-    history: scopedHistory, gitConflicts: scopedGitConflicts,
+    history: scopedHistory, canvas: scopedCanvasRecovery, gitConflicts: scopedGitConflicts,
     externalConflicts: scopedExternalConflicts,
     backups: vaultId ? {
       vaultId, backupPath: settings.backupPath,
@@ -220,6 +245,8 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
             <strong>{recoveryLabels[entry.source]}</strong> · {entry.status}
             {entry.count !== null ? ` · ${entry.count} reported` : null}
             <p className="backup-meta">{entry.explanation}</p>
+            {entry.route === 'canvas' ? <button type="button" className="toolbar-button"
+              onClick={onOpenCanvas}>Open Canvas workspace</button> : null}
           </li>)}
         </ul>
       </section> : null}
