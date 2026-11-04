@@ -53,7 +53,10 @@ fn linked_restore_state_cannot_drive_rollback_outside_vault_provenance() {
         "# Current vault\n"
     );
     assert!(!root.join("original.md").exists(), "rollback must not run");
-    assert!(journal.exists(), "untrusted journal must remain for inspection");
+    assert!(
+        journal.exists(),
+        "untrusted journal must remain for inspection"
+    );
     assert!(
         fs::symlink_metadata(journal.join("state"))
             .expect("marker retained")
