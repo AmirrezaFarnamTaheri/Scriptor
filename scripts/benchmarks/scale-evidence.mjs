@@ -66,6 +66,13 @@ export function evaluateScaleEvidence(evidence) {
         throw new Error('Cold cache reset proof required for ' + caseKey)
       }
     } else if (row.warmed !== true) throw new Error('Warm run must attest its primed cache: ' + caseKey)
+    const expectedScenario = row.mode === 'scan' ? 'vault-scan' : 'warm-search'
+    if (row.report.scenario !== expectedScenario) {
+      throw new Error('Invalid CLI report scenario for ' + caseKey)
+    }
+    if (typeof row.report.within_budget !== 'boolean') {
+      throw new Error('Invalid CLI report within_budget result for ' + caseKey)
+    }
     const samples = row.report.samples_ms
     if (!Array.isArray(samples) || samples.length < 3 || samples.length > 1000
       || samples.some((value) => !finite(value) || value <= 0)) {
