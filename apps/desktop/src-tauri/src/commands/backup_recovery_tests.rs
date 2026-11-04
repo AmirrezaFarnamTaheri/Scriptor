@@ -107,6 +107,78 @@ fn linked_restore_temporary_marker_must_not_modify_external_files() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn dangling_staged_link_cannot_be_discarded_as_an_absent_preparing_snapshot() {
+    use std::os::unix::fs::symlink;
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let root = directory.path().join("vault");
+    let journal = restore_journal(&root);
+    fs::create_dir_all(&journal).expect("journal directory");
+    fs::write(root.join("healthy.md"), "# Healthy vault\n").expect("current note");
+    fs::write(journal.join("state"), "preparing").expect("restore marker");
+    symlink(
+        directory.path().join("missing-staged-snapshot"),
+        journal.join("staged"),
+    )
+    .expect("dangling staged symlink");
+
+    let error = recover_interrupted_restore(&root)
+        .expect_err("untrusted staged link cannot be treated as an absent snapshot");
+    assert!(
+        error.contains("staged") && error.contains("regular directory"),
+        "unexpected recovery error: {error}"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("healthy.md")).expect("current note must remain"),
+        "# Healthy vault\n"
+    );
+    assert!(journal.exists(), "untrusted journal must remain for review");
+    assert!(
+        fs::symlink_metadata(journal.join("staged"))
+            .expect("untrusted staging link remains")
+            .file_type()
+            .is_symlink()
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn dangling_rollback_link_cannot_be_silently_removed_with_complete_journal() {
+    use std::os::unix::fs::symlink;
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let root = directory.path().join("vault");
+    let journal = restore_journal(&root);
+    fs::create_dir_all(&journal).expect("journal directory");
+    fs::write(root.join("restored.md"), "# Restored vault\n").expect("restored note");
+    fs::write(journal.join("state"), "complete").expect("restore marker");
+    symlink(
+        directory.path().join("missing-rollback-snapshot"),
+        journal.join("rollback"),
+    )
+    .expect("dangling rollback symlink");
+
+    let error = recover_interrupted_restore(&root)
+        .expect_err("untrusted rollback link must remain for review on restart");
+    assert!(
+        error.contains("rollback") && error.contains("regular directory"),
+        "unexpected recovery error: {error}"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("restored.md")).expect("restored note must remain"),
+        "# Restored vault\n"
+    );
+    assert!(journal.exists(), "untrusted journal must not be deleted");
+    assert!(
+        fs::symlink_metadata(journal.join("rollback"))
+            .expect("untrusted rollback link remains")
+            .file_type()
+            .is_symlink()
+    );
+}
+
 #[test]
 fn ordinary_stale_restore_temporary_file_can_be_replaced_during_recovery() {
     let directory = tempfile::tempdir().expect("tempdir");
