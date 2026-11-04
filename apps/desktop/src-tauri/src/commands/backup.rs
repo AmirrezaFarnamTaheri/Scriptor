@@ -631,7 +631,9 @@ fn write_restore_state(transaction: &Path, state: &str) -> Result<(), String> {
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => {
-            return Err(format!("Failed to inspect restore state temporary marker: {error}"));
+            return Err(format!(
+                "Failed to inspect restore state temporary marker: {error}"
+            ));
         }
     }
     let mut file = fs::OpenOptions::new()
