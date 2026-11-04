@@ -294,6 +294,7 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
 
     let started = Instant::now();
     let mut timed_out = false;
+    let mut output_drain_timed_out = false;
     let status = loop {
         if let Some(cancel) = spec.cancel_slot.as_ref()
             && cancel.load(Ordering::Relaxed)
@@ -326,11 +327,10 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         thread::sleep(POLL_INTERVAL);
     };
 
-    let drain_deadline = if timed_out {
-        Instant::now() + OUTPUT_DRAIN_GRACE
-    } else {
-        started + spec.timeout
-    };
+    // The direct child has exited (or its process tree was terminated after an
+    // execution timeout). Do not wait for the full execution deadline when a
+    // detached descendant keeps inherited stdout/stderr handles open.
+    let drain_deadline = Instant::now() + OUTPUT_DRAIN_GRACE;
     let mut stdout_result = None;
     let mut stderr_result = None;
     while stdout_result.is_none() || stderr_result.is_none() {
@@ -339,13 +339,30 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
             Ok((is_stdout, result)) if is_stdout => stdout_result = Some(result),
             Ok((_, result)) => stderr_result = Some(result),
             Err(mpsc::RecvTimeoutError::Timeout) => {
-                timed_out = true;
-                // The direct child can have exited while a descendant still owns a
-                // captured pipe. Terminating the launch tree closes those handles.
-                terminate_process_tree(&mut child);
+                if !timed_out {
+                    output_drain_timed_out = true;
+                    // The direct child exited normally, but a descendant still owns
+                    // a captured pipe. Terminate the launch tree and report this as
+                    // an output-drain failure, not an executable timeout.
+                    terminate_process_tree(&mut child);
+                }
                 break;
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+    }
+
+    if output_drain_timed_out {
+        let cleanup_deadline = Instant::now() + OUTPUT_DRAIN_GRACE;
+        while stdout_result.is_none() || stderr_result.is_none() {
+            let remaining = cleanup_deadline.saturating_duration_since(Instant::now());
+            match output_receiver.recv_timeout(remaining) {
+                Ok((is_stdout, result)) if is_stdout => stdout_result = Some(result),
+                Ok((_, result)) => stderr_result = Some(result),
+                Err(mpsc::RecvTimeoutError::Timeout | mpsc::RecvTimeoutError::Disconnected) => {
+                    break;
+                }
+            }
         }
     }
 
@@ -357,19 +374,31 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
     if timed_out {
         let (stdout_bytes, _) = stdout_result.and_then(|res| res.ok()).unwrap_or_default();
         let (stderr_bytes, _) = stderr_result.and_then(|res| res.ok()).unwrap_or_default();
-        let stdout = match String::from_utf8(stdout_bytes) {
-            Ok(s) => s,
-            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
-        };
-        let stderr = match String::from_utf8(stderr_bytes) {
-            Ok(s) => s,
-            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
-        };
+        let stdout = output_text(stdout_bytes);
+        let stderr = output_text(stderr_bytes);
         return Err(BridgeError::ProcessTimeout {
             program: resolved,
             timeout_ms: spec.timeout.as_millis().try_into().unwrap_or(u64::MAX),
             stdout,
             stderr,
+        });
+    }
+
+    if output_drain_timed_out {
+        let (stdout_bytes, _) = stdout_result
+            .and_then(|result| result.ok())
+            .unwrap_or_default();
+        let (stderr_bytes, _) = stderr_result
+            .and_then(|result| result.ok())
+            .unwrap_or_default();
+        return Err(BridgeError::ProcessOutputDrainTimeout {
+            program: resolved,
+            timeout_ms: OUTPUT_DRAIN_GRACE
+                .as_millis()
+                .try_into()
+                .unwrap_or(u64::MAX),
+            stdout: output_text(stdout_bytes),
+            stderr: output_text(stderr_bytes),
         });
     }
 
@@ -389,19 +418,20 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         exit_code: exit_code(status),
         duration_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
         timed_out: false,
-        stdout: match String::from_utf8(stdout) {
-            Ok(s) => s,
-            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
-        },
-        stderr: match String::from_utf8(stderr) {
-            Ok(s) => s,
-            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
-        },
+        stdout: output_text(stdout),
+        stderr: output_text(stderr),
         stdout_truncated,
         stderr_truncated,
     };
 
     Ok(receipt)
+}
+
+fn output_text(bytes: Vec<u8>) -> String {
+    match String::from_utf8(bytes) {
+        Ok(text) => text,
+        Err(error) => String::from_utf8_lossy(error.as_bytes()).into_owned(),
+    }
 }
 
 fn join_reader_bounded(handle: thread::JoinHandle<()>, timeout: Duration) {
@@ -932,6 +962,63 @@ mod tests {
         thread::sleep(Duration::from_millis(150));
         let after = std::fs::metadata(&heartbeat).expect("heartbeat").len();
         assert_eq!(before, after, "descendant continued running after timeout");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn exited_process_with_orphaned_output_pipe_is_reaped_promptly() {
+        let directory = tempfile::tempdir().expect("fixture directory");
+        let ready = directory.path().join("orphan.pid");
+        let heartbeat = directory.path().join("heartbeat");
+        // The direct shell exits successfully while its background descendant
+        // keeps inherited stdout/stderr open and continues writing outside them.
+        let script = r#"sh -c 'trap "" TERM; while :; do printf x >> "$1"; sleep 0.02; done' descendant "$2" & echo $! > "$1"; exit 0"#;
+        struct DescendantCleanup(PathBuf);
+        impl Drop for DescendantCleanup {
+            fn drop(&mut self) {
+                if let Ok(pid) = std::fs::read_to_string(&self.0)
+                    && let Ok(pid) = pid.trim().parse::<u32>()
+                {
+                    let _ = Command::new("kill")
+                        .args(["-KILL", &pid.to_string()])
+                        .status();
+                }
+            }
+        }
+        let _cleanup = DescendantCleanup(ready.clone());
+        let started = Instant::now();
+        let result = run_process(
+            ProcessSpec::new("sh")
+                .args([
+                    OsStr::new("-c"),
+                    OsStr::new(script),
+                    OsStr::new("leader"),
+                    ready.as_os_str(),
+                    heartbeat.as_os_str(),
+                ])
+                .timeout(Duration::from_secs(5)),
+        );
+        let elapsed = started.elapsed();
+        let error = result.expect_err("orphaned output pipe must not be accepted as complete");
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "the exited process waited for its full five-second execution deadline: {elapsed:?}"
+        );
+        assert!(
+            error.to_string().to_lowercase().contains("output"),
+            "the result must distinguish a descendant-held output pipe from an executable timeout: {error}"
+        );
+        assert!(
+            ready.exists(),
+            "the descendant must start before the parent exits"
+        );
+        let before = std::fs::metadata(&heartbeat).expect("heartbeat").len();
+        thread::sleep(Duration::from_millis(150));
+        let after = std::fs::metadata(&heartbeat).expect("heartbeat").len();
+        assert_eq!(
+            before, after,
+            "the orphan descendant survived output-drain cleanup"
+        );
     }
 
     #[test]

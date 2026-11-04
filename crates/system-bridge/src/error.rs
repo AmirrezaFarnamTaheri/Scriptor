@@ -34,4 +34,13 @@ pub enum BridgeError {
         stdout: String,
         stderr: String,
     },
+    #[error(
+        "external process {program} exited but descendant output pipes remained open after {timeout_ms}ms: stdout={stdout}; stderr={stderr}"
+    )]
+    ProcessOutputDrainTimeout {
+        program: PathBuf,
+        timeout_ms: u64,
+        stdout: String,
+        stderr: String,
+    },
 }

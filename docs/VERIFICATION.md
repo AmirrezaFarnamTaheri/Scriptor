@@ -194,6 +194,61 @@ and the reviewed-revision hash validation in
   Native read binding does not establish full MAT-004, MAT-008 or
   installed-app acceptance. Keep issues #183 and #188 open.
 
+## MAT-021 — diagram renderer process broker delegation (PR #314)
+
+The Mermaid and PlantUML export adapters now use the shared
+`scriptor_system_bridge::ProcessSpec` / `run_process` lifecycle instead of
+constructing direct `Command` processes. The shared broker owns process-group
+setup, timeout/descendant termination, bounded stdout/stderr draining and
+minimal environment inheritance. Diagram streams retain at most 16 MiB each;
+captured stdout/stderr and both truncation states are included in renderer failure diagnostics. Browser/cache settings
+required by Puppeteer are passed explicitly, not by inheriting the parent
+environment. Executable discovery now scans PATH/PATHEXT directly rather than
+spawning `which` / `where` helper processes.
+
+- **Failing-first proof:** test-only head
+  `8c5134e28de8735d2cd0a52f87d023c31ef6c63e`, CI run
+  [#41709275787](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41709275787),
+  source job `126175523939`, observed the new
+  `process-broker-diagram.test.mjs` regression fail: **1,115 passed / 1 failed
+  / 1,116 total**. The failure was the expected missing broker import on the
+  pre-fix implementation.
+- **Implementation:** all diagram production and test process launches now
+  delegate through the shared broker. The diagram-specific direct-spawn
+  inventory entries are removed. Regression coverage includes fast completion,
+  timeout, descendant writer termination and independent stdout/stderr caps.
+- **Acceptance boundary:** this is one adapter slice, not MAT-021 closure.
+  Desktop daemon lifecycle, OAuth URL openers, LaTeX/Pandoc/Typst/Python and
+  publishing adapters still need their full cancellation, restart, path,
+  authorization and output-fault audit with exact-head hosted evidence.
+
+## MAT-021 — descendant-held process output pipes (PR #314)
+
+The shared native process broker now distinguishes an executable timeout from
+a successful direct-child exit whose descendant keeps inherited stdout/stderr
+handles open. Once the direct child exits, the broker waits only for the bounded
+output-drain grace. If a descendant still owns either pipe, it terminates the
+launch process tree, collects any remaining bounded output, and returns
+`BridgeError::ProcessOutputDrainTimeout`; it no longer waits for the full
+executable deadline or mislabels this condition as an executable timeout.
+
+- **Failing-first proof:** test-only head
+  `f713a8eec00ee0a2448651732eb870ed59eff6c1`, hosted CI
+  [#41716350760](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41716350760),
+  Rust job `126199419949`: **14 passed / 1 failed**. The new regression
+  `exited_process_with_orphaned_output_pipe_is_reaped_promptly` observed the
+  direct shell returning after 5.2589 seconds, waiting for the full configured
+  five-second execution deadline while a descendant held both output pipes.
+- **Implementation:** current candidate head
+  `64f2e6333ed8343352e0ec831d330e4f98cca395` applies a separate bounded
+  output-drain deadline after direct-child exit and returns an explicit
+  output-drain error with partial captured stdout/stderr. Exact-head CI,
+  desktop compile, visual review and localization are pending.
+- **Acceptance boundary:** this closes one process-broker lifecycle gap, not
+  MAT-021. Export-job streaming readers and the daemon/OAuth/LaTeX/Pandoc/
+  Typst/Python/publishing adapters still require their complete cancellation,
+  restart, path, authorization, output-flood and process-tree fault matrix.
+
 ## Evidence and current status
 
 All executable verification for the current review runs on GitHub-hosted workers.
