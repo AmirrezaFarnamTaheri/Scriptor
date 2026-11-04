@@ -269,8 +269,15 @@ test('MAT-003: read-only Recovery Center reports native Git conflicts without tr
   await expect(git).toContainText('available')
   await expect(git).toContainText('2 reported')
   await expect(git).toContainText('Non-Git external changes are not covered')
-  await expect(git.getByRole('button')).toHaveCount(0)
+  const openGit = git.getByRole('button', { name: 'Open Git panel' })
+  await expect(openGit).toBeVisible()
   await expect(recovery.locator('li').filter({ hasText: 'External file conflicts' })).toContainText('unverified')
+  expect(await page.evaluate(() => (window as Window & { __gitRecoveryWrites?: string[] }).__gitRecoveryWrites ?? [])).toEqual([])
+
+  // Navigating to the existing Git owner does not implicitly resolve or write.
+  await openGit.click()
+  await expect(settings).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Git', exact: true })).toBeVisible({ timeout: 45_000 })
   expect(await page.evaluate(() => (window as Window & { __gitRecoveryWrites?: string[] }).__gitRecoveryWrites ?? [])).toEqual([])
 })
 
