@@ -140,6 +140,10 @@ jobs:
         shell: bash
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Test Linux DEB executable/receipt verification and failure cases
+        shell: bash
+        run: node --test scripts/release/linux-deb-smoke.test.mjs
+
       - name: Run source-bound release quality gate
         shell: bash
         run: node scripts/release/run-release-quality.mjs
@@ -354,6 +358,16 @@ jobs:
           --platform "${{ matrix.platform }}"
           --architecture "${{ matrix.architecture }}"
           --output-dir release-output
+
+      - name: Verify packaged Linux DEB daemon runtime and desktop ELF
+        if: matrix.platform == 'linux'
+        shell: pwsh
+        run: >-
+          node scripts/release/linux-deb-smoke.mjs
+          --assets release-output
+          --source-sha "${{ github.sha }}"
+          --architecture "${{ matrix.architecture }}"
+          --output "$env:CI_LOG_DIR/packaged-linux-deb-smoke.json"
 
       - name: Inventory staged release assets
         if: always()
