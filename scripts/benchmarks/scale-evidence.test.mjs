@@ -18,7 +18,9 @@ const run = ({ size = 100, mode = 'scan', condition = 'warm', replicate = 1, ms 
   fixtureSha256: fixture(size),
   noteCount: size,
   report: { scenario: mode === 'scan' ? 'vault-scan' : 'warm-search',
-    note_count: size, samples_ms: [ms - 1, ms, ms + 1], mean_ms: ms, within_budget: true },
+    note_count: size, samples_ms: [ms - 1, ms, ms + 1], mean_ms: ms,
+    budget_ms: mode === 'scan' ? 500 + 150 * Math.floor(size / 1000) : 100,
+    within_budget: true },
   ...(condition === 'cold'
     ? { cacheReset: { method: 'fresh-volume', evidence: 'volume-' + size + '-' + mode + '-' + replicate } }
     : { warmed: true }),
@@ -124,6 +126,35 @@ test('MAT-023: budget verdict must be present and boolean in externally supplied
       'an absent or non-boolean budget result must not be accepted',
     )
   }
+})
+
+test('MAT-023: native budget threshold and reported verdict must agree with measured mean', () => {
+  for (const incorrect of [null, 0, -1, 999999]) {
+    const evidence = fullMatrix()
+    evidence.runs[0].report.budget_ms = incorrect
+    assert.throws(
+      () => evaluateScaleEvidence(evidence),
+      /budget|threshold/i,
+      'missing or forged native budget cannot certify the matrix',
+    )
+  }
+
+  const forgedPass = fullMatrix()
+  forgedPass.runs[0].report.samples_ms = [501, 502, 503]
+  forgedPass.runs[0].report.mean_ms = 502
+  forgedPass.runs[0].report.within_budget = true
+  assert.throws(() => evaluateScaleEvidence(forgedPass), /budget|verdict/i)
+
+  const forgedFailure = fullMatrix()
+  forgedFailure.runs[0].report.within_budget = false
+  assert.throws(() => evaluateScaleEvidence(forgedFailure), /budget|verdict/i)
+
+  const overBudget = fullMatrix()
+  overBudget.runs[0].report.samples_ms = [501, 502, 503]
+  overBudget.runs[0].report.mean_ms = 502
+  overBudget.runs[0].report.within_budget = false
+  assert.equal(evaluateScaleEvidence(overBudget).readyForReview, true,
+    'honest failed-budget evidence stays reviewable without claiming performance passed')
 })
 
 test('MAT-023: rejects invented means, nonfinite samples, and missing latency distributions', () => {
