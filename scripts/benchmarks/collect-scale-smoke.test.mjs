@@ -30,9 +30,12 @@ function harness(fail = '', wrongCount = false, overBudget = false) {
           }
           return { status: 0, stdout: JSON.stringify({ note_count: Number(count) }) }
         }
+        const meanMs = overBudget ? 6000 : 12
         return { status: overBudget ? 4 : 0, stdout: JSON.stringify({
           scenario: args[0] === 'bench-scan' ? 'vault-scan' : 'warm-search',
-          note_count: wrongCount ? 99 : 100, mean_ms: 12, samples_ms: [11, 12, 13],
+          note_count: wrongCount ? 99 : 100,
+          mean_ms: meanMs, samples_ms: [meanMs - 1, meanMs, meanMs + 1],
+          budget_ms: args[0] === 'bench-scan' ? 500 : 100,
           within_budget: !overBudget, iterations: 3,
         }) }
       },
