@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process'
 import test from 'node:test'
 import { inspectInstalledDebFixture, writeInstalledDebEvidence } from './linux-deb-install-fixture.mjs'
 
+const linuxTest = process.platform === 'linux' ? test : test.skip
 const architecture = process.arch === 'arm64' ? 'aarch64' : 'x86_64'
 const debArch = architecture === 'aarch64' ? 'arm64' : 'amd64'
 const digest = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')
@@ -47,7 +48,7 @@ function fixture({ corruptedReceipt = false, badDaemonVersion = false, symlinkDe
     cleanup: () => fs.rmSync(scratch, { recursive: true, force: true }) }
 }
 
-test('isolated DEB fixture installs actual files, executes bundled daemon, and removes installed files', () => {
+linuxTest('isolated DEB fixture installs actual files, executes bundled daemon, and removes installed files', () => {
   const f = fixture()
   try {
     const result = inspectInstalledDebFixture(f.opts)
@@ -74,7 +75,7 @@ test('isolated DEB fixture installs actual files, executes bundled daemon, and r
   } finally { f.cleanup() }
 })
 
-test('isolated DEB fixture rejects incorrect commit, dirty VERSION and target architecture', () => {
+linuxTest('isolated DEB fixture rejects incorrect commit, dirty VERSION and target architecture', () => {
   const f = fixture()
   try {
     assert.throws(() => inspectInstalledDebFixture({ ...f.opts, expectedCommit: 'f'.repeat(40) }), /source|commit/i)
@@ -85,7 +86,7 @@ test('isolated DEB fixture rejects incorrect commit, dirty VERSION and target ar
   } finally { f.cleanup() }
 })
 
-test('isolated DEB fixture rejects a forged sidecar receipt and still cleans temporary state', () => {
+linuxTest('isolated DEB fixture rejects a forged sidecar receipt and still cleans temporary state', () => {
   const f = fixture({ corruptedReceipt: true })
   try {
     assert.throws(() => inspectInstalledDebFixture(f.opts), /receipt|hash|sha/i)
@@ -93,7 +94,7 @@ test('isolated DEB fixture rejects a forged sidecar receipt and still cleans tem
   } finally { f.cleanup() }
 })
 
-test('isolated DEB fixture rejects mismatched daemon output and installed desktop symlinks', () => {
+linuxTest('isolated DEB fixture rejects mismatched daemon output and installed desktop symlinks', () => {
   const wrongVersion = fixture({ badDaemonVersion: true })
   const symlinked = fixture({ symlinkDesktop: true })
   try {
