@@ -71,6 +71,66 @@ fn linked_restore_state_cannot_drive_rollback_outside_vault_provenance() {
 
 #[cfg(unix)]
 #[test]
+fn linked_restore_temporary_marker_must_not_modify_external_files() {
+    use std::os::unix::fs::symlink;
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let root = directory.path().join("vault");
+    let journal = restore_journal(&root);
+    let rollback = journal.join("rollback");
+    fs::create_dir_all(&rollback).expect("rollback directory");
+    fs::write(root.join("current.md"), "# Current vault\n").expect("current note");
+    fs::write(rollback.join("original.md"), "# Previous vault\n").expect("rollback note");
+    fs::write(journal.join("state"), "promoting").expect("restore marker");
+
+    let outside = directory.path().join("outside-private-note.md");
+    fs::write(&outside, "# Private unrelated note\n").expect("outside file");
+    symlink(&outside, journal.join("state.tmp")).expect("linked temporary marker");
+
+    let error = recover_interrupted_restore(&root)
+        .expect_err("a linked temporary marker cannot authorize journal replacement");
+    assert!(
+        error.contains("state") && error.contains("temporary"),
+        "unexpected recovery error: {error}"
+    );
+    assert_eq!(
+        fs::read_to_string(&outside).expect("unrelated note must be preserved"),
+        "# Private unrelated note\n"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("current.md")).expect("current vault must remain intact"),
+        "# Current vault\n"
+    );
+    assert!(journal.exists(), "untrusted journal must remain for inspection");
+}
+
+#[test]
+fn ordinary_stale_restore_temporary_file_can_be_replaced_during_recovery() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let root = directory.path().join("vault");
+    let journal = restore_journal(&root);
+    let rollback = journal.join("rollback");
+    fs::create_dir_all(&rollback).expect("rollback directory");
+    fs::write(root.join("current.md"), "# Partially restored vault\n")
+        .expect("current note");
+    fs::write(rollback.join("original.md"), "# Previous vault\n")
+        .expect("rollback note");
+    fs::write(journal.join("state"), "promoting").expect("restore marker");
+    fs::write(journal.join("state.tmp"), "interrupted write")
+        .expect("ordinary leftover temporary file");
+
+    recover_interrupted_restore(&root)
+        .expect("recovery must replace an ordinary stale temporary marker");
+    assert_eq!(
+        fs::read_to_string(root.join("original.md")).expect("original restored"),
+        "# Previous vault\n"
+    );
+    assert!(!root.join("current.md").exists());
+    assert!(!journal.exists(), "successful rollback removes its journal");
+}
+
+#[cfg(unix)]
+#[test]
 fn rollback_copy_failure_after_clear_preserves_recovery_journal() {
     use std::os::unix::fs::symlink;
 
