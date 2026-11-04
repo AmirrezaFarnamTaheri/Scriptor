@@ -85,6 +85,13 @@ export function evaluateScaleEvidence(evidence) {
       Math.abs(mean - row.report.mean_ms) > Math.max(0.000001, mean * 0.01)) {
       throw new Error('Reported mean inconsistent with samples for ' + caseKey)
     }
+    const expectedBudget = row.mode === 'scan' ? 500 + 150 * Math.floor(row.size / 1000) : 100
+    if (row.report.budget_ms !== expectedBudget) {
+      throw new Error('Invalid native CLI budget threshold for ' + caseKey)
+    }
+    if (row.report.within_budget !== (row.report.mean_ms <= expectedBudget)) {
+      throw new Error('CLI budget verdict contradicts measured mean for ' + caseKey)
+    }
     byCase.set(caseKey, row)
   }
 
