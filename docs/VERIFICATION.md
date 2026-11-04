@@ -8,6 +8,61 @@ Results from an older commit cannot certify a newer implementation.
 
 **MAT-001–024 policy effective 2026-11-02:** [Automated MAT acceptance](MAT-AUTOMATED-ACCEPTANCE.md) supersedes older passages below referring to manual approval, real-user studies, physical installation, live-account use and installed-app acceptance as *closure gates*. Those historical verification records remain valid evidence of what was or was not tested then; none becomes an automated pass retroactively. In-product user authorization is unaffected.
 
+## MAT-011 / MAT-012 — portable read-only research provenance identities (partial PR #312)
+
+Existing source/indexer evidence can be current and still malformed at an IPC
+boundary. A read-only trace must not certify `ready` when source/manuscript,
+literature-note or revision/reference identity uses Windows reserved device
+names, trailing-dot/space aliases, controls or bidi filename spoofing. Such
+identities are not portable across hosted Windows/macOS/Linux environments and
+are not suitable as source-bound publication proof.
+
+- Behavioral failing-first source tests cover malformed source, literature,
+  manuscript, and reference keys with matching index observations, plus a safe
+  internally-spaced path. Test-first SHA:
+  `cbe117e7c6b3c8518babddeafd6b5a4e49c433f6`.
+- The read-only comparator refuses to classify these inputs as current; it
+  never grants source reading, citation modification or publish authority.
+- MAT-011/MAT-012 remain open for durable lineage, native capture/review/export,
+  vault/restart and CI-built task-level acceptance across platforms.
+
+## MAT-014 — cross-platform manifest/read-evidence path identity (partial PR #311)
+
+Read-only `reviewResearchProjectManifest` must not claim reproducibility when
+an authored input/output or native observed read path aliases Windows device
+names (CON/PRN/NUL/AUX, COM1–9, LPT1–9), ends a segment with a dot/space, or
+contains controls and bidirectional spoofing markers. Such filenames cannot be
+assumed to refer to a distinct filesystem artifact on all three hosted OSes.
+
+- Test-only head `cc6b2841ea32cd97c64b9734e56ffadca914759c` adds
+  executable negative/positive path identity fixtures to the existing
+  manifest comparator tests. Observe its RED behavior separately.
+- Source validation applies symmetrically to authored project manifest paths
+  and observed native-read evidence, not just output filenames. Existing
+  NFC/case and parent/descendant-alias checks are retained.
+- No native build/write permission or generated receipt is implied.
+  MAT-014 still requires the versioned native manifest writer, review/consent,
+  publication receipts, restart and artifact proof; MAT-024 stays open.
+
+## MAT-015 / MAT-017 — provider credential identity truthfulness (partial PR #310)
+
+Provider credential checks can return runtime-invalid data even when bridge
+types promise an email. A null native read means disconnected; an object,
+blank, non-email, oversized or control-character identity is **not a verified
+connection**, cannot be persisted as a client ID, and must display a recoverable
+error with no asserted account. Drive and Gmail retain separate credential
+lanes; existing vault generation fences still block stale post-OAuth writes.
+The global native account-change signal is retained even when the local
+identity is invalid, so other mounted consumers can invalidate caches.
+
+- Failing-first test commit `92baa6f2b2c04555595c0e75afc81a06f3c6fded`
+  runs the actual React-hook harness and checks invalid credential read,
+  invalid OAuth completion and whitespace-normalized verified identity.
+- The change does not perform a remote transfer, certify connectivity, or
+  bypass native authorization. Still requires token/reconnect, account/vault
+  switching, offline, and CI-built cross-platform provider fixture evidence.
+- MAT-015 and MAT-017 remain **open**; a green source test is partial proof.
+
 ## MAT-003 — malformed read-only recovery inventory states (partial, PR #308)
 
 An unrecognized/missing source-state value at the bridge or stored-evidence
@@ -138,6 +193,61 @@ and the reviewed-revision hash validation in
   same-path reads, delayed approval, restart and corrupt-source tests.
   Native read binding does not establish full MAT-004, MAT-008 or
   installed-app acceptance. Keep issues #183 and #188 open.
+
+## MAT-021 — diagram renderer process broker delegation (PR #314)
+
+The Mermaid and PlantUML export adapters now use the shared
+`scriptor_system_bridge::ProcessSpec` / `run_process` lifecycle instead of
+constructing direct `Command` processes. The shared broker owns process-group
+setup, timeout/descendant termination, bounded stdout/stderr draining and
+minimal environment inheritance. Diagram streams retain at most 16 MiB each;
+captured stdout/stderr and both truncation states are included in renderer failure diagnostics. Browser/cache settings
+required by Puppeteer are passed explicitly, not by inheriting the parent
+environment. Executable discovery now scans PATH/PATHEXT directly rather than
+spawning `which` / `where` helper processes.
+
+- **Failing-first proof:** test-only head
+  `8c5134e28de8735d2cd0a52f87d023c31ef6c63e`, CI run
+  [#41709275787](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41709275787),
+  source job `126175523939`, observed the new
+  `process-broker-diagram.test.mjs` regression fail: **1,115 passed / 1 failed
+  / 1,116 total**. The failure was the expected missing broker import on the
+  pre-fix implementation.
+- **Implementation:** all diagram production and test process launches now
+  delegate through the shared broker. The diagram-specific direct-spawn
+  inventory entries are removed. Regression coverage includes fast completion,
+  timeout, descendant writer termination and independent stdout/stderr caps.
+- **Acceptance boundary:** this is one adapter slice, not MAT-021 closure.
+  Desktop daemon lifecycle, OAuth URL openers, LaTeX/Pandoc/Typst/Python and
+  publishing adapters still need their full cancellation, restart, path,
+  authorization and output-fault audit with exact-head hosted evidence.
+
+## MAT-021 — descendant-held process output pipes (PR #314)
+
+The shared native process broker now distinguishes an executable timeout from
+a successful direct-child exit whose descendant keeps inherited stdout/stderr
+handles open. Once the direct child exits, the broker waits only for the bounded
+output-drain grace. If a descendant still owns either pipe, it terminates the
+launch process tree, collects any remaining bounded output, and returns
+`BridgeError::ProcessOutputDrainTimeout`; it no longer waits for the full
+executable deadline or mislabels this condition as an executable timeout.
+
+- **Failing-first proof:** test-only head
+  `f713a8eec00ee0a2448651732eb870ed59eff6c1`, hosted CI
+  [#41716350760](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/runs/41716350760),
+  Rust job `126199419949`: **14 passed / 1 failed**. The new regression
+  `exited_process_with_orphaned_output_pipe_is_reaped_promptly` observed the
+  direct shell returning after 5.2589 seconds, waiting for the full configured
+  five-second execution deadline while a descendant held both output pipes.
+- **Implementation:** current candidate head
+  `64f2e6333ed8343352e0ec831d330e4f98cca395` applies a separate bounded
+  output-drain deadline after direct-child exit and returns an explicit
+  output-drain error with partial captured stdout/stderr. Exact-head CI,
+  desktop compile, visual review and localization are pending.
+- **Acceptance boundary:** this closes one process-broker lifecycle gap, not
+  MAT-021. Export-job streaming readers and the daemon/OAuth/LaTeX/Pandoc/
+  Typst/Python/publishing adapters still require their complete cancellation,
+  restart, path, authorization, output-flood and process-tree fault matrix.
 
 ## Evidence and current status
 

@@ -369,6 +369,10 @@ jobs:
     timeout-minutes: 45
     env:
       CI_LOG_DIR: artifacts/ci-logs/validate-rust
+      # The workspace's debug-symbol-heavy test objects filled the hosted
+      # runner disk on main CI #41708928955. Keep actual tests enabled; only
+      # omit optional debug info from test-profile build artifacts.
+      CARGO_PROFILE_TEST_DEBUG: '0'
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -354,10 +354,16 @@ fn validate_restore_journal(vault_root: &Path, journal: &Path) -> Result<(), Str
     }
     for name in ["staged", "rollback"] {
         let child = journal.join(name);
-        if !child.exists() {
-            continue;
-        }
-        let metadata = fs::symlink_metadata(&child).map_err(|error| error.to_string())?;
+        // Path::exists follows symlinks and treats dangling links as absent.
+        // Inspect the entry itself so linked or unreadable journal children
+        // fail closed before cleanup can discard their recovery evidence.
+        let metadata = match fs::symlink_metadata(&child) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(format!("Failed to inspect restore journal {name}: {error}"));
+            }
+        };
         if metadata.file_type().is_symlink() || !metadata.is_dir() {
             return Err(format!(
                 "Restore journal {name} must be a regular directory"
@@ -614,9 +620,30 @@ fn sync_restore_directory(path: &Path) -> Result<(), String> {
 fn write_restore_state(transaction: &Path, state: &str) -> Result<(), String> {
     let state_file = transaction.join("state");
     let temp_file = transaction.join("state.tmp");
+    // A crashed write may leave a regular state.tmp behind. Remove that
+    // stale file by path, but never follow a linked temporary marker outside
+    // the journal. create_new makes replacement fail closed under races.
+    match fs::symlink_metadata(&temp_file) {
+        Ok(metadata) => {
+            if !metadata.is_file() {
+                return Err(
+                    "Restore state temporary marker must be a regular file; journal preserved for recovery."
+                        .into(),
+                );
+            }
+            fs::remove_file(&temp_file).map_err(|error| {
+                format!("Failed to clear stale restore state temporary marker: {error}")
+            })?;
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(format!(
+                "Failed to inspect restore state temporary marker: {error}"
+            ));
+        }
+    }
     let mut file = fs::OpenOptions::new()
-        .create(true)
-        .truncate(true)
+        .create_new(true)
         .write(true)
         .open(&temp_file)
         .map_err(|error| format!("Failed to create restore state {state}: {error}"))?;
@@ -676,6 +703,15 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
     validate_restore_journal(vault_root, &journal)?;
 
     let state_file = journal.join("state");
+    let state_metadata = fs::symlink_metadata(&state_file).map_err(|error| {
+        format!("Failed to read restore journal state: {error}. Journal preserved for recovery.")
+    })?;
+    if !state_metadata.is_file() {
+        return Err(
+            "Failed to read restore journal state: marker must be a regular file. Journal preserved for recovery."
+                .into(),
+        );
+    }
     let state = fs::read_to_string(&state_file)
         .map(|s| s.trim().to_string())
         .map_err(|error| {

@@ -79,7 +79,7 @@ test('MAT-003: scoped Git merge conflicts are reported separately from unknown e
   const git = entries.find(entry => entry.source === 'git-conflicts')
   assert.equal(git?.status, 'available')
   assert.equal(git?.count, 2)
-  assert.equal(git?.route, null)
+  assert.equal(git?.route, 'git')
   assert.match(git?.explanation ?? '', /Git-tracked/)
   assert.equal(entries.find(entry => entry.source === 'external-conflicts')?.status, 'unverified')
   const changed = buildRecoveryInventory({ ...input, vaultId: 'v-b', gitConflicts })
@@ -101,13 +101,14 @@ test('MAT-003: a selected-note external mismatch must be labelled as partial, re
   const entry = buildRecoveryInventory({ ...input, externalConflicts }).find(row => row.source === 'external-conflicts')
   assert.equal(entry?.status, 'available')
   assert.equal(entry?.count, 1)
-  assert.equal(entry?.route, null)
+  assert.equal(entry?.route, 'external-conflict')
   assert.match(entry?.explanation ?? '', /selected note/i)
   assert.match(entry?.explanation ?? '', /not a vault-wide/i)
   const otherVault = buildRecoveryInventory({ ...input, vaultId: 'v-b', externalConflicts })
     .find(row => row.source === 'external-conflicts')
   assert.equal(otherVault?.status, 'unverified')
   assert.equal(otherVault?.count, null)
+  assert.equal(otherVault?.route, null)
 })
 
 test('MAT-003: malformed matching restore receipt is never presented as a successful recovery', () => {
@@ -163,6 +164,18 @@ test('MAT-003: current-vault native Canvas checkpoint evidence links to owner wo
   assert.equal(needsReopen?.status, 'needs-reopen')
   assert.equal(needsReopen?.count, null)
   assert.equal(needsReopen?.route, null)
+})
+
+test('MAT-003: dirty Settings cannot abandon unsaved edits via Canvas recovery navigation', () => {
+  const canvas = buildRecoveryInventory({
+    ...input,
+    settingsDirty: true,
+    canvas: { vaultId: 'v-a', state: 'ready', count: 2 },
+  }).find(row => row.source === 'canvas')
+  assert.equal(canvas?.status, 'available', 'valid inventory remains visible and read-only')
+  assert.equal(canvas?.count, 2)
+  assert.equal(canvas?.route, null, 'unsaved Settings must block navigation to Canvas')
+  assert.match(canvas?.explanation ?? '', /save or discard settings changes/i)
 })
 
 test('MAT-003: unknown native source-state values cannot certify zero items or authorize a backup route', () => {

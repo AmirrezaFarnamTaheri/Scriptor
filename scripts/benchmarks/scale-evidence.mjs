@@ -66,6 +66,13 @@ export function evaluateScaleEvidence(evidence) {
         throw new Error('Cold cache reset proof required for ' + caseKey)
       }
     } else if (row.warmed !== true) throw new Error('Warm run must attest its primed cache: ' + caseKey)
+    const expectedScenario = row.mode === 'scan' ? 'vault-scan' : 'warm-search'
+    if (row.report.scenario !== expectedScenario) {
+      throw new Error('Invalid CLI report scenario for ' + caseKey)
+    }
+    if (typeof row.report.within_budget !== 'boolean') {
+      throw new Error('Invalid CLI report within_budget result for ' + caseKey)
+    }
     const samples = row.report.samples_ms
     if (!Array.isArray(samples) || samples.length < 3 || samples.length > 1000
       || samples.some((value) => !finite(value) || value <= 0)) {
@@ -77,6 +84,16 @@ export function evaluateScaleEvidence(evidence) {
       // could validate a mean hundreds of times larger than sub-ms samples.
       Math.abs(mean - row.report.mean_ms) > Math.max(0.000001, mean * 0.01)) {
       throw new Error('Reported mean inconsistent with samples for ' + caseKey)
+    }
+    const expectedBudget = row.mode === 'scan' ? 500 + 150 * Math.floor(row.size / 1000) : 100
+    if (row.report.budget_ms !== expectedBudget) {
+      throw new Error('Invalid native CLI budget threshold for ' + caseKey)
+    }
+    // Reported means permit small display rounding differences, but those
+    // differences must never reverse the verdict of the actual sample mean.
+    if (row.report.within_budget !== (row.report.mean_ms <= expectedBudget)
+      || row.report.within_budget !== (mean <= expectedBudget)) {
+      throw new Error('CLI budget verdict contradicts reported or recomputed measured mean for ' + caseKey)
     }
     byCase.set(caseKey, row)
   }

@@ -109,6 +109,7 @@ interface SettingsPanelProps {
   onOpenSupport?: () => void
   onOpenNoteHistory: () => void
   onOpenCanvas: () => void
+  onOpenGitPanel: () => void
   onOpenGoogleWorkspace?: (kind: 'collaboration' | 'planner' | 'gmail') => void
   gmailEnabled?: boolean
   theme?: AppTheme
@@ -179,6 +180,7 @@ function SettingsPanelImpl({
   onOpenSupport,
   onOpenNoteHistory,
   onOpenCanvas,
+  onOpenGitPanel,
   onOpenGoogleWorkspace,
   gmailEnabled,
   theme = 'light',
@@ -360,7 +362,7 @@ function SettingsPanelImpl({
             )
           ) : null}
 
-          {vaultOpen && nativeReady ? <VaultBackupSettings key={vaultId ?? 'closed'} backup={backup} vaultId={vaultId} activePath={activePath} activeNoteVaultId={activeNoteVaultId} externalChangeConflict={externalChangeConflict} settingsDirty={configDirty} onOpenNoteHistory={onOpenNoteHistory} onOpenCanvas={onOpenCanvas} /> : null}
+          {vaultOpen && nativeReady ? <VaultBackupSettings key={vaultId ?? 'closed'} backup={backup} vaultId={vaultId} activePath={activePath} activeNoteVaultId={activeNoteVaultId} externalChangeConflict={externalChangeConflict} settingsDirty={configDirty} onOpenNoteHistory={onOpenNoteHistory} onOpenCanvas={onOpenCanvas} onOpenGitPanel={() => { onClose(); onOpenGitPanel() }} onOpenExternalConflict={onClose} /> : null}
 
           <div className="settings-section">
             <h3>{t('settingsPanel.spellcheckGrammar')}</h3>

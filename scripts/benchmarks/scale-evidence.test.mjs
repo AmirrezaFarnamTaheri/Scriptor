@@ -17,7 +17,10 @@ const run = ({ size = 100, mode = 'scan', condition = 'warm', replicate = 1, ms 
   startedAt: '2026-11-01T' + String(replicate).padStart(2, '0') + ':00:00.000Z',
   fixtureSha256: fixture(size),
   noteCount: size,
-  report: { note_count: size, samples_ms: [ms - 1, ms, ms + 1], mean_ms: ms },
+  report: { scenario: mode === 'scan' ? 'vault-scan' : 'warm-search',
+    note_count: size, samples_ms: [ms - 1, ms, ms + 1], mean_ms: ms,
+    budget_ms: mode === 'scan' ? 500 + 150 * Math.floor(size / 1000) : 100,
+    within_budget: true },
   ...(condition === 'cold'
     ? { cacheReset: { method: 'fresh-volume', evidence: 'volume-' + size + '-' + mode + '-' + replicate } }
     : { warmed: true }),
@@ -100,6 +103,87 @@ test('MAT-023: rejects source, host or toolchain identities that make independen
   input.host.cpu = '8-core test host'
   input.toolchain.rustc = null
   assert.throws(() => evaluateScaleEvidence(input), /toolchain|rustc/i)
+})
+
+test('MAT-023: report scenario must agree with the measured command', () => {
+  const evidence = fullMatrix()
+  evidence.runs[0].report.scenario = 'warm-search'
+  assert.throws(
+    () => evaluateScaleEvidence(evidence),
+    /scenario|scan|search/i,
+    'scan numbers cannot masquerade as search evidence',
+  )
+})
+
+test('MAT-023: budget verdict must be present and boolean in externally supplied reports', () => {
+  for (const invalid of [undefined, null, 'true', 0]) {
+    const evidence = fullMatrix()
+    if (invalid === undefined) delete evidence.runs[0].report.within_budget
+    else evidence.runs[0].report.within_budget = invalid
+    assert.throws(
+      () => evaluateScaleEvidence(evidence),
+      /budget|within_budget/i,
+      'an absent or non-boolean budget result must not be accepted',
+    )
+  }
+})
+
+test('MAT-023: samples cannot cross a native budget while a rounded reported mean claims the opposite', () => {
+  const forgedPass = fullMatrix()
+  forgedPass.runs[0].report.samples_ms = [501, 502, 503]
+  forgedPass.runs[0].report.mean_ms = 498
+  forgedPass.runs[0].report.within_budget = true
+  assert.throws(
+    () => evaluateScaleEvidence(forgedPass),
+    /budget|verdict|measured mean/i,
+    'samples above the 500 ms native threshold cannot be reported within budget',
+  )
+
+  const forgedFailure = fullMatrix()
+  forgedFailure.runs[0].report.samples_ms = [497, 498, 499]
+  forgedFailure.runs[0].report.mean_ms = 502
+  forgedFailure.runs[0].report.within_budget = false
+  assert.throws(
+    () => evaluateScaleEvidence(forgedFailure),
+    /budget|verdict|measured mean/i,
+    'samples below the native threshold cannot be reported as an over-budget failure',
+  )
+
+  const honestFailure = fullMatrix()
+  honestFailure.runs[0].report.samples_ms = [501, 502, 503]
+  honestFailure.runs[0].report.mean_ms = 502
+  honestFailure.runs[0].report.within_budget = false
+  assert.equal(evaluateScaleEvidence(honestFailure).readyForReview, true,
+    'truthful failed-budget evidence is valid for review, not a performance pass')
+})
+
+test('MAT-023: native budget threshold and reported verdict must agree with measured mean', () => {
+  for (const incorrect of [null, 0, -1, 999999]) {
+    const evidence = fullMatrix()
+    evidence.runs[0].report.budget_ms = incorrect
+    assert.throws(
+      () => evaluateScaleEvidence(evidence),
+      /budget|threshold/i,
+      'missing or forged native budget cannot certify the matrix',
+    )
+  }
+
+  const forgedPass = fullMatrix()
+  forgedPass.runs[0].report.samples_ms = [501, 502, 503]
+  forgedPass.runs[0].report.mean_ms = 502
+  forgedPass.runs[0].report.within_budget = true
+  assert.throws(() => evaluateScaleEvidence(forgedPass), /budget|verdict/i)
+
+  const forgedFailure = fullMatrix()
+  forgedFailure.runs[0].report.within_budget = false
+  assert.throws(() => evaluateScaleEvidence(forgedFailure), /budget|verdict/i)
+
+  const overBudget = fullMatrix()
+  overBudget.runs[0].report.samples_ms = [501, 502, 503]
+  overBudget.runs[0].report.mean_ms = 502
+  overBudget.runs[0].report.within_budget = false
+  assert.equal(evaluateScaleEvidence(overBudget).readyForReview, true,
+    'honest failed-budget evidence stays reviewable without claiming performance passed')
 })
 
 test('MAT-023: rejects invented means, nonfinite samples, and missing latency distributions', () => {
