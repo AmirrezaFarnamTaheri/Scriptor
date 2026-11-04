@@ -676,6 +676,15 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
     validate_restore_journal(vault_root, &journal)?;
 
     let state_file = journal.join("state");
+    let state_metadata = fs::symlink_metadata(&state_file).map_err(|error| {
+        format!("Failed to read restore journal state: {error}. Journal preserved for recovery.")
+    })?;
+    if !state_metadata.is_file() {
+        return Err(
+            "Failed to read restore journal state: marker must be a regular file. Journal preserved for recovery."
+                .into(),
+        );
+    }
     let state = fs::read_to_string(&state_file)
         .map(|s| s.trim().to_string())
         .map_err(|error| {

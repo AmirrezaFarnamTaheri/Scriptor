@@ -24,6 +24,53 @@ fn unreadable_restore_state_preserves_journal() {
 
 #[cfg(unix)]
 #[test]
+fn linked_restore_state_cannot_drive_rollback_outside_vault_provenance() {
+    use std::os::unix::fs::symlink;
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let root = directory.path().join("vault");
+    let journal = restore_journal(&root);
+    let rollback = journal.join("rollback");
+    fs::create_dir_all(&rollback).expect("rollback directory");
+    fs::write(root.join("current.md"), "# Current vault\n").expect("current vault note");
+    fs::write(rollback.join("original.md"), "# Prior vault\n").expect("rollback snapshot");
+
+    // A copied or tampered journal must not trust a marker reached through an
+    // external symlink. Otherwise the foreign "promoting" value can trigger
+    // a destructive rollback of the *current* vault.
+    let foreign_state = directory.path().join("foreign-restore-state");
+    fs::write(&foreign_state, "promoting").expect("foreign state");
+    symlink(&foreign_state, journal.join("state")).expect("state symlink");
+
+    let error = recover_interrupted_restore(&root)
+        .expect_err("linked restore state must never authorize rollback");
+    assert!(
+        error.contains("state") && error.contains("regular file"),
+        "unexpected recovery error: {error}"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("current.md")).expect("original vault still intact"),
+        "# Current vault\n"
+    );
+    assert!(!root.join("original.md").exists(), "rollback must not run");
+    assert!(
+        journal.exists(),
+        "untrusted journal must remain for inspection"
+    );
+    assert!(
+        fs::symlink_metadata(journal.join("state"))
+            .expect("marker retained")
+            .file_type()
+            .is_symlink()
+    );
+    assert_eq!(
+        fs::read_to_string(&foreign_state).expect("external marker intact"),
+        "promoting"
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn rollback_copy_failure_after_clear_preserves_recovery_journal() {
     use std::os::unix::fs::symlink;
 
