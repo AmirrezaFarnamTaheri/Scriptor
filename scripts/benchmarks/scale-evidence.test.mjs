@@ -17,7 +17,8 @@ const run = ({ size = 100, mode = 'scan', condition = 'warm', replicate = 1, ms 
   startedAt: '2026-11-01T' + String(replicate).padStart(2, '0') + ':00:00.000Z',
   fixtureSha256: fixture(size),
   noteCount: size,
-  report: { note_count: size, samples_ms: [ms - 1, ms, ms + 1], mean_ms: ms },
+  report: { scenario: mode === 'scan' ? 'vault-scan' : 'warm-search',
+    note_count: size, samples_ms: [ms - 1, ms, ms + 1], mean_ms: ms, within_budget: true },
   ...(condition === 'cold'
     ? { cacheReset: { method: 'fresh-volume', evidence: 'volume-' + size + '-' + mode + '-' + replicate } }
     : { warmed: true }),
@@ -100,6 +101,29 @@ test('MAT-023: rejects source, host or toolchain identities that make independen
   input.host.cpu = '8-core test host'
   input.toolchain.rustc = null
   assert.throws(() => evaluateScaleEvidence(input), /toolchain|rustc/i)
+})
+
+test('MAT-023: report scenario must agree with the measured command', () => {
+  const evidence = fullMatrix()
+  evidence.runs[0].report.scenario = 'warm-search'
+  assert.throws(
+    () => evaluateScaleEvidence(evidence),
+    /scenario|scan|search/i,
+    'scan numbers cannot masquerade as search evidence',
+  )
+})
+
+test('MAT-023: budget verdict must be present and boolean in externally supplied reports', () => {
+  for (const invalid of [undefined, null, 'true', 0]) {
+    const evidence = fullMatrix()
+    if (invalid === undefined) delete evidence.runs[0].report.within_budget
+    else evidence.runs[0].report.within_budget = invalid
+    assert.throws(
+      () => evaluateScaleEvidence(evidence),
+      /budget|within_budget/i,
+      'an absent or non-boolean budget result must not be accepted',
+    )
+  }
 })
 
 test('MAT-023: rejects invented means, nonfinite samples, and missing latency distributions', () => {
