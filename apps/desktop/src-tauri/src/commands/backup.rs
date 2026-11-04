@@ -614,9 +614,28 @@ fn sync_restore_directory(path: &Path) -> Result<(), String> {
 fn write_restore_state(transaction: &Path, state: &str) -> Result<(), String> {
     let state_file = transaction.join("state");
     let temp_file = transaction.join("state.tmp");
+    // A crashed write may leave a regular state.tmp behind. Remove that
+    // stale file by path, but never follow a linked temporary marker outside
+    // the journal. create_new makes replacement fail closed under races.
+    match fs::symlink_metadata(&temp_file) {
+        Ok(metadata) => {
+            if !metadata.is_file() {
+                return Err(
+                    "Restore state temporary marker must be a regular file; journal preserved for recovery."
+                        .into(),
+                );
+            }
+            fs::remove_file(&temp_file).map_err(|error| {
+                format!("Failed to clear stale restore state temporary marker: {error}")
+            })?;
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(format!("Failed to inspect restore state temporary marker: {error}"));
+        }
+    }
     let mut file = fs::OpenOptions::new()
-        .create(true)
-        .truncate(true)
+        .create_new(true)
         .write(true)
         .open(&temp_file)
         .map_err(|error| format!("Failed to create restore state {state}: {error}"))?;
