@@ -166,6 +166,18 @@ test('MAT-003: current-vault native Canvas checkpoint evidence links to owner wo
   assert.equal(needsReopen?.route, null)
 })
 
+test('MAT-003: dirty Settings cannot abandon unsaved edits via Canvas recovery navigation', () => {
+  const canvas = buildRecoveryInventory({
+    ...input,
+    settingsDirty: true,
+    canvas: { vaultId: 'v-a', state: 'ready', count: 2 },
+  }).find(row => row.source === 'canvas')
+  assert.equal(canvas?.status, 'available', 'valid inventory remains visible and read-only')
+  assert.equal(canvas?.count, 2)
+  assert.equal(canvas?.route, null, 'unsaved Settings must block navigation to Canvas')
+  assert.match(canvas?.explanation ?? '', /save or discard settings changes/i)
+})
+
 test('MAT-003: unknown native source-state values cannot certify zero items or authorize a backup route', () => {
   const state = 'unrecognized-native-state' as never
   const rows = buildRecoveryInventory({
