@@ -18,7 +18,9 @@ const run = (size, mode, condition, replicate) => ({
   startedAt: replicate === 1 ? '2026-11-01T15:22:00.000Z' : '2026-11-01T15:22:01.000Z', fixtureSha256: String(size).padStart(64, '0'),
   noteCount: size, report: {
     scenario: mode === 'scan' ? 'vault-scan' : 'warm-search',
-    note_count: size, samples_ms: [10, 11, 12], mean_ms: 11, within_budget: true,
+    note_count: size, samples_ms: [10, 11, 12], mean_ms: 11,
+    budget_ms: mode === 'scan' ? 500 + 150 * Math.floor(size / 1000) : 100,
+    within_budget: true,
   },
   ...(condition === 'cold' ? { cacheReset: { method: 'fresh-volume', evidence: 'attested' } } : { warmed: true }),
 })
