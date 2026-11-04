@@ -354,10 +354,16 @@ fn validate_restore_journal(vault_root: &Path, journal: &Path) -> Result<(), Str
     }
     for name in ["staged", "rollback"] {
         let child = journal.join(name);
-        if !child.exists() {
-            continue;
-        }
-        let metadata = fs::symlink_metadata(&child).map_err(|error| error.to_string())?;
+        // Path::exists follows symlinks and treats dangling links as absent.
+        // Inspect the entry itself so linked or unreadable journal children
+        // fail closed before cleanup can discard their recovery evidence.
+        let metadata = match fs::symlink_metadata(&child) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(format!("Failed to inspect restore journal {name}: {error}"));
+            }
+        };
         if metadata.file_type().is_symlink() || !metadata.is_dir() {
             return Err(format!(
                 "Restore journal {name} must be a regular directory"
