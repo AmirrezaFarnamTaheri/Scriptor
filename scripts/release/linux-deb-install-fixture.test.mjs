@@ -11,7 +11,7 @@ const linuxTest = process.platform === 'linux' ? test : test.skip
 const architecture = process.arch === 'arm64' ? 'aarch64' : 'x86_64'
 const debArch = architecture === 'aarch64' ? 'arm64' : 'amd64'
 const digest = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')
-function fixture({ corruptedReceipt = false, badDaemonVersion = false, symlinkDesktop = false } = {}) {
+function fixture({ corruptedReceipt = false, badDaemonVersion = false, symlinkDesktop = false, maintainerScript = false } = {}) {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-install-fixture-test-'))
   const root = path.join(scratch, 'repo')
   const packageRoot = path.join(scratch, 'package')
@@ -29,6 +29,11 @@ function fixture({ corruptedReceipt = false, badDaemonVersion = false, symlinkDe
   fs.writeFileSync(path.join(packageRoot, 'DEBIAN/control'),
     'Package: scriptor\nVersion: 1.3.3\nArchitecture: ' + debArch
     + '\nMaintainer: Test <noreply@example.invalid>\nDescription: isolated package fixture\n')
+  if (maintainerScript) {
+    const postinst = path.join(packageRoot, 'DEBIAN/postinst')
+    fs.writeFileSync(postinst, '#!/bin/sh\nexit 0\n')
+    fs.chmodSync(postinst, 0o755)
+  }
   const desktop = path.join(packageRoot, 'usr/bin/scriptor-desktop')
   if (symlinkDesktop) fs.symlinkSync('/usr/bin/true', desktop)
   else fs.copyFileSync('/usr/bin/true', desktop)
@@ -103,4 +108,12 @@ linuxTest('isolated DEB fixture rejects mismatched daemon output and installed d
     assert.deepEqual(fs.readdirSync(wrongVersion.temporaryRoots), [])
     assert.deepEqual(fs.readdirSync(symlinked.temporaryRoots), [])
   } finally { wrongVersion.cleanup(); symlinked.cleanup() }
+})
+
+linuxTest('isolated DEB fixture refuses maintainer scripts before invoking the package manager', () => {
+  const f = fixture({ maintainerScript: true })
+  try {
+    assert.throws(() => inspectInstalledDebFixture(f.opts), /Refusing to run Debian maintainer script/)
+    assert.deepEqual(fs.readdirSync(f.temporaryRoots), [])
+  } finally { f.cleanup() }
 })

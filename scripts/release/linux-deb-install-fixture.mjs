@@ -69,6 +69,17 @@ export function inspectInstalledDebFixture({ root, directory, expectedCommit, ar
   assert(run('dpkg-deb', ['--field', packageFile, 'Architecture']) === archToDeb[architecture],
     'DEB target architecture mismatch')
 
+  // Reject maintainer scripts before dpkg; fakeroot does not make arbitrary scripts safe.
+  const controlTar = execFileSync('dpkg-deb', ['--ctrl-tarfile', packageFile], {
+    timeout: 15000, maxBuffer: 8 * 1024 * 1024,
+  })
+  const controlMembers = execFileSync('tar', ['-tf', '-'], {
+    input: controlTar, encoding: 'utf8', timeout: 15000,
+  }).trim().split(/\r?\n/).map(name => name.replace(/^\.\//, '')).filter(Boolean)
+  assert(controlMembers.includes('control') && controlMembers.every(name =>
+    name === 'control' || name === 'md5sums'),
+  'Refusing to run Debian maintainer script or unexpected control member')
+
   const parent = fs.realpathSync(temporaryRoots || os.tmpdir())
   const isolatedRoot = fs.mkdtempSync(path.join(parent, 'scriptor-isolated-dpkg-'))
   try {
