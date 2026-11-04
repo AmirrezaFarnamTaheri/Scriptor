@@ -1,0 +1,129 @@
+name: MAT-024 Native Executable Smoke
+
+# Read-only CI-built CLI/daemon executable tests on hosted OSes.
+# No release tags, signatures, distribution, desktop installation, or approvals.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '.github/workflows/mat024-native-runtime.yml'
+      - 'scripts/release/binary-review.mjs'
+      - 'scripts/release/binary-review.test.mjs'
+      - 'crates/cli/**'
+      - 'crates/daemon/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'VERSION'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/mat024-native-runtime.yml'
+      - 'scripts/release/binary-review.mjs'
+      - 'scripts/release/binary-review.test.mjs'
+      - 'crates/cli/**'
+      - 'crates/daemon/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'VERSION'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mat024-native-runtime-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  native-executable:
+    name: CLI and daemon smoke (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux
+            architecture: x86_64
+          - os: windows-2025
+            platform: windows
+            architecture: x86_64
+          - os: macos-15
+            platform: macos
+            architecture: aarch64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/mat024-binaries-${{ matrix.platform }}
+    steps:
+      - name: Checkout exact test source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Configure pinned Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.16.0
+
+      - name: Configure pinned Rust 1.96.0
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
+
+      - name: Cache compiled Rust dependencies
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          cache-all-crates: true
+          key: mat024-native-runtime-${{ matrix.platform }}
+
+      - name: Check native target architecture
+        shell: pwsh
+        run: node scripts/release/verify-runner-architecture.mjs --expected "${{ matrix.architecture }}"
+
+      - name: Run executable evidence and release trust regression tests
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/release/version.mjs check
+          node --test scripts/release/binary-review.test.mjs scripts/release/source-identity.test.mjs scripts/release/signing-policy.test.mjs
+
+      - name: Compile real release-mode CLI and daemon
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Compile MAT-024 source-bound release-mode native binaries" -FilePath "cargo" -ArgumentList @("build", "--locked", "--release", "-p", "scriptor-cli", "-p", "scriptor-daemon", "--jobs", "2") -TimeoutSeconds 4200 -HeartbeatSeconds 20
+
+      - name: Probe executable CLI and daemon and collect bounded hashes
+        shell: pwsh
+        run: >-
+          node scripts/release/binary-review.mjs collect
+          --source-sha "${{ github.event.pull_request.head.sha || github.sha }}"
+          --platform "${{ matrix.platform }}"
+          --architecture "${{ matrix.architecture }}"
+          --output "dist/release-review/mat024-binary-smoke-${{ matrix.platform }}.json"
+
+      - name: Independently rehash and rerun executable probes
+        shell: pwsh
+        run: >-
+          node scripts/release/binary-review.mjs verify
+          --source-sha "${{ github.event.pull_request.head.sha || github.sha }}"
+          --platform "${{ matrix.platform }}"
+          --architecture "${{ matrix.architecture }}"
+          --input "dist/release-review/mat024-binary-smoke-${{ matrix.platform }}.json"
+
+      - name: Capture native binary failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "MAT-024 native executable smoke (${{ matrix.platform }})"
+
+      - name: Upload source-bound executable receipts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mat024-binary-smoke-${{ matrix.platform }}-${{ github.run_attempt }}
+          path: dist/release-review/mat024-binary-smoke-${{ matrix.platform }}.json
+          if-no-files-found: warn
+          retention-days: 30
