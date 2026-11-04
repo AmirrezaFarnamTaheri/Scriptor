@@ -89,8 +89,11 @@ export function evaluateScaleEvidence(evidence) {
     if (row.report.budget_ms !== expectedBudget) {
       throw new Error('Invalid native CLI budget threshold for ' + caseKey)
     }
-    if (row.report.within_budget !== (row.report.mean_ms <= expectedBudget)) {
-      throw new Error('CLI budget verdict contradicts measured mean for ' + caseKey)
+    // Reported means permit small display rounding differences, but those
+    // differences must never reverse the verdict of the actual sample mean.
+    if (row.report.within_budget !== (row.report.mean_ms <= expectedBudget)
+      || row.report.within_budget !== (mean <= expectedBudget)) {
+      throw new Error('CLI budget verdict contradicts reported or recomputed measured mean for ' + caseKey)
     }
     byCase.set(caseKey, row)
   }
