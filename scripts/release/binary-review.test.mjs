@@ -108,3 +108,15 @@ test('MAT-024: complete evidence is written atomically and cannot be silently ov
     assert.equal(fs.readdirSync(path.dirname(output)).length, 1)
   } finally { f.cleanup() }
 })
+
+test('MAT-024: a forged system-info output digest fails independent live re-probe', () => {
+  const f = fixture()
+  try {
+    const manifest = collectBinaryReview(f.options)
+    const probes = manifest.probes.map((probe, index) => index === 2
+      ? { ...probe, outputSha256: 'f'.repeat(64) }
+      : probe)
+    assert.throws(() => verifyBinaryReview({ ...f.options, manifest: { ...manifest, probes } }),
+      /system-info|output|digest|probe/i)
+  } finally { f.cleanup() }
+})

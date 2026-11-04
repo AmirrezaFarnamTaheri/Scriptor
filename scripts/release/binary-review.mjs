@@ -127,9 +127,9 @@ export function verifyBinaryReview({ root, expectedCommit, platform, architectur
     && a.publishAuthorized === false, 'Binary review improperly claims installed or release acceptance')
   // Saved probe status is only a claim: execute the native binaries again.
   const live = collectBinaryReview({ root, expectedCommit, platform, architecture })
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < probeNames.length; i++) {
     requireThat(live.probes[i].outputSha256 === manifest.probes[i].outputSha256,
-      'Live version probe differs from saved receipt for ' + probeNames[i])
+      'Live executable probe output differs from saved receipt for ' + probeNames[i])
   }
   return { verifiedBinaries: 2, verifiedLiveProbes: 3, sourceCommit: src.actualCommit,
     scope: 'cli-daemon-smoke-only' }
