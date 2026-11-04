@@ -101,7 +101,10 @@ fn linked_restore_temporary_marker_must_not_modify_external_files() {
         fs::read_to_string(root.join("current.md")).expect("current vault must remain intact"),
         "# Current vault\n"
     );
-    assert!(journal.exists(), "untrusted journal must remain for inspection");
+    assert!(
+        journal.exists(),
+        "untrusted journal must remain for inspection"
+    );
 }
 
 #[test]
@@ -111,10 +114,8 @@ fn ordinary_stale_restore_temporary_file_can_be_replaced_during_recovery() {
     let journal = restore_journal(&root);
     let rollback = journal.join("rollback");
     fs::create_dir_all(&rollback).expect("rollback directory");
-    fs::write(root.join("current.md"), "# Partially restored vault\n")
-        .expect("current note");
-    fs::write(rollback.join("original.md"), "# Previous vault\n")
-        .expect("rollback note");
+    fs::write(root.join("current.md"), "# Partially restored vault\n").expect("current note");
+    fs::write(rollback.join("original.md"), "# Previous vault\n").expect("rollback note");
     fs::write(journal.join("state"), "promoting").expect("restore marker");
     fs::write(journal.join("state.tmp"), "interrupted write")
         .expect("ordinary leftover temporary file");
