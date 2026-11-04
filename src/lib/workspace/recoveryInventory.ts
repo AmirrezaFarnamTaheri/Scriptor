@@ -131,8 +131,10 @@ export function buildRecoveryInventory(input: RecoveryInventoryInput): readonly 
     ...inspectedCanvas,
     status: input.recoveryRequired ? 'needs-reopen' : inspectedCanvas.status,
     count: input.recoveryRequired ? null : inspectedCanvas.count,
-    route: !input.recoveryRequired && inspectedCanvas.status === 'available' ? 'canvas' : null,
+    route: !input.recoveryRequired && !input.settingsDirty && inspectedCanvas.status === 'available' ? 'canvas' : null,
     explanation: input.recoveryRequired ? 'Reopen the vault before inspecting Canvas recovery checkpoints.'
+      : input.settingsDirty && inspectedCanvas.status === 'available'
+        ? 'Save or discard Settings changes before opening Canvas recovery checkpoints. Native inspection remains read-only.'
       : inspectedCanvas.status === 'available'
         ? `${inspectedCanvas.count} valid Canvas template undo checkpoints detected by native inspection. Open Canvas to review boards; checkpoint recovery requires separate authorization.`
         : inspectedCanvas.status === 'empty'
