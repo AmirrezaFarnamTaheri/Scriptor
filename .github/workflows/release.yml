@@ -140,6 +140,20 @@ jobs:
         shell: bash
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Test Linux DEB executable/receipt verification and failure cases
+        shell: bash
+        run: node --test scripts/release/linux-deb-smoke.test.mjs
+
+      - name: Prove isolated package-manager fixture behavior on Linux
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v fakeroot >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y fakeroot
+          fi
+          node --test scripts/release/linux-deb-install-fixture.test.mjs
+
       - name: Run source-bound release quality gate
         shell: bash
         run: node scripts/release/run-release-quality.mjs
@@ -259,7 +273,7 @@ jobs:
       - name: Install Linux packaging dependencies
         if: matrix.platform == 'linux'
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Linux packaging dependencies" -FilePath "bash" -ArgumentList @("-lc", "sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev patchelf xdg-utils") -TimeoutSeconds 900
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Linux packaging dependencies" -FilePath "bash" -ArgumentList @("-lc", "sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev patchelf xdg-utils fakeroot") -TimeoutSeconds 900
 
       - name: Install frozen pnpm dependency graph
         shell: pwsh
@@ -354,6 +368,26 @@ jobs:
           --platform "${{ matrix.platform }}"
           --architecture "${{ matrix.architecture }}"
           --output-dir release-output
+
+      - name: Verify packaged Linux DEB daemon runtime and desktop ELF
+        if: matrix.platform == 'linux'
+        shell: pwsh
+        run: >-
+          node scripts/release/linux-deb-smoke.mjs
+          --assets release-output
+          --source-sha "${{ github.sha }}"
+          --architecture "${{ matrix.architecture }}"
+          --output "$env:CI_LOG_DIR/packaged-linux-deb-smoke.json"
+
+      - name: Verify isolated DEB install, native daemon, and file removal
+        if: matrix.platform == 'linux'
+        shell: pwsh
+        run: >-
+          node scripts/release/linux-deb-install-fixture.mjs
+          --assets release-output
+          --source-sha "${{ github.sha }}"
+          --architecture "${{ matrix.architecture }}"
+          --output "$env:CI_LOG_DIR/isolated-deb-install-${{ matrix.architecture }}.json"
 
       - name: Inventory staged release assets
         if: always()
