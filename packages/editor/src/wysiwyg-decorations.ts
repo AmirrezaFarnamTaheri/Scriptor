@@ -205,7 +205,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             }).range(markerFrom, markerFrom + 3))
           }
           if (!revealSyntax) {
-            const extendedTask = /^(\s*[-*+] +)(\[([/>\-])\])(?=\s|$)/.exec(line.text)
+            const extendedTask = /^(\s*[-*+] +)(\[([/>-])\])(?=\s|$)/.exec(line.text)
             if (extendedTask) {
               const markerFrom = line.from + extendedTask[1].length
               // Hide the list bullet and only the three marker bytes. The
