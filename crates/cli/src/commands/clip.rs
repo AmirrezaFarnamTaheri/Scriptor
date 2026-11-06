@@ -14,6 +14,25 @@ use scriptor_vault::{RelativeVaultPath, open_vault, save_note};
 
 use crate::commands::CommandResult;
 
+
+/// A web clip is always a new note. Never silently replace a note created by
+/// another clip, the editor, or an external process while capture was running.
+fn save_clipped_note(
+    vault_id: &str,
+    root: &scriptor_vault::VaultRoot,
+    path: &RelativeVaultPath,
+    markdown: &str,
+) -> Result<(), scriptor_vault::VaultError> {
+    save_note(
+        vault_id,
+        root,
+        path,
+        markdown,
+        Some(scriptor_vault::EXPECTED_MISSING_CONTENT_HASH),
+    )?;
+    Ok(())
+}
+
 pub(crate) fn run_clip(
     url: String,
     vault_path: PathBuf,
@@ -61,14 +80,8 @@ pub(crate) fn run_clip(
 
     // Compose frontmatter + body.
     let body = build_note_content(&result);
-    save_note(
-        &session.descriptor.id,
-        &session.root,
-        &relative,
-        &body,
-        None,
-    )
-    .map_err(|e| format!("failed to write note {note_rel_path}: {e}"))?;
+    save_clipped_note(&session.descriptor.id, &session.root, &relative, &body)
+    .map_err(|e| format!("failed to create clip {note_rel_path}: {e}"))?;
 
     eprintln!("clip: wrote → {note_rel_path}");
     println!("{note_rel_path}");

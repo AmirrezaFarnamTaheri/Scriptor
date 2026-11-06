@@ -42,6 +42,32 @@ pub fn save_note(
     )
 }
 
+
+/// Persist a transformation only if the exact note revision that was read is
+/// still present. The shared vault mutation lock surrounds the hash check and
+/// atomic replacement. All multi-note rewrites must use this CAS boundary;
+/// reading first and later calling `save_note(..., None)` is not safe.
+pub fn save_rewritten_note(
+    vault_id: &str,
+    root: &VaultRoot,
+    path: &RelativeVaultPath,
+    original: &crate::note::NoteDocument,
+    markdown: &str,
+) -> Result<SaveNoteOutput, VaultError> {
+    if original.metadata.vault_id != vault_id || original.metadata.path != path.as_str() {
+        return Err(VaultError::InvalidConfig {
+            message: "Rewritten note no longer belongs to the selected vault and path".into(),
+        });
+    }
+    save_note(
+        vault_id,
+        root,
+        path,
+        markdown,
+        Some(&original.metadata.content_hash),
+    )
+}
+
 pub(crate) fn save_note_locked(
     vault_id: &str,
     root: &VaultRoot,
