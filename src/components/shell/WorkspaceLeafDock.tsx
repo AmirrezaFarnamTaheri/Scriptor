@@ -5,6 +5,7 @@ import type { useVaultWorkspace } from '../../hooks/useVaultWorkspace'
 import type { usePluginRegistry } from '../../hooks/usePluginRegistry'
 import { WorkspaceLeafTabs } from './WorkspaceLeafTabs'
 import { WorkspaceShortcutBar } from './WorkspaceShortcutBar'
+import { WorkspaceHeaderActionsContext } from './WorkspaceHeaderActionsContext'
 import { ReviewFeatureWorkspaces } from '../app/ReviewFeatureWorkspaces'
 import { SourceFileWorkspace } from '../app/SourceFileWorkspace'
 import { WorkspaceEmbeddedPanel } from '../../context/WorkspacePanelContext'
@@ -51,21 +52,22 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
       ? !workspace.openTabs.some(tab => tab.path === ref.path)
       : !(ref.kind === 'feature' && ref.id === 'editor') || primaryHasTools
   const hasPrimaryLeafTabs = dock.state.leaves.some(leaf => leaf.group === 'primary' && visiblePrimaryLeaf(leaf.reference))
-  return <section className={`editor-panel workspace-leaf-dock${secondary ? ' has-side' : ''} focus-${focusedGroup}`} aria-label={copy.navigation}>
-    {vaultId && <WorkspaceShortcutBar locale={locale} preferences={dock.shortcuts.preferences} open={dock.shortcuts.open}
+  const workspaceActions = vaultId ? <WorkspaceShortcutBar locale={locale} preferences={dock.shortcuts.preferences} open={dock.shortcuts.open}
       onOpen={dock.shortcuts.show} onClose={dock.shortcuts.close} onSave={dock.shortcuts.save}
       catalog={[
         { id: 'writing', label: copy.writing, run: () => { void dock.open({ kind: 'feature', id: 'editor' }, 'primary') } },
         { id: 'source', label: copy.source, run: () => dock.openSource(null) },
         { id: 'preview', label: copy.preview, disabled: !workspace.activePath, run: () => { if (workspace.activePath) void dock.openPreview(workspace.activePath) } },
         ...dock.commands.map(command => ({ id: command.id, label: command.label, run: () => { void command.run() } })),
-      ]} />}
+      ]} compact /> : null
+  return <section className={`editor-panel workspace-leaf-dock${secondary ? ' has-side' : ''} focus-${focusedGroup}`} aria-label={copy.navigation}>
+    {!writing ? workspaceActions : null}
     {dock.status !== 'idle' && <p className="workspace-transition-status" role="status">{workspaceTransitionCopy(locale, dock.status === 'pending', dock.reason === 'limit')}</p>}
     <div className="workspace-leaf-grid">
       {(['primary', 'secondary'] as const).map(group => <div key={group} className={`workspace-group-heading ${group}${group === 'primary' && !hasPrimaryLeafTabs ? ' note-only' : ''}`}>
         <WorkspaceLeafTabs state={dock.state} group={group} label={dock.label} onSelect={dock.select} onClose={dock.close} onMove={dock.move} onReorder={dock.reorder} panelId={`${id}-${group}`} pending={dock.status === 'pending'} isVisible={group === 'primary' ? visiblePrimaryLeaf : undefined} />
       </div>)}
-      <div className="workspace-writing-leaf" hidden={!writing || Boolean(revealed?.group === 'primary' && revealed.reference.kind !== 'note')} id={writing ? `${id}-primary` : undefined}>{children}</div>
+      <div className="workspace-writing-leaf" hidden={!writing || Boolean(revealed?.group === 'primary' && revealed.reference.kind !== 'note')} id={writing ? `${id}-primary` : undefined}><WorkspaceHeaderActionsContext.Provider value={workspaceActions}>{children}</WorkspaceHeaderActionsContext.Provider></div>
       {dock.state.leaves.filter(leaf => leaf.reference.kind !== 'note' || leaf.group === 'secondary' ||
         (!dock.visited.has(leaf.id) && workspace.activePath !== leaf.reference.path)).map(leaf => {
         const ref = leaf.reference
