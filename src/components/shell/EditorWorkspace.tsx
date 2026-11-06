@@ -402,7 +402,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
             editorSurfaceMode === 'rendered' ? (
               <div className="editor-rendered-view editable-preview-surface">
                 <div className="editable-preview-mode-hint" role="note" aria-label="Editable preview information">
-                  <strong>Editable preview</strong> · Click a line to edit its Markdown; use Rendered output for a read-only view.
+                  <strong>{t('editor.view.editablePreview')}</strong> · {t('editor.view.editablePreviewDescription')}
                 </div>
                 <ErrorBoundary
                   name="editable-markdown-preview"
