@@ -755,6 +755,10 @@ test.describe('visual review states', () => {
     await expect(page.locator('.metric-grid')).toContainText('پیوندهای شکسته')
     await expect(page.locator('.metric-grid')).toContainText('حافظهٔ نهان')
     await expect(page.locator('.inspector-panel')).not.toContainText('Broken links')
+    // German labels and publication readiness heading must remain legible.
+    await expect.poll(() => page.locator('.inspector-tabs').evaluate((root) =>
+      [...root.querySelectorAll('button')].every((button) => button.scrollWidth <= button.clientWidth + 1),
+    )).toBe(true)
     await expect(page.locator('.status-strip')).not.toContainText('fresh')
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-rtl-fa.png')
