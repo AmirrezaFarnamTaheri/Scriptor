@@ -101,3 +101,29 @@
   .workspace-activity-bar.workspace-shortcut-bar.is-default-layout { display: none; }
 }
 html[data-ui-reflow='mobile'] .workspace-activity-bar.workspace-shortcut-bar.is-default-layout { display: none; }
+
+/* Merge the workspace destinations with the note tabs while preserving the
+   toolbar's separate formatting row and keyboard-reachable menu. */
+.tabs-row > .workspace-activity-bar.workspace-shortcut-bar.is-inline {
+  flex: 0 0 auto;
+  min-height: 0;
+  max-width: min(55%, 520px);
+  margin-inline-start: auto;
+  padding: 0 0 0 8px;
+  border-block-end: 0;
+  background: var(--surface-muted, var(--bg-elevated));
+  overflow-x: auto;
+  scrollbar-width: none;
+  position: sticky;
+  inset-inline-end: 0;
+  z-index: 2;
+}
+.tabs-row > .workspace-activity-bar.workspace-shortcut-bar.is-inline::-webkit-scrollbar { display: none; }
+.tabs-row > .workspace-activity-bar.workspace-shortcut-bar.is-inline .workspace-shortcut-more {
+  max-width: 100%;
+}
+@media (max-width: 820px) {
+  .tabs-row > .workspace-activity-bar.workspace-shortcut-bar.is-inline:not(.is-default-layout) {
+    max-width: 48%;
+  }
+}
