@@ -59,7 +59,7 @@ test.describe('Editor markup fidelity', () => {
 
   test('cancelled and forwarded statuses are distinguishable in editable preview', async ({ page }) => {
     const preview = await openSplitPreview(page)
-    await preview.locator('.cm-content').fill(['# Task states', '- [-] Cancelled step', '- [>] Forwarded step', '', 'Footer'].join('\\n'))
+    await preview.locator('.cm-content').fill(['# Task states', '- [-] Cancelled step', '- [>] Forwarded step', '', 'Footer'].join('\n'))
     await expect(preview.locator('[data-task-state="cancelled"]')).toHaveAttribute('aria-label', 'Cancelled task')
     await expect(preview.locator('[data-task-state="forwarded"]')).toHaveAttribute('aria-label', 'Forwarded task')
   })
