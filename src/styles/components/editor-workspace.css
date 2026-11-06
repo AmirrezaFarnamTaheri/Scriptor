@@ -760,3 +760,25 @@ body.is-split-resizing .editor-preview-pane {
   background: var(--border);
   pointer-events: none;
 }
+
+/* Mobile: every tool and the overflow menu must be discoverable without
+   horizontal scrolling through an invisible clipped toolbar (including RTL). */
+@media (max-width: 640px) {
+  .format-row.editor-toolbar {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    overflow-y: visible;
+    gap: 4px;
+    padding-inline: 6px;
+  }
+  .editor-toolbar > .format-group {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .format-row.editor-toolbar .editor-primary-formatting {
+    flex: 1 1 100%;
+  }
+  .format-row.editor-toolbar .tools-trigger {
+    order: -1;
+  }
+}
