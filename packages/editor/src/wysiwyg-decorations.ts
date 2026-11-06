@@ -281,6 +281,19 @@ export function wysiwygDecorationExtension(): Extension {
         color: 'var(--ink-strong)', backgroundColor: 'var(--surface-raised)', cursor: 'pointer',
       },
       '.cm-wysiwyg-task-toggle[aria-checked="true"]': { backgroundColor: 'var(--primary-soft)', borderColor: 'var(--primary)' },
+      '.cm-wysiwyg-task-status': {
+        display: 'inline-grid', placeItems: 'center', width: '18px', height: '18px',
+        padding: '0', marginRight: '6px', verticalAlign: 'middle',
+        border: '1px solid var(--border-strong)', borderRadius: '4px',
+        color: 'var(--primary-strong)', backgroundColor: 'var(--primary-soft)',
+        fontSize: '13px', fontWeight: '700', lineHeight: '1',
+      },
+      '.cm-wysiwyg-task-status[data-task-state="cancelled"]': {
+        color: 'var(--muted)', backgroundColor: 'var(--surface-muted)',
+      },
+      '.cm-wysiwyg-task-status[data-task-state="forwarded"]': {
+        color: 'var(--ink-strong)', backgroundColor: 'var(--surface-raised)',
+      },
       '.cm-wysiwyg-frontmatter-toggle': {
         display: 'inline-block', border: '1px solid var(--border)', borderRadius: '6px',
         padding: '3px 9px', backgroundColor: 'var(--surface-muted)', color: 'var(--muted)',
