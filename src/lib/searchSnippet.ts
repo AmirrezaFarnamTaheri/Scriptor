@@ -9,6 +9,8 @@
 import { TASK_CHECKBOX_CLASS_SOURCE } from '@scriptor/core/task'
 
 export function formatSearchSnippet(snippet: string): string {
+  const clippedLeft = /^\s*[^\s\[][^\s]*\]\]/.test(snippet)
+  const clippedRight = /\[\[[^\]]*$/.test(snippet)
   let value = snippet
   const wikilink = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
 
@@ -16,7 +18,7 @@ export function formatSearchSnippet(snippet: string): string {
     value = value.replace(wikilink, (_match, target: string, label?: string) => (label ?? target).trim())
   }
 
-  return value
+  const cleaned = value
     // FTS snippets may be clipped at either edge, leaving only one half of the
     // [[...]] marker pair. Search previews are plain text, so any residual
     // double brackets are marker debris rather than useful presentation.
@@ -27,6 +29,7 @@ export function formatSearchSnippet(snippet: string): string {
     .replace(new RegExp(`(^|\\s)[*-]\\s+\\[[${TASK_CHECKBOX_CLASS_SOURCE}]\\]\\s+`, 'g'), '$1')
     .replace(/\s+/g, ' ')
     .trim()
+  return `${clippedLeft && !cleaned.startsWith('…') ? '…' : ''}${cleaned}${clippedRight && !cleaned.endsWith('…') ? '…' : ''}`
 }
 
 export interface SearchSnippetPart { text: string; matched: boolean }
