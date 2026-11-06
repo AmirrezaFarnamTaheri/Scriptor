@@ -151,6 +151,25 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
+
+    #[test]
+    fn clipping_never_overwrites_a_previous_note_with_the_same_name() {
+        let dir = std::env::temp_dir().join(format!(
+            "scriptor-clip-create-only-{}",
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        fs::create_dir_all(&dir).expect("temp");
+        let session = open_vault(&dir).expect("vault");
+        let path = RelativeVaultPath::parse("00-inbox/clipped.md").expect("path");
+        save_note(&session.descriptor.id, &session.root, &path, "# Existing\n", None).unwrap();
+        let err = save_clipped_note(
+            &session.descriptor.id, &session.root, &path, "# New clip\n",
+        ).expect_err("clip must not overwrite an existing same-name note");
+        assert!(err.to_string().to_lowercase().contains("hash"), "{err}");
+        assert_eq!(read_note(&session.descriptor.id, &session.root, &path).unwrap().markdown, "# Existing\n");
+        let _ = fs::remove_dir_all(dir);
+    }
+
     #[test]
     fn resolve_filename_replaces_date_and_title() {
         let name = resolve_filename("{{date}}-{{title}}.md", "Hello World");

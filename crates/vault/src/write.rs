@@ -283,6 +283,40 @@ mod tests {
     use crate::open::open_vault;
     use tempfile::tempdir;
 
+
+    #[test]
+    fn stale_rewrite_does_not_replace_an_intervening_edit() {
+        let dir = tempdir().expect("tempdir");
+        let session = open_vault(dir.path()).expect("vault");
+        let path = RelativeVaultPath::parse("conflict.md").expect("path");
+        save_note(&session.descriptor.id, &session.root, &path, "# Original\n", None).expect("initial");
+        let source = read_note(&session.descriptor.id, &session.root, &path).expect("read");
+        save_note(
+            &session.descriptor.id, &session.root, &path, "# Concurrent\n",
+            Some(&source.metadata.content_hash),
+        ).expect("other writer");
+        let err = save_rewritten_note(
+            &session.descriptor.id, &session.root, &path, &source, "# Rewritten\n",
+        ).expect_err("stale source must not overwrite newer editor content");
+        assert!(matches!(err, VaultError::HashMismatch { .. }), "{err:?}");
+        assert_eq!(read_note(&session.descriptor.id, &session.root, &path).unwrap().markdown, "# Concurrent\n");
+    }
+
+    #[test]
+    fn rewritten_note_rejects_a_document_from_another_path() {
+        let dir = tempdir().expect("tempdir");
+        let session = open_vault(dir.path()).expect("vault");
+        let a = RelativeVaultPath::parse("a.md").unwrap();
+        let b = RelativeVaultPath::parse("b.md").unwrap();
+        save_note(&session.descriptor.id, &session.root, &a, "# A\n", None).unwrap();
+        save_note(&session.descriptor.id, &session.root, &b, "# B\n", None).unwrap();
+        let source = read_note(&session.descriptor.id, &session.root, &a).unwrap();
+        assert!(save_rewritten_note(
+            &session.descriptor.id, &session.root, &b, &source, "# New B\n",
+        ).is_err());
+        assert_eq!(read_note(&session.descriptor.id, &session.root, &b).unwrap().markdown, "# B\n");
+    }
+
     #[test]
     fn atomic_save_creates_note() {
         let dir = tempdir().unwrap();
