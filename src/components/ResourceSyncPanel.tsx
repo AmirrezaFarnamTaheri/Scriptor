@@ -370,15 +370,15 @@ export function ResourceSyncPanel() {
                   <tbody>
                     {visibleResources.map((resource) => (
                       <tr key={resource.id}>
-                        <td>
+                        <td data-label="Item">
                           <strong>{resource.name}</strong>
                           <span>{resource.logicalId}</span>
                         </td>
-                        <td>
+                        <td data-label="App">
                           <span>{inventory.targets.find(target => target.id === resource.targetId)?.label ?? resource.targetId}</span>
                           <small>{resource.scope}</small>
                         </td>
-                        <td>
+                        <td data-label="Status">
                           <span className={`resource-badge ${resource.managed ? 'managed' : 'unmanaged'}`}>
                             {resource.managed ? 'Managed by Scriptor' : 'Found locally'}
                           </span>
@@ -395,7 +395,7 @@ export function ResourceSyncPanel() {
                             </dl>
                           </details>
                         </td>
-                        <td>
+                        <td data-label="Share this copy">
                           <input
                             type="radio"
                             name="resource-sync-source"
