@@ -40,7 +40,7 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
 }: QuickCapturePanelProps) {
   const { t } = useI18n()
   const [todoDraft, setTodoDraft] = useState('')
-  const todoInputRef = useRef<HTMLInputElement>(null)
+  const todoInputRef = useRef<HTMLTextAreaElement>(null)
   const addTodo = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const text = todoDraft.trim()
