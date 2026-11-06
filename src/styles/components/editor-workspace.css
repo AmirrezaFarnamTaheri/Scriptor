@@ -241,8 +241,7 @@ body.is-split-resizing .editor-preview-pane {
 .tabs-row {
   min-width: 0;
   min-height: 48px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -250,9 +249,21 @@ body.is-split-resizing .editor-preview-pane {
   background: var(--surface-muted, var(--bg-elevated));
   box-shadow: inset 0 -1px 0 var(--border);
 }
-.tabs-row::-webkit-scrollbar {
-  display: none;
+.tabs-note-scroll {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 48px;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
+.tabs-note-scroll::-webkit-scrollbar { display: none; }
+.tabs-note-scroll > .tab-item,
+.tabs-note-scroll > .empty-tab,
+.tabs-note-scroll > span[role='presentation'] { flex: 0 0 auto; }
 
 .tab-list-semantic {
   position: absolute;
