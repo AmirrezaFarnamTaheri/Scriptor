@@ -93,12 +93,19 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
             <h3>{t('quickCapture.todos')}</h3>
           </div>
           <form className="quick-todo-compose" onSubmit={addTodo}>
-            <input
+            <textarea
               ref={todoInputRef}
+              rows={2}
               aria-label={t('quickCapture.newTodo')}
               placeholder={t('quickCapture.todoPlaceholder')}
               value={todoDraft}
               onChange={(event) => setTodoDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault()
+                  event.currentTarget.form?.requestSubmit()
+                }
+              }}
             />
             <button type="submit" className="toolbar-button" disabled={!todoDraft.trim()}>
               <Plus size={14} aria-hidden="true" />
@@ -119,7 +126,8 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
                   >
                     <Check size={14} />
                   </button>
-                  <input
+                  <textarea
+                    rows={2}
                     value={todo.text}
                     aria-label={t('quickCapture.todoText', { text: todo.text.slice(0, 40) })}
                     onChange={(event) => onUpdateTodo(todo.id, event.target.value)}
