@@ -45,6 +45,7 @@ export const EditorTabBar = memo(function EditorTabBar({
       role="group"
       aria-label={t('editor.tabBar.editorTabs')}
     >
+      <div className="tabs-note-scroll">
       {openTabs.length > 0 ? (
         <span
           className="tab-list-semantic"
@@ -135,6 +136,7 @@ export const EditorTabBar = memo(function EditorTabBar({
           </div>
         ))
       )}
+      </div>
       {workspaceHeaderActions}
     </div>
   )
