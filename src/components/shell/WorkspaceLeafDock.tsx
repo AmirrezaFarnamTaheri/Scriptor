@@ -40,6 +40,7 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
   const writing = !primary || (primary.reference.kind === 'note' &&
     (dock.visited.has(primary.id) || workspace.activePath === primary.reference.path)) ||
     (primary.reference.kind === 'feature' && primary.reference.id === 'editor')
+  const writingVisible = writing && !(revealed?.group === 'primary' && revealed.reference.kind !== 'note')
   const vaultId = workspace.vault?.id
   const focusedGroup = revealed?.group ?? dock.activeLeaf?.group ?? 'primary'
   // The editor owns tabs for opened notes. Saved but unopened note references
@@ -61,13 +62,13 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
         ...dock.commands.map(command => ({ id: command.id, label: command.label, run: () => { void command.run() } })),
       ]} compact /> : null
   return <section className={`editor-panel workspace-leaf-dock${secondary ? ' has-side' : ''} focus-${focusedGroup}`} aria-label={copy.navigation}>
-    {!writing ? workspaceActions : null}
+    {!writingVisible ? workspaceActions : null}
     {dock.status !== 'idle' && <p className="workspace-transition-status" role="status">{workspaceTransitionCopy(locale, dock.status === 'pending', dock.reason === 'limit')}</p>}
     <div className="workspace-leaf-grid">
       {(['primary', 'secondary'] as const).map(group => <div key={group} className={`workspace-group-heading ${group}${group === 'primary' && !hasPrimaryLeafTabs ? ' note-only' : ''}`}>
         <WorkspaceLeafTabs state={dock.state} group={group} label={dock.label} onSelect={dock.select} onClose={dock.close} onMove={dock.move} onReorder={dock.reorder} panelId={`${id}-${group}`} pending={dock.status === 'pending'} isVisible={group === 'primary' ? visiblePrimaryLeaf : undefined} />
       </div>)}
-      <div className="workspace-writing-leaf" hidden={!writing || Boolean(revealed?.group === 'primary' && revealed.reference.kind !== 'note')} id={writing ? `${id}-primary` : undefined}><WorkspaceHeaderActionsContext.Provider value={workspaceActions}>{children}</WorkspaceHeaderActionsContext.Provider></div>
+      <div className="workspace-writing-leaf" hidden={!writingVisible} id={writing ? `${id}-primary` : undefined}><WorkspaceHeaderActionsContext.Provider value={workspaceActions}>{children}</WorkspaceHeaderActionsContext.Provider></div>
       {dock.state.leaves.filter(leaf => leaf.reference.kind !== 'note' || leaf.group === 'secondary' ||
         (!dock.visited.has(leaf.id) && workspace.activePath !== leaf.reference.path)).map(leaf => {
         const ref = leaf.reference
