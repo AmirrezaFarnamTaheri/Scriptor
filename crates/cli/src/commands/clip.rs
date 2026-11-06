@@ -28,7 +28,7 @@ fn save_clipped_note(
         root,
         path,
         markdown,
-        Some(scriptor_vault::EXPECTED_MISSING_CONTENT_HASH),
+        Some(scriptor_vault::write::EXPECTED_MISSING_CONTENT_HASH),
     )?;
     Ok(())
 }
