@@ -480,7 +480,9 @@
     "view": {
       "source": "Quelle",
       "split": "Geteilt",
-      "preview": "Vorschau"
+      "preview": "Vorschau",
+      "editablePreview": "Bearbeitbare Vorschau",
+      "editablePreviewDescription": "Zum Bearbeiten von Markdown auf eine Zeile klicken; „Gerenderte Ausgabe“ zeigt die schreibgeschützte Ansicht."
     },
     "transforms": {
       "heading1": "Überschrift 1",
