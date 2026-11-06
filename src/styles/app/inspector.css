@@ -25,6 +25,7 @@
   margin: 10px 0 6px;
   padding: 4px;
   gap: 4px;
+  flex-wrap: wrap;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   /* A solid themed base stops scrolled text showing through the tinted tabs. */
@@ -38,8 +39,8 @@
      ellipsise even when the row had room for all three, because its share was
      fixed at a third of the bar. Tabs may still shrink if the row is genuinely
      too narrow. */
-  flex: 0 1 auto;
-  min-width: 0;
+  flex: 1 1 30%;
+  min-width: min(100%, 5rem);
   min-height: 34px;
   padding: 0 6px;
   border-radius: 6px;
@@ -47,9 +48,9 @@
   color: var(--muted);
   font-size: 12px;
   font-weight: 560;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
   transition: background 150ms var(--ease-soft), color 150ms var(--ease-soft), box-shadow 150ms var(--ease-soft);
 }
 
@@ -75,15 +76,10 @@
     max-width: 100%;
     padding-inline: 2px;
     font-size: 11px;
-    /* Keep the 44px touch target, but do not let the labels wrap. This band used to
-       set `white-space: normal` with `overflow-wrap: anywhere`, so `Rendered output`
-       broke onto two lines — and `anywhere` permits breaking inside a word — which
-       doubled the tab bar's height and left the three tabs at mismatched baselines.
-       A tab row stays one line; a label that genuinely cannot fit ellipsises like
-       every other tab, and the full name stays on the accessible name. */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* Long translated tabs remain readable: rows may wrap, but names must not
+       ellipsize or disappear at the tablet-width inspector rail. */
+    white-space: normal;
+    overflow-wrap: anywhere;
     line-height: 1.2;
   }
 }
@@ -130,6 +126,8 @@
   color: var(--ink-strong);
   font-size: 15px;
   line-height: 1.2;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .widget-card header span,
