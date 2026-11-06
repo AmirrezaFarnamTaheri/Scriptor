@@ -10,7 +10,6 @@ test.describe('Compact writing chrome', () => {
     const writing = page.locator('.workspace-writing-leaf')
     const tabs = writing.locator('.tabs-row')
     const shortcuts = tabs.getByRole('navigation', { name: 'Workspaces', exact: true })
-    const toolbar = writing.locator('.editor-toolbar-wrapper')
     await expect(tabs).toBeVisible()
     await expect(shortcuts).toBeVisible()
     await expect(page.locator('.workspace-leaf-dock > .workspace-activity-bar')).toHaveCount(0)
