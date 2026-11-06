@@ -9,7 +9,7 @@
 import { TASK_CHECKBOX_CLASS_SOURCE } from '@scriptor/core/task'
 
 export function formatSearchSnippet(snippet: string): string {
-  const clippedLeft = /^\s*[^\s\[][^\s]*\]\]/.test(snippet)
+  const clippedLeft = /^\s*[^\s[][\S]*\]\]/.test(snippet)
   const clippedRight = /\[\[[^\]]*$/.test(snippet)
   let value = snippet
   const wikilink = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
