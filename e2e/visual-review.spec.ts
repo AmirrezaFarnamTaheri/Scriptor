@@ -396,10 +396,9 @@ test.describe('visual review states', () => {
       const wrap = badge.closest('.resource-table-wrap')?.getBoundingClientRect()
       return Boolean(wrap) && rect.left >= wrap!.left - 1 && rect.right <= wrap!.right + 1
     })).toBe(true)
-    // The 620px inventory table deliberately owns horizontal scrolling inside
-    // this wrapper. Its intrinsic width must never be promoted to panel/page
-    // overflow, but the wrapper itself remains a valid local scroller.
-    await expect.poll(() => tableWrap.evaluate((element) => element.scrollWidth >= element.clientWidth)).toBe(true)
+    // At a narrow companion width the inventory becomes stacked readable cards;
+    // the status badge and source control remain visible without side scrolling.
+    await expect.poll(() => tableWrap.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await expectNoHorizontalOverflow(page)
     await captureElement(page, installedSection, 'visual-mcp-sharing-table.png')
   })
@@ -701,7 +700,7 @@ test.describe('visual review states', () => {
     const mobileTools = page.locator('.editor-primary-formatting .tools-trigger')
     await expect(mobileTools).toBeInViewport({ ratio: 1 })
     await mobileTools.click()
-    await expect(page.getByRole('menuitem', { name: 'Bold', exact: true })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: /Customize/i })).toBeVisible()
     await page.keyboard.press('Escape')
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await expectNoHorizontalOverflow(page)
