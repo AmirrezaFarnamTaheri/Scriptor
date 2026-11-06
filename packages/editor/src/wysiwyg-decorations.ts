@@ -3,7 +3,7 @@ import { StateEffect, StateField, type Range } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import type { Extension } from '@codemirror/state'
 
-import { TASK_CHECKBOX_CLASS_SOURCE, EXTENDED_TASK_CHECKBOX_CLASS_SOURCE, checkboxCharToStatus, getStatusMeta } from '@scriptor/core/task'
+import { TASK_CHECKBOX_CLASS_SOURCE, checkboxCharToStatus, getStatusMeta } from '@scriptor/core/task'
 
 const headingMarks = new Map<number, Decoration>([
   [1, Decoration.mark({ class: 'cm-wysiwyg-heading cm-wysiwyg-heading-1' })],
@@ -205,7 +205,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             }).range(markerFrom, markerFrom + 3))
           }
           if (!revealSyntax) {
-            const extendedTask = new RegExp(`^(\\s*[-*+] +)(\\[([\\${EXTENDED_TASK_CHECKBOX_CLASS_SOURCE}])\\])(?=\\s|$)`).exec(line.text)
+            const extendedTask = /^(\s*[-*+] +)(\[([/>\-])\])(?=\s|$)/.exec(line.text)
             if (extendedTask) {
               const markerFrom = line.from + extendedTask[1].length
               // Hide the list bullet and only the three marker bytes. The
