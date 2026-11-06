@@ -388,6 +388,14 @@ test.describe('visual review states', () => {
       const panel = element.closest('.mcp-panel')?.getBoundingClientRect()
       return Boolean(panel) && rect.left >= panel.left - 1 && rect.right <= panel.right + 1
     })).toBe(true)
+    // The managed badge must fit the visible inventory card even in a narrow MCP rail.
+    const managedBadge = installedSection.locator('.resource-table td:nth-child(3) .resource-badge.managed')
+    await expect(managedBadge).toBeVisible()
+    await expect.poll(() => managedBadge.evaluate((badge) => {
+      const rect = badge.getBoundingClientRect()
+      const wrap = badge.closest('.resource-table-wrap')?.getBoundingClientRect()
+      return Boolean(wrap) && rect.left >= wrap!.left - 1 && rect.right <= wrap!.right + 1
+    })).toBe(true)
     // The 620px inventory table deliberately owns horizontal scrolling inside
     // this wrapper. Its intrinsic width must never be promoted to panel/page
     // overflow, but the wrapper itself remains a valid local scroller.
@@ -690,6 +698,11 @@ test.describe('visual review states', () => {
     await expect(nav.getByRole('button', { name: 'Plugins' })).toBeVisible()
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeVisible()
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
+    const mobileTools = page.locator('.editor-primary-formatting .tools-trigger')
+    await expect(mobileTools).toBeInViewport({ ratio: 1 })
+    await mobileTools.click()
+    await expect(page.getByRole('menuitem', { name: 'Bold', exact: true })).toBeVisible()
+    await page.keyboard.press('Escape')
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-mobile-320.png')
@@ -714,6 +727,7 @@ test.describe('visual review states', () => {
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
     await expect(page.locator('nav.mobile-workspace-nav')).toHaveAttribute('aria-label', 'پیمایش محیط کاری موبایل')
+    await expect(page.locator('.editor-primary-formatting .tools-trigger')).toBeInViewport({ ratio: 1 })
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-mobile-rtl-fa-390.png')
@@ -762,6 +776,9 @@ test.describe('visual review states', () => {
     await expect(page.locator('.metric-grid')).toContainText('Defekte Links')
     await expect(page.locator('.metric-grid')).toContainText('Wörter im Vault')
     await expect(page.locator('.inspector-panel')).not.toContainText('Broken links')
+    await expect.poll(() => page.locator('.inspector-tabs').evaluate((root) =>
+      [...root.querySelectorAll('button')].every((button) => button.scrollWidth <= button.clientWidth + 1),
+    )).toBe(true)
     await expect(page.locator('.status-strip')).not.toContainText('fresh')
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-de-1024.png')
@@ -1704,6 +1721,7 @@ test.describe('visual review states', () => {
     await entry.press('Enter')
     const todo = capture.getByRole('textbox', { name: /Task text:/ }).first()
     await expect(todo).toHaveValue('Review visual evidence before release')
+    await expect(todo).toHaveJSProperty('tagName', 'TEXTAREA')
     await expect(entry).toHaveValue('')
     await expect(entry).toBeFocused()
     await expect.poll(() => todo.evaluate((element) => {
@@ -1728,7 +1746,7 @@ test.describe('visual review states', () => {
     const todoActions = todoRow.locator('.quick-todo-actions')
     await expect(todoActions).toBeVisible()
     await expect.poll(() => todoRow.evaluate((element) => {
-      const input = element.querySelector('input')
+      const input = element.querySelector('textarea')
       const actions = element.querySelector('.quick-todo-actions')
       if (!(input instanceof HTMLElement) || !(actions instanceof HTMLElement)) return false
       const inputRect = input.getBoundingClientRect()
