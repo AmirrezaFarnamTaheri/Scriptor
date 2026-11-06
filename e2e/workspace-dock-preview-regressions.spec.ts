@@ -72,7 +72,12 @@ test.describe('Workspace dock, tab and live-preview regressions', () => {
     await task.press('Space')
     await expect(task).toBeFocused()
     await expect(task).toHaveAttribute('aria-checked', 'false')
-    await expect(live.locator('.cm-line', { hasText: 'Draft methodology' })).toContainText('- [/] Draft methodology')
+    const progressLine = live.locator('.cm-line', { hasText: 'Draft methodology' })
+    await expect(progressLine.locator('[data-task-state="in-progress"]')).toHaveAttribute('aria-label', 'In Progress task')
+    // Inactive authoring lines show the task state, while focusing reveals
+    // the unchanged bytes for editing and round-trip preservation.
+    await progressLine.click()
+    await expect(progressLine).toContainText('- [/] Draft methodology')
 
     await properties.click()
     await expect(live.locator('.cm-content')).toContainText('project: Scriptor research')
