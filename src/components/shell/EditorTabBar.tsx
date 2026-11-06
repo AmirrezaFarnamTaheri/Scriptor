@@ -1,7 +1,8 @@
-import { memo, useId } from 'react'
+import { memo, useContext, useId } from 'react'
 import { RotateCcw, FileText, Pin, X } from 'lucide-react'
 
 import { useI18n } from '../../lib/i18n'
+import { WorkspaceHeaderActionsContext } from './WorkspaceHeaderActionsContext'
 
 export interface OpenTab {
   path: string
@@ -35,6 +36,7 @@ export const EditorTabBar = memo(function EditorTabBar({
 }: EditorTabBarProps) {
   const { t } = useI18n()
   const tabListId = useId()
+  const workspaceHeaderActions = useContext(WorkspaceHeaderActionsContext)
 
   return (
     <div
@@ -133,6 +135,7 @@ export const EditorTabBar = memo(function EditorTabBar({
           </div>
         ))
       )}
+      {workspaceHeaderActions}
     </div>
   )
 })
