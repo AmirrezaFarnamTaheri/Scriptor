@@ -127,3 +127,24 @@ html[data-ui-reflow='mobile'] .workspace-activity-bar.workspace-shortcut-bar.is-
     max-width: 48%;
   }
 }
+
+/* Pinned custom shortcuts scroll independently; the overflow and manager
+   triggers must remain visible at the trailing end of the compact tab band. */
+.tabs-row > .workspace-activity-bar.workspace-shortcut-bar.is-inline {
+  overflow: visible;
+}
+.tabs-row > .workspace-activity-bar.workspace-shortcut-bar.is-inline .workspace-shortcut-pinned {
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs-row > .workspace-activity-bar.workspace-shortcut-bar.is-inline .workspace-shortcut-pinned::-webkit-scrollbar { display: none; }
+.tabs-row > .workspace-activity-bar.workspace-shortcut-bar.is-inline > .workspace-shortcut-more,
+.tabs-row > .workspace-activity-bar.workspace-shortcut-bar.is-inline > .workspace-shortcut-icon {
+  flex: 0 0 auto;
+}
