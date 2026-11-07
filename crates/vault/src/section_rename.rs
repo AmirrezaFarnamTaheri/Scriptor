@@ -11,7 +11,7 @@ use crate::link_rewrite::{
 use crate::note::read_note;
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::scan::list_notes;
-use crate::write::save_note;
+use crate::write::save_rewritten_note;
 
 static HEADING_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(#+)\s+(.*)$").expect("valid heading regex"));
@@ -344,7 +344,7 @@ pub fn section_rename_apply(
             (updated, 0)
         };
         if count + heading_edits > 0 && updated != document.markdown {
-            save_note(vault_id, root, &path, &updated, None)?;
+            save_rewritten_note(vault_id, root, &path, &document, &updated)?;
         }
     }
 
@@ -456,7 +456,7 @@ pub fn block_rename_apply(
             (updated, 0)
         };
         if count + anchor_edits > 0 && updated != document.markdown {
-            save_note(vault_id, root, &path, &updated, None)?;
+            save_rewritten_note(vault_id, root, &path, &document, &updated)?;
         }
     }
 

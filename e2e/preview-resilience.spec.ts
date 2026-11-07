@@ -102,6 +102,7 @@ test.describe('Markdown preview resilience', () => {
     await editorToolbar.getByRole('button', { name: 'Preview', exact: true }).click()
 
     const visualPreview = page.locator('.editor-rendered-view .editable-preview-editor')
+    await expect(page.getByRole('note', { name: 'Editable preview information' })).toContainText('Editable preview')
     const previewLines = visualPreview.locator('.cm-line')
     await expect(previewLines.first()).toBeVisible({ timeout: 10_000 })
 

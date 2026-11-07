@@ -47,7 +47,14 @@ function harness(connected = true) {
       })
     },
   }
+  const persisted = new Map()
+  const localStorage = {
+    getItem: key => persisted.has(key) ? persisted.get(key) : null,
+    setItem: (key, value) => { persisted.set(key, String(value)) },
+    removeItem: key => { persisted.delete(key) },
+  }
   const window = {
+    localStorage,
     addEventListener(type, listener) { if (!listeners.has(type)) listeners.set(type, new Set()); listeners.get(type).add(listener) },
     removeEventListener(type, listener) { listeners.get(type)?.delete(listener) },
     dispatchEvent(event) { for (const listener of listeners.get(event.type) ?? []) listener(event) },
@@ -59,7 +66,10 @@ function harness(connected = true) {
     googleGmailListMessagesPage: async () => ({ messages: [message], nextPageToken: null }),
     googleGmailGetMessage: async () => message,
     googleGmailStartAuth: async () => 'a@example.invalid',
-    googleGmailSendMessage: async () => {},
+    googleGmailSendMessage: async (_raw, beforeSubmission) => {
+      beforeSubmission?.()
+      return { id: 'sent123', threadId: 'thread123' }
+    },
   }
   const translators = Object.fromEntries(['en', 'de', 'fa'].map(value => [value, key => `${value}:${key}`]))
   const props = { onClose() {}, defaultClientId: 'desktop.apps.googleusercontent.com', onImportNote: async () => {} }
@@ -85,7 +95,7 @@ function harness(connected = true) {
     effects.splice(0).forEach(fn => fn())
     return tree
   }
-  return { bridge, props, render, locale: value => { locale = value }, authReads: () => authReads }
+  return { bridge, props, render, locale: value => { locale = value }, authReads: () => authReads, localStorage }
 }
 
 function nodes(tree, predicate) {
@@ -127,16 +137,48 @@ test('locale changes during Gmail sending preserve the operation and release com
   h.render().props.onTabChange('compose')
   const fields = nodes(h.render(), node => node.type === 'input' || node.type === 'textarea')
   for (const [index, value] of ['person@example.invalid', 'Subject', 'Body'].entries()) fields[index].props.onChange({ target: { value } })
-  h.bridge.googleGmailSendMessage = () => sent.promise
+  h.bridge.googleGmailSendMessage = (_raw, beforeSubmission) => { beforeSubmission?.(); return sent.promise }
   const pending = form(h.render(), 'gmail-manager-compose').props.onSubmit(event)
   h.locale('fa')
   assert.equal(nodes(h.render(), node => node.type === 'input')[0].props.disabled, true)
   assert.equal(h.authReads(), 1)
-  sent.resolve(); await pending
+  sent.resolve({ id: 'sent123', threadId: 'thread123' }); await pending
   const tree = h.render()
   assert.equal(nodes(tree, node => node.type === 'textarea')[0].props.disabled, false)
   assert.equal(nodes(tree, node => node.type === 'textarea')[0].props.value, '')
   assert.equal(nodes(tree, node => node.props?.role === 'status').length, 1)
+})
+
+
+test('lost Gmail send receipt retains draft and holds later sends until Sent is reviewed', async () => {
+  const h = harness()
+  h.render(); await settle()
+  h.render().props.onTabChange('compose')
+  const fields = nodes(h.render(), node => node.type === 'input' || node.type === 'textarea')
+  for (const [index, value] of ['person@example.invalid', 'Research', 'Potentially sent'].entries()) {
+    fields[index].props.onChange({ target: { value } })
+  }
+  let submissions = 0
+  h.bridge.googleGmailSendMessage = async (_raw, beforeSubmission) => {
+    submissions += 1
+    beforeSubmission?.()
+    throw new Error('Gmail response lost')
+  }
+  await form(h.render(), 'gmail-manager-compose').props.onSubmit(event)
+  let tree = h.render()
+  assert.equal(submissions, 1)
+  assert.equal(h.localStorage.getItem('scriptor:gmail-send-review-required:v1'), '1')
+  assert.equal(submit(tree).props.disabled, true)
+  assert.equal(nodes(tree, node => node.type === 'textarea')[0].props.value, 'Potentially sent')
+  assert.equal(nodes(tree, node => node.props?.role === 'alert').length, 1)
+  await form(tree, 'gmail-manager-compose').props.onSubmit(event)
+  assert.equal(submissions, 1, 'a second submit must not reach the native bridge')
+
+  button(h.render(), 'integrations.gmail.reviewConfirmed').props.onClick()
+  tree = h.render()
+  assert.equal(h.localStorage.getItem('scriptor:gmail-send-review-required:v1'), null)
+  assert.equal(nodes(tree, node => node.type === 'textarea')[0].props.value, '')
+  assert.equal(submit(tree).props.disabled, true, 'the old draft must not be resent in one click')
 })
 
 test('locale changes during Gmail importing retain current ownership and release import controls', async () => {

@@ -10,7 +10,7 @@ use crate::link_rewrite::{
 use crate::note::read_note;
 use crate::path::VaultRoot;
 use crate::scan::list_notes;
-use crate::write::save_note;
+use crate::write::save_rewritten_note;
 
 static VALID_TAG_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_/-]+$").expect("valid tag label regex"));
@@ -319,7 +319,7 @@ pub fn tag_rename_apply(
         let document = read_note(vault_id, root, &note_path)?;
         let (updated, count) = rewrite_tags_in_markdown(&old_label, &new_label, &document.markdown);
         if count > 0 {
-            save_note(vault_id, root, &note_path, &updated, None)?;
+            save_rewritten_note(vault_id, root, &note_path, &document, &updated)?;
         }
     }
 

@@ -182,6 +182,39 @@
 - Keep Database Studio filter and cell editing consistent with the native view evaluator: pass `path matches` patterns through as regular expressions, compare tags case-insensitively with an optional leading `#`, and write edited cells as YAML scalars so text such as `2026` keeps its type instead of becoming a number. Read YAML numbers in the exponent form so a written number does not come back as text, mirror the native regular-expression dialect so a pattern the native engine rejects falls back the same way, and leave the conditions the native query already applied to the native query.
 - Ignore the gitignored `artifacts/` scratch tree in ESLint, keep the release signing fixtures usable under a Windows device-path `TEMP`, and let the plugin Rust gate resolve its references from the workspace manifests when the Rust toolchain is absent instead of failing with a spawn error.
 
+## 1.3.4 — 2026-11-07
+
+### Fixed
+
+- Prevent stale editor and automated multi-note rewrites from overwriting newer vault content with compare-and-swap checks; web clipping creates notes only when the destination is absent.
+- Validate Gmail send receipts and block blind duplicate sends when the provider response is ambiguous, retaining the compose draft and a persistent Gmail Sent review hold across reloads.
+- Repair responsive editor toolbar discoverability, editable Markdown preview affordances, accessibility and RTL behavior, and graph, history, resource synchronization, and quick-capture presentation issues.
+
+### Improved
+
+- Consolidate the writing workspace's three header bands into two, preserving keyboard-reachable Workspaces navigation, scrolling tabs, mobile layouts and editor tools.
+- Validate the combined responsive and compact-header changes with isolated cross-PR browser, mobile, accessibility and visual regression coverage.
+
+### Fixed
+
+- Preserve reviewed note-history revisions across vault switching, authorization delays, concurrent writes and unsaved editor drafts. Reject stale or changed recovery inputs without overwriting newer notes.
+- Reject direct daemon requests for desktop-authorized destructive or external operations, including retained-history restoration.
+- Reject pre-cancelled external-process launches before executable lookup or spawn, and retain independent bounded stdout/stderr handling.
+- Require source-bound release-quality checks before creating an immutable release tag; refuse a conflicting prior tag rather than moving it.
+
+- Fail closed when malformed native restore receipts cannot establish a confirmed outcome, and prohibit blind history-restore retry after native submission with a missing response.
+- Terminate export and diagram subprocess descendants on cancellation and timeout while retaining native child-reaping tests.
+- Patch pulldown-cmark to 0.13.6 for RUSTSEC-2026-0433 without allowing a vulnerability exception.
+
+### Improved
+
+- Integrate read-only recovery, mutation-outcome, Database Studio candidate-coverage and research provenance foundations without granting new mutation authority.
+- Add versioned research manifest and capability-graduation evidence review; support claims, automated artifact acceptance and actual live-provider compatibility remain distinct.
+- Add a source-bound, repeatable cold/warm scan/search benchmark evidence validator that rejects repeated UTC start timestamps; completeness does not establish performance targets.
+- Update supported dependency graph to the reviewed Wasmtime 50 and npm minor/patch versions.
+
+**Release verification:** Source-version preparation alone does not establish publication, native signing, full MAT acceptance or live-provider compatibility. Consult the immutable release artifacts, checksums, trust evidence and exact-commit quality report for the published build.
+
 ## 1.3.3 — 2026-10-20
 
 ### Fixed

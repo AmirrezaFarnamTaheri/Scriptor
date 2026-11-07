@@ -10,7 +10,7 @@ use crate::note::read_note;
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::scan::list_notes;
 use crate::wikilink::{WikilinkIndex, WikilinkResolutionKind};
-use crate::write::save_note;
+use crate::write::save_rewritten_note;
 
 static DEFINITION_LINE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\[([^\]]+)\]:\s*(.+)$").expect("valid definition regex"));
@@ -140,7 +140,7 @@ pub fn lint_vault_fix(
         let (updated, count) =
             apply_fixes_using_index(path, &document.markdown, &shared_index, rules)?;
         if count > 0 && updated != document.markdown {
-            save_note(vault_id, root, &relative, &updated, None)?;
+            save_rewritten_note(vault_id, root, &relative, &document, &updated)?;
             files_fixed += 1;
             edits_applied += count;
             fixed_paths.push(path.clone());

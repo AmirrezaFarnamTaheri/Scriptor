@@ -41,14 +41,27 @@ test.describe('Editor markup fidelity', () => {
     await expect(preview.locator('.cm-content')).toContainText('[[Before]] then ![[Image]] and [[After]]')
   })
 
-  test('split preview keeps Scriptor task markers intact', async ({ page }) => {
+  test('split preview shows an in-progress task status without changing its Markdown bytes', async ({ page }) => {
     const preview = await openSplitPreview(page)
     const taskLine = preview.locator('.cm-line', { hasText: 'Draft methodology' })
     await expect(taskLine).toHaveCount(1)
-    // `[/]` is Scriptor's in-progress marker. The Markdown parser used to read
-    // it as a shortcut link reference, and the WYSIWYG decorations then hid the
-    // brackets as link syntax — showing `- / Draft methodology`.
+
+    // Inactive task lines present the same semantic state as rendered output.
+    const indicator = taskLine.locator('.cm-wysiwyg-task-status')
+    await expect(indicator).toHaveAttribute('data-task-state', 'in-progress')
+    await expect(indicator).toHaveAttribute('aria-label', 'In Progress task')
+    await expect(taskLine).not.toContainText('[/]')
+
+    // Selecting the line reveals the exact authored syntax for lossless editing.
+    await taskLine.click()
     await expect(taskLine).toContainText('- [/] Draft methodology')
+  })
+
+  test('cancelled and forwarded statuses are distinguishable in editable preview', async ({ page }) => {
+    const preview = await openSplitPreview(page)
+    await preview.locator('.cm-content').fill(['# Task states', '- [-] Cancelled step', '- [>] Forwarded step', '', 'Footer'].join('\n'))
+    await expect(preview.locator('[data-task-state="cancelled"]')).toHaveAttribute('aria-label', 'Cancelled task')
+    await expect(preview.locator('[data-task-state="forwarded"]')).toHaveAttribute('aria-label', 'Forwarded task')
   })
 
   test('the workspace reports no problems for a note that only uses task markers', async ({ page }) => {

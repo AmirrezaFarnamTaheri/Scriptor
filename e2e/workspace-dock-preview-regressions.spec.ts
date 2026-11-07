@@ -72,7 +72,12 @@ test.describe('Workspace dock, tab and live-preview regressions', () => {
     await task.press('Space')
     await expect(task).toBeFocused()
     await expect(task).toHaveAttribute('aria-checked', 'false')
-    await expect(live.locator('.cm-line', { hasText: 'Draft methodology' })).toContainText('- [/] Draft methodology')
+    const progressLine = live.locator('.cm-line', { hasText: 'Draft methodology' })
+    await expect(progressLine.locator('[data-task-state="in-progress"]')).toHaveAttribute('aria-label', 'In Progress task')
+    // Inactive authoring lines show the task state, while focusing reveals
+    // the unchanged bytes for editing and round-trip preservation.
+    await progressLine.click()
+    await expect(progressLine).toContainText('- [/] Draft methodology')
 
     await properties.click()
     await expect(live.locator('.cm-content')).toContainText('project: Scriptor research')
@@ -156,7 +161,8 @@ test('preview shortcut opens a side leaf for an already-open note and closes wit
   await expect(field).toBeVisible()
 
   const shortcuts = page.locator('.workspace-activity-bar')
-  await shortcuts.getByRole('button', { name: 'Note preview', exact: true }).click()
+  await shortcuts.getByRole('button', { name: 'Workspaces', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Note preview', exact: true }).click()
   const preview = page.locator('.workspace-leaf-content.secondary .workspace-note-preview')
   await expect(preview).toBeVisible()
   await expect(preview).toContainText('Field Notes.md')
@@ -172,7 +178,8 @@ test('closing a writing tab does not remove its independently docked note previe
   await launchApp(page)
   await waitForWorkspace(page)
   await page.locator('.vault-panel .virtual-note-list').getByRole('button', { name: 'Field Notes.md' }).click()
-  await page.locator('.workspace-activity-bar').getByRole('button', { name: 'Note preview', exact: true }).click()
+  await page.locator('.workspace-activity-bar').getByRole('button', { name: 'Workspaces', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Note preview', exact: true }).click()
   const preview = page.locator('.workspace-leaf-content.secondary .workspace-note-preview')
   await expect(preview).toBeVisible()
 
@@ -231,7 +238,8 @@ test('side note preview follows unsaved writing changes instead of displaying st
   await page.locator('.vault-panel .virtual-note-list').getByRole('button', { name: 'Field Notes.md' }).click()
   await page.locator('.editor-toolbar').getByRole('button', { name: 'Tools', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Switch to CodeMirror editor' }).click()
-  await page.locator('.workspace-activity-bar').getByRole('button', { name: 'Note preview', exact: true }).click()
+  await page.locator('.workspace-activity-bar').getByRole('button', { name: 'Workspaces', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Note preview', exact: true }).click()
   const side = page.locator('.workspace-leaf-content.secondary .workspace-note-preview')
   await expect(side).toBeVisible()
   await expect(side.locator('article.markdown-preview')).toBeVisible()
