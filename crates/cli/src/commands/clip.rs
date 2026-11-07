@@ -14,6 +14,24 @@ use scriptor_vault::{RelativeVaultPath, open_vault, save_note};
 
 use crate::commands::CommandResult;
 
+/// A web clip is always a new note. Never silently replace a note created by
+/// another clip, the editor, or an external process while capture was running.
+fn save_clipped_note(
+    vault_id: &str,
+    root: &scriptor_vault::VaultRoot,
+    path: &RelativeVaultPath,
+    markdown: &str,
+) -> Result<(), scriptor_vault::VaultError> {
+    save_note(
+        vault_id,
+        root,
+        path,
+        markdown,
+        Some(scriptor_vault::write::EXPECTED_MISSING_CONTENT_HASH),
+    )?;
+    Ok(())
+}
+
 pub(crate) fn run_clip(
     url: String,
     vault_path: PathBuf,
@@ -61,14 +79,8 @@ pub(crate) fn run_clip(
 
     // Compose frontmatter + body.
     let body = build_note_content(&result);
-    save_note(
-        &session.descriptor.id,
-        &session.root,
-        &relative,
-        &body,
-        None,
-    )
-    .map_err(|e| format!("failed to write note {note_rel_path}: {e}"))?;
+    save_clipped_note(&session.descriptor.id, &session.root, &relative, &body)
+        .map_err(|e| format!("failed to create clip {note_rel_path}: {e}"))?;
 
     eprintln!("clip: wrote → {note_rel_path}");
     println!("{note_rel_path}");
@@ -150,6 +162,38 @@ mod tests {
         fs,
         time::{SystemTime, UNIX_EPOCH},
     };
+
+    #[test]
+    fn clipping_never_overwrites_a_previous_note_with_the_same_name() {
+        let dir = std::env::temp_dir().join(format!(
+            "scriptor-clip-create-only-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).expect("temp");
+        let session = open_vault(&dir).expect("vault");
+        let path = RelativeVaultPath::parse("00-inbox/clipped.md").expect("path");
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Existing\n",
+            None,
+        )
+        .unwrap();
+        let err = save_clipped_note(&session.descriptor.id, &session.root, &path, "# New clip\n")
+            .expect_err("clip must not overwrite an existing same-name note");
+        assert!(err.to_string().to_lowercase().contains("hash"), "{err}");
+        assert_eq!(
+            read_note(&session.descriptor.id, &session.root, &path)
+                .unwrap()
+                .markdown,
+            "# Existing\n"
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
 
     #[test]
     fn resolve_filename_replaces_date_and_title() {

@@ -2,8 +2,8 @@ import { invoke } from '@tauri-apps/api/core'
 
 import { requireNative } from '../native.ts'
 import { authorizeSensitiveOperation } from './authorization.ts'
-import { parseGmailMessageContent, parseGmailMessagePage, validateGmailListRequest, validateGmailMessageId, validateGoogleClientId } from '../../lib/googleResourceContracts.ts'
-import type { GmailMessagePage } from '../../lib/googleResourceContracts.ts'
+import { parseGmailMessageContent, parseGmailMessagePage, parseGmailSendReceipt, validateGmailListRequest, validateGmailMessageId, validateGoogleClientId } from '../../lib/googleResourceContracts.ts'
+import type { GmailMessagePage, GmailSendReceipt } from '../../lib/googleResourceContracts.ts'
 
 export type { GmailMessagePage } from '../../lib/googleResourceContracts.ts'
 
@@ -27,6 +27,14 @@ export interface GmailMessagePreview {
 
 export interface GmailMessageContent extends GmailMessagePreview {
   plainText: string
+}
+
+export class GmailSendOutcomeUnknownError extends Error {
+  constructor(reason: unknown) {
+    const detail = reason instanceof Error ? reason.message : String(reason)
+    super('Check Gmail Sent before retrying: the message may already have been delivered. ' + detail)
+    this.name = 'GmailSendOutcomeUnknownError'
+  }
 }
 
 export async function googleGmailStartAuth(clientId: string): Promise<string> {
@@ -84,9 +92,15 @@ export async function googleGmailTrashMessage(id: string): Promise<void> {
   await invoke('google_gmail_trash_message', { id, authorizationToken })
 }
 
-export async function googleGmailSendMessage(rawMessage: string): Promise<void> {
+export async function googleGmailSendMessage(rawMessage: string, beforeSubmission?: () => void): Promise<GmailSendReceipt> {
   requireNative()
   const digest = await contentDigest([rawMessage])
   const authorizationToken = await authorizeSensitiveOperation('google_gmail_send', `gmail-send:${digest}`)
-  await invoke('google_gmail_send_message', { rawMessage, authorizationToken })
+  // Save the replay barrier after authorization but before submitting to Gmail.
+  beforeSubmission?.()
+  try {
+    return parseGmailSendReceipt(await invoke<unknown>('google_gmail_send_message', { rawMessage, authorizationToken }))
+  } catch (reason) {
+    throw new GmailSendOutcomeUnknownError(reason)
+  }
 }

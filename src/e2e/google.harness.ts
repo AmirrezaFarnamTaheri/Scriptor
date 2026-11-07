@@ -64,7 +64,8 @@ export function createGoogleGmailHarness() {
       case 'google_gmail_send_message':
         authed()
         if (sessionStorage.getItem('e2e:gmail-send-error') === '1') throw new Error('Gmail send failed')
-        return reply(null)
+        if (sessionStorage.getItem('e2e:gmail-send-unknown') === '1') throw new Error('Gmail accepted the message but the response was lost')
+        return reply({ id: 'sent_123', threadId: 'thread-42' })
       default: return { handled: false }
     }
   }

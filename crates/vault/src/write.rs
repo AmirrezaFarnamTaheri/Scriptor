@@ -42,6 +42,31 @@ pub fn save_note(
     )
 }
 
+/// Persist a transformation only if the exact note revision that was read is
+/// still present. The shared vault mutation lock surrounds the hash check and
+/// atomic replacement. All multi-note rewrites must use this CAS boundary;
+/// reading first and later calling `save_note(..., None)` is not safe.
+pub fn save_rewritten_note(
+    vault_id: &str,
+    root: &VaultRoot,
+    path: &RelativeVaultPath,
+    original: &crate::note::NoteDocument,
+    markdown: &str,
+) -> Result<SaveNoteOutput, VaultError> {
+    if original.metadata.vault_id != vault_id || original.metadata.path != path.as_str() {
+        return Err(VaultError::InvalidConfig {
+            message: "Rewritten note no longer belongs to the selected vault and path".into(),
+        });
+    }
+    save_note(
+        vault_id,
+        root,
+        path,
+        markdown,
+        Some(&original.metadata.content_hash),
+    )
+}
+
 pub(crate) fn save_note_locked(
     vault_id: &str,
     root: &VaultRoot,
@@ -282,6 +307,72 @@ mod tests {
     use super::*;
     use crate::open::open_vault;
     use tempfile::tempdir;
+
+    #[test]
+    fn stale_rewrite_does_not_replace_an_intervening_edit() {
+        let dir = tempdir().expect("tempdir");
+        let session = open_vault(dir.path()).expect("vault");
+        let path = RelativeVaultPath::parse("conflict.md").expect("path");
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Original\n",
+            None,
+        )
+        .expect("initial");
+        let source = read_note(&session.descriptor.id, &session.root, &path).expect("read");
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Concurrent\n",
+            Some(&source.metadata.content_hash),
+        )
+        .expect("other writer");
+        let err = save_rewritten_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            &source,
+            "# Rewritten\n",
+        )
+        .expect_err("stale source must not overwrite newer editor content");
+        assert!(matches!(err, VaultError::HashMismatch { .. }), "{err:?}");
+        assert_eq!(
+            read_note(&session.descriptor.id, &session.root, &path)
+                .unwrap()
+                .markdown,
+            "# Concurrent\n"
+        );
+    }
+
+    #[test]
+    fn rewritten_note_rejects_a_document_from_another_path() {
+        let dir = tempdir().expect("tempdir");
+        let session = open_vault(dir.path()).expect("vault");
+        let a = RelativeVaultPath::parse("a.md").unwrap();
+        let b = RelativeVaultPath::parse("b.md").unwrap();
+        save_note(&session.descriptor.id, &session.root, &a, "# A\n", None).unwrap();
+        save_note(&session.descriptor.id, &session.root, &b, "# B\n", None).unwrap();
+        let source = read_note(&session.descriptor.id, &session.root, &a).unwrap();
+        assert!(
+            save_rewritten_note(
+                &session.descriptor.id,
+                &session.root,
+                &b,
+                &source,
+                "# New B\n",
+            )
+            .is_err()
+        );
+        assert_eq!(
+            read_note(&session.descriptor.id, &session.root, &b)
+                .unwrap()
+                .markdown,
+            "# B\n"
+        );
+    }
 
     #[test]
     fn atomic_save_creates_note() {

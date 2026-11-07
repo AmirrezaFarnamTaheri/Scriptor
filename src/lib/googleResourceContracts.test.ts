@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { parseGoogleCalendars, parseGoogleTaskLists, parseGmailMessagePage, parseGmailMessageContent, validateGmailListRequest } from './googleResourceContracts.ts'
+import { parseGoogleCalendars, parseGoogleTaskLists, parseGmailMessagePage, parseGmailMessageContent, parseGmailSendReceipt, validateGmailListRequest } from './googleResourceContracts.ts'
 
 describe('Google resource boundaries', () => {
   it('preserves calendar access roles and rejects inconsistent write capability', () => {
@@ -27,6 +27,14 @@ describe('Google resource boundaries', () => {
     assert.throws(() => parseGmailMessagePage({ messages: [], nextPageToken: 'same' }, 'same'))
     assert.throws(() => parseGmailMessagePage({ messages: [], nextPageToken: '\n' }))
     assert.throws(() => parseGmailMessagePage({ messages: [message], nextPageToken: null }, null, 0))
+  })
+
+  it('accepts only a provider-confirmed Gmail send receipt with an immutable message identity', () => {
+    assert.deepEqual(parseGmailSendReceipt({ id: 'sent_123', threadId: 'thread-42' }), { id: 'sent_123', threadId: 'thread-42' })
+    assert.throws(() => parseGmailSendReceipt(undefined))
+    assert.throws(() => parseGmailSendReceipt({}))
+    assert.throws(() => parseGmailSendReceipt({ id: '../unsafe', threadId: 'thread' }))
+    assert.throws(() => parseGmailSendReceipt({ id: 'sent_123', threadId: null }))
   })
 
   it('bounds inputs without rewriting Gmail query syntax', () => {
