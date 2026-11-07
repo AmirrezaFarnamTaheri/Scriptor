@@ -12,6 +12,7 @@ export interface GmailPreview {
 }
 export interface GmailMessagePage { messages: GmailPreview[]; nextPageToken: string | null }
 export interface GmailContent extends GmailPreview { plainText: string }
+export interface GmailSendReceipt { id: string; threadId: string }
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid Google provider response')
@@ -92,6 +93,11 @@ export function parseGmailMessagePage(value: unknown, previousToken: string | nu
     }
   }, maxResults)
   return { messages, nextPageToken }
+}
+
+export function parseGmailSendReceipt(value: unknown): GmailSendReceipt {
+  const receipt = record(value)
+  return { id: messageId(receipt.id), threadId: messageId(receipt.threadId) }
 }
 
 export function parseGmailMessageContent(value: unknown, expectedId: string): GmailContent {
