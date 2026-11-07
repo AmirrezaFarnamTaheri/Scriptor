@@ -133,7 +133,8 @@ pub use workspace_session::{
     write_workspace_session,
 };
 pub use write::{
-    SaveNoteOptions, SaveNoteOutput, rollback_save_note, save_note, save_rewritten_note, save_note_with_options,
+    SaveNoteOptions, SaveNoteOutput, rollback_save_note, save_note, save_note_with_options,
+    save_rewritten_note,
 };
 
 pub use wikilink::{
