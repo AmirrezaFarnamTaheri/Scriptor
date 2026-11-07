@@ -1,4 +1,5 @@
 .resource-sync-panel {
+  container-type: inline-size;
   display: grid;
   width: 100%;
   min-width: 0;
@@ -149,7 +150,11 @@
 .resource-badge {
   display: inline-flex;
   align-items: center;
-  width: max-content;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.12rem 0.45rem;
@@ -200,7 +205,7 @@
 
 .resource-table {
   width: 100%;
-  min-width: 500px;
+  min-width: 0;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.78rem;
@@ -355,3 +360,14 @@
 .resource-copy-filter input { flex: 1 1 14rem; min-width: 0; min-height: 40px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); padding: 0.45rem 0.65rem; }
 .resource-copy-filter input:focus-visible,
 .resource-copy-filter button:focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
+
+/* The four-column inventory is unreadable in a companion rail. A semantic
+   stacked row retains each field, its header and keyboard-reachable radio. */
+@container (max-width: 520px) {
+  .resource-table thead { display: none; }
+  .resource-table, .resource-table tbody, .resource-table tr, .resource-table td { display: block; width: 100%; min-width: 0; box-sizing: border-box; }
+  .resource-table tr { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .resource-table td { display: grid; gap: 4px; max-width: none; padding: 6px; border: 0; }
+  .resource-table td::before { content: attr(data-label); font-weight: 700; color: var(--ink); font-size: 0.7rem; }
+  .resource-table td:last-child { justify-items: start; }
+}

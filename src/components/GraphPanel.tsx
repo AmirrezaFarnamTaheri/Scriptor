@@ -617,7 +617,7 @@ export const GraphPanel = memo(function GraphPanel({
                   <circle r={22} fill="none" className="graph-node-focus-ring" />
                 )}
                 <circle r={isFocus || isHovered ? 18 : 14} fill={fillColor} />
-                <text y={28} textAnchor="middle" className="graph-node-label">
+                <text y={34} textAnchor="middle" className="graph-node-label">
                   {node.label.length > 18 ? `${node.label.slice(0, 17)}...` : node.label}
                 </text>
               </g>

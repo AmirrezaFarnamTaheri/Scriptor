@@ -3,7 +3,7 @@ import { StateEffect, StateField, type Range } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import type { Extension } from '@codemirror/state'
 
-import { TASK_CHECKBOX_CLASS_SOURCE } from '@scriptor/core/task'
+import { TASK_CHECKBOX_CLASS_SOURCE, checkboxCharToStatus, getStatusMeta } from '@scriptor/core/task'
 
 const headingMarks = new Map<number, Decoration>([
   [1, Decoration.mark({ class: 'cm-wysiwyg-heading cm-wysiwyg-heading-1' })],
@@ -70,6 +70,30 @@ class TaskCheckboxWidget extends WidgetType {
       view.dispatch({ changes: { from: markerFrom + 1, to: markerFrom + 2, insert: marker === '[ ]' ? 'x' : ' ' } })
     })
     return button
+  }
+}
+
+/** Display an extended task state on inactive lines without modifying the
+ * Markdown source. Clicking into the line reveals the precise original marker. */
+class TaskStatusWidget extends WidgetType {
+  readonly markerFrom: number
+  readonly character: string
+  constructor(character: string, markerFrom: number) {
+    super()
+    this.character = character
+    this.markerFrom = markerFrom
+  }
+  eq(other: TaskStatusWidget) { return other.character === this.character && other.markerFrom === this.markerFrom }
+  toDOM() {
+    const status = getStatusMeta(checkboxCharToStatus(this.character))
+    const marker = document.createElement('span')
+    marker.className = 'cm-wysiwyg-task-status'
+    marker.dataset.taskState = status.key
+    marker.setAttribute('role', 'img')
+    marker.setAttribute('aria-label', status.label + ' task')
+    marker.title = status.label + ' task'
+    marker.textContent = status.emoji
+    return marker
   }
 }
 
@@ -180,6 +204,19 @@ function buildDecorations(view: EditorView): DecorationSet {
               widget: new TaskCheckboxWidget(standardTask[2].toLowerCase() === '[x]', markerFrom),
             }).range(markerFrom, markerFrom + 3))
           }
+          if (!revealSyntax) {
+            const extendedTask = /^(\s*[-*+] +)(\[([/>-])\])(?=\s|$)/.exec(line.text)
+            if (extendedTask) {
+              const markerFrom = line.from + extendedTask[1].length
+              // Hide the list bullet and only the three marker bytes. The
+              // underlying Markdown remains unchanged for save and export.
+              const bulletFrom = line.from + (extendedTask[1].length - extendedTask[1].trimStart().length)
+              ranges.push(hiddenSyntax.range(bulletFrom, markerFrom))
+              ranges.push(Decoration.replace({
+                widget: new TaskStatusWidget(extendedTask[3], markerFrom),
+              }).range(markerFrom, markerFrom + 3))
+            }
+          }
           if (taskLinePattern.test(line.text)) {
             ranges.push(taskListMark.range(node.from, node.to))
           }
@@ -244,6 +281,19 @@ export function wysiwygDecorationExtension(): Extension {
         color: 'var(--ink-strong)', backgroundColor: 'var(--surface-raised)', cursor: 'pointer',
       },
       '.cm-wysiwyg-task-toggle[aria-checked="true"]': { backgroundColor: 'var(--primary-soft)', borderColor: 'var(--primary)' },
+      '.cm-wysiwyg-task-status': {
+        display: 'inline-grid', placeItems: 'center', width: '18px', height: '18px',
+        padding: '0', marginRight: '6px', verticalAlign: 'middle',
+        border: '1px solid var(--border-strong)', borderRadius: '4px',
+        color: 'var(--primary-strong)', backgroundColor: 'var(--primary-soft)',
+        fontSize: '13px', fontWeight: '700', lineHeight: '1',
+      },
+      '.cm-wysiwyg-task-status[data-task-state="cancelled"]': {
+        color: 'var(--muted)', backgroundColor: 'var(--surface-muted)',
+      },
+      '.cm-wysiwyg-task-status[data-task-state="forwarded"]': {
+        color: 'var(--ink-strong)', backgroundColor: 'var(--surface-raised)',
+      },
       '.cm-wysiwyg-frontmatter-toggle': {
         display: 'inline-block', border: '1px solid var(--border)', borderRadius: '6px',
         padding: '3px 9px', backgroundColor: 'var(--surface-muted)', color: 'var(--muted)',

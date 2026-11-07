@@ -423,3 +423,19 @@
   .external-change-banner { flex-wrap: wrap; }
   .external-change-banner-actions { width: 100%; margin-inline-start: 0; }
 }
+
+/* Translated tab labels are longer than the English single-line contract.
+   Preserve compact English chrome while allowing German tabs to wrap in the
+   constrained 821-1100px inspector rather than clipping their names. */
+html[lang='de'] .inspector-tabs { flex-wrap: wrap; }
+html[lang='de'] .inspector-tabs button {
+  flex: 1 1 30%;
+  min-width: min(100%, 5rem);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+html[lang='de'] .inspector-panel .widget-card h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

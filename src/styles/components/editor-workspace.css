@@ -760,3 +760,45 @@ body.is-split-resizing .editor-preview-pane {
   background: var(--border);
   pointer-events: none;
 }
+
+/* Mobile: every tool and the overflow menu must be discoverable without
+   horizontal scrolling through an invisible clipped toolbar (including RTL). */
+@media (max-width: 640px) {
+  .format-row.editor-toolbar {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    overflow-y: visible;
+    gap: 4px;
+    padding-inline: 6px;
+  }
+  .editor-toolbar > .format-group {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .format-row.editor-toolbar .editor-primary-formatting {
+    flex: 1 1 100%;
+  }
+  .format-row.editor-toolbar .tools-trigger {
+    order: -1;
+  }
+}
+
+/* The visual surface is editable. Identify that contract without obscuring the
+   document or scrolling the preview content underneath a floating overlay. */
+.editable-preview-mode-hint {
+  flex: 0 0 auto;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.editable-preview-mode-hint strong { color: var(--ink-strong); }
+.editor-rendered-view.editable-preview-surface {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.editor-rendered-view.editable-preview-surface > .editable-preview-editor { flex: 1 1 auto; min-height: 0; }

@@ -73,8 +73,8 @@ function directedPairKey(source: string, target: string): string {
  */
 const RECIPROCAL_EDGE_OFFSET = 12
 const ARROW_SIZE = 6
-const LABEL_PLATE_PAD_X = 3
-const LABEL_PLATE_HEIGHT = 12
+const LABEL_PLATE_PAD_X = 5
+const LABEL_PLATE_HEIGHT = 16
 
 /**
  * The perpendicular offset vector for one direction of a reciprocal pair.
@@ -185,7 +185,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       const edgeColor = edge.kind === 'wikilink' ? primaryColor : mutedColor
 
       ctx.save()
-      ctx.globalAlpha = faded ? 0.2 : edge.kind === 'wikilink' ? 0.65 : 0.5
+      ctx.globalAlpha = faded ? 0.2 : edge.kind === 'wikilink' ? 0.45 : 0.32
       ctx.strokeStyle = edgeColor
       ctx.fillStyle = edgeColor
       ctx.lineWidth = 1.25
@@ -247,7 +247,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
         ctx.font = '11px sans-serif'
         ctx.textAlign = 'center'
         const metrics = ctx.measureText(label)
-        const labelY = node.y + 38
+        const labelY = node.y + 44
         ctx.fillStyle = surfaceColor
         ctx.beginPath()
         ctx.roundRect(node.x - metrics.width / 2 - LABEL_PLATE_PAD_X, labelY - LABEL_PLATE_HEIGHT + 2,

@@ -480,7 +480,9 @@
     "view": {
       "source": "Source",
       "split": "Split",
-      "preview": "Preview"
+      "preview": "Preview",
+      "editablePreview": "Editable preview",
+      "editablePreviewDescription": "Click a line to edit its Markdown; use Rendered output for a read-only view."
     },
     "transforms": {
       "heading1": "Heading 1",

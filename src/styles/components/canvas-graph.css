@@ -367,7 +367,7 @@
 .graph-node-label {
   paint-order: stroke;
   stroke: var(--dialog-bg, var(--bg-elevated));
-  stroke-width: 3px;
+  stroke-width: 6px;
   stroke-linejoin: round;
 }
 

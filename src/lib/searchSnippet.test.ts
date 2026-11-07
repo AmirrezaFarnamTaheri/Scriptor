@@ -35,7 +35,7 @@ test('search preview strips every task marker the status registry can produce', 
 test('search preview removes clipped FTS marker fragments at snippet boundaries', () => {
   assert.equal(
     formatSearchSnippet('tes]] - Methodology Outline [[star'),
-    'tes - Methodology Outline star',
+    '…tes - Methodology Outline star…',
   )
 })
 
@@ -56,4 +56,10 @@ test('query highlight preserves Unicode text and does not execute HTML or advanc
   const parts=searchSnippetParts('<img onerror=alert(1)> methods','methods OR path:private.md')
   assert.equal(parts.map(part=>part.text).join(''),'<img onerror=alert(1)> methods')
   assert.deepEqual(parts.filter(part=>part.matched).map(part=>part.text),['methods'])
+})
+
+test('search previews mark clipped leading and trailing fragments with readable ellipses', () => {
+  assert.equal(formatSearchSnippet('tes]] - Methodology Outline'), '…tes - Methodology Outline')
+  assert.equal(formatSearchSnippet('Result [[star'), 'Result star…')
+  assert.equal(formatSearchSnippet('Complete results'), 'Complete results')
 })
