@@ -42,6 +42,12 @@ export interface GmailManagerPanelProps {
 
 type GmailTab = 'messages' | 'compose' | 'account'
 
+const GMAIL_SEND_REVIEW_KEY = 'scriptor:gmail-send-review-required:v1'
+function hasUnreviewedGmailSend(): boolean {
+  try { return window.localStorage.getItem(GMAIL_SEND_REVIEW_KEY) !== null }
+  catch { return true } // Storage unavailable: fail closed.
+}
+
 function effectiveGmailQuery(query: string): string {
   return query.trim()
 }
@@ -90,6 +96,14 @@ export function GmailManagerPanel({
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendReviewRequired, setSendReviewRequired] = useState(hasUnreviewedGmailSend)
+  useEffect(() => {
+    const syncReviewHold = (event: StorageEvent) => {
+      if (event.key === GMAIL_SEND_REVIEW_KEY) setSendReviewRequired(hasUnreviewedGmailSend())
+    }
+    window.addEventListener('storage', syncReviewHold)
+    return () => window.removeEventListener('storage', syncReviewHold)
+  }, [])
 
   const clearMessages = useCallback(() => {
     refreshSequence.current += 1
@@ -382,7 +396,7 @@ export function GmailManagerPanel({
 
   const handleSend = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!composeTo.trim() || !composeSubject.trim() || !composeBody.trim() || !nativeReady || !isAuthed || loading || sending) return
+    if (sendReviewRequired || !composeTo.trim() || !composeSubject.trim() || !composeBody.trim() || !nativeReady || !isAuthed || loading || sending) return
     const operation = ++operationSequence.current
     const account = accountSequence.current
     const current = () => mounted.current && operation === operationSequence.current && account === accountSequence.current
@@ -391,8 +405,19 @@ export function GmailManagerPanel({
     setStatusText(null)
     try {
       const raw = buildRfc5322Message(composeTo.trim(), composeSubject.trim(), composeBody)
-      await googleGmailSendMessage(raw)
+      await googleGmailSendMessage(raw, () => {
+        if (hasUnreviewedGmailSend()) {
+          setSendReviewRequired(true)
+          throw new Error(t('integrations.gmail.reviewRequired'))
+        }
+        try { window.localStorage.setItem(GMAIL_SEND_REVIEW_KEY, '1') }
+        catch { throw new Error(t('integrations.gmail.reviewStorageUnavailable')) }
+        if (current()) setSendReviewRequired(true)
+      })
       if (!current()) return
+      // Clear only after validating the provider-confirmed message identity.
+      window.localStorage.removeItem(GMAIL_SEND_REVIEW_KEY)
+      setSendReviewRequired(false)
       setComposeTo('')
       setComposeSubject('')
       setComposeBody('')
@@ -404,6 +429,18 @@ export function GmailManagerPanel({
     } finally {
       if (current()) setSending(false)
     }
+  }
+
+  const handleReviewedSend = () => {
+    try { window.localStorage.removeItem(GMAIL_SEND_REVIEW_KEY) }
+    catch { setError(t('integrations.gmail.reviewStorageUnavailable')); return }
+    setSendReviewRequired(false)
+    setError(null)
+    setStatusText(null)
+    // Prevent the uncertain draft becoming a one-click duplicate after review.
+    setComposeTo('')
+    setComposeSubject('')
+    setComposeBody('')
   }
 
   return (
@@ -434,7 +471,12 @@ export function GmailManagerPanel({
           </div>
         ) : null}
 
-        {error ? (
+        {sendReviewRequired ? (
+          <div className="gmail-manager-status gmail-manager-status--error" role="alert">
+            <strong>{t('integrations.gmail.reviewRequired')}</strong>
+            {error ? <span>{error}</span> : null}
+          </div>
+        ) : error ? (
           <div className="gmail-manager-status gmail-manager-status--error" role="alert">
             {error}
           </div>
@@ -644,10 +686,15 @@ export function GmailManagerPanel({
               />
             </label>
             <div className="gmail-manager-compose-actions">
+              {sendReviewRequired ? (
+                <button type="button" className="action-button" onClick={handleReviewedSend}>
+                  {t('integrations.gmail.reviewConfirmed')}
+                </button>
+              ) : null}
               <button
                 type="submit"
                 className="action-button gmail-manager-inline-action"
-                disabled={sending || loading || !composeTo.trim() || !composeSubject.trim() || !composeBody.trim() || !isAuthed}
+                disabled={sendReviewRequired || sending || loading || !composeTo.trim() || !composeSubject.trim() || !composeBody.trim() || !isAuthed}
               >
                 <Send size={14} />
                 <span>{sending ? t('integrations.gmail.sending') : t('integrations.gmail.send')}</span>
