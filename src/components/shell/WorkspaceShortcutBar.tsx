@@ -23,6 +23,7 @@ interface Props {
   onClose(): void
   onSave(preferences: WorkspaceShortcutPreferences): boolean
   locale: AppLocale
+  compact?: boolean
 }
 
 function shortcutStyle(item: WorkspaceShortcutItem): CSSProperties {
@@ -135,15 +136,24 @@ function ShortcutManager({ catalog, preferences, onClose, onSave, locale }: Omit
   )
 }
 
-export function WorkspaceShortcutBar({ catalog, preferences, open, onOpen, onClose, onSave, locale }: Props) {
+export function WorkspaceShortcutBar({ catalog, preferences, open, onOpen, onClose, onSave, locale, compact = false }: Props) {
   const copy = COPY[locale]
   const [moreOpen, setMoreOpen] = useState(false)
   const moreRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
   const triggerId = useId()
   const items = getWorkspaceShortcutItems(preferences, catalog.map(command => command.id)).filter(item => item.shown)
-  const pinned = items.filter(item => item.pinned)
-  const overflow = items.filter(item => !item.pinned)
+  // Resetting defaults may keep hidden catalogue entries, but the three
+  // visible writing routes still form the same default shortcut set.
+  const defaults = defaultWorkspaceShortcutPreferences().items
+  const foldedDefaults = compact && items.length === defaults.length &&
+    items.every((item, index) => {
+      const expected = defaults[index]
+      return item.id === expected.id && item.pinned && item.label === '' &&
+        item.width === 0 && item.fontSize === expected.fontSize
+    })
+  const pinned = foldedDefaults ? [] : items.filter(item => item.pinned)
+  const overflow = foldedDefaults ? items : items.filter(item => !item.pinned)
   const menuVisible = moreOpen && preferences.visible && !open && overflow.length > 0
   const closeManager = () => { setMoreOpen(false); onClose() }
   const shortcut = (item: WorkspaceShortcutItem, inMenu: boolean) => {
@@ -153,13 +163,13 @@ export function WorkspaceShortcutBar({ catalog, preferences, open, onOpen, onClo
     return <button type="button" role={inMenu ? 'menuitem' : undefined} key={item.id} disabled={command.disabled} title={command.disabled ? `${label} (${copy.unavailable})` : label} aria-label={label} className="workspace-shortcut-button" style={shortcutStyle(item)} onClick={() => { setMoreOpen(false); command.run() }}><span>{label}</span></button>
   }
   return <>
-    {preferences.visible && <nav className={`workspace-activity-bar workspace-shortcut-bar${isDefaultWorkspaceShortcutLayout(preferences) ? ' is-default-layout' : ''}`} aria-label={copy.navigation} dir={locale === 'fa' ? 'rtl' : 'ltr'}>
-      {pinned.map(item => shortcut(item, false))}
-      {overflow.length > 0 && <button ref={moreRef} id={triggerId} type="button" className="workspace-shortcut-more" aria-label={copy.more} title={copy.more} aria-haspopup="menu" aria-expanded={menuVisible} aria-controls={menuVisible ? menuId : undefined} onClick={() => setMoreOpen(!menuVisible)} onKeyDown={event => {
+    {preferences.visible && <nav className={`workspace-activity-bar workspace-shortcut-bar${(isDefaultWorkspaceShortcutLayout(preferences) || foldedDefaults) ? ' is-default-layout' : ''}${compact ? ' is-inline' : ''}`} aria-label={copy.navigation} dir={locale === 'fa' ? 'rtl' : 'ltr'}>
+      {pinned.length > 0 && <span className="workspace-shortcut-pinned">{pinned.map(item => shortcut(item, false))}</span>}
+      {overflow.length > 0 && <button ref={moreRef} id={triggerId} type="button" className="workspace-shortcut-more" aria-label={foldedDefaults ? copy.navigation : copy.more} title={foldedDefaults ? copy.navigation : copy.more} aria-haspopup="menu" aria-expanded={menuVisible} aria-controls={menuVisible ? menuId : undefined} onClick={() => setMoreOpen(!menuVisible)} onKeyDown={event => {
         if (event.key !== 'ArrowDown') return
         event.preventDefault()
         setMoreOpen(true)
-      }}><MoreHorizontal size={16} aria-hidden="true" /><span>{copy.more}</span></button>}
+      }}><MoreHorizontal size={16} aria-hidden="true" /><span>{foldedDefaults ? copy.navigation : copy.more}</span></button>}
       <button type="button" className="workspace-shortcut-icon" aria-label={copy.customize} title={copy.customize} onClick={() => { setMoreOpen(false); onOpen() }}><Settings2 size={16} aria-hidden="true" /></button>
     </nav>}
     <ToolbarPopover open={menuVisible} id={menuId} className="workspace-shortcut-overflow" triggerRef={moreRef} labelledBy={triggerId} onClose={() => setMoreOpen(false)}>

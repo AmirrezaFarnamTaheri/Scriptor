@@ -37,9 +37,14 @@ test('workspace shortcuts keep compact defaults and persist custom names, dimens
   await waitForWorkspace(page)
   const bar = page.locator('.workspace-activity-bar')
   await expect(bar.getByRole('button', { name: 'Database studio', exact: true })).toHaveCount(0)
-  const writing = bar.getByRole('button', { name: 'Writing', exact: true })
-  await expect(writing).toBeVisible()
-  expect((await writing.boundingBox())!.height).toBeLessThanOrEqual(36)
+  const workspaces = bar.getByRole('button', { name: 'Workspaces', exact: true })
+  await expect(workspaces).toBeVisible()
+  expect((await workspaces.boundingBox())!.height).toBeLessThanOrEqual(36)
+  await workspaces.click()
+  await expect(page.getByRole('menuitem', { name: 'Writing', exact: true })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Source file', exact: true })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Note preview', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
 
   const dialog = await customize(page)
   const source = dialog.locator('[data-shortcut-id="source"]')
@@ -105,7 +110,9 @@ test('a hidden workspace shortcut row stays hidden and can be restored through t
   const restored = await customize(page)
   await restored.getByRole('button', { name: 'Reset defaults', exact: true }).click()
   await restored.getByRole('button', { name: 'Save', exact: true }).click()
-  await expect(page.locator('.workspace-activity-bar').getByRole('button', { name: 'Writing', exact: true })).toBeVisible()
+  const restoredNav = page.locator('.workspace-activity-bar')
+  await restoredNav.getByRole('button', { name: 'Workspaces', exact: true }).click()
+  await expect(page.getByRole('menuitem', { name: 'Writing', exact: true })).toBeVisible()
 })
 
 test('workspace shortcut customization cancels drafts and keeps fields reachable under narrow restored zoom', async ({ page }, testInfo) => {
