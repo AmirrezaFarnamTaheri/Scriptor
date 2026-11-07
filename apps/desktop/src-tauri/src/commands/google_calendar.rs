@@ -2167,7 +2167,7 @@ pub fn google_gmail_send_message(
     state: tauri::State<AppState>,
     raw_message: String,
     authorization_token: String,
-) -> Result<(), String> {
+) -> Result<serde_json::Value, String> {
     require_gmail_capability(&state)?;
     if raw_message.is_empty() || raw_message.len() > 2_800_000 {
         return Err("encoded email must contain between 1 and 2,800,000 characters".into());
@@ -2197,7 +2197,12 @@ pub fn google_gmail_send_message(
             "failed to send Gmail message",
         ));
     }
-    Ok(())
+    // A successful HTTP status without a provider message identity is not a
+    // confirmed send. The UI must preserve the draft and prevent replay.
+    let receipt: serde_json::Value = response
+        .json()
+        .map_err(|error| format!("Gmail send response receipt is unavailable: {error}"))?;
+    Ok(receipt)
 }
 
 #[tauri::command]
