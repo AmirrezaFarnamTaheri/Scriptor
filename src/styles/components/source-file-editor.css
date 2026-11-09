@@ -23,3 +23,24 @@
 .source-file-decision { border:2px solid var(--accent); padding:16px; display:flex; flex-wrap:wrap; gap:8px; }
 .source-file-decision p { flex-basis:100%; }
 @media(max-width:600px) { .source-file-toolbar>label { flex-basis:100%; min-width:0; } .source-file-editor button,.source-file-toolbar input { min-height:44px; } .source-file-content textarea { min-height:35vh; } }
+
+/* Source editor: full working area, dedicated view switch, Monaco loaded locally. */
+.source-file-mode-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.source-file-mode-toolbar > span { font-weight: 600; }
+.source-file-mode { display: inline-flex; gap: 2px; padding: 3px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-muted); }
+.source-file-mode > button { min-height: 36px; padding: 7px 12px; border-radius: 6px; border: 0; color: var(--ink); background: transparent; }
+.source-file-mode > button[aria-pressed="true"] { font-weight: 600; background: var(--surface-raised); box-shadow: 0 1px 3px color-mix(in srgb, black 12%, transparent); }
+.source-file-mode > button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.source-file-monaco {
+  height: clamp(240px, 52vh, 860px);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.source-file-content .monaco-editor .margin { border-inline-end: 1px solid var(--border); }
+@media (max-width: 600px) {
+  .source-file-monaco { height: max(240px, 42vh); }
+  .source-file-mode > button { min-height: 44px; }
+}

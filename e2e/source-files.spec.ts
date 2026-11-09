@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { closeWorkspacePanel, launchApp, openCommandPalette, runCommand } from './helpers'
 import { attachVisualState } from './visual-state-evidence'
 
-async function openEditor(page: Page, theme = 'light') {
+async function openEditor(page: Page, theme = 'light', plainText = true) {
   await launchApp(page, { theme })
   await page.evaluate(() => {
     const internals = (window as Window & { __TAURI_INTERNALS__?: { invoke?: (command: string, args?: Record<string, unknown>, options?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__
@@ -37,8 +37,24 @@ async function openEditor(page: Page, theme = 'light') {
   await openCommandPalette(page); await runCommand(page, 'Source file editor')
   const editor = page.getByRole('region', { name: 'Source file editor', exact: true })
   await expect(editor.getByRole('heading', { name: 'Source files', exact: true })).toBeVisible()
+  if (plainText) await editor.getByRole('button', { name: 'Plain text', exact: true }).click()
   return editor
 }
+test('source editing defaults to local Monaco with line numbers, syntax and a plain-text fallback', async ({ page }) => {
+  const editor = await openEditor(page, 'light', false)
+  await expect(editor.getByRole('button', { name: 'Code editor' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(editor.locator('.source-file-monaco .monaco-editor')).toBeVisible({ timeout: 20_000 })
+  await expect(editor.locator('.source-file-monaco .margin')).toBeVisible()
+  await editor.getByRole('button', { name: 'Plain text' }).click()
+  const textarea = editor.getByLabel('Source file content', { exact: true })
+  await textarea.fill('print("source fallback")\\n')
+  await editor.getByRole('button', { name: 'Code editor' }).click()
+  await expect(editor.locator('.source-file-monaco .monaco-editor')).toBeVisible({ timeout: 20_000 })
+  await expect(editor.locator('.source-file-monaco .view-lines')).toContainText('source fallback')
+  await editor.getByRole('button', { name: 'Plain text' }).click()
+  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('print("source fallback")\\n')
+})
+
 test('source editor creates LaTeX and compiles only reviewed saved content', async ({ page }, testInfo) => {
   const editor = await openEditor(page)
   await editor.getByLabel('File path', { exact: true }).fill('main.tex')
