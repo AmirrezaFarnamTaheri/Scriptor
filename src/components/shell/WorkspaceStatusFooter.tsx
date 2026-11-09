@@ -46,6 +46,8 @@ interface WorkspaceStatusFooterProps {
   searchResults: SearchHit[]
   searchQuery: string
   isSearching: boolean
+  searchError: string | null
+  onRetrySearch: () => void
   exportResult: ExportJobOutput | null
   exportHistory: ExportJobRecord[]
   isExporting: boolean
@@ -85,6 +87,8 @@ function WorkspaceStatusFooterImpl({
   searchResults,
   searchQuery,
   isSearching,
+  searchError,
+  onRetrySearch,
   exportResult,
   exportHistory,
   isExporting,
@@ -292,6 +296,8 @@ function WorkspaceStatusFooterImpl({
             searchResults={searchResults}
             searchQuery={searchQuery}
             isSearching={isSearching}
+            searchError={searchError}
+            onRetrySearch={onRetrySearch}
             exportResult={exportResult}
             exportHistory={exportHistory}
             isExporting={isExporting}
