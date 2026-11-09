@@ -95,9 +95,11 @@ for (const viewport of viewports) {
       await expect(tour.getByRole('progressbar')).toHaveAttribute('value', String(step + 1))
       await expectFullBounds(tour)
     }
-    for (const action of ['Skip tour', 'Back', 'Help & guides', 'Open cheatsheet', 'Finish']) {
+    for (const action of ['Skip tour', 'Back', 'Finish']) {
       await expectReachable(tour.getByRole('button', { name: action, exact: true }))
     }
+    await expect(tour.getByRole('button', { name: 'Help & guides' })).toHaveCount(0)
+    await expect(tour.getByRole('button', { name: 'Open cheatsheet' })).toHaveCount(0)
     await expect.poll(() => tour.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
     await captureDialog(page, testInfo)
     await tour.getByRole('button', { name: 'Finish', exact: true }).click()
