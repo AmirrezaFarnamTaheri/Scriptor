@@ -408,6 +408,11 @@
   cursor: pointer;
 }
 
+.store-banner[hidden],
+.store-lint-summary[hidden] {
+  display: none;
+}
+
 .store-banner {
   display: flex;
   align-items: center;
