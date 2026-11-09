@@ -298,7 +298,7 @@ function App() {
     }
     patchChrome({ inspectorCollapsed: false })
     setActiveMode('plugins')
-    showToast('Enable Gmail Manager in Plugins before opening the mail workspace.')
+    showToast('Gmail Manager is not active. In Plugins → Manage installed, review its vault permissions, then enable it to open Mail.')
   }, [gmailPluginEnabled, patchChrome, setActiveMode, setGmailManagerOpen, showToast])
   // Pulled out of the per-render registry result so memoized callbacks can depend on the
   // stable `useCallback` identity instead of the whole hook object.
@@ -1616,6 +1616,8 @@ function App() {
         searchResults={workspace.searchResults}
         searchQuery={workspace.searchQuery}
         isSearching={workspace.isSearching}
+        searchError={workspace.searchError}
+        onRetrySearch={() => { void workspace.runSearch(workspace.searchQuery) }}
         exportResult={workspace.exportResult}
         exportHistory={workspace.exportHistory}
         isExporting={workspace.isExporting}
