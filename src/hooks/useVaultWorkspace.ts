@@ -188,7 +188,6 @@ export function useVaultWorkspace(options?: {
     runSearch,
     setVaultSearchQuery,
     clearSearch,
-    searchError,
   } = useSearchStore({ onSearchComplete, onSearchTiming })
 
   const noteCount = useMemo(() => entries.filter((entry) => entry.kind === 'note').length, [entries])
@@ -716,6 +715,7 @@ export function useVaultWorkspace(options?: {
     searchQuery,
     searchResults,
     isSearching,
+    searchError,
     activityLog,
     logActivity,
     openVaultAt,
