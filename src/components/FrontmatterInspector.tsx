@@ -28,6 +28,9 @@ export function FrontmatterInspector({
   runNoteMutation, onClose, onSaved,
 }: FrontmatterInspectorProps) {
   const initial = useRef(stringifyFields(fields))
+  // Freeze the revision chosen when editing opened. An external refresh must
+  // never silently rebase a dirty metadata draft onto another note revision.
+  const revisionAtOpen = useRef(expectedContentHash)
   const [draft, setDraft] = useState<Record<string, string>>(() => ({ ...initial.current }))
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
@@ -47,7 +50,7 @@ export function FrontmatterInspector({
   useFocusTrap(dialogRef, { active: true })
 
   const saveChanges = async () => {
-    if (busy || !dirty || !expectedVaultId || !expectedContentHash || noteHasUnsavedChanges) return
+    if (busy || !dirty || !expectedVaultId || !revisionAtOpen.current || noteHasUnsavedChanges) return
     setBusy(true)
     setStatus('Saving changes…')
     setError('')
@@ -56,12 +59,12 @@ export function FrontmatterInspector({
       // once with compare-and-swap. Per-field writes can partially commit.
       const allowed = await runNoteMutation(path, async () => {
         const note = await vaultReadNote(path, expectedVaultId)
-        if (note.metadata.path !== path || note.metadata.vault_id !== expectedVaultId || note.metadata.content_hash !== expectedContentHash) {
+        if (note.metadata.path !== path || note.metadata.vault_id !== expectedVaultId || note.metadata.content_hash !== revisionAtOpen.current) {
           throw new Error('The note changed on disk. Your edits were retained; reload the note before saving.')
         }
         const updated = applyFrontmatterChanges(note.markdown,
           Object.fromEntries(changes.map(field => [field, draft[field] ?? ''])))
-        await vaultSaveNote(path, updated, expectedContentHash, false, expectedVaultId)
+        await vaultSaveNote(path, updated, revisionAtOpen.current, false, expectedVaultId)
       })
       if (!allowed) throw new Error('The note is currently saving. Retry once the editor finishes.')
       setStatus('Saved all changed fields.')
@@ -104,8 +107,8 @@ export function FrontmatterInspector({
           : status ? <p className="settings-status" role="status">{status}</p> : null}
         <footer className="frontmatter-actions">
           <span role="status">{dirty ? `${changes.length} unsaved ${changes.length === 1 ? 'field' : 'fields'}` : 'No pending changes'}</span>
-          <button type="button" className="toolbar-button" disabled={busy} onClick={requestClose}>Close</button>
-          <button type="button" className="primary-button" disabled={busy || !dirty || noteHasUnsavedChanges || !expectedContentHash || !expectedVaultId}
+          <button type="button" className="toolbar-button" disabled={busy} onClick={requestClose}>Cancel</button>
+          <button type="button" className="primary-button" disabled={busy || !dirty || noteHasUnsavedChanges || !revisionAtOpen.current || !expectedVaultId}
             onClick={() => void saveChanges()}>{busy ? 'Saving…' : 'Save changes'}</button>
         </footer>
         {confirmDiscard ? (

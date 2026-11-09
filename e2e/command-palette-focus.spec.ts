@@ -103,7 +103,8 @@ test('Focus vault search selects mobile Vault pane from Inspector', async ({ pag
   await waitForWorkspace(page)
   await page.setViewportSize({ width: 768, height: 900 })
   const mobileNav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
-  await mobileNav.getByRole('button', { name: 'Inspector', exact: true }).click()
+  await mobileNav.getByRole('button', { name: 'More', exact: true }).click()
+  await page.getByRole('group', { name: 'More destinations' }).getByRole('button', { name: 'Inspector', exact: true }).click()
   await expect(page.locator('.workspace-grid')).toHaveAttribute('data-mobile-pane', 'inspector')
   await expect(page.locator('.vault-search input')).not.toBeVisible()
 

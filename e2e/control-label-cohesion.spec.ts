@@ -136,6 +136,7 @@ for (const theme of ['light','dark']) test(`saved LaTeX and Overleaf ${theme} co
   })
   await openCommandPalette(page); await runCommand(page,'Source file editor')
   const editor=page.getByRole('region',{name:'Source file editor',exact:true})
+  await editor.getByRole('button',{name:'Plain text',exact:true}).click()
   await editor.getByLabel('File path',{exact:true}).fill('main.tex')
   await editor.getByRole('button',{name:'Open file',exact:true}).click()
   const content = editor.getByRole('textbox',{name:'Source file content',exact:true})

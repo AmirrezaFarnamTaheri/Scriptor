@@ -264,7 +264,7 @@ function WorkspaceDialogLayersImpl({
 
       {frontmatterOpen && workspace.activePath ? (
         <FrontmatterInspector
-          key={`${workspace.activePath}:${workspace.activeNote?.metadata.content_hash ?? ''}`}
+          key={`${workspace.vault?.id ?? ''}:${workspace.activePath}`}
           path={workspace.activePath}
           fields={parseSimpleFrontmatter(workspace.draftMarkdown)}
           expectedVaultId={workspace.vault?.id ?? ''}
@@ -272,7 +272,7 @@ function WorkspaceDialogLayersImpl({
           noteHasUnsavedChanges={Boolean(workspace.activeNote && workspace.draftMarkdown !== workspace.activeNote.markdown)}
           runNoteMutation={workspace.runNoteMutation}
           onClose={() => setFrontmatterOpen(false)}
-          onSaved={() => workspace.reloadActiveNoteFromDisk()}
+          onSaved={async () => { await workspace.reloadActiveNoteFromDisk() }}
         />
       ) : null}
 

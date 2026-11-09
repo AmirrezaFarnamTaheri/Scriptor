@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test'
 import { launchApp, openCommandPalette, runCommand, waitForWorkspace } from './helpers'
 
 test('phone navigation prioritizes notes and writing, with accessible secondary destinations', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 740 })
   await launchApp(page)
   await waitForWorkspace(page)
+  await page.setViewportSize({ width: 320, height: 740 })
   const navigation = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
   await expect(navigation.locator('button')).toHaveCount(3)
   await navigation.getByRole('button', { name: 'More' }).click()

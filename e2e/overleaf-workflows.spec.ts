@@ -31,6 +31,7 @@ async function open(page: Page) {
   })
   await openCommandPalette(page); await runCommand(page, 'Source file editor')
   const editor = page.getByRole('region', { name: 'Source file editor', exact: true })
+  await editor.getByRole('button', { name: 'Plain text', exact: true }).click()
   await editor.getByLabel('File path', { exact: true }).fill('main.tex')
   await editor.getByRole('button', { name: 'Open file', exact: true }).click()
   await editor.getByRole('button', { name: 'Open Overleaf sync', exact: true }).click()

@@ -122,7 +122,7 @@ test('export profiles do not print their format twice', () => {
 
   // Whatever it decides, the markup has to go through the helper rather than read
   // the format directly.
-  assert.match(publishCenter, /\{formatBadge \? <span className="publish-format-chip">/)
+  assert.match(publishCenter, /\{profile\.label\}\{formatBadgeFor\(profile\) \?/)
   assert.doesNotMatch(
     publishCenter,
     /<span className="publish-format-chip">\{profile\.format\.toUpperCase\(\)\}<\/span>/,
