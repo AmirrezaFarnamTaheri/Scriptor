@@ -184,7 +184,7 @@ function StatusDockPanelImpl({
                 </li>
               ))}
             </ul>
-          )}
+          ) : null}
         </section>
       ) : null}
 
