@@ -36,7 +36,9 @@ async function openGitPanel(page: Page) {
   return panel
 }
 
-test('a healthy vault keeps its metrics available without crowding the default inspector', async ({ page }) => {
+test('a healthy vault keeps its detailed metrics available when the inspector is opted into', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome',
+    JSON.stringify({ inspectorCollapsed: false, showInspectorHealth: true })))
   await launchApp(page)
   await waitForWorkspace(page)
   const inspector = page.locator('#inspector-panel-inspector')
@@ -84,7 +86,7 @@ test.describe('Coarse-pointer workspace', () => {
     }
     await expect.poll(() => page.locator('.top-actions').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
-    await expect(page.getByRole('navigation', { name: 'Mobile workspace navigation' }).getByRole('button', { name: 'Inspector' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Mobile workspace navigation' }).getByRole('button', { name: 'More' })).toBeVisible()
   })
 })
 
@@ -144,6 +146,8 @@ test.describe('Frontend polish regressions', () => {
   })
 
   test('writing inspector puts the note outline ahead of health and publishing cards', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome',
+      JSON.stringify({ inspectorCollapsed: false, showInspectorHealth: true })))
     await launchApp(page)
     const inspector = page.locator('.inspector-panel')
     const outline = inspector.getByRole('heading', { name: 'Outline', exact: true })
@@ -262,6 +266,8 @@ test.describe('Frontend polish regressions', () => {
   })
 
   test('inspector modes leave every editor toolbar control inside the writing column', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome',
+      JSON.stringify({ inspectorCollapsed: false })))
     await launchApp(page)
     // The app shell appears before Monaco's model is ready. Measure only after
     // the writing editor has fully hydrated, without weakening overlap checks.
@@ -399,7 +405,7 @@ test.describe('Frontend polish regressions', () => {
     await expect(page.locator('html')).toHaveAttribute('data-ui-zoom', 'high')
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav).toBeVisible()
-    await expect(nav.getByRole('button', { name: 'Command' })).toBeVisible()
+    await expect(nav.getByRole('button', { name: 'More' })).toBeVisible()
     await expect(page.locator('.status-strip')).toBeHidden()
     await expect(page.locator('.command-search')).toBeHidden()
     await expect(page.locator('.workspace-mode-select')).toBeVisible()
@@ -414,7 +420,8 @@ test.describe('Frontend polish regressions', () => {
     await expect(page.locator('.monaco-editor')).toBeVisible()
     await expect.poll(() => page.locator('.monaco-editor').evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(96)
 
-    await nav.getByRole('button', { name: 'Inspector' }).click()
+    await nav.getByRole('button', { name: 'More' }).click()
+    await page.getByRole('group', { name: 'More destinations' }).getByRole('button', { name: 'Inspector' }).click()
     await expect(page.getByRole('region', { name: 'Editor', exact: true })).toBeHidden()
     await expect(page.locator('.inspector-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeInViewport()
@@ -555,9 +562,10 @@ test.describe('Frontend polish regressions', () => {
     await page.keyboard.press('Control+Alt+KeyB')
     await expect(workspace).toHaveAttribute('data-vault-collapsed', 'true')
 
-    await expect(workspace).toHaveAttribute('data-inspector-collapsed', 'false')
-    await page.keyboard.press('Control+Alt+KeyL')
+    // The calm writing default starts with a collapsed contextual inspector.
     await expect(workspace).toHaveAttribute('data-inspector-collapsed', 'true')
+    await page.keyboard.press('Control+Alt+KeyL')
+    await expect(workspace).toHaveAttribute('data-inspector-collapsed', 'false')
   })
 
   test('global shortcuts ignore explicit, plaintext-only, empty, and inherited editable targets', async ({ page }) => {
@@ -625,6 +633,8 @@ test.describe('Frontend polish regressions', () => {
   })
 
   test('store surface owns live MCP and feature controls', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome',
+      JSON.stringify({ inspectorCollapsed: false })))
     await launchApp(page)
     await settleLayout(page)
 

@@ -595,7 +595,8 @@ test('compact mobile vault and inspector panes', async ({ page }) => {
   await expect(page.locator('.virtual-note-list').getByRole('button', { name: 'Research Plan.md' })).toBeVisible()
   await captureReadyScreenshot(page, shotPath('mobile-vault'))
 
-  await nav.getByRole('button', { name: 'Inspector' }).click()
+  await nav.getByRole('button', { name: 'More' }).click()
+  await page.getByRole('group', { name: 'More destinations' }).getByRole('button', { name: 'Inspector' }).click()
   await waitForInspectorReady(page)
   await expect(page.locator('.inspector-panel')).toBeInViewport()
   await captureReadyScreenshot(page, shotPath('mobile-inspector'))

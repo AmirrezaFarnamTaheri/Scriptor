@@ -26,45 +26,6 @@ env:
   FORCE_COLOR: 1
 
 jobs:
-  sqlite-lock-review:
-    name: Reconcile SQLite Cargo.lock (PR 336 only)
-    if: github.event_name == 'pull_request' && github.event.pull_request.number == 336
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout exact PR source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Resolve exact SQLite dependency graph for review
-        shell: bash
-        run: |
-          set -euo pipefail
-          rustup toolchain install 1.96.0 --profile minimal
-          rustup default 1.96.0
-          mkdir -p artifacts/sqlite-lock-review
-          cargo update -p rusqlite --precise 0.41.1
-          cargo update -p libsqlite3-sys --precise 0.39.1
-          cargo update -p hashlink --precise 0.12.2
-          cargo metadata --format-version 1 > /dev/null
-          cp Cargo.lock artifacts/sqlite-lock-review/Cargo.lock
-          git diff -- Cargo.lock > artifacts/sqlite-lock-review/changes.patch
-          echo 'Begin exact resolver patch'
-          cat artifacts/sqlite-lock-review/changes.patch
-          echo 'End exact resolver patch'
-
-      - name: Upload resolved Cargo.lock without changing repository
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: reconciled-sqlite-lock
-          path: artifacts/sqlite-lock-review/
-          if-no-files-found: warn
-          retention-days: 3
-
   source-snapshot:
     name: Source snapshot and provenance
     # PR commits are already immutable Git objects. Archive provenance once the
