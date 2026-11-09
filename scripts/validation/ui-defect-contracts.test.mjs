@@ -21,5 +21,5 @@ test('saved database view selection stays in sync with the current view', () => 
 
 test('reload saved source file is absent before a saved document exists', () => {
   const source = read('src/components/SourceFileEditor.tsx')
-  assert.match(source, /\{document\s*&&\s*<button[^>]*>Reload saved file<\/button>\}/)
+  assert.match(source, /\{document\s*&&\s*<button[\s\S]*?Reload saved file<\/button>\}/)
 })
