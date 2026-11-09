@@ -143,14 +143,16 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
     <header data-workspace-header-only={workspaceEmbedded ? 'true' : undefined}><div><h2>Source files</h2><p>Edit LaTeX, code, and text files in your vault.</p></div>{!workspaceEmbedded && <button type="button" disabled={Boolean(pending) || overleafOpen} onClick={requestClose}>Close editor</button>}</header>
     <div className="source-file-toolbar" inert={Boolean(pending) || overleafOpen}>
       <label>File path<input value={filePath} disabled={Boolean(document) || busy || compiling} onChange={event => { setFilePath(event.target.value); setCompileConfirmed(false) }} placeholder="research/main.tex" /></label>
+      <div className="source-file-toolbar-actions">
       <button type="button" disabled={busy || compiling || !sourceLanguage(filePath)} onClick={() => { if (dirty) replacePending({ path: filePath }); else void load(filePath) }}>Open file</button>
       <button type="button" disabled={busy || compiling} onClick={() => { if (dirty) replacePending({ path: null }); else void load(null) }}>New file</button>
       <button type="button" disabled={busy || compiling || !sourceLanguage(filePath) || Boolean(document && !dirty)} onClick={() => { void save() }}>{busy ? 'Working…' : document ? 'Save file' : 'Create file'}</button>
+      </div>
     </div>
     <p className="source-file-status" role="status">{document?.path ?? 'New file'} · {sourceLanguage(filePath) ?? 'Choose a supported file extension'} · {dirty ? 'Unsaved changes' : document ? 'Saved' : 'Not created'} · {new TextEncoder().encode(draft).length.toLocaleString()} / {SOURCE_FILE_LIMIT.toLocaleString()} bytes</p>
     {error && <p role="alert">{error}</p>}
     {status && <p role="status">{status}</p>}
-    <label className="source-file-content">File content<textarea aria-label="Source file content" value={draft} disabled={busy || compiling || Boolean(pending) || overleafOpen} spellCheck={false} autoCapitalize="off" autoCorrect="off" wrap="off" dir="ltr" onChange={event => { setDraft(event.target.value.replace(/\r?\n/g, lineEnding)); setCompileConfirmed(false); setStatus('') }} onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); void save() } }} /></label>
+    <label className="source-file-content">File content<textarea aria-label="Source file content" placeholder="Start typing source code…" value={draft} disabled={busy || compiling || Boolean(pending) || overleafOpen} spellCheck={false} autoCapitalize="off" autoCorrect="off" wrap="off" dir="ltr" onChange={event => { setDraft(event.target.value.replace(/\r?\n/g, lineEnding)); setCompileConfirmed(false); setStatus('') }} onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); void save() } }} /></label>
     {document?.language === 'latex' && <fieldset disabled={busy || compiling || dirty || Boolean(pending) || overleafOpen}><legend>Compile saved LaTeX</legend><p>Tectonic runs on the saved file. It may download missing TeX packages.</p><label><input type="checkbox" checked={compileConfirmed} onChange={event => setCompileConfirmed(event.target.checked)} /><span>I reviewed the saved source and want to compile it.</span></label><button type="button" disabled={!compileConfirmed} onClick={() => { void compile() }}>Compile PDF</button></fieldset>}
     {compiling && <button type="button" onClick={compiler.cancelJob}>Cancel compilation</button>}
     {lastJob && <div aria-live="polite"><p>Compilation: {lastJob.status}{lastJob.outputPath ? ` · ${lastJob.outputPath}` : ''}</p>{lastJob.stderr && <pre>{lastJob.stderr}</pre>}</div>}
@@ -168,6 +170,6 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
         else if (!event.shiftKey && event.target === last) { event.preventDefault(); first?.focus() }
       }
     }}><p>{navigationBusy ? 'Finish the current operation or close the sync panel before leaving.' : 'Keep your changes before leaving this file?'}</p><button type="button" disabled={navigationBusy} onClick={() => { void finishPending('save') }}>Save and continue</button><button type="button" disabled={navigationBusy} onClick={() => { void finishPending('discard') }}>Discard and continue</button><button type="button" disabled={navigationBusy} onClick={() => { void finishPending('cancel') }}>Keep editing</button></div>}
-    <button type="button" disabled={!document || busy || compiling || Boolean(pending) || overleafOpen} onClick={() => { if (dirty) replacePending({ reload: true }); else if (document) void load(document.path) }}>Reload saved file</button>
+    {document && <button type="button" disabled={busy || compiling || Boolean(pending) || overleafOpen} onClick={() => { if (dirty) replacePending({ reload: true }); else void load(document.path) }}>Reload saved file</button>}
   </section>
 }
