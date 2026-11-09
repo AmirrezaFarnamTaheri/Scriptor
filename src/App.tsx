@@ -85,11 +85,7 @@ import { useJourneyMetrics } from './hooks/useJourneyMetrics'
 import { useStarlightPublishing } from './hooks/useStarlightPublishing'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
 import { extractPandocCitationKeys } from './lib/citationExtract'
-import {
-  vaultReadNote,
-  vaultSaveNote,
-  codeChunkRun,
-} from './bridge/commands'
+import { vaultReadNote, vaultSaveNote, codeChunkRun } from './bridge/commands'
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
 import { useI18n } from './lib/i18n'

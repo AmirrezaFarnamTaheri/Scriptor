@@ -716,6 +716,7 @@ export function useVaultWorkspace(options?: {
     searchResults,
     isSearching,
     searchError,
+    runSearch,
     activityLog,
     logActivity,
     openVaultAt,
