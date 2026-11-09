@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use r2d2::Pool;
-use r2d2_sqlite::SqliteConnectionManager;
+use r2d2::{ManageConnection, Pool};
 use rusqlite::Connection;
 
 use crate::error::IndexerError;
@@ -12,6 +11,43 @@ pub type CachePool = Pool<SqliteConnectionManager>;
 pub type PooledCacheConnection = r2d2::PooledConnection<SqliteConnectionManager>;
 
 const DEFAULT_POOL_SIZE: u32 = 8;
+
+// Keep the pool manager in the indexer so it uses exactly the same rusqlite
+// (and bundled SQLite) version as the indexing code. The published
+// r2d2_sqlite adapter currently constrains a different rusqlite minor line.
+#[derive(Clone, Debug)]
+pub struct SqliteConnectionManager {
+    path: PathBuf,
+}
+
+impl SqliteConnectionManager {
+    pub fn file(path: impl AsRef<Path>) -> Self {
+        Self {
+            path: path.as_ref().to_path_buf(),
+        }
+    }
+}
+
+impl ManageConnection for SqliteConnectionManager {
+    type Connection = Connection;
+    type Error = rusqlite::Error;
+
+    fn connect(&self) -> Result<Self::Connection, Self::Error> {
+        let connection = Connection::open(&self.path)?;
+        apply_connection_pragmas(&connection)?;
+        Ok(connection)
+    }
+
+    fn is_valid(&self, connection: &mut Self::Connection) -> Result<(), Self::Error> {
+        connection
+            .query_row("SELECT 1", [], |row| row.get::<_, i64>(0))
+            .map(|_| ())
+    }
+
+    fn has_broken(&self, connection: &mut Self::Connection) -> bool {
+        !connection.is_autocommit()
+    }
+}
 
 #[derive(Clone)]
 pub struct IndexCache {
@@ -48,8 +84,7 @@ impl IndexCache {
             crate::task_schema::normalize_task_foreign_keys(&connection)?;
         }
 
-        let manager = SqliteConnectionManager::file(&path)
-            .with_init(|connection| apply_connection_pragmas(connection));
+        let manager = SqliteConnectionManager::file(&path);
         let pool = Pool::builder()
             .max_size(DEFAULT_POOL_SIZE)
             .build(manager)
@@ -192,6 +227,21 @@ mod db_pragma_tests {
         let cache = IndexCache::open(&cache_path).expect("open");
         let mode: String = cache.journal_mode().expect("journal_mode");
         assert_eq!(mode.to_ascii_lowercase(), "wal");
+    }
+
+    #[test]
+    fn pooled_connections_enforce_security_and_busy_timeout_pragmas() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let cache = IndexCache::open(temp.path().join("index.sqlite")).expect("open");
+        let connection = cache.connection().expect("pooled connection");
+        let foreign_keys: i64 = connection
+            .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
+            .expect("foreign keys");
+        let busy_timeout: i64 = connection
+            .query_row("PRAGMA busy_timeout", [], |row| row.get(0))
+            .expect("busy timeout");
+        assert_eq!(foreign_keys, 1);
+        assert_eq!(busy_timeout, 5_000);
     }
 
     #[test]
