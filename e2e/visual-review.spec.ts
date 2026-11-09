@@ -2006,11 +2006,8 @@ test.describe('visual review states', () => {
 
     const publish = page.getByRole('dialog', { name: 'Export & publish', exact: true })
     await expect(publish).toBeVisible()
-    await publish
-      .locator('.publish-profile-list > li')
-      .filter({ has: page.locator('.publish-profile-title-row > strong').filter({ hasText: /^PDF$/ }) })
-      .getByRole('button', { name: 'Preview export', exact: true })
-      .click()
+    await publish.getByRole('combobox', { name: 'Export format' }).selectOption('pdf-print')
+    await publish.getByRole('button', { name: 'Preview export', exact: true }).click()
 
     await expect(publish.getByRole('heading', { name: 'Preflight preview', exact: true })).toBeVisible({ timeout: 15_000 })
     await expect(publish.locator('.publish-command-preview')).toContainText('pandoc', { ignoreCase: true })

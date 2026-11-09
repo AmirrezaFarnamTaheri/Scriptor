@@ -451,3 +451,25 @@
 .publish-latex-options > summary:focus-visible { outline: 2px solid var(--primary-strong); outline-offset: 2px; }
 .publish-latex-options > summary { cursor: pointer; padding: 8px 0; color: var(--ink); }
 .publish-latex-content { display: grid; gap: 10px; padding-top: 8px; }
+
+/* One export decision at a time; path and prerequisites follow the selection. */
+.publish-format-workflow { display: grid; gap: 12px; margin-block-start: 14px; max-width: 740px; }
+.publish-format-picker { display: grid; gap: 6px; font-weight: 600; color: var(--ink-strong); }
+.publish-format-picker select {
+  width: 100%; min-height: 44px; padding: 8px 12px;
+  border-radius: var(--radius-sm, 6px); border: 1px solid var(--border);
+  background: var(--surface); color: var(--ink);
+}
+.publish-format-selection { display: grid; gap: 12px; border-top: 1px solid var(--border); padding-block-start: 12px; min-width: 0; }
+.publish-format-selection-label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.publish-format-selection-label strong { font-size: var(--text-base, 1rem); }
+.publish-recommended-chip { display: inline-flex; font-size: var(--text-xs, 12px); color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 3px 7px; }
+.publish-format-selection .health-subtitle { margin: 0; }
+.publish-format-destination { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; font-size: var(--text-sm, 13px); color: var(--muted); }
+.publish-format-destination code { max-width: 100%; white-space: normal; overflow-wrap: anywhere; color: var(--ink); }
+.publish-format-picker select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+@media (max-width: 480px) {
+  .publish-format-workflow { max-width: 100%; }
+  .publish-format-selection .publish-profile-actions { justify-content: stretch; }
+  .publish-format-selection .publish-profile-actions > button { flex: 1 1 120px; min-height: 44px; }
+}

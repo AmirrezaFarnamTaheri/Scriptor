@@ -209,11 +209,8 @@ test.describe('workspace flows', () => {
     const publishDialog = page.getByRole('dialog', { name: 'Export & publish' })
     await expect(publishDialog).toBeVisible()
 
-    await publishDialog
-      .locator('.publish-profile-list > li')
-      .first()
-      .getByRole('button', { name: 'Preview export' })
-      .click()
+    await publishDialog.getByRole('combobox', { name: 'Export format' }).selectOption('html-standalone')
+    await publishDialog.getByRole('button', { name: 'Preview export' }).click()
 
     await expect(publishDialog.getByRole('heading', { name: 'Preflight preview' })).toBeVisible({
       timeout: 15_000,
