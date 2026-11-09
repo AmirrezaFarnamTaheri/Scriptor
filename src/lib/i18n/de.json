@@ -234,6 +234,8 @@
     "discardChanges": "Änderungen verwerfen"
   },
   "mobile": {
+    "more": "Mehr",
+    "moreDestinations": "Weitere Bereiche",
     "vault": "Tresor",
     "write": "Schreiben",
     "search": "Suchen",
@@ -685,6 +687,9 @@
     "moveSectionDown": "Abschnitt nach unten verschieben"
   },
   "store": {
+    "pluginCapabilities": "Funktionen des Plugins",
+    "permissionDetails": "Berechtigungsdetails",
+    "activePluginCount": "{{count}} von {{total}} installierten Plugins aktiviert",
     "pluginViews": "Plugin-Ansichten",
     "manageInstalled": "Installierte verwalten",
     "browsePlugins": "Plugins durchsuchen",

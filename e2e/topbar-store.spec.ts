@@ -169,9 +169,10 @@ test.describe('top bar customization and support', () => {
 
     await page.setViewportSize({ width: 375, height: 812 })
     await settleLayout(page)
-    const mobilePlugins = page.locator('.mobile-workspace-nav').getByRole('button', { name: 'Plugins' })
-    await expect(mobilePlugins).toBeVisible()
-    await mobilePlugins.click()
+    const mobileMore = page.locator('.mobile-workspace-nav').getByRole('button', { name: 'More' })
+    await expect(mobileMore).toBeVisible()
+    await mobileMore.click()
+    await page.getByRole('group', { name: 'More destinations' }).getByRole('button', { name: 'Plugins' }).click()
     await expect(mobilePlugins).toHaveAttribute('aria-current', 'page')
     await expect(page.getByRole('tab', { name: 'Tools', exact: true })).toHaveAttribute('aria-selected', 'true')
   })

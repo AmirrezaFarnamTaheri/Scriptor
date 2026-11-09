@@ -234,6 +234,8 @@
     }
   },
   "mobile": {
+    "more": "More",
+    "moreDestinations": "More destinations",
     "vault": "Vault",
     "write": "Write",
     "search": "Search",
@@ -685,6 +687,9 @@
     "moveSectionDown": "Move section down"
   },
   "store": {
+    "pluginCapabilities": "Plugin capabilities",
+    "permissionDetails": "Permission details",
+    "activePluginCount": "{{count}} of {{total}} installed plugins enabled",
     "pluginViews": "Plugin options",
     "manageInstalled": "Manage installed",
     "browsePlugins": "Browse plugins",

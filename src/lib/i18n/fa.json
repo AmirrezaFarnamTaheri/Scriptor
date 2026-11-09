@@ -234,6 +234,8 @@
     "discardChanges": "نادیده گرفتن تغییرات"
   },
   "mobile": {
+    "more": "بیشتر",
+    "moreDestinations": "بخش‌های بیشتر",
     "vault": "خزانه",
     "write": "نوشتن",
     "search": "جستجو",
@@ -685,6 +687,9 @@
     "moveSectionDown": "انتقال بخش به پایین"
   },
   "store": {
+    "pluginCapabilities": "امکانات افزونه",
+    "permissionDetails": "جزئیات دسترسی‌ها",
+    "activePluginCount": "{{count}} افزونهٔ فعال از {{total}} افزونهٔ نصب‌شده",
     "pluginViews": "گزینه‌های افزونه‌ها",
     "manageInstalled": "مدیریت نصب‌شده‌ها",
     "browsePlugins": "مرور افزونه‌ها",

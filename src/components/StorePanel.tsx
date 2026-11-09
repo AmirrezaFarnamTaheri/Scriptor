@@ -480,7 +480,7 @@ function PluginsTab({
           ? <ShieldAlert size={16} color="var(--danger)" />
           : <ShieldCheck size={16} color="var(--success)" />}
         <span className="store-banner-label">
-          {safeMode ? t('store.safeModeDisabled') : t('store.runtimeReady')}
+          {safeMode ? t('store.safeModeDisabled') : t('store.activePluginCount', { count: plugins.filter(plugin => plugin.enabled).length, total: plugins.length })}
         </span>
         <button
           type="button"
@@ -530,16 +530,12 @@ function PluginsTab({
                         </div>
                       )}
                       {labels.length > 0 && (
-                        <div className="store-chip-row">
-                          {labels.map((label) => (
-                            <span
-                              key={label}
-                              className="store-chip"
-                            >
-                              {label}
-                            </span>
-                          ))}
-                        </div>
+                        <details className="store-plugin-capabilities">
+                          <summary>{t('store.pluginCapabilities')}</summary>
+                          <div className="store-chip-row">
+                            {labels.map((label) => <span key={label} className="store-chip">{label}</span>)}
+                          </div>
+                        </details>
                       )}
                     </div>
                     <div className="store-inline-actions">
@@ -603,18 +599,17 @@ function PluginsTab({
                       </span>
                     </div>
                     {plugin.manifest.permissions.length > 0 ? (
-                      <ul className="store-perm-list">
-                        {plugin.manifest.permissions.map((entry) => (
-                          <li
-                            key={entry.permission}
-                            title={entry.reason}
-                            className="store-chip"
-                          >
-                            {entry.permission}
-                            {entry.optional ? t('store.optionalPermission') : t('store.requiredPermission')}
-                          </li>
-                        ))}
-                      </ul>
+                      <details className="store-permission-details">
+                        <summary>{t('store.permissionDetails')}</summary>
+                        <ul className="store-perm-list">
+                          {plugin.manifest.permissions.map((entry) => (
+                            <li key={entry.permission} title={entry.reason} className="store-chip">
+                              {entry.permission}
+                              {entry.optional ? t('store.optionalPermission') : t('store.requiredPermission')}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
                     ) : null}
                     <div className="store-actions-row">
                       {consented ? null : (
