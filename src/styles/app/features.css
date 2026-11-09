@@ -1589,3 +1589,17 @@
   background: var(--primary-soft);
   outline-offset: -2px;
 }
+
+/* Frontmatter is one revision-checked document edit, never independent cell writes. */
+.frontmatter-inspector .frontmatter-fields li { grid-template-columns: minmax(0, 1fr); }
+.frontmatter-inspector .frontmatter-fields label { display: grid; gap: 4px; }
+.frontmatter-inspector .frontmatter-fields input { min-height: 40px; width: 100%; }
+.frontmatter-inspector .frontmatter-fields li[data-dirty="true"] { border-inline-start: 2px solid var(--primary); padding-inline-start: 8px; }
+.frontmatter-dirty-marker { font-size: var(--text-xs, 12px); color: var(--primary); font-weight: 500; }
+.frontmatter-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.frontmatter-actions > span { margin-inline-end: auto; color: var(--muted); }
+.frontmatter-actions button { min-height: 40px; }
+.frontmatter-discard { margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+.frontmatter-discard p { margin-block: 0 8px; }
+.frontmatter-discard button { margin-inline-end: 8px; min-height: 40px; }
+@media (max-width: 450px) { .frontmatter-actions button { flex: 1 1 auto; min-height: 44px; } }
