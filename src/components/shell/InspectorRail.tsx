@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import { lazy, memo, Suspense, useMemo } from 'react'
+import { lazy, memo, Suspense, useMemo, useState } from 'react'
 import { Archive, BookOpen, FileText, Hash, Link2, Pencil, Quote, Tags } from 'lucide-react'
 
 import { MarkdownPreview, type MarkdownPreviewHandle, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
@@ -161,6 +161,8 @@ function InspectorRailImpl({
     [citationRows, bibliographyKeys],
   )
   const vaultChecksClear = isVaultHealthClear(health)
+  const [previewProfileId, setPreviewProfileId] = useState('html-standalone')
+  const selectedPreviewProfile = exportProfiles.find((profile) => profile.id === previewProfileId) ?? exportProfiles[0]
   const handleInspectorTabKeys = useTablistKeys(INSPECTOR_TABS, activeMode, (id) => onModeChange(id as 'inspector' | 'preview' | 'plugins'))
   const presetIds = useMemo(
     () => INSPECTOR_PRESETS.map((entry) => `inspector-preset-${entry.id}`),
@@ -522,6 +524,7 @@ function InspectorRailImpl({
                       key={profile.id}
                       disabled={!activePath || isExporting}
                       onClick={() => {
+                        setPreviewProfileId(profile.id)
                         setStatusDockToJobs()
                         void exportWithProfile(profile.id)
                       }}
@@ -531,13 +534,20 @@ function InspectorRailImpl({
                     </button>
                   ))}
                 </div>
+                <label className="export-preview-selection">
+                  Preview format
+                  <select value={selectedPreviewProfile?.id ?? ''} disabled={isExporting || !selectedPreviewProfile} onChange={(event) => setPreviewProfileId(event.target.value)}>
+                    {exportProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
+                  </select>
+                </label>
                 <button
                   type="button"
                   className="primary-button"
-                  disabled={!activePath || isExporting}
+                  disabled={!activePath || isExporting || !selectedPreviewProfile}
                   onClick={() => {
                     setStatusDockToJobs()
-                    void exportWithProfile('html-standalone', true)
+                    if (!selectedPreviewProfile) return
+                    void exportWithProfile(selectedPreviewProfile.id, true)
                   }}
                 >
                   {isExporting ? t('inspector.exporting') : t('inspector.previewExportCommand')}
