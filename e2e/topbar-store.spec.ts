@@ -173,7 +173,7 @@ test.describe('top bar customization and support', () => {
     await expect(mobileMore).toBeVisible()
     await mobileMore.click()
     await page.getByRole('group', { name: 'More destinations' }).getByRole('button', { name: 'Plugins' }).click()
-    await expect(mobilePlugins).toHaveAttribute('aria-current', 'page')
+    await expect(mobileMore).toHaveAttribute('aria-current', 'page')
     await expect(page.getByRole('tab', { name: 'Tools', exact: true })).toHaveAttribute('aria-selected', 'true')
   })
 

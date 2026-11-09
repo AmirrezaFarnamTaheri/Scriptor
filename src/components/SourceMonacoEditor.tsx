@@ -29,7 +29,7 @@ function activeTheme(): 'scriptor-light' | 'scriptor-dark' {
  */
 export default function SourceMonacoEditor({ value, language, readOnly, onChange, onSave }: SourceMonacoEditorProps) {
   const onSaveRef = useRef(onSave)
-  onSaveRef.current = onSave
+  useEffect(() => { onSaveRef.current = onSave }, [onSave])
   const [theme, setTheme] = useState(activeTheme)
   useEffect(() => {
     const observer = new MutationObserver(() => setTheme(activeTheme()))

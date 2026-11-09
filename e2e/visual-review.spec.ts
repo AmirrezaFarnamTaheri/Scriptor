@@ -859,7 +859,8 @@ test.describe('visual review states', () => {
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-ui-zoom-200-editor.png')
 
-    await nav.getByRole('button', { name: 'Inspector' }).click()
+    await nav.getByRole('button', { name: 'More' }).click()
+    await page.getByRole('group', { name: 'More destinations' }).getByRole('button', { name: 'Inspector' }).click()
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeHidden()
     await expect(page.locator('.inspector-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeInViewport()

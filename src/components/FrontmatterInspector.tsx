@@ -27,18 +27,18 @@ export function FrontmatterInspector({
   path, fields, expectedVaultId, expectedContentHash, noteHasUnsavedChanges,
   runNoteMutation, onClose, onSaved,
 }: FrontmatterInspectorProps) {
-  const initial = useRef(stringifyFields(fields))
-  // Freeze the revision chosen when editing opened. An external refresh must
-  // never silently rebase a dirty metadata draft onto another note revision.
-  const revisionAtOpen = useRef(expectedContentHash)
-  const [draft, setDraft] = useState<Record<string, string>>(() => ({ ...initial.current }))
+  // Keep both original form values and its compare-and-swap hash frozen for
+  // this editing session. They are render data, not imperative refs.
+  const [initial] = useState<Record<string, string>>(() => stringifyFields(fields))
+  const [revisionAtOpen] = useState(() => expectedContentHash)
+  const [draft, setDraft] = useState<Record<string, string>>(() => stringifyFields(fields))
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const dialogRef = useRef<HTMLElement>(null)
   const entries = Object.keys(draft).sort((left, right) => left.localeCompare(right))
-  const changes = entries.filter(field => draft[field] !== initial.current[field])
+  const changes = entries.filter(field => draft[field] !== initial[field])
   const dirty = changes.length > 0
 
   const requestClose = () => {
@@ -50,7 +50,7 @@ export function FrontmatterInspector({
   useFocusTrap(dialogRef, { active: true })
 
   const saveChanges = async () => {
-    if (busy || !dirty || !expectedVaultId || !revisionAtOpen.current || noteHasUnsavedChanges) return
+    if (busy || !dirty || !expectedVaultId || !revisionAtOpen || noteHasUnsavedChanges) return
     setBusy(true)
     setStatus('Saving changes…')
     setError('')
@@ -59,12 +59,12 @@ export function FrontmatterInspector({
       // once with compare-and-swap. Per-field writes can partially commit.
       const allowed = await runNoteMutation(path, async () => {
         const note = await vaultReadNote(path, expectedVaultId)
-        if (note.metadata.path !== path || note.metadata.vault_id !== expectedVaultId || note.metadata.content_hash !== revisionAtOpen.current) {
+        if (note.metadata.path !== path || note.metadata.vault_id !== expectedVaultId || note.metadata.content_hash !== revisionAtOpen) {
           throw new Error('The note changed on disk. Your edits were retained; reload the note before saving.')
         }
         const updated = applyFrontmatterChanges(note.markdown,
           Object.fromEntries(changes.map(field => [field, draft[field] ?? ''])))
-        await vaultSaveNote(path, updated, revisionAtOpen.current, false, expectedVaultId)
+        await vaultSaveNote(path, updated, revisionAtOpen, false, expectedVaultId)
       })
       if (!allowed) throw new Error('The note is currently saving. Retry once the editor finishes.')
       setStatus('Saved all changed fields.')
@@ -108,7 +108,7 @@ export function FrontmatterInspector({
         <footer className="frontmatter-actions">
           <span role="status">{dirty ? `${changes.length} unsaved ${changes.length === 1 ? 'field' : 'fields'}` : 'No pending changes'}</span>
           <button type="button" className="toolbar-button" disabled={busy} onClick={requestClose}>Cancel</button>
-          <button type="button" className="primary-button" disabled={busy || !dirty || noteHasUnsavedChanges || !revisionAtOpen.current || !expectedVaultId}
+          <button type="button" className="primary-button" disabled={busy || !dirty || noteHasUnsavedChanges || !revisionAtOpen || !expectedVaultId}
             onClick={() => void saveChanges()}>{busy ? 'Saving…' : 'Save changes'}</button>
         </footer>
         {confirmDiscard ? (

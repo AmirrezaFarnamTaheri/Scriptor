@@ -63,6 +63,8 @@ async function enableCanvasKit(page: Page): Promise<void> {
 
 async function openCanvas(page: Page): Promise<Locator> {
   await grantCanvasKitConsent(page)
+  // The manager is deliberately secondary to writing; this test exercises it directly.
+  await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome', JSON.stringify({ schemaVersion: 1, data: { inspectorCollapsed: false } })))
   await launchApp(page)
   await waitForWorkspace(page)
   await settleLayout(page)

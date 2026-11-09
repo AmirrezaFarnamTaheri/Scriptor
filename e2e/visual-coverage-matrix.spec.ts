@@ -132,6 +132,7 @@ test.describe('visual coverage matrix', () => {
 
   test('dark theme covers the reviewed settings, automation, knowledge, history, canvas, plugin, and publish surfaces', async ({ page }) => {
     await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify({ schemaVersion: 1, data: { inspectorCollapsed: false } }))
       window.localStorage.setItem('scriptor:app-theme', 'dark')
       window.localStorage.setItem('scriptor:onboarding-complete', 'true')
     })

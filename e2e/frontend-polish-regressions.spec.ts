@@ -38,7 +38,7 @@ async function openGitPanel(page: Page) {
 
 test('a healthy vault keeps its detailed metrics available when the inspector is opted into', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome',
-    JSON.stringify({ inspectorCollapsed: false, showInspectorHealth: true })))
+    JSON.stringify({ schemaVersion: 1, data: { inspectorCollapsed: false, showInspectorHealth: true } })))
   await launchApp(page)
   await waitForWorkspace(page)
   const inspector = page.locator('#inspector-panel-inspector')
@@ -147,7 +147,7 @@ test.describe('Frontend polish regressions', () => {
 
   test('writing inspector puts the note outline ahead of health and publishing cards', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome',
-      JSON.stringify({ inspectorCollapsed: false, showInspectorHealth: true })))
+      JSON.stringify({ schemaVersion: 1, data: { inspectorCollapsed: false, showInspectorHealth: true } })))
     await launchApp(page)
     const inspector = page.locator('.inspector-panel')
     const outline = inspector.getByRole('heading', { name: 'Outline', exact: true })
@@ -267,7 +267,7 @@ test.describe('Frontend polish regressions', () => {
 
   test('inspector modes leave every editor toolbar control inside the writing column', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome',
-      JSON.stringify({ inspectorCollapsed: false })))
+      JSON.stringify({ schemaVersion: 1, data: { inspectorCollapsed: false } })))
     await launchApp(page)
     // The app shell appears before Monaco's model is ready. Measure only after
     // the writing editor has fully hydrated, without weakening overlap checks.
@@ -634,7 +634,7 @@ test.describe('Frontend polish regressions', () => {
 
   test('store surface owns live MCP and feature controls', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome',
-      JSON.stringify({ inspectorCollapsed: false })))
+      JSON.stringify({ schemaVersion: 1, data: { inspectorCollapsed: false } })))
     await launchApp(page)
     await settleLayout(page)
 

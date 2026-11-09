@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import { launchApp, waitForWorkspace } from './helpers'
 
 test('marketplace finds an already-installed plugin and hides installed-only status', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome', JSON.stringify({ schemaVersion: 1, data: { inspectorCollapsed: false } })))
   await launchApp(page)
   await waitForWorkspace(page)
   await page.getByRole('tab', { name: 'Tools', exact: true }).click()

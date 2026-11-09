@@ -97,7 +97,9 @@ test.describe('workspace flows', () => {
     await launchApp(page)
     await settleLayout(page)
     await expect(page.locator('header.topbar .command-search')).toBeHidden()
-    const command = page.getByRole('navigation', { name: 'Mobile workspace navigation' }).getByRole('button', { name: 'Command', exact: true })
+    const navigation = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+    await navigation.getByRole('button', { name: 'More', exact: true }).click()
+    const command = page.getByRole('group', { name: 'More destinations' }).getByRole('button', { name: 'Command', exact: true })
     await expect(command).toBeVisible()
     await command.click()
     await expect(page.locator('.command-palette-overlay')).toBeVisible()
@@ -112,14 +114,18 @@ test.describe('workspace flows', () => {
         name: locale === 'de' ? 'Mobile-Arbeitsbereich-Navigation' : 'پیمایش محیط کاری موبایل',
       })
       await expect(navigation).toBeVisible()
+      const moreName = locale === 'de' ? 'Mehr' : 'بیشتر'
+      const moreDestinations = locale === 'de' ? 'Weitere Bereiche' : 'بخش‌های بیشتر'
       const commandName = locale === 'de' ? 'Befehl' : 'فرمان'
-      const command = navigation.getByRole('button', { name: commandName, exact: true })
-      await expect(command).toBeVisible()
-      await command.click()
+      await navigation.getByRole('button', { name: moreName, exact: true }).click()
+      const menu = page.getByRole('group', { name: moreDestinations })
+      await expect(menu.getByRole('button', { name: commandName, exact: true })).toBeVisible()
+      await menu.getByRole('button', { name: commandName, exact: true }).click()
       await expect(page.locator('.command-palette-overlay')).toBeVisible()
       await page.keyboard.press('Escape')
-      await navigation.getByRole('button', { name: locale === 'de' ? 'Plugins' : 'افزونه‌ها' }).click()
-      await expect(navigation.getByRole('button', { name: locale === 'de' ? 'Plugins' : 'افزونه‌ها' }))
+      await navigation.getByRole('button', { name: moreName, exact: true }).click()
+      await menu.getByRole('button', { name: locale === 'de' ? 'Plugins' : 'افزونه‌ها' }).click()
+      await expect(navigation.getByRole('button', { name: moreName, exact: true }))
         .toHaveAttribute('aria-current', 'page')
     })
   }

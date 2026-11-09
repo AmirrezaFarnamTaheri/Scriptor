@@ -4,6 +4,7 @@ import { launchApp, openCommandPalette, runCommand, settleLayout } from './helpe
 
 test.describe('capability surfaces', () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome', JSON.stringify({ schemaVersion: 1, data: { inspectorCollapsed: false } })))
     await launchApp(page)
     await settleLayout(page)
   })
