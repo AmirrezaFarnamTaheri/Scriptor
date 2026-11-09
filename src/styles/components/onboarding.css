@@ -83,7 +83,7 @@
 
 .onboarding-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -91,7 +91,7 @@
 
 .onboarding-next-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
@@ -121,6 +121,11 @@
 
   .onboarding-actions {
     align-items: stretch;
+    gap: 8px;
+  }
+  .onboarding-actions .toolbar-button,
+  .onboarding-actions .primary-button {
+    min-width: 0;
   }
 
   .onboarding-next-actions {
