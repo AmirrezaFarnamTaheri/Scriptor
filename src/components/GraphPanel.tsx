@@ -162,6 +162,7 @@ export const GraphPanel = memo(function GraphPanel({
   const { enablePlugin, isPluginEnabled, persistenceError } = usePluginState()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
+  const [graphSearch, setGraphSearch] = useState('')
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
   const dialogRef = useRef<HTMLDivElement>(null)
   const graphStageRef = useRef<HTMLDivElement>(null)
@@ -285,6 +286,12 @@ export const GraphPanel = memo(function GraphPanel({
       .sort((a, b) => a.label.localeCompare(b.label))
       .slice(0, 4)
   }, [useCanvas, focusPath, layout, adjacency, nodeById])
+
+  const graphMatches = useMemo(() => {
+    const query = graphSearch.trim().toLocaleLowerCase()
+    if (!query) return [] as CanvasNode[]
+    return layout.filter(node => node.label.toLocaleLowerCase().includes(query) || node.path.toLocaleLowerCase().includes(query)).slice(0, 6)
+  }, [layout, graphSearch])
 
   const reciprocalPairs = useMemo(() => {
     const directions = new Map<string, Set<string>>()
@@ -524,6 +531,19 @@ export const GraphPanel = memo(function GraphPanel({
         ))}
       </div>
 
+      <div className="graph-note-search" role="search">
+        <label>
+          {t('graph.findNotes')}
+          <input type="search" value={graphSearch} onChange={event => setGraphSearch(event.target.value)} placeholder={t('graph.findNotes')} />
+        </label>
+        {graphSearch.trim() ? (
+          <div className="graph-note-search-results" role="group" aria-label={t('graph.matchingNotes')}>
+            {graphMatches.length ? graphMatches.map(node => (
+              <button type="button" key={node.id} onClick={() => { setGraphSearch(''); onSelectNode(node.path) }}>{node.label}</button>
+            )) : <span role="status">{t('graph.noMatchingNotes')}</span>}
+          </div>
+        ) : null}
+      </div>
       {nearbyFocusNodes.length > 0 ? (
         <div className="graph-neighbor-shortcuts" role="group" aria-label={t('graph.nearbyNotes')}>
           <strong>{t('graph.nearbyNotes')}</strong>
@@ -548,7 +568,7 @@ export const GraphPanel = memo(function GraphPanel({
               width={viewport.width}
               height={viewport.height}
               onSelectNode={onSelectNode}
-              highlightedNeighborIds={nearbyFocusNodes.map((node) => node.id)}
+              highlightedNeighborIds={[...nearbyFocusNodes.map((node) => node.id), ...graphMatches.map((node) => node.id)]}
             />
           )
         ) : (

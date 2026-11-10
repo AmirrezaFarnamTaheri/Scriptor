@@ -97,6 +97,16 @@ test.describe('Graph panel', () => {
     await expect(panel).not.toBeVisible({ timeout: 5000 })
   })
 
+  test('graph search finds named notes and offers a keyboard-readable empty result', async ({ page }) => {
+    const panel = await openGraph(page)
+    const search = panel.getByRole('searchbox', { name: 'Find a note' })
+    await expect(search).toBeVisible()
+    await search.fill('Field')
+    await expect(panel.getByRole('group', { name: 'Matching notes' }).getByRole('button', { name: 'Field Notes' })).toBeVisible()
+    await search.fill('nonexistent example')
+    await expect(panel.locator('.graph-note-search-results').getByRole('status')).toContainText('No matching notes')
+  })
+
   test('depth slider controls graph depth', async ({ page }) => {
     const panel = await openGraph(page)
 
