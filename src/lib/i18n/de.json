@@ -380,6 +380,7 @@
     "saveViews": "Ansichten speichern",
     "legendAria": "Graph-Legende",
     "currentNote": "Aktuelle Notiz",
+    "nearbyNotes": "Verknüpfte Notizen",
     "directedLink": "Gerichteter Link",
     "disabledTitle": "Wissensgraph ist deaktiviert",
     "disabledDescription": "Aktivieren Sie das Graph-Modul für diesen Tresor, um Notizbeziehungen zu erkunden.",

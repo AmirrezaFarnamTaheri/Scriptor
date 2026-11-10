@@ -77,3 +77,15 @@
   .research-studio details > summary { min-height: 44px; }
   .research-studio details > summary { display: flex; align-items: center; }
 }
+
+
+/* Reserve end-of-list clearance above the persistent mobile workspace nav.
+ * The asset list can be a separate nested scroll container at high zoom. */
+@media (max-width:820px) {
+  .asset-deck-workspace .unified-panel-body,
+  .asset-deck-workspace .embedded-panel-body,
+  .asset-deck-workspace .research-asset-list { scroll-padding-block-end:calc(64px + env(safe-area-inset-bottom,0px)); }
+  .asset-deck-workspace .asset-deck-split .embedded-panel-body { padding-block-end:calc(64px + env(safe-area-inset-bottom,0px)); }
+  .asset-deck-workspace .research-asset-list { padding-block-end:20px; }
+}
+html[data-ui-reflow='mobile'] .asset-deck-workspace .asset-deck-split .embedded-panel-body { padding-block-end:calc(64px + env(safe-area-inset-bottom,0px)); }

@@ -749,3 +749,14 @@ html[data-ui-reflow='mobile'] .workspace-grid[data-inspector-collapsed='true'][d
 html[data-ui-reflow='mobile'] .workspace-grid[data-inspector-collapsed='true'][data-mobile-pane='inspector'] > .inspector-panel {
   padding-inline: 12px;
 }
+
+
+/* At extreme magnification the bottom Command/More destinations supply all
+ * secondary actions. Keep one complete Settings button instead of clipping a
+ * horizontal strip at the physical viewport edge in LTR/RTL. */
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .top-actions > :not(.topbar-settings-toggle) { display:none; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .top-actions { display:flex; flex:0 0 auto; justify-content:flex-end; max-width:100%; overflow:visible; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .history-controls { display:none; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .workspace-mode-strip { grid-column:1 / -1; order:2; width:100%; min-width:0; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar { grid-template-columns:minmax(0,1fr) auto; }
+html[data-ui-reflow='mobile'] .workspace-embedded-panel .unified-panel-body { scroll-padding-block-end:calc(64px + env(safe-area-inset-bottom,0px)); }

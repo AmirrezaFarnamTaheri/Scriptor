@@ -497,6 +497,13 @@ test.describe('visual review states', () => {
     const graph = page.getByRole('dialog', { name: 'Knowledge graph' })
     await expect(graph).toBeVisible()
     await expect(graph.locator('.graph-header')).toContainText('120 nodes')
+    // The dense graph must expose named, clickable immediate neighbors without
+    // requiring users to hover or guess which dot represents which note.
+    const neighbors = graph.getByRole('group', { name: 'Connected notes' })
+    await expect(neighbors).toBeVisible()
+    for (const label of ['Topic 002', 'Topic 018', 'Topic 120']) {
+      await expect(neighbors.getByRole('button', { name: label, exact: true })).toBeVisible()
+    }
     const stage = graph.locator('.graph-stage')
     const canvas = graph.locator('.graph-canvas-accessible-shell canvas')
     await expect(stage).toBeVisible()

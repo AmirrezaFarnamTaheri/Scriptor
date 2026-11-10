@@ -50,3 +50,16 @@
 .overleaf-requirements summary { cursor: pointer; font-weight: 600; }
 .overleaf-requirements p { margin: 10px 0 0; line-height: 1.5; }
 .overleaf-step-heading { margin: 8px 0 0; font-size: 14px; }
+
+
+/* Review controls grow with wrapped and magnified labels. */
+.overleaf-panel .overleaf-consent { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:start; gap:10px; min-height:44px; }
+.overleaf-panel .overleaf-consent > span { min-width:0; overflow-wrap:anywhere; line-height:1.45; }
+.overleaf-panel .overleaf-review-actions { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; min-width:0; }
+.overleaf-panel .overleaf-review-actions > button { display:block; width:100%; height:auto; min-width:0; min-height:44px; white-space:normal; overflow-wrap:anywhere; word-break:normal; line-height:1.45; padding:10px; text-align:center; }
+@media(max-width:600px) {
+  .overleaf-panel > header { align-items:stretch; padding:10px; gap:8px; }
+  .overleaf-panel > header h2 { font-size:1.1rem; line-height:1.25; overflow-wrap:anywhere; }
+  .overleaf-panel > header button { height:auto; width:100%; white-space:normal; line-height:1.35; }
+  .overleaf-panel-body { padding:10px; gap:10px; scroll-padding-block-end:32px; }
+}

@@ -380,6 +380,7 @@
     "saveViews": "Save views",
     "legendAria": "Graph legend",
     "currentNote": "Current note",
+    "nearbyNotes": "Connected notes",
     "directedLink": "Directed link",
     "disabledTitle": "Knowledge Graph is disabled",
     "disabledDescription": "Enable the Graph module for this vault to explore note relationships.",

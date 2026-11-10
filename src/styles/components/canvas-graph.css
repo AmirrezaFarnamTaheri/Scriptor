@@ -465,3 +465,12 @@
     flex: none;
   }
 }
+
+
+/* Named keyboard-accessible shortcuts supplement the dense graph canvas. */
+.graph-neighbor-shortcuts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; padding:8px 14px; border-block-end:1px solid var(--border); }
+.graph-neighbor-shortcuts > strong { font-size:.85rem; }
+.graph-neighbor-shortcuts > div { display:flex; flex-wrap:wrap; gap:6px; min-width:0; }
+.graph-neighbor-shortcuts button { min-height:36px; max-width:min(220px,100%); padding:6px 10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:1px solid var(--border); border-radius:var(--radius-sm,6px); background:var(--surface-raised); color:var(--ink); cursor:pointer; }
+.graph-neighbor-shortcuts button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+@media(max-width:600px) { .graph-neighbor-shortcuts { align-items:flex-start; flex-direction:column; padding:8px; } .graph-neighbor-shortcuts button { min-height:44px; } }

@@ -275,6 +275,17 @@ export const GraphPanel = memo(function GraphPanel({
     return map
   }, [graph, layout])
 
+  const nearbyFocusNodes = useMemo(() => {
+    if (!useCanvas || !focusPath) return [] as CanvasNode[]
+    const focusNode = layout.find((node) => node.path === focusPath)
+    if (!focusNode) return []
+    return [...new Set(adjacency.get(focusNode.id) ?? [])]
+      .map((id) => nodeById.get(id))
+      .filter((node): node is CanvasNode => Boolean(node?.path))
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .slice(0, 4)
+  }, [useCanvas, focusPath, layout, adjacency, nodeById])
+
   const reciprocalPairs = useMemo(() => {
     const directions = new Map<string, Set<string>>()
     if (!graph) return directions
@@ -513,6 +524,14 @@ export const GraphPanel = memo(function GraphPanel({
         ))}
       </div>
 
+      {nearbyFocusNodes.length > 0 ? (
+        <div className="graph-neighbor-shortcuts" role="group" aria-label={t('graph.nearbyNotes')}>
+          <strong>{t('graph.nearbyNotes')}</strong>
+          <div>{nearbyFocusNodes.map((node) => (
+            <button type="button" key={node.id} onClick={() => onSelectNode(node.path)}>{node.label}</button>
+          ))}</div>
+        </div>
+      ) : null}
       <div ref={liveRegionRef} aria-live="polite" className="sr-only" />
 
       <div ref={graphStageRef} className="graph-stage">
@@ -529,6 +548,7 @@ export const GraphPanel = memo(function GraphPanel({
               width={viewport.width}
               height={viewport.height}
               onSelectNode={onSelectNode}
+              highlightedNeighborIds={nearbyFocusNodes.map((node) => node.id)}
             />
           )
         ) : (

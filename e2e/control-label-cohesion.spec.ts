@@ -118,6 +118,23 @@ async function auditConsent(page:Page,panel:Locator,label:Locator,name:string,te
     await label.scrollIntoViewIfNeeded()
     await label.screenshot({path:testInfo.outputPath(`${name}-${direction}-${width}-${zoom}-toggle.png`)})
     await panel.screenshot({path:testInfo.outputPath(`${name}-${direction}-${width}-${zoom}.png`)})
+    if (width === 320 && zoom === 2 && name.startsWith('overleaf-')) {
+      // A two-line consent must never crowd, truncate or overlay the two
+      // safety-critical review actions at 200% magnification.
+      const buttons = panel.locator('.overleaf-review-actions > button')
+      await expect(buttons).toHaveCount(2)
+      const rects = await buttons.evaluateAll(elements => elements.map(el => {
+        const rect = el.getBoundingClientRect()
+        return { top: rect.top, bottom: rect.bottom, clientHeight: el.clientHeight, scrollHeight: el.scrollHeight }
+      }))
+      expect(rects[0].bottom).toBeLessThanOrEqual(rects[1].top + 1)
+      for (const rect of rects) expect(rect.scrollHeight).toBeLessThanOrEqual(rect.clientHeight + 1)
+    }
+    if (width === 320 && zoom === 2 && name.startsWith('source-')) {
+      // At narrow widths the source editor starts with file actions rather
+      // than a large explanatory paragraph before the editing surface.
+      await expect(panel.locator(':scope > header p')).toBeHidden()
+    }
     if (width === 320 && zoom === 2) await page.screenshot({path:testInfo.outputPath(`${name}-${direction}-320-zoom2-full.png`),fullPage:true})
   }
 }

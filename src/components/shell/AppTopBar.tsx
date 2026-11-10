@@ -396,6 +396,7 @@ function AppTopBarImpl({
               palette: theme,
             })}
             onClick={onToggleTheme}
+            className="topbar-theme-toggle"
           >
             {resolvedAppearance === 'dark' ? <Sun /> : <Moon />}
           </IconButton>
@@ -426,16 +427,16 @@ function AppTopBarImpl({
               <span className="action-button-label">{t('topBar.plugins')}</span>
             </button>
           ) : null}
-          <IconButton tooltip={false} label={t('topBar.settings')} onClick={onOpenSettings}>
+          <IconButton tooltip={false} className="topbar-settings-toggle" label={t('topBar.settings')} onClick={onOpenSettings}>
             <Settings />
           </IconButton>
-          <IconButton tooltip={false} label={t('topBar.help')} onClick={() => requestHelp('workspace')}>
+          <IconButton tooltip={false} className="topbar-help-toggle" label={t('topBar.help')} onClick={() => requestHelp('workspace')}>
             <CircleHelp />
           </IconButton>
           <button
             type="button"
             ref={customizeAnchorRef}
-            className={`status-button${customizeOpen ? ' emphasized' : ''}`}
+            className={`topbar-customize-toggle status-button${customizeOpen ? ' emphasized' : ''}`
             aria-label={t('topBar.customizeAria')}
             aria-expanded={customizeOpen}
             onClick={openCustomize}

@@ -50,6 +50,7 @@ interface GraphCanvasProps {
   width: number
   height: number
   onSelectNode: (path: string) => void
+  highlightedNeighborIds?: string[]
 }
 
 function directedPairKey(source: string, target: string): string {
@@ -101,7 +102,7 @@ function reciprocalOffsetFor(
   }
 }
 
-export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNode }: GraphCanvasProps) {
+export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNode, highlightedNeighborIds = [] }: GraphCanvasProps) {
   const { t } = useI18n()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const hoveredIdRef = useRef<string | null>(null)
@@ -241,7 +242,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     // Paint labels after every node so later nodes cannot obscure earlier
     // glyphs. The plate starts below even the 26px keyboard focus ring.
     for (const node of nodes) {
-      const showLabel = nodes.length < 60 || node.path === focusPath || hoveredId === node.id || keyboardNode?.id === node.id
+      const showLabel = nodes.length < 60 || highlightedNeighborIds.includes(node.id) || node.path === focusPath || hoveredId === node.id || keyboardNode?.id === node.id
       if (showLabel) {
         const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
         ctx.font = '11px sans-serif'
@@ -272,6 +273,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     reciprocalPairs,
     keyboardFocused,
     activeKeyboardNodeIndex,
+    highlightedNeighborIds,
   ])
 
   useEffect(() => {
