@@ -98,7 +98,8 @@ function MobileWorkspaceNavImpl({
           className={`mobile-nav-item pressable ${moreActive ? 'is-active' : ''}`}
           aria-label={t('mobile.more')}
           aria-expanded={moreOpen}
-          aria-controls="mobile-workspace-more"
+          aria-current={moreActive ? 'page' : undefined}
+          aria-controls={moreOpen ? 'mobile-workspace-more' : undefined}
           onClick={() => setMoreOpen(value => !value)}>
           <MoreHorizontal aria-hidden="true" />
           <span>{t('mobile.more')}</span>

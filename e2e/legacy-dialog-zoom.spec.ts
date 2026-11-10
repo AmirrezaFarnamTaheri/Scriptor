@@ -300,7 +300,7 @@ for (const viewport of viewports) {
       if (surface === 'Frontmatter') {
         await expect(dialog.getByLabel('project', { exact: true })).toHaveValue('Scriptor research')
         await expectReachable(dialog.getByLabel('project', { exact: true }))
-        await expectReachable(dialog.getByRole('button', { name: 'Save', exact: true }).last())
+        await expectReachable(dialog.getByRole('button', { name: 'Save changes', exact: true }))
       } else {
         await expectReachable(dialog.locator('.writing-history li').last())
         await expectReachable(dialog.getByRole('spinbutton', { name: 'Daily word target', exact: true }))

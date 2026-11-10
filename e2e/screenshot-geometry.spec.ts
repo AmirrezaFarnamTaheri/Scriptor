@@ -82,6 +82,10 @@ test.describe('screenshot geometry contracts', () => {
     await settleLayout(page)
 
     const inspector = page.locator('.inspector-panel')
+    // Balanced inspector hides healthy metrics behind a disclosure by design.
+    // Open the details before measuring the actual two-column rail geometry.
+    const healthDetails = inspector.locator('details.inspector-health-breakdown')
+    if (await healthDetails.count()) await healthDetails.locator('summary').click()
     const metrics = inspector.locator('.metric-grid .metric')
     await expect(metrics).toHaveCount(8)
     const geometry = await metrics.evaluateAll((nodes) => {

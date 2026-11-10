@@ -69,6 +69,24 @@ test('inspector tabs stay on one line across the tablet band', async ({ page }) 
   }
 })
 
+test('translated inspector tabs stay on one row and remain reachable by scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await page.addInitScript(() => localStorage.setItem('scriptor:locale', 'de'))
+  await launchApp(page)
+  await waitForWorkspace(page)
+  const tabs = page.locator('.inspector-tabs button[role="tab"]')
+  await expect(tabs).toHaveCount(3)
+  const geometry = await tabs.evaluateAll(nodes => nodes.map(node => ({
+    top: Math.round(node.getBoundingClientRect().top),
+    clipped: node.scrollWidth > node.clientWidth + 1,
+  })))
+  expect(new Set(geometry.map(item => item.top)).size).toBe(1)
+  expect(geometry.every(item => !item.clipped)).toBe(true)
+  await tabs.last().scrollIntoViewIfNeeded()
+  await tabs.last().click()
+  await expect(tabs.last()).toHaveAttribute('aria-selected', 'true')
+})
+
 test('a truncated tab label still exposes its full name', async ({ page }) => {
   await launchApp(page)
   await waitForWorkspace(page)

@@ -139,6 +139,9 @@ test('pending source decision stays visible until cancelled before a sidebar fil
   await editor.getByRole('button', { name: 'Keep editing', exact: true }).click()
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('e2e:source-vault-result'))).toBe('[false]')
   await bibliography.click()
+  // Each new file leaf defaults to Monaco; choose the explicit editable
+  // plain-text fallback before asserting a textarea value.
+  await editor.getByRole('button', { name: 'Plain text', exact: true }).click()
   await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('@article{reviewed, title={Reviewed source}}\n')
   await attachVisualState(page, testInfo, 'source-bibtex-populated', editor, editor.getByLabel('Source file content', { exact: true }))
   await page.getByRole('tab', { name: originalTabLabel, exact: true }).click()
@@ -153,6 +156,7 @@ test('real vault switching reveals two dirty source leaves sequentially and refu
   await attachVisualState(page, testInfo, 'source-python-populated', editor, editor.getByLabel('Source file content', { exact: true }))
   await editor.getByLabel('Source file content', { exact: true }).fill('print("first draft")\n')
   await page.getByRole('complementary', { name: 'Vault', exact: true }).getByRole('button', { name: 'references.bib', exact: true }).click()
+  await editor.getByRole('button', { name: 'Plain text', exact: true }).click()
   await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('@article{reviewed, title={Reviewed source}}\n')
   await editor.getByLabel('Source file content', { exact: true }).fill('Second retained draft')
   await page.evaluate(() => sessionStorage.setItem('e2e:source-picked-vault', '/e2e/next-source-vault'))
