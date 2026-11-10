@@ -121,6 +121,14 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
           </details> : null}
         </>}
       {setupError ? <p className="publish-error" role="alert">{setupError}</p> : null}
+      {/* Keep Gmail activation and separate OAuth permission visible before
+           lower-priority Drive and Calendar advanced settings. */}
+      <div className="settings-subgroup google-integration-fields" role="group" aria-labelledby="google-gmail-heading">
+        <h4 id="google-gmail-heading">{t('integrations.gmail.title')}</h4>
+        <p className="health-subtitle">{t('integrations.google.gmailNote')}</p>
+        {gmailEnabled ? accountControls('gmail') : <p className="health-subtitle" role="status">{t('integrations.google.gmailDisabled')}</p>}
+        {workspaceButton('gmail', 'integrations.google.openGmail')}
+      </div>
       <div className="settings-subgroup google-integration-fields" role="group" aria-labelledby="google-drive-heading">
         <h4 id="google-drive-heading">{t('integrations.google.driveDocs')}</h4>
         <p className="health-subtitle">{t('integrations.google.driveDocsHelp')}</p>
@@ -165,12 +173,6 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
           </div>
         </details>
         {workspaceButton('planner', 'integrations.google.openPlanner')}
-      </div>
-      <div className="settings-subgroup google-integration-fields" role="group" aria-labelledby="google-gmail-heading">
-        <h4 id="google-gmail-heading">{t('integrations.gmail.title')}</h4>
-        <p className="health-subtitle">{t('integrations.google.gmailNote')}</p>
-        {gmailEnabled ? accountControls('gmail') : <p className="health-subtitle" role="status">{t('integrations.google.gmailDisabled')}</p>}
-        {workspaceButton('gmail', 'integrations.google.openGmail')}
       </div>
     </section>
   )

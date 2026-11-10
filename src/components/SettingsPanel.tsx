@@ -316,12 +316,14 @@ function SettingsPanelImpl({
             className="settings-unsaved-confirmation"
           />
         ) : ((activeTab === 'general' || activeTab === 'integrations' || configDirty) && vaultOpen && nativeReady && configReady ? (
-          <div className="settings-footer-actions">
-            {configDirty || status ? (
+          <div className="settings-footer-actions" role="group" aria-label={t('settingsPanel.vaultSaveStatusAria')}>
+            <div className="settings-save-scope">
+              <strong>{t('settingsPanel.vaultManualSave')}</strong>
               <span className="settings-status" role="status">
-                {configDirty ? t('settings.unsavedConfig') : status}
+                {configDirty ? t('settings.unsavedConfig') : t('settingsPanel.noPendingVaultChanges')}
               </span>
-            ) : null}
+              {!configDirty && status ? <small>{status}</small> : null}
+            </div>
             <button type="button" className="primary-button" onClick={() => void saveConfig()} disabled={!configDirty}>
               {t('settingsPanel.saveVaultConfig')}
             </button>
@@ -335,8 +337,9 @@ function SettingsPanelImpl({
         style={activeTab !== 'general' ? { display: 'none' } : undefined}
       >
         <p className="settings-persistence-note" role="note">
-            {t('settingsPanel.persistence')}
-          </p>
+          <strong>{t('settingsPanel.autoSavePreferences')}</strong>{' '}
+          {t('settingsPanel.persistence')}
+        </p>
 
           {vaultOpen && nativeReady ? (
             visibleConfigLoadError ? (

@@ -1084,6 +1084,10 @@
     "advanced": "Erweiterte Darstellung und Abstände"
   },
   "settingsPanel": {
+    "vaultSaveStatusAria": "Speicherstatus der Tresoreinstellungen",
+    "vaultManualSave": "Tresoreinstellungen — manuell speichern",
+    "noPendingVaultChanges": "Keine ausstehenden Tresoränderungen",
+    "autoSavePreferences": "App-Einstellungen — automatisch gespeichert.",
     "tabs": {
       "general": "Allgemein",
       "appearance": "Darstellung",

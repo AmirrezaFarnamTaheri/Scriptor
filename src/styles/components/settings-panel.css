@@ -492,3 +492,17 @@
 .layout-preset-detail-copy p { margin:0; overflow-wrap:anywhere; }
 .layout-preset-detail-copy > button { margin-block-start:auto; min-height:44px; white-space:normal; }
 @media(max-width:600px) { .layout-preset-detail { grid-template-columns:minmax(0,1fr); } .layout-preset-preview { min-height:110px; } }
+
+/* Separate automatic app preferences from explicit vault mutations. The footer
+ * is the vault's save contract, not an ambiguous universal settings save. */
+.settings-footer-actions { justify-content: space-between; flex-wrap: wrap; }
+.settings-save-scope { display: grid; flex: 1 1 200px; gap: 2px; min-width: 0; }
+.settings-save-scope strong { font-size: .85rem; line-height: 1.3; color: var(--ink); }
+.settings-save-scope .settings-status { font-size: .8rem; line-height: 1.4; }
+.settings-footer-actions > .primary-button { flex: 0 0 auto; min-height: 44px; }
+.settings-persistence-note { padding: 10px 12px; border-inline-start: 3px solid var(--primary); background: var(--surface-raised); border-radius: 4px; }
+.settings-persistence-note strong { color: var(--ink); }
+@media (max-width: 520px) {
+  .settings-footer-actions { align-items: stretch; gap: 8px; }
+  .settings-footer-actions > .primary-button { width: 100%; }
+}

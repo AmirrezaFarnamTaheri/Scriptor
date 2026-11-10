@@ -1084,6 +1084,10 @@
     "advanced": "تنظیمات پیشرفتهٔ ظاهر و فاصله‌گذاری"
   },
   "settingsPanel": {
+    "vaultSaveStatusAria": "وضعیت ذخیرهٔ تنظیمات خزانه",
+    "vaultManualSave": "تنظیمات خزانه — ذخیرهٔ دستی",
+    "noPendingVaultChanges": "تغییر ذخیره‌نشده‌ای برای خزانه وجود ندارد",
+    "autoSavePreferences": "تنظیمات برنامه — ذخیرهٔ خودکار.",
     "tabs": {
       "general": "عمومی",
       "appearance": "ظاهر",

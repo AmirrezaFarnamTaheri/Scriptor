@@ -1084,6 +1084,10 @@
     "advanced": "Advanced appearance and spacing"
   },
   "settingsPanel": {
+    "vaultSaveStatusAria": "Vault settings save status",
+    "vaultManualSave": "Vault settings — save manually",
+    "noPendingVaultChanges": "No pending vault changes",
+    "autoSavePreferences": "App preferences — saved automatically.",
     "tabs": {
       "general": "General",
       "appearance": "Appearance",

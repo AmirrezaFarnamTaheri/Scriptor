@@ -223,6 +223,14 @@ test('Revision pagination rejects repeated tokens without duplicating entries or
   await expect(panel.getByRole('button', { name: 'Load next page', exact: true })).toBeEnabled()
 })
 
+test('Gmail connection is the first Google integration to make its activation state discoverable', async ({ page }) => {
+  await launchGoogle(page)
+  const { google } = await openGoogleSettings(page)
+  const headings = await google.locator(':scope > .settings-subgroup > h4').allTextContents()
+  expect(headings[0]).toBe('Gmail')
+  await expect(google.getByRole('group', { name: 'Gmail' })).toBeVisible()
+})
+
 test('Calendar sign-in is immediately available even when sync was switched off', async ({ page }) => {
   await launchGoogle(page)
   const { google } = await openGoogleSettings(page)
