@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test'
-import { launchApp, openCommandPalette, runCommand } from './helpers'
+import { expandInspector, launchApp, openCommandPalette, runCommand } from './helpers'
 
 const surfaces = [
   { command: 'Asset deck', name: 'Asset deck', grid: '.asset-deck-split.has-reader', breakpoint: 800 },
@@ -28,6 +28,9 @@ for (const surface of surfaces) {
       sessionStorage.setItem('e2e:asset-media', '1')
     })
     await launchApp(page)
+    // Reserve a real inspector rail to exercise the narrow *container* at
+    // a wide physical viewport; a collapsed rail legitimately makes it wide.
+    await expandInspector(page)
     await openCommandPalette(page)
     await runCommand(page, surface.command)
     const panel = surface.name === 'Asset deck'

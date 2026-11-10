@@ -95,7 +95,7 @@ export function FrontmatterInspector({
               <li key={field} data-dirty={changes.includes(field) ? 'true' : undefined}>
                 <label>
                   <span>{field}{changes.includes(field) && <span className="frontmatter-dirty-marker" aria-hidden="true"> · Changed</span>}</span>
-                  <input value={draft[field] ?? ''} disabled={busy || confirmDiscard}
+                  <input aria-label={field} value={draft[field] ?? ''} disabled={busy || confirmDiscard}
                     onChange={event => { setDraft(current => ({ ...current, [field]: event.target.value })); setError('') }} />
                 </label>
               </li>

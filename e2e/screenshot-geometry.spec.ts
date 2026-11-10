@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { expandInspector, launchApp, openCommandPalette, runCommand, settleLayout } from './helpers'
+import { expandInspector, launchApp, openCommandPalette, runCommand, settleLayout, WORKSPACE_CHROME_PREFS } from './helpers'
 
 /** Normalizes sub-pixel layout measurements before comparing screenshot geometry. */
 function rounded(value: number) {
@@ -78,6 +78,9 @@ test.describe('screenshot geometry contracts', () => {
   })
 
   test('inspector note health adapts its metric matrix to the rail width', async ({ page }) => {
+    // Health is optional and disabled in compact defaults. Enable it explicitly
+    // so this test measures its rendered geometry rather than an absent card.
+    await page.addInitScript(prefs => localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(prefs)), WORKSPACE_CHROME_PREFS)
     await page.setViewportSize({ width: 1440, height: 900 })
     await launchApp(page)
     await expandInspector(page)

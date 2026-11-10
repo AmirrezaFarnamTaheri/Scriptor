@@ -50,6 +50,7 @@ test('a content-hash conflict keeps all metadata edits visible for review', asyn
   await dialog.getByRole('button', { name: 'Save changes', exact: true }).click()
   await expect(dialog.getByRole('alert')).toContainText(/hash|changed|save/i)
   await expect(dialog.getByLabel('project', { exact: true })).toHaveValue('Retained draft')
+  await expect(dialog.getByRole('textbox', { name: 'project', exact: true })).toHaveValue('Retained draft')
   await expect(dialog.getByRole('button', { name: 'Save changes', exact: true })).toBeEnabled()
 })
 
@@ -60,6 +61,7 @@ test('closing dirty metadata requires an explicit discard decision', async ({ pa
   await expect(dialog.getByText('Discard your unsaved metadata changes?')).toBeVisible()
   await dialog.getByRole('button', { name: 'Keep editing' }).click()
   await expect(dialog.getByLabel('status', { exact: true })).toHaveValue('reviewed')
+  await expect(dialog.getByRole('textbox', { name: 'status', exact: true })).toHaveValue('reviewed')
   await dialog.getByRole('button', { name: 'Close', exact: true }).last().click()
   await dialog.getByRole('button', { name: 'Discard changes' }).click()
   await expect(dialog).toHaveCount(0)
