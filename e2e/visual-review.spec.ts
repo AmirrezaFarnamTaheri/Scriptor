@@ -245,6 +245,9 @@ test.describe('visual review states', () => {
     await expect(workspace).toBeVisible()
     await expect(page.getByText('Open your writing workspace', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Open vault', exact: true })).toBeVisible()
+    await expect(page.getByRole('complementary', { name: 'Vault', exact: true }).getByRole('button', { name: 'Open vault folder', exact: true })).toHaveCount(0)
+    await expect(page.locator('.inspector-panel')).toContainText('Open a vault to inspect notes')
+    await expect(page.locator('.inspector-panel')).not.toContainText('Export formats')
     await expect(page.locator('.monaco-editor, .cm-editor, article[aria-label="Markdown preview"]')).toHaveCount(0)
     await expectNoHorizontalOverflow(page)
 

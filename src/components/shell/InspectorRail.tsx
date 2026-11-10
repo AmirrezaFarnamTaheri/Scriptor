@@ -70,6 +70,7 @@ interface InspectorRailProps {
   inspectorPreset: InspectorPreset
   onInspectorPresetChange: (preset: InspectorPreset) => void
   showInspectorHealth?: boolean
+  vaultOpen?: boolean
   onOpenKnowledgeWorkbench: () => void
   onOpenPublishCenter: () => void
   onOpenGraph: () => void
@@ -145,6 +146,7 @@ function InspectorRailImpl({
   inspectorPreset,
   onInspectorPresetChange,
   showInspectorHealth = true,
+  vaultOpen = true,
   onOpenKnowledgeWorkbench,
   onOpenPublishCenter,
   onOpenGraph,
@@ -212,7 +214,7 @@ function InspectorRailImpl({
       </div>
 
       {/* ── Preset row ──────────────────────────────────────────────────────── */}
-      {activeMode === 'inspector' ? (
+      {activeMode === 'inspector' && vaultOpen ? (
         <div className="inspector-preset-control">
           <div className="inspector-preset-row" role="radiogroup" aria-label={t('inspector.presetAria')} onKeyDown={handlePresetKeys}>
             {INSPECTOR_PRESETS.map((entry) => (
@@ -351,7 +353,7 @@ function InspectorRailImpl({
         hidden={activeMode !== 'inspector'}
       >
         {activeMode === 'inspector' ? (
-          <>
+          vaultOpen ? <>
             {presetConfig.showOutline ? (
               <WidgetCard title={t('inspector.outline')}>
                 <div className="compact-list">
@@ -572,7 +574,7 @@ function InspectorRailImpl({
                 ) : null}
               </WidgetCard>
             )}
-          </>
+          </> : <EmptyState icon={<BookOpen />} title={t('inspector.noVaultTitle')} description={t('inspector.noVaultHint')} />
         ) : null}
       </div>
 

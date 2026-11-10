@@ -588,6 +588,8 @@
   },
   "inspector": {
     "ariaLabel": "Inspector",
+    "noVaultTitle": "Open a vault to inspect notes",
+    "noVaultHint": "The inspector will show document structure and links after you open a vault.",
     "modeAria": "Inspector mode",
     "presetAria": "Inspector content preset",
     "moreTabs": "More inspector tabs",

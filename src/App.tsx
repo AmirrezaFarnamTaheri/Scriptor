@@ -1594,6 +1594,7 @@ function App() {
           inspectorPreset={inspectorPreset}
           onInspectorPresetChange={setInspectorPreset}
           showInspectorHealth={chrome.showInspectorHealth && Boolean(workspace.vault)}
+          vaultOpen={Boolean(workspace.vault)}
           onOpenKnowledgeWorkbench={handleOpenKnowledgeWorkbenchRepair}
           onOpenPublishCenter={handleOpenPublishCenter}
           onOpenGraph={handleOpenGraph}

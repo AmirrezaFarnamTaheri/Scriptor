@@ -588,6 +588,8 @@
   },
   "inspector": {
     "ariaLabel": "Inspektor",
+    "noVaultTitle": "Öffnen Sie einen Tresor, um Notizen zu prüfen",
+    "noVaultHint": "Nach dem Öffnen eines Tresors zeigt der Inspektor Notizstruktur und Verknüpfungen.",
     "modeAria": "Inspektor-Modus",
     "presetAria": "Inspektor-Inhaltsprofil",
     "moreTabs": "Weitere Inspektor-Reiter",
