@@ -1,6 +1,33 @@
 import { expect, test, type Page, type Locator, type TestInfo } from '@playwright/test'
 import { launchApp, openCommandPalette, runCommand } from './helpers'
 
+/** P1 VIS-031: a label's own geometry can pass while its parent scrollport
+ * clips the beginning or end after scrollIntoViewIfNeeded at high app zoom. */
+async function expectFullConsentInsidePanelBody(label:Locator, note:string) {
+  const geometry=await label.evaluate(element => {
+    const body=element.closest('.unified-panel-body')
+    if (!body) return null
+    const labelBox=element.getBoundingClientRect()
+    const bodyBox=body.getBoundingClientRect()
+    const bottomNav=document.querySelector<HTMLElement>('.mobile-workspace-nav')
+    const navBox=bottomNav?.getBoundingClientRect()
+    const limit=navBox && navBox.height>0 ? Math.min(navBox.top,bodyBox.bottom) : bodyBox.bottom
+    return {
+      top:labelBox.top, bottom:labelBox.bottom,
+      left:labelBox.left, right:labelBox.right,
+      bodyTop:bodyBox.top, bodyBottom:limit,
+      bodyLeft:bodyBox.left, bodyRight:bodyBox.right,
+      bodyHeight:bodyBox.height, labelHeight:labelBox.height,
+    }
+  })
+  expect(geometry,note+' must have an owning scrollport').not.toBeNull()
+  expect(geometry!.bodyHeight,note+' scrollport must fit its consent').toBeGreaterThanOrEqual(geometry!.labelHeight+8)
+  expect(geometry!.top,note+' label start must be readable').toBeGreaterThanOrEqual(geometry!.bodyTop-1)
+  expect(geometry!.bottom,note+' label end must be readable above mobile nav').toBeLessThanOrEqual(geometry!.bodyBottom+1)
+  expect(geometry!.left,note+' label left must remain in body').toBeGreaterThanOrEqual(geometry!.bodyLeft-1)
+  expect(geometry!.right,note+' label right must remain in body').toBeLessThanOrEqual(geometry!.bodyRight+1)
+}
+
 // Direct CSS stress zoom publishes the effective viewport dimensions used by
 // the app's CSS fallback. Actual shortcut-driven zoom is covered separately.
 test.beforeEach(async ({ page }) => {
@@ -51,6 +78,7 @@ for (const theme of ['light','dark']) for (const surface of [
     await testInfo.attach(`${direction}-${width}-${zoom}`,{body:JSON.stringify(geometry),contentType:'application/json'})
     if (width === 320 || width === 1440) {
       await label.scrollIntoViewIfNeeded()
+      if (width === 320 && zoom === 2) await expectFullConsentInsidePanelBody(label,`${surface.command} ${theme} ${direction} 320px at 200% app zoom`)
       await label.screenshot({path:testInfo.outputPath(`${theme}-${direction}-${width}-${zoom}-toggle.png`)})
       await panel.screenshot({path:testInfo.outputPath(`${theme}-${direction}-${width}-${zoom}.png`)})
       if (width === 320 && zoom === 2) await page.screenshot({path:testInfo.outputPath(`${theme}-${direction}-320-zoom2-full.png`),fullPage:true})
@@ -95,6 +123,7 @@ for (const theme of ['light','dark']) test(`persistent Python ${theme} setup kee
     expect(startButton!.height).toBeGreaterThanOrEqual(44 * zoom - 1)
     expect(startButton!.width).toBeLessThanOrEqual(paneBounds!.width + 1)
     await checkbox.locator('..').scrollIntoViewIfNeeded()
+    if (width === 320 && zoom === 2) await expectFullConsentInsidePanelBody(checkbox.locator('..'),`Runtime ${theme} ${direction} 320px at 200% app zoom`)
     await checkbox.locator('..').screenshot({path:testInfo.outputPath(`runtime-toggle-${theme}-${direction}-${width}-${zoom}.png`)})
     await panel.screenshot({path:testInfo.outputPath(`runtime-setup-${theme}-${direction}-${width}-${zoom}.png`)})
     if (width === 320 && zoom === 2) await page.screenshot({path:testInfo.outputPath(`runtime-${theme}-${direction}-320-zoom2-full.png`),fullPage:true})
