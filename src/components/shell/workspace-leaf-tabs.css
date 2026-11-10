@@ -23,3 +23,17 @@ html[data-ui-zoom='high'] .workspace-leaf-actions > button,
 html[data-ui-zoom='high'] .workspace-leaf-compact-actions summary { min-inline-size:32px; min-block-size:32px; }
 html[data-ui-zoom='high'] .workspace-leaf-compact-actions { display:block; }
 html[data-ui-zoom='high'] .workspace-group-heading { position:relative; z-index:var(--comp-popover-z,60); }
+
+/* Browser zoom and external text scaling may narrow the real leaf container
+ * without setting Scriptor's data-ui-zoom flag. Keep a single tab/action row
+ * in that case, rather than an extra 44px line above every editor or tool. */
+@media (max-width: 375px) {
+  .workspace-leaf-bar { flex-wrap: nowrap; position: relative; z-index: 1; }
+  .workspace-leaf-tabs { flex: 1 1 0; min-inline-size: 0; }
+  .workspace-leaf-tab { min-inline-size: 44px; min-block-size: 44px; padding: 5px 7px; font-size: 12px; }
+  .workspace-leaf-actions { flex: none; margin-inline-start: 0; }
+  .workspace-leaf-actions > button:not(:last-of-type) { display: none; }
+  .workspace-leaf-actions > button,
+  .workspace-leaf-compact-actions summary { min-inline-size: 44px; min-block-size: 44px; }
+  .workspace-leaf-compact-actions { display: block; }
+}

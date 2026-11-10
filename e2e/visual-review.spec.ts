@@ -799,6 +799,11 @@ test.describe('visual review states', () => {
     await expect(page.locator('.metric-grid')).toContainText('Defekte Links')
     await expect(page.locator('.metric-grid')).toContainText('Wörter im Vault')
     await expect(page.locator('.inspector-panel')).not.toContainText('Broken links')
+    // A translated Inspector mode can be constrained by a resizable rail.
+    // Preserve a complete, discoverable title even when the visible tab ellipsises.
+    await expect.poll(() => page.locator('.inspector-tabs').evaluate((root) =>
+      [...root.querySelectorAll('button')].every(button => Boolean(button.title) && button.title === button.textContent?.trim()),
+    )).toBe(true)
     await expect.poll(() => page.locator('.inspector-tabs').evaluate((root) =>
       [...root.querySelectorAll('button')].every((button) => button.scrollWidth <= button.clientWidth + 1),
     )).toBe(true)

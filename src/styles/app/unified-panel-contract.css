@@ -348,3 +348,55 @@ html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
   .quick-capture-panel .quick-todo-list > li { grid-template-columns:44px minmax(0,1fr); }
   .quick-capture-panel .quick-todo-actions { grid-column:1 / -1; justify-content:flex-end; }
 }
+
+
+/* The bounded scroll body must remain tall enough to show a consent label.
+ * Do not let a multi-line decorative title and optional subtitle consume most
+ * of a 320px viewport at browser/text zoom. The description is retained in the
+ * DOM and aria-describedby for assistive technology, but visually condensed.
+ * All actions and the actual consent text remain visible and interactive. */
+@media (max-width: 400px) {
+  .unified-panel-shell:not(.unified-panel-docked) .unified-panel-header {
+    padding: 7px 9px;
+    gap: 6px;
+    align-items: center;
+    min-height: 42px;
+  }
+  .unified-panel-shell .unified-panel-header > div:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .unified-panel-shell .unified-panel-header h2 {
+    font-size: 14px;
+    line-height: 1.25;
+    gap: 5px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .unified-panel-shell .unified-panel-header h2 svg {
+    width: 16px;
+    height: 16px;
+    flex: none;
+  }
+  .unified-panel-shell .unified-panel-header .health-subtitle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .unified-panel-shell .unified-panel-header-actions {
+    flex: 0 0 auto;
+    align-items: center;
+    min-width: 0;
+  }
+  .unified-panel-shell .unified-panel-body {
+    padding: 8px;
+    scroll-padding-block-start: 8px;
+    scroll-padding-block-end: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+}

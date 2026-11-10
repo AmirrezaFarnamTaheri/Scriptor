@@ -678,7 +678,7 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
    keeping the navigation chrome smaller than the document it serves. */
 html[data-ui-zoom='high'] [data-workspace-header-only='true'] { display:none; }
 html[data-ui-zoom='high'] .workspace-embedded-panel .unified-panel-body { padding:8px; }
-html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(5,minmax(32px,1fr)); gap:2px; padding:4px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(3,minmax(32px,1fr)); gap:2px; padding:4px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item { min-width:32px; min-height:32px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item > span { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls button:disabled { display:none; }
@@ -687,10 +687,15 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header h2 { fo
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header h2 svg { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header .health-subtitle { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .asset-deck-split:not(.has-reader) .embedded-panel-shell > header { display:none; }
-/* Five 32px grid targets plus gutters need at least 176 CSS pixels. Fall back
-   to two columns before high-zoom narrow screens overflow in LTR or RTL. */
+/* The mobile bar has three actual destinations; use three columns at every
+   zoom level. The compact threshold keeps its targets bounded in RTL/LTR. */
 @container mobile-chrome (max-width: 200px) {
-  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(2,minmax(32px,1fr)); }
+  /* There are exactly three primary destinations: Vault, Write and More.
+     Two columns forced More onto a second row at 200% app zoom. */
+  .mobile-workspace-nav,
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav {
+    grid-template-columns: repeat(3,minmax(32px,1fr));
+  }
 }
 
 /* Three compact rows at magnification: identity/actions, vault, and mode.
@@ -760,3 +765,28 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .history-controls { d
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .workspace-mode-strip { grid-column:1 / -1; order:2; width:100%; min-width:0; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar { grid-template-columns:minmax(0,1fr) auto; }
 html[data-ui-reflow='mobile'] .workspace-embedded-panel .unified-panel-body { scroll-padding-block-end:calc(64px + env(safe-area-inset-bottom,0px)); }
+
+
+/* Actual available width is the authority at extreme CSS zoom, even when
+ * zoom was injected externally (browser/text-scaling stress tests) and the
+ * app's data-ui-zoom metadata has not yet updated. Keep the primary controls,
+ * and route secondary navigation through the bottom More/Command menus. */
+@container workspace-chrome (max-width: 200px) {
+  .topbar {
+    grid-template-columns: minmax(0,1fr) auto;
+    padding: 4px;
+    gap: 4px;
+    min-height: 0;
+  }
+  .topbar .history-controls { display: none; }
+  .topbar .top-actions { grid-column: 2; max-width: 100%; overflow: visible; padding: 2px; }
+  .topbar .top-actions > :not(.topbar-settings-toggle) { display: none; }
+  .topbar .workspace-mode-strip {
+    grid-column: 1 / -1;
+    order: 2;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+  }
+  .topbar .workspace-mode-select { min-width: 0; width: 100%; min-height: 36px; height: 36px; }
+}

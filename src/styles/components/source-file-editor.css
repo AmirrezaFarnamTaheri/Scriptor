@@ -68,3 +68,29 @@ html[data-ui-zoom='high'] .source-file-editor > header[data-workspace-header-onl
 html[data-ui-zoom='high'] .source-file-editor .source-file-content {
   scroll-margin-block-end:calc(64px + env(safe-area-inset-bottom,0px));
 }
+
+
+/* In a 160-200 CSS-pixel working width (physical 320px at 200% app zoom),
+ * do not repeat the parent workspace title or stack the third file action
+ * on an entire extra row. Keep all three commands touch-size and discoverable
+ * before the editable code area. */
+@media (max-width: 400px) {
+  .source-file-editor > header[data-workspace-header-only='true'] {
+    display: none;
+  }
+  .source-file-editor { padding: 6px; gap: 6px; }
+  .source-file-toolbar { gap: 6px; }
+  .source-file-toolbar-actions { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; }
+  .source-file-toolbar-actions > button,
+  .source-file-toolbar-actions > button:last-child {
+    grid-column: auto;
+    min-height: 44px;
+    padding: 5px 3px;
+    font-size: 12px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .source-file-mode-toolbar { gap: 4px; }
+  .source-file-mode > button { padding: 5px 6px; font-size: 12px; }
+  .source-file-status { font-size: 12px; line-height: 1.35; }
+}

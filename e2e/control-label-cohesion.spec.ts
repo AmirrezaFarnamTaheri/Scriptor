@@ -216,6 +216,43 @@ for (const theme of ['light','dark']) test(`saved LaTeX and Overleaf ${theme} co
   const content = editor.getByRole('textbox',{name:'Source file content',exact:true})
   expect(await content.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(await editor.getByLabel('File path',{exact:true}).evaluate(element => getComputedStyle(element).backgroundColor))
   expect(await content.evaluate(element => Number.parseFloat(getComputedStyle(element).borderRadius))).toBeGreaterThanOrEqual(6)
+  // VIS-004: the first editable source region must begin above mobile navigation,
+  // without having to scroll past duplicate headings and a third action row.
+  for (const direction of ['ltr','rtl']) {
+    await page.setViewportSize({width:320,height:1100})
+    await page.locator('html').evaluate((element,value) => {
+      element.dir=value
+      element.style.zoom='2'
+      element.style.setProperty('--app-viewport-width','calc(100vw / 2)')
+      element.style.setProperty('--app-viewport-height','calc(100dvh / 2)')
+      document.body.style.setProperty('--app-viewport-width','calc(100vw / 2)')
+      document.body.style.setProperty('--app-viewport-height','calc(100dvh / 2)')
+    },direction)
+    const leafTab=page.locator('.workspace-leaf-bar [role="tab"]').first()
+    const leafMore=page.locator('.workspace-leaf-bar .workspace-leaf-compact-actions summary').first()
+    await expect(leafMore).toBeVisible()
+    const tabBounds=await leafTab.boundingBox()
+    const moreBounds=await leafMore.boundingBox()
+    expect(Math.abs(tabBounds!.y-moreBounds!.y), `Source leaf tab/action row ${theme} ${direction}`).toBeLessThanOrEqual(2)
+    const area=await editor.locator('.source-file-content').boundingBox()
+    const nav=await page.getByRole('navigation',{name:'Mobile workspace navigation',exact:true}).boundingBox()
+    expect(area, `Source content bounds ${theme} ${direction}`).not.toBeNull()
+    expect(nav).not.toBeNull()
+    expect(area!.y, `Source editing controls must start above navigation ${theme} ${direction}`).toBeLessThan(nav!.y-8)
+  }
+  await page.locator('html').evaluate(element => {
+    element.dir='ltr'; element.style.zoom='1'
+    element.style.removeProperty('--app-viewport-width')
+    element.style.removeProperty('--app-viewport-height')
+    document.body.style.removeProperty('--app-viewport-width')
+    document.body.style.removeProperty('--app-viewport-height')
+  })
+  await page.setViewportSize({width:1440,height:1100})
+  await page.locator('html').evaluate(element => { element.dir='rtl' })
+  const isolatedFilePath=editor.locator('.source-file-status bdi[dir="ltr"]').first()
+  await expect(isolatedFilePath).toContainText('main.tex')
+  expect(await isolatedFilePath.evaluate(element => getComputedStyle(element).direction)).toBe('ltr')
+  await page.locator('html').evaluate(element => { element.dir='ltr' })
   const compile=editor.getByRole('checkbox',{name:'I reviewed the saved source and want to compile it.',exact:true})
   await auditConsent(page,editor,compile.locator('..'),`source-${theme}`,testInfo)
   await page.locator('html').evaluate(element => {element.style.zoom='1'; element.style.removeProperty('--app-viewport-width'); element.style.removeProperty('--app-viewport-height'); document.body.style.removeProperty('--app-viewport-width'); document.body.style.removeProperty('--app-viewport-height');element.dir='ltr'})

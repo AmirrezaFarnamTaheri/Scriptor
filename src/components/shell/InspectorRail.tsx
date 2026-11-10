@@ -199,6 +199,7 @@ function InspectorRailImpl({
             tabIndex={activeMode === mode ? 0 : -1}
             aria-selected={activeMode === mode}
             aria-controls={`inspector-panel-${mode}`}
+            title={t(`inspector.tabs.${mode}`)}
             data-help-topic={INSPECTOR_HELP_TOPICS[mode]}
             className={activeMode === mode ? 'active' : ''}
             onClick={() => onModeChange(mode)}

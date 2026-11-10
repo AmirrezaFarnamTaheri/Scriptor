@@ -101,6 +101,11 @@ for (const direction of ['ltr', 'rtl']) for (const width of [320, 375]) for (con
     const navigation = page.getByRole('navigation', { name: 'Mobile workspace navigation', exact: true })
     const buttons = await navigation.getByRole('button').all()
     const boxes = await Promise.all(buttons.map(button => button.boundingBox()))
+    // Three destinations must not expand into two rows at extreme zoom:
+    // the second row previously stole the Source/Diagram/Runtime work area.
+    expect(boxes).toHaveLength(3)
+    const rowTops = boxes.map(box => box!.y)
+    expect(Math.max(...rowTops) - Math.min(...rowTops)).toBeLessThanOrEqual(2)
     for (const [index, box] of boxes.entries()) {
       expect(box).not.toBeNull()
       expect(box!.x).toBeGreaterThanOrEqual(0)
