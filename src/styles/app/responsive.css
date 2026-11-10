@@ -726,3 +726,26 @@ html[data-ui-reflow='mobile'] .workspace-grid[data-mobile-pane='vault'][data-vau
   pointer-events: auto;
   visibility: visible;
 }
+
+/* At mobile widths (or effective mobile app zoom) the selected pane owns the
+ * whole grid, irrespective of the desktop rail collapse preferences. */
+@media (max-width: 820px) {
+  .workspace-grid[data-vault-collapsed='true'][data-mobile-pane='vault'] > .vault-panel,
+  .workspace-grid[data-inspector-collapsed='true'][data-mobile-pane='inspector'] > .inspector-panel {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  .workspace-grid[data-inspector-collapsed='true'][data-mobile-pane='inspector'] > .inspector-panel {
+    padding-inline: 12px;
+  }
+}
+html[data-ui-reflow='mobile'] .workspace-grid[data-vault-collapsed='true'][data-mobile-pane='vault'] > .vault-panel,
+html[data-ui-reflow='mobile'] .workspace-grid[data-inspector-collapsed='true'][data-mobile-pane='inspector'] > .inspector-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+html[data-ui-reflow='mobile'] .workspace-grid[data-inspector-collapsed='true'][data-mobile-pane='inspector'] > .inspector-panel {
+  padding-inline: 12px;
+}

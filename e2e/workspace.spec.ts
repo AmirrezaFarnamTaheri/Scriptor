@@ -105,6 +105,38 @@ test.describe('workspace flows', () => {
     await expect(page.locator('.command-palette-overlay')).toBeVisible()
   })
 
+  test('mobile Vault and Inspector panes ignore collapsed desktop rail preferences', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await launchApp(page)
+    await page.evaluate(() => {
+      const raw = localStorage.getItem('scriptor:workspace-chrome')
+      if (!raw) throw new Error('Expected workspace chrome preferences')
+      const chrome = JSON.parse(raw)
+      chrome.data.vaultSidebarCollapsed = true
+      chrome.data.inspectorCollapsed = true
+      localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chrome))
+    })
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    const workspace = page.locator('.workspace-grid')
+    await expect(workspace).toHaveAttribute('data-vault-collapsed', 'true')
+    await expect(workspace).toHaveAttribute('data-inspector-collapsed', 'true')
+    const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+    await nav.getByRole('button', { name: 'Vault', exact: true }).click()
+    const vault = page.getByRole('complementary', { name: 'Vault', exact: true })
+    await expect(vault).toBeVisible()
+    await expect(vault).toHaveCSS('opacity', '1')
+    await expect(vault).toHaveCSS('pointer-events', 'auto')
+    await nav.getByRole('button', { name: 'More', exact: true }).click()
+    await page.getByRole('group', { name: 'More destinations' })
+      .getByRole('button', { name: 'Inspector', exact: true }).click()
+    const inspector = page.getByRole('complementary', { name: 'Inspector', exact: true })
+    await expect(inspector).toBeVisible()
+    await expect(inspector).toHaveCSS('opacity', '1')
+    await expect(inspector).toHaveCSS('visibility', 'visible')
+    await expect(inspector).toHaveCSS('pointer-events', 'auto')
+    await expect(inspector.getByRole('tab', { name: 'Inspector', exact: true })).toBeVisible()
+  })
+
   for (const locale of ['de', 'fa'] as const) {
     test(`mobile navigation is localized and accessible in ${locale}`, async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 812 })
