@@ -230,7 +230,9 @@ function AppTopBarImpl({
       if (event.key !== 'Escape') return
       event.preventDefault()
       setCustomizeOpen(false)
-      customizeAnchorRef.current?.focus()
+      const anchor = customizeAnchorRef.current
+      if (anchor && anchor.getClientRects().length > 0) anchor.focus()
+      else document.querySelector<HTMLElement>('.topbar-settings-toggle')?.focus()
     }
     const onViewportChange = () => positionCustomize()
     const onViewportScroll = (event: Event) => {
