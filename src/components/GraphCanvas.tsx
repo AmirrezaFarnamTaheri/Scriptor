@@ -51,6 +51,8 @@ interface GraphCanvasProps {
   height: number
   onSelectNode: (path: string) => void
   highlightedNeighborIds?: string[]
+  /** De-emphasize the unrelated web of links in a large vault graph. */
+  focusNeighborhoodOnly?: boolean
 }
 
 function directedPairKey(source: string, target: string): string {
@@ -102,7 +104,7 @@ function reciprocalOffsetFor(
   }
 }
 
-export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNode, highlightedNeighborIds = [] }: GraphCanvasProps) {
+export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNode, highlightedNeighborIds = [], focusNeighborhoodOnly = false }: GraphCanvasProps) {
   const { t } = useI18n()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const hoveredIdRef = useRef<string | null>(null)
@@ -127,6 +129,21 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
   const mutedColor = useSemanticColor('--muted', '#64748b')
   const inkColor = useSemanticColor('--ink', '#1e293b')
   const surfaceColor = useSemanticColor('--surface', '#ffffff')
+
+  const focusedNodeId = useMemo(
+    () => nodes.find(node => node.path === focusPath)?.id ?? null,
+    [nodes, focusPath],
+  )
+  const focusedNeighborhood = useMemo(() => {
+    const related = new Set<string>()
+    if (!focusedNodeId) return related
+    related.add(focusedNodeId)
+    for (const edge of edges) {
+      if (edge.source === focusedNodeId) related.add(edge.target)
+      if (edge.target === focusedNodeId) related.add(edge.source)
+    }
+    return related
+  }, [edges, focusedNodeId])
 
   const reciprocalPairs = useMemo(() => {
     const directions = new Map<string, Set<string>>()
@@ -157,6 +174,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     const { x: tx, y: ty, scale } = transformRef.current
     const hoveredId = hoveredIdRef.current
     const keyboardNode = keyboardFocused ? nodes[activeKeyboardNodeIndex] : undefined
+    const reduceClutter = focusNeighborhoodOnly && Boolean(focusedNodeId) && !hoveredId
     ctx.clearRect(0, 0, width, height)
     ctx.fillStyle = surfaceColor
     ctx.fillRect(0, 0, width, height)
@@ -186,7 +204,8 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       const edgeColor = edge.kind === 'wikilink' ? primaryColor : mutedColor
 
       ctx.save()
-      ctx.globalAlpha = faded ? 0.2 : edge.kind === 'wikilink' ? 0.45 : 0.32
+      const outsideFocus = reduceClutter && edge.source !== focusedNodeId && edge.target !== focusedNodeId
+      ctx.globalAlpha = outsideFocus ? 0.055 : faded ? 0.2 : edge.kind === 'wikilink' ? 0.65 : 0.50
       ctx.strokeStyle = edgeColor
       ctx.fillStyle = edgeColor
       ctx.lineWidth = 1.25
@@ -216,6 +235,8 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       const radius = isFocus || isHovered ? 18 : 14
       const fill = node.color ?? folderColor(node.path)
 
+      ctx.save()
+      if (reduceClutter && !focusedNeighborhood.has(node.id) && !isKeyboardFocus) ctx.globalAlpha = 0.18
       ctx.beginPath()
       ctx.arc(node.x, node.y, radius, 0, Math.PI * 2)
       ctx.fillStyle = node.unresolved ? mutedColor : fill
@@ -236,7 +257,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
         ctx.lineWidth = 2
         ctx.stroke()
       }
-
+      ctx.restore()
     }
 
     // Paint labels after every node so later nodes cannot obscure earlier
@@ -274,6 +295,9 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     keyboardFocused,
     activeKeyboardNodeIndex,
     highlightedNeighborIds,
+    focusNeighborhoodOnly,
+    focusedNodeId,
+    focusedNeighborhood,
   ])
 
   useEffect(() => {

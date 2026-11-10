@@ -507,6 +507,13 @@ test.describe('visual review states', () => {
     for (const label of ['Topic 002', 'Topic 018', 'Topic 120']) {
       await expect(neighbors.getByRole('button', { name: label, exact: true })).toBeVisible()
     }
+    const allLinks = graph.getByRole('button', { name: 'Show all links', exact: true })
+    await expect(allLinks).toHaveAttribute('aria-pressed', 'true')
+    await allLinks.click()
+    const focusLinks = graph.getByRole('button', { name: 'Highlight connected links', exact: true })
+    await expect(focusLinks).toHaveAttribute('aria-pressed', 'false')
+    await focusLinks.click()
+    await expect(allLinks).toHaveAttribute('aria-pressed', 'true')
     const stage = graph.locator('.graph-stage')
     const canvas = graph.locator('.graph-canvas-accessible-shell canvas')
     await expect(stage).toBeVisible()
@@ -642,7 +649,8 @@ test.describe('visual review states', () => {
     await waitForVisualWorkspace(page)
     await openCommandPalette(page)
     await runCommand(page, 'Open graph')
-    await expect(page.getByRole('region', { name: 'Knowledge graph navigation' })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Knowledge graph', exact: true })
+      .getByRole('region', { name: 'Graph search and connected notes', exact: true })).toBeVisible()
     await settleLayout(page)
     await page.screenshot({ path: test.info().outputPath('visual-graph-first-open-guidance.png'), animations: 'disabled', caret: 'hide' })
   })
@@ -1240,12 +1248,15 @@ test.describe('visual review states', () => {
     const inspector = page.locator('.inspector-panel')
     await captureElement(page, inspector, 'visual-layout-presets.png')
 
-    // The Inspector rail owns vertical scrolling. StorePanel's internal body can
-    // fully expand within that rail, so asserting its scrollTop creates a false
-    // failure even when lower presets are genuinely offscreen.
-    await inspector.evaluate((element) => { element.scrollTop = element.scrollHeight })
-    await expect.poll(() => inspector.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
-    await expect(store.getByRole('button', { name: 'Apply Synthesis layout' })).toBeInViewport()
+    // The gallery may fit entirely inside the Inspector: inspect the actual
+    // selected preview and the one action instead of requiring scrollTop > 0.
+    const synthesis = store.getByRole('radio', { name: 'Synthesis', exact: true })
+    await synthesis.scrollIntoViewIfNeeded()
+    await expect(synthesis).toBeInViewport()
+    await synthesis.check()
+    await expect(synthesis).toBeChecked()
+    await expect(store.getByRole('img', { name: /Synthesis layout preview:/ })).toBeVisible()
+    await expect(store.getByRole('button', { name: 'Apply Synthesis layout template' })).toBeEnabled()
     await captureElement(page, inspector, 'visual-layout-presets-bottom.png')
   })
 

@@ -127,12 +127,36 @@ async function auditConsent(page:Page,panel:Locator,label:Locator,name:string,te
       // safety-critical review actions at 200% magnification.
       const buttons = panel.locator('.overleaf-review-actions > button')
       await expect(buttons).toHaveCount(2)
+      await expect(buttons.first()).toHaveAccessibleName('Apply reviewed source locally')
+      await expect(buttons.last()).toHaveAccessibleName('Share reviewed source with Overleaf')
+      // A scrollable CSS grid used to compress its consent row, even though
+      // the button rectangles themselves never intersected.
+      const consentBounds = await label.boundingBox()
+      const consentText = await label.locator('span').boundingBox()
+      const actionsBounds = await panel.locator('.overleaf-review-actions').boundingBox()
+      expect(consentText!.y + consentText!.height).toBeLessThanOrEqual(consentBounds!.y + consentBounds!.height + 1)
+      expect(consentBounds!.y + consentBounds!.height).toBeLessThanOrEqual(actionsBounds!.y + 1)
       const rects = await buttons.evaluateAll(elements => elements.map(el => {
         const rect = el.getBoundingClientRect()
-        return { top: rect.top, bottom: rect.bottom, clientHeight: el.clientHeight, scrollHeight: el.scrollHeight }
+        const visibleLabel = Array.from(el.querySelectorAll('span')).find(span => getComputedStyle(span).display !== 'none')
+        const labelBounds = visibleLabel?.getBoundingClientRect()
+        return {
+          top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right,
+          clientHeight: el.clientHeight, scrollHeight: el.scrollHeight,
+          labelTop: labelBounds?.top ?? Number.NEGATIVE_INFINITY,
+          labelBottom: labelBounds?.bottom ?? Number.POSITIVE_INFINITY,
+          labelLeft: labelBounds?.left ?? Number.NEGATIVE_INFINITY,
+          labelRight: labelBounds?.right ?? Number.POSITIVE_INFINITY,
+        }
       }))
       expect(rects[0].bottom).toBeLessThanOrEqual(rects[1].top + 1)
-      for (const rect of rects) expect(rect.scrollHeight).toBeLessThanOrEqual(rect.clientHeight + 1)
+      for (const rect of rects) {
+        expect(rect.scrollHeight).toBeLessThanOrEqual(rect.clientHeight + 1)
+        expect(rect.labelTop).toBeGreaterThanOrEqual(rect.top - 1)
+        expect(rect.labelBottom).toBeLessThanOrEqual(rect.bottom + 1)
+        expect(rect.labelLeft).toBeGreaterThanOrEqual(rect.left - 1)
+        expect(rect.labelRight).toBeLessThanOrEqual(rect.right + 1)
+      }
     }
     if (width === 320 && zoom === 2 && name.startsWith('source-')) {
       // At narrow widths the source editor starts with file actions rather

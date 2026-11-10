@@ -163,6 +163,7 @@ export const GraphPanel = memo(function GraphPanel({
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [graphSearch, setGraphSearch] = useState('')
+  const [highlightConnectedOnly, setHighlightConnectedOnly] = useState(true)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
   const dialogRef = useRef<HTMLDivElement>(null)
   const graphStageRef = useRef<HTMLDivElement>(null)
@@ -537,6 +538,13 @@ export const GraphPanel = memo(function GraphPanel({
           {t('graph.findNotes')}
           <input type="search" value={graphSearch} onChange={event => setGraphSearch(event.target.value)} placeholder={t('graph.findNotes')} />
         </label>
+        {useCanvas && focusPath ? (
+          <button type="button" className="toolbar-button graph-focus-toggle"
+            aria-pressed={highlightConnectedOnly}
+            onClick={() => setHighlightConnectedOnly(current => !current)}>
+            {highlightConnectedOnly ? t('graph.showAllLinks') : t('graph.highlightConnectedLinks')}
+          </button>
+        ) : null}
         {graphSearch.trim() ? (
           <div className="graph-note-search-results" role="group" aria-label={t('graph.matchingNotes')}>
             {graphMatches.length ? graphMatches.map(node => (
@@ -571,6 +579,7 @@ export const GraphPanel = memo(function GraphPanel({
               height={viewport.height}
               onSelectNode={onSelectNode}
               highlightedNeighborIds={[...nearbyFocusNodes.map((node) => node.id), ...graphMatches.map((node) => node.id)]}
+              focusNeighborhoodOnly={highlightConnectedOnly && Boolean(focusPath)}
             />
           )
         ) : (

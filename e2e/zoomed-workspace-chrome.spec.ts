@@ -68,6 +68,11 @@ for (const direction of ['ltr', 'rtl']) for (const width of [320, 375]) for (con
       await expect(path).toContainText('assets/pixel.png')
       expect(await path.evaluate(node => getComputedStyle(node).direction)).toBe('ltr')
     }
+    // A nested fixed-height list can scroll beneath the persistent mobile bar.
+    // High zoom uses the one bounded panel scrollport instead.
+    await expect.poll(() => panel.locator('.research-asset-list').evaluate(
+      element => getComputedStyle(element).overflowY,
+    )).toBe('visible')
     const asset = panel.locator('.research-asset-list li').last()
     await expect(asset).toBeVisible()
     await asset.scrollIntoViewIfNeeded()

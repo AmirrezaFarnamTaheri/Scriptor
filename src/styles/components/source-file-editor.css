@@ -58,3 +58,13 @@
   .source-file-content { scroll-padding-block-end:64px; }
 }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .source-file-editor > header { display:none; }
+
+/* The workspace leaf owns its title: do not repeat the Source files header
+   ahead of the path and edit controls at mobile high zoom. Zoom can reflow
+   before the viewport classifier sets data-ui-reflow. */
+html[data-ui-zoom='high'] .source-file-editor > header[data-workspace-header-only='true'] {
+  display:none;
+}
+html[data-ui-zoom='high'] .source-file-editor .source-file-content {
+  scroll-margin-block-end:calc(64px + env(safe-area-inset-bottom,0px));
+}

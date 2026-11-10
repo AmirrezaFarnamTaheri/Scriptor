@@ -34,7 +34,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
   }
   const changeTarget = () => { generation.current++; setSnapshot(null); setAccepted(false); setReviewed('') }
   return <div className="modal-backdrop"><section className="modal-card overleaf-panel" ref={dialog} role="dialog" aria-modal="true" aria-label="Overleaf source sync" data-help-topic="git">
-    <header><h2>Overleaf source sync</h2><button type="button" onClick={onClose}>Close Overleaf sync</button></header>
+    <header><h2>Overleaf source sync</h2><button type="button" aria-label="Close Overleaf sync" onClick={onClose}>Close</button></header>
     <div className="overleaf-panel-body">
     <p>Compare this saved source file with Overleaf before applying or sharing changes. Only this file is synchronized; the rest of the project stays untouched.</p>
     <details className="overleaf-requirements">
@@ -62,12 +62,12 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
         const current = generation.current; const local = await guard(); const updated = await sourceFileSave(local, reviewed)
         if (current !== generation.current) return
         setStatus('Reviewed source saved locally. Remote source remains unchanged.'); onApplied(updated)
-      })}>Apply reviewed source locally</button>
+      })} aria-label="Apply reviewed source locally"><span className="overleaf-action-full">Apply reviewed source locally</span><span className="overleaf-action-compact" aria-hidden="true">Save locally</span></button>
       <button type="button" disabled={busy || !accepted} onClick={() => void run(async () => {
         const current = generation.current; await guard(); const result = await overleafPush(document.vault_id, project, remotePath, reviewed, snapshot)
         if (current !== generation.current) return
         setSnapshot(result); setAccepted(false); setStatus('Reviewed source shared with Overleaf. Local source remains unchanged.')
-      })}>Share reviewed source with Overleaf</button>
+      })} aria-label="Share reviewed source with Overleaf"><span className="overleaf-action-full">Share reviewed source with Overleaf</span><span className="overleaf-action-compact" aria-hidden="true">Share with Overleaf</span></button>
       </div>
     </>}
     {busy && <p>The submitted operation is pending. Closing discards its display result; an already submitted share or local save may still complete.</p>}

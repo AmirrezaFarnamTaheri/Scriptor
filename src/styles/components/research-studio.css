@@ -89,3 +89,14 @@
   .asset-deck-workspace .research-asset-list { padding-block-end:20px; }
 }
 html[data-ui-reflow='mobile'] .asset-deck-workspace .asset-deck-split .embedded-panel-body { padding-block-end:calc(64px + env(safe-area-inset-bottom,0px)); }
+
+/* At extreme app zoom the workspace header already identifies Asset deck.
+   Remove repeated explanation before the search and keep one owning scrollport
+   so the final file can clear the persistent mobile navigation. */
+html[data-ui-zoom='high'] .asset-deck-workspace .asset-deck-count,
+html[data-ui-zoom='high'] .asset-deck-workspace .asset-deck-intro { display:none; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .asset-deck-workspace .research-asset-list {
+  max-height:none;
+  overflow:visible;
+  padding-block-end:calc(72px + env(safe-area-inset-bottom,0px));
+}

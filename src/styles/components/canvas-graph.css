@@ -489,3 +489,17 @@
  * the 120-note canvas to the remaining 84 pixels. Short windows scroll. */
 .graph-overlay.graph-overlay-interactive { display:flex; flex-direction:column; overflow-y:auto; min-height:0; }
 .graph-overlay-interactive > .graph-stage { height:auto; flex:1 0 400px; min-height:400px; }
+
+/* A dense vault graph opens with the selected note's connections emphasized.
+   This toggle keeps the original full graph one deliberate action away. */
+.graph-focus-toggle {
+  flex:0 1 auto;
+  max-width:100%;
+  min-width:0;
+  min-height:40px;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+@media (max-width:600px) {
+  .graph-focus-toggle { flex:1 1 100%; min-height:44px; }
+}

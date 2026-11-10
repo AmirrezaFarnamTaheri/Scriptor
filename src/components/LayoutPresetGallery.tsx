@@ -1,6 +1,7 @@
 import { memo, useState } from 'react'
 import type { WorkspaceLayout } from '../hooks/useWorkspaceLayout'
 import { LAYOUT_PRESETS, type LayoutPreset } from '../lib/workspace/layoutPresets'
+import '../styles/components/layout-preset-gallery.css'
 
 function matchesLayout(a: WorkspaceLayout | undefined, b: WorkspaceLayout): boolean {
   if (!a) return false

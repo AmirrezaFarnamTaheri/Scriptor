@@ -37,14 +37,14 @@ export function AssetDeckPanel({ assets, onClose, onOpenAsset, onOpenNote, onCre
     finally { setBusyId(null) }
   }
   const body = <>
-    {embedded && <p><bdi dir="ltr">{assets.length}</bdi> files in this vault</p>}
-    <p>Browse files and see which notes link to them.</p>
+    {embedded && <p className="asset-deck-count"><bdi dir="ltr">{assets.length}</bdi> files in this vault</p>}
+    <p className="asset-deck-intro">Browse files and see which notes link to them.</p>
     {!usageComplete && <p role="status">Not all files were checked. The unused-only filter is unavailable until the file check finishes.</p>}
+    <div className="research-controls"><label>Find a file<input type="search" value={query} placeholder="File name or folder" onChange={(event) => setQuery(event.target.value)} /></label><label className="research-toggle"><input type="checkbox" checked={onlyUnused} disabled={!usageComplete} onChange={(event) => setOnlyUnused(event.target.checked)} /><span>Unused assets only</span></label></div>
     <details className="asset-usage-help">
       <summary>How file usage is counted</summary>
       <p>Usage is based on links found in your notes. If files changed outside Scriptor, rebuild the note index to refresh these counts.</p>
     </details>
-    <div className="research-controls"><label>Find a file<input type="search" value={query} placeholder="File name or folder" onChange={(event) => setQuery(event.target.value)} /></label><label className="research-toggle"><input type="checkbox" checked={onlyUnused} disabled={!usageComplete} onChange={(event) => setOnlyUnused(event.target.checked)} /><span>Unused assets only</span></label></div>
     <ul className="research-asset-list">
       {filtered.length === 0 && <li>{assets.length === 0
         ? 'No files found. Add a PDF, image, ebook, or audio file to the vault to get started.'
