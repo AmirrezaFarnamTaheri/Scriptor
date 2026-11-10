@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { launchApp, waitForWorkspace } from './helpers'
+import { expandInspector, launchApp, waitForWorkspace } from './helpers'
 
 /**
  * The inspector tab row is a tablist: three tabs on one line. The 821–1100px band
@@ -11,6 +11,7 @@ import { launchApp, waitForWorkspace } from './helpers'
 test('inspector tabs stay on one line across the tablet band', async ({ page }) => {
   await launchApp(page)
   await waitForWorkspace(page)
+  await expandInspector(page)
   await expect(page.locator('.inspector-tabs')).toBeVisible({ timeout: 20_000 })
   await page.waitForTimeout(500)
 
@@ -74,6 +75,7 @@ test('translated inspector tabs stay on one row and remain reachable by scrollin
   await page.addInitScript(() => localStorage.setItem('scriptor:locale', 'de'))
   await launchApp(page)
   await waitForWorkspace(page)
+  await expandInspector(page)
   const tabs = page.locator('.inspector-tabs button[role="tab"]')
   await expect(tabs).toHaveCount(3)
   const geometry = await tabs.evaluateAll(nodes => nodes.map(node => ({
@@ -90,6 +92,7 @@ test('translated inspector tabs stay on one row and remain reachable by scrollin
 test('a truncated tab label still exposes its full name', async ({ page }) => {
   await launchApp(page)
   await waitForWorkspace(page)
+  await expandInspector(page)
   await page.setViewportSize({ width: 900, height: 900 })
   await page.waitForTimeout(400)
 

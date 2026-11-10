@@ -45,7 +45,13 @@ for (const surface of surfaces) {
     }
     const grid = panel.locator(surface.grid)
     await expect(grid).toBeVisible()
-    await expect(page.locator('.editor-panel[data-help-topic="editor"]')).toBeVisible()
+    // Focused workspaces can intentionally replace the writing editor. Verify
+    // the requested tool is visible instead of requiring a hidden editor pane.
+    if (surface.name === 'Capture reviewer') {
+      await expect(page.locator('.editor-panel[data-help-topic="editor"]')).toBeHidden()
+    } else {
+      await expect(page.locator('.editor-panel[data-help-topic="editor"]')).toBeVisible()
+    }
     // Both window sizes exceed the old viewport breakpoint. Only the actual
     // pane width should decide whether these two bodies stack.
     for (const width of [1440, 2800]) {

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { launchApp, openCommandPalette, runCommand, settleLayout } from './helpers'
+import { expandInspector, launchApp, openCommandPalette, runCommand, settleLayout } from './helpers'
 
 /** Normalizes sub-pixel layout measurements before comparing screenshot geometry. */
 function rounded(value: number) {
@@ -11,6 +11,7 @@ test.describe('screenshot geometry contracts', () => {
   test('tablet rail labels and daily date fit without clipping', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 900 })
     await launchApp(page)
+    await expandInspector(page)
     await settleLayout(page)
 
     const tabs = page.locator('.inspector-tabs button')
@@ -79,6 +80,7 @@ test.describe('screenshot geometry contracts', () => {
   test('inspector note health adapts its metric matrix to the rail width', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await launchApp(page)
+    await expandInspector(page)
     await settleLayout(page)
 
     const inspector = page.locator('.inspector-panel')
@@ -117,6 +119,7 @@ test.describe('screenshot geometry contracts', () => {
   test('preview QA keeps labels and values separated at rail width', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await launchApp(page)
+    await expandInspector(page)
     await page.locator('.inspector-tabs').getByRole('tab', { name: 'Rendered output', exact: true }).click()
     await settleLayout(page)
 
