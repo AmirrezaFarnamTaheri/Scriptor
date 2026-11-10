@@ -45,6 +45,19 @@ test.describe('capability surfaces', () => {
     await expect(editorToolbar).toHaveCSS('opacity', '1')
   })
 
+  test('layout selection previews a distinct workspace before one Apply action', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Tools' }).click()
+    await page.getByRole('tab', { name: 'Layouts' }).click()
+    const choices = page.getByRole('radio')
+    await expect(choices).toHaveCount(8)
+    const researcher = page.getByRole('radio', { name: 'Researcher' })
+    await researcher.check()
+    await expect(researcher).toBeChecked()
+    await expect(page.getByRole('img', { name: /Researcher layout preview:/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Apply Researcher layout template' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: /^Apply .* layout template$/ })).toHaveCount(1)
+  })
+
   test('keeps populated knowledge repair rows separated at 200% text zoom', async ({ page }) => {
     await page.evaluate(() => window.sessionStorage.setItem('e2e:knowledge-repair-notes', '1'))
     await page.reload()

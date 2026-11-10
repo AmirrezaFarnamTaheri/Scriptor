@@ -63,6 +63,11 @@ for (const direction of ['ltr', 'rtl']) for (const width of [320, 375]) for (con
     await filter.scrollIntoViewIfNeeded()
     await filter.fill('pixel')
     await expect(filter).toHaveValue('pixel')
+    if (direction === 'rtl') {
+      const path = panel.locator('.research-asset-list > li bdi[dir="ltr"]').first()
+      await expect(path).toContainText('assets/pixel.png')
+      expect(await path.evaluate(node => getComputedStyle(node).direction)).toBe('ltr')
+    }
     const asset = panel.locator('.research-asset-list li').last()
     await expect(asset).toBeVisible()
     await asset.scrollIntoViewIfNeeded()

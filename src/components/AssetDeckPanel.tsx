@@ -37,7 +37,7 @@ export function AssetDeckPanel({ assets, onClose, onOpenAsset, onOpenNote, onCre
     finally { setBusyId(null) }
   }
   const body = <>
-    {embedded && <p>{assets.length} files in this vault</p>}
+    {embedded && <p><bdi dir="ltr">{assets.length}</bdi> files in this vault</p>}
     <p>Browse files and see which notes link to them.</p>
     {!usageComplete && <p role="status">Not all files were checked. The unused-only filter is unavailable until the file check finishes.</p>}
     <details className="asset-usage-help">
@@ -50,7 +50,7 @@ export function AssetDeckPanel({ assets, onClose, onOpenAsset, onOpenNote, onCre
         ? 'No files found. Add a PDF, image, ebook, or audio file to the vault to get started.'
         : 'No files match. Try another name or turn off the unused-only filter.'}</li>}
       {filtered.slice(0, 500).map((asset) => <li key={asset.path}>
-        <strong>{asset.name ?? asset.path.split('/').at(-1)}</strong><p><bdi>{asset.path}</bdi>{asset.bytes !== undefined ? ` · ${asset.bytes.toLocaleString()} bytes` : ''} · Used in {asset.usedBy.length} notes</p>
+        <strong><bdi dir="auto">{asset.name ?? asset.path.split('/').at(-1)}</bdi></strong><p><bdi dir="ltr">{asset.path}</bdi>{asset.bytes !== undefined ? <> · <bdi dir="ltr">{asset.bytes.toLocaleString()}</bdi> bytes</> : null} · Used in <bdi dir="ltr">{asset.usedBy.length}</bdi> notes</p>
         <div className="research-controls"><button type="button" className="toolbar-button" disabled={mediaKind(asset.path) === null} title={mediaKind(asset.path) ? 'Open vault source preview' : 'Preview supports PDF, EPUB, raster images, MP3, WAV, Ogg and FLAC'} onClick={() => onOpenAsset(asset.path)}><BookOpen size={14} />Open source</button><button type="button" className="toolbar-button" disabled={busyId !== null} onClick={() => void capture(asset)}><FilePlus size={14} />Create linked note</button></div>
         {asset.usedBy.length > 0 && <details><summary>Used in {asset.usedBy.length} notes</summary><ul>{asset.usedBy.map((path) => <li key={path}><button type="button" className="toolbar-button" onClick={() => onOpenNote(path)}>{path}</button></li>)}</ul></details>}
         {activeAssetPath === asset.path && annotations.length > 0 && <details open><summary>Saved annotations</summary><ul>{annotations.map((annotation) => <li key={annotation.id}><blockquote>{annotation.quote}</blockquote>{annotation.body && <p>{annotation.body}</p>}<button type="button" className="toolbar-button" disabled={busyId !== null} onClick={() => void capture(asset, annotation)}>{busyId === annotation.id ? 'Creating…' : 'Create note from annotation'}</button></li>)}</ul></details>}

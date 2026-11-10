@@ -590,6 +590,7 @@
     "ariaLabel": "Inspector",
     "modeAria": "Inspector mode",
     "presetAria": "Inspector content preset",
+    "moreTabs": "More inspector tabs",
     "tabs": {
       "inspector": "Inspector",
       "preview": "Rendered output",

@@ -1,6 +1,6 @@
 import type { RefObject } from 'react'
 import { lazy, memo, Suspense, useMemo, useState } from 'react'
-import { Archive, BookOpen, FileText, Hash, Link2, Pencil, Quote, Tags } from 'lucide-react'
+import { Archive, BookOpen, ChevronRight, FileText, Hash, Link2, Pencil, Quote, Tags } from 'lucide-react'
 
 import { MarkdownPreview, type MarkdownPreviewHandle, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
 import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
@@ -186,6 +186,7 @@ function InspectorRailImpl({
   return (
     <aside className="inspector-panel" aria-label={t('inspector.ariaLabel')} ref={railRef} data-help-topic="inspector">
       {/* ── Tab bar ─────────────────────────────────────────────────────────── */}
+      <div className="inspector-tabs-shell">
       <div className="inspector-tabs" role="tablist" aria-label={t('inspector.modeAria')} onKeyDown={handleInspectorTabKeys}>
         {(['inspector', 'preview', 'plugins'] as const).map((mode) => (
           <button
@@ -203,6 +204,11 @@ function InspectorRailImpl({
             {t(`inspector.tabs.${mode}`)}
           </button>
         ))}
+      </div>
+      <button type="button" className="inspector-tabs-reveal" aria-label={t('inspector.moreTabs')}
+        onClick={() => document.getElementById('inspector-tab-plugins')?.scrollIntoView({ block: 'nearest', inline: 'end', behavior: 'smooth' })}>
+        <ChevronRight aria-hidden="true" size={16} />
+      </button>
       </div>
 
       {/* ── Preset row ──────────────────────────────────────────────────────── */}

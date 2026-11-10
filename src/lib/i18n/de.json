@@ -590,6 +590,7 @@
     "ariaLabel": "Inspektor",
     "modeAria": "Inspektor-Modus",
     "presetAria": "Inspektor-Inhaltsprofil",
+    "moreTabs": "Weitere Inspektor-Reiter",
     "tabs": {
       "inspector": "Inspektor",
       "preview": "Gerenderte Ausgabe",
