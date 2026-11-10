@@ -531,6 +531,7 @@ export const GraphPanel = memo(function GraphPanel({
         ))}
       </div>
 
+      <div className="graph-navigation" role="region" aria-label={t("graph.navigationAria")}>
       <div className="graph-note-search" role="search">
         <label>
           {t('graph.findNotes')}
@@ -552,6 +553,7 @@ export const GraphPanel = memo(function GraphPanel({
           ))}</div>
         </div>
       ) : null}
+      </div>
       <div ref={liveRegionRef} aria-live="polite" className="sr-only" />
 
       <div ref={graphStageRef} className="graph-stage">

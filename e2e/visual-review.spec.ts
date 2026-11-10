@@ -1234,7 +1234,7 @@ test.describe('visual review states', () => {
     const store = page.locator('.store-root')
     await expect(store).toBeVisible()
     await store.getByRole('tab', { name: 'Layouts', exact: true }).click()
-    await expect(store.getByRole('button', { name: 'Apply Zen layout' })).toBeVisible()
+    await expect(store.getByRole('radio', { name: 'Zen', exact: true })).toBeVisible()
     await settleLayout(page)
     await expectNoHorizontalOverflow(page)
     const inspector = page.locator('.inspector-panel')

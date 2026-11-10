@@ -373,6 +373,7 @@
     "currentFocus": " (یادداشت انتخاب‌شده)",
     "computingLayout": "در حال چیدن یادداشت‌ها…",
     "ariaLabel": "گراف دانش",
+    "navigationAria": "پیمایش گراف دانش",
     "closeGraph": "بستن گراف",
     "groupColors": "رنگ‌های گروه گراف",
     "view": "نما",

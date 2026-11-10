@@ -373,6 +373,7 @@
     "currentFocus": " (selected note)",
     "computingLayout": "Arranging notes…",
     "ariaLabel": "Knowledge graph",
+    "navigationAria": "Knowledge graph navigation",
     "closeGraph": "Close graph",
     "groupColors": "Graph group colors",
     "view": "View",

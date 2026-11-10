@@ -373,6 +373,7 @@
     "currentFocus": " (ausgewählte Notiz)",
     "computingLayout": "Notizen werden angeordnet…",
     "ariaLabel": "Wissensgraph",
+    "navigationAria": "Wissensgraph-Navigation",
     "closeGraph": "Graph schließen",
     "groupColors": "Graph-Gruppenfarben",
     "view": "Ansicht",

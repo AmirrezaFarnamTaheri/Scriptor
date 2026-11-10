@@ -53,7 +53,7 @@
 
 
 /* Review controls grow with wrapped and magnified labels. */
-.overleaf-panel .overleaf-consent { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:start; gap:10px; min-height:44px; }
+.overleaf-panel .overleaf-consent { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:center; gap:10px; min-height:44px; }
 .overleaf-panel .overleaf-consent > span { min-width:0; overflow-wrap:anywhere; line-height:1.45; }
 .overleaf-panel .overleaf-review-actions { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; min-width:0; }
 .overleaf-panel .overleaf-review-actions > button { display:block; width:100%; height:auto; min-width:0; min-height:44px; white-space:normal; overflow-wrap:anywhere; word-break:normal; line-height:1.45; padding:10px; text-align:center; }

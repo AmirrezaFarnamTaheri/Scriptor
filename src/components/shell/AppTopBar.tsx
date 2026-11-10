@@ -157,10 +157,11 @@ function AppTopBarImpl({
     [chrome],
   )
   const [customizeOpen, setCustomizeOpen] = useState(false)
+  const [customizeRestoreFocusTarget, setCustomizeRestoreFocusTarget] = useState<HTMLElement | null>(null)
   const [customizePos, setCustomizePos] = useState<{ x: number; y: number } | null>(null)
   const customizeAnchorRef = useRef<HTMLButtonElement | null>(null)
   const customizePopupRef = useRef<HTMLDivElement | null>(null)
-  useFocusTrap(customizePopupRef, { active: customizeOpen })
+  useFocusTrap(customizePopupRef, { active: customizeOpen, restoreTo: customizeRestoreFocusTarget })
 
   const quickActions = [
     { id: 'workbench', label: t('topBar.workbench'), icon: <BookOpenText />, onClick: onOpenKnowledgeWorkbench, emphasized: workspaceMode === 'knowledge', className: 'topbar-secondary-action' },
@@ -211,6 +212,7 @@ function AppTopBarImpl({
 
   const openCustomize = useCallback(() => {
     positionCustomize()
+    setCustomizeRestoreFocusTarget(customizeAnchorRef.current)
     setCustomizeOpen((open) => !open)
   }, [positionCustomize])
 
@@ -230,9 +232,7 @@ function AppTopBarImpl({
       if (event.key !== 'Escape') return
       event.preventDefault()
       setCustomizeOpen(false)
-      const anchor = customizeAnchorRef.current
-      if (anchor && anchor.getClientRects().length > 0) anchor.focus()
-      else document.querySelector<HTMLElement>('.topbar-settings-toggle')?.focus()
+      // The trap restores focus when the customization dialog unmounts.
     }
     const onViewportChange = () => positionCustomize()
     const onViewportScroll = (event: Event) => {
@@ -256,6 +256,8 @@ function AppTopBarImpl({
     (event: React.MouseEvent) => {
       event.preventDefault()
       positionCustomize()
+      // The Customize icon is hidden at high zoom; keep focus on visible Settings.
+      setCustomizeRestoreFocusTarget(document.querySelector<HTMLElement>('.topbar-settings-toggle'))
       setCustomizeOpen(true)
     },
     [positionCustomize],

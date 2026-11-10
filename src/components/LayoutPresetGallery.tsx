@@ -11,14 +11,19 @@ function matchesLayout(a: WorkspaceLayout | undefined, b: WorkspaceLayout): bool
 }
 
 interface LayoutPresetGalleryProps {
-  current: WorkspaceLayout | undefined
-  onApply: (preset: LayoutPreset) => void
+  current?: WorkspaceLayout
+  activeId?: string | null
+  onApply?: (preset: LayoutPreset) => void
 }
 
-export const LayoutPresetGallery = memo(function LayoutPresetGallery({ current, onApply }: LayoutPresetGalleryProps) {
+export const LayoutPresetGallery = memo(function LayoutPresetGallery({ current, activeId, onApply }: LayoutPresetGalleryProps) {
   const [selectedId, setSelectedId] = useState(LAYOUT_PRESETS[0]!.id)
   const selected = LAYOUT_PRESETS.find(preset => preset.id === selectedId) ?? LAYOUT_PRESETS[0]!
-  const active = matchesLayout(current, selected.layout)
+  // Store owns a preset ID; Settings infers its current state from layout values.
+  const isCurrent = (preset: LayoutPreset) => activeId !== undefined
+    ? activeId === preset.id
+    : matchesLayout(current, preset.layout)
+  const active = isCurrent(selected)
   return (
     <div className="settings-layout-presets" data-help-topic="docks">
       <h4 className="settings-subheading">Layout templates</h4>
@@ -30,7 +35,7 @@ export const LayoutPresetGallery = memo(function LayoutPresetGallery({ current, 
               <input type="radio" name="scriptor-layout-preset" checked={selected.id === preset.id}
                 onChange={() => setSelectedId(preset.id)} />
               <span>{preset.name}</span>
-              {matchesLayout(current, preset.layout) ? <small>Current</small> : null}
+              {isCurrent(preset) ? <small>Current</small> : null}
             </label>
           </li>
         ))}
@@ -48,7 +53,7 @@ export const LayoutPresetGallery = memo(function LayoutPresetGallery({ current, 
           <p className="health-subtitle">{selected.description}</p>
           <p className="health-subtitle">Graph depth: {selected.layout.graphDepth}</p>
           <button type="button" className="primary-button" aria-label={`Apply ${selected.name} layout template`}
-            disabled={active} onClick={() => onApply(selected)}>
+            disabled={!onApply || active} onClick={() => onApply?.(selected)}>
             {active ? 'Current layout' : `Apply ${selected.name}`}
           </button>
         </div>

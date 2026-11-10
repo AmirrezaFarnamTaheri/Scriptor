@@ -34,7 +34,8 @@ test.describe('capability surfaces', () => {
     await expect(graphServices).toHaveAttribute('aria-pressed', 'true')
 
     await page.getByRole('tab', { name: 'Layouts' }).click()
-    const zenLayout = page.getByRole('button', { name: 'Apply Zen layout' })
+    await page.getByRole('radio', { name: 'Zen', exact: true }).check()
+    const zenLayout = page.getByRole('button', { name: 'Apply Zen layout template' })
     await expect(zenLayout).toBeEnabled()
     await zenLayout.click()
     await expect(page.locator('html')).toHaveClass(/scriptor-distraction-free/)
@@ -101,6 +102,6 @@ test.describe('capability surfaces', () => {
     const layoutsTab = storeTabs.getByRole('tab', { name: 'Layouts' })
     await layoutsTab.evaluate((element) => element.scrollIntoView({ inline: 'nearest', block: 'nearest' }))
     await layoutsTab.click()
-    await expect(page.getByRole('button', { name: 'Apply Zen layout' })).toBeVisible()
+    await expect(page.getByRole('radio', { name: 'Zen', exact: true })).toBeVisible()
   })
 })

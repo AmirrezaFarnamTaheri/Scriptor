@@ -35,9 +35,9 @@ import type { McpToolDescriptor } from '@scriptor/core/contracts/mcp'
 import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
 import { contributionLabels, summarizePluginContributions } from '../lib/pluginContributions'
 import { summarizeLintIssues } from '../lib/vaultLintSummary'
-import { LAYOUT_PRESETS } from '../lib/workspace/layoutPresets'
 import type { LayoutPreset } from '../lib/workspace/layoutPresets'
 import type { VaultHealthDiagnostics } from '../types/vault'
+import { LayoutPresetGallery } from './LayoutPresetGallery'
 import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { useI18n } from '../lib/i18n'
 import { useTablistKeys } from '../hooks/useTablistKeys'
@@ -327,41 +327,7 @@ function LayoutsTab({
   activeLayoutPresetId,
   onApplyLayoutPreset,
 }: Pick<StorePanelProps, 'activeLayoutPresetId' | 'onApplyLayoutPreset'>) {
-  const { t } = useI18n()
-  return (
-    <div className="store-stack-sm">
-      <p className="store-hint-spaced">
-        {t('store.layoutHint')}
-      </p>
-      {LAYOUT_PRESETS.map((preset) => {
-        const active = preset.id === activeLayoutPresetId
-        return (
-          <div
-            key={preset.id}
-            className={`store-preset-row${active ? ' active' : ''}`}
-          >
-            <LayoutTemplate size={16} className="store-icon-70" />
-            <div className="store-fill-row">
-              <div className="store-item-title">{preset.name}</div>
-              <div className="store-item-sub">
-                {preset.description}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => onApplyLayoutPreset?.(preset)}
-              disabled={!onApplyLayoutPreset || active}
-              aria-label={t('store.applyLayoutAria', { name: preset.name })}
-              aria-current={active ? 'true' : undefined}
-              className={`store-btn-apply${active ? ' active' : ''}`}
-            >
-              {active ? t('store.active') : t('store.apply')}
-            </button>
-          </div>
-        )
-      })}
-    </div>
-  )
+  return <LayoutPresetGallery activeId={activeLayoutPresetId} onApply={onApplyLayoutPreset} />
 }
 
 // ---------------------------------------------------------------------------

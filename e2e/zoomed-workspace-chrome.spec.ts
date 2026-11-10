@@ -74,6 +74,9 @@ for (const direction of ['ltr', 'rtl']) for (const width of [320, 375]) for (con
     const assetBounds = (await asset.boundingBox())!
     const navBounds = (await page.getByRole('navigation', { name: 'Mobile workspace navigation' }).boundingBox())!
     expect(assetBounds.y + assetBounds.height).toBeLessThanOrEqual(navBounds.y + 1)
+    // Asset scrolling intentionally displaces earlier controls; verify that
+    // the filter can be brought back inside the bounded panel scrollport.
+    await filter.scrollIntoViewIfNeeded()
     const field = (await filter.boundingBox())!
     const visibleBody = (await body.boundingBox())!
     expect(field.y).toBeGreaterThanOrEqual(visibleBody.y)

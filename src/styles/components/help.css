@@ -101,6 +101,8 @@
   color: var(--ink);
   box-shadow: var(--shadow-lg);
 }
+/* First-use guidance yields to the top-bar dialog instead of blocking its scrollport. */
+body:has(.topbar-customize) .help-invitation { visibility: hidden; pointer-events: none; }
 .help-invitation h2 { margin: 0; font-size: 17px; color: var(--ink-strong); }
 .help-invitation-copy > p { margin: 4px 0 0; }
 .help-invitation-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-block-start: 14px; }
