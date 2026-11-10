@@ -436,7 +436,7 @@ function AppTopBarImpl({
           <button
             type="button"
             ref={customizeAnchorRef}
-            className={`topbar-customize-toggle status-button${customizeOpen ? ' emphasized' : ''}`
+            className={`topbar-customize-toggle status-button${customizeOpen ? ' emphasized' : ''}`}
             aria-label={t('topBar.customizeAria')}
             aria-expanded={customizeOpen}
             onClick={openCustomize}
