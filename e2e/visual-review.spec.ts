@@ -637,7 +637,7 @@ test.describe('visual review states', () => {
 
   test('first-open graph guidance evidence', async ({ page }) => {
     await openVisualWorkspace(page)
-    await page.evaluate(() => window.localStorage.setItem('scriptor:help-guides:v1', JSON.stringify({ version: 2, progress: {} })))
+    await page.evaluate(() => window.localStorage.setItem('scriptor:help-guides:v1', JSON.stringify({ version: 1, progress: {} })))
     await page.reload({ waitUntil: 'domcontentloaded' })
     await waitForVisualWorkspace(page)
     await openCommandPalette(page)
@@ -857,13 +857,17 @@ test.describe('visual review states', () => {
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeHidden()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-    const [historyBox, modeBox] = await Promise.all([
-      page.locator('.history-controls').boundingBox(),
+    // High zoom deliberately hides duplicate vault/history controls. The mode
+    // selector must remain wholly inside the compact top bar.
+    await expect(page.locator('.history-controls')).toBeHidden()
+    const [modeBox, topbarBox] = await Promise.all([
       page.locator('.workspace-mode-strip').boundingBox(),
+      page.locator('header.topbar').boundingBox(),
     ])
-    expect(historyBox).not.toBeNull()
     expect(modeBox).not.toBeNull()
-    expect(Math.abs((historyBox?.y ?? 0) - (modeBox?.y ?? 0))).toBeLessThanOrEqual(2)
+    expect(topbarBox).not.toBeNull()
+    expect(modeBox!.y).toBeGreaterThanOrEqual(topbarBox!.y)
+    expect(modeBox!.y + modeBox!.height).toBeLessThanOrEqual(topbarBox!.y + topbarBox!.height + 1)
     await expect(page.locator('.monaco-editor')).toBeVisible()
     await expect.poll(() => page.locator('.monaco-editor').evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(96)
     await expectNoHorizontalOverflow(page)
@@ -943,6 +947,16 @@ test.describe('visual review states', () => {
         window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
         window.localStorage.setItem('scriptor:split-preview', 'false')
         window.localStorage.setItem('scriptor:status-dock-collapsed', 'false')
+        // Device-scale evidence is an ordinary returning-user workspace.
+        // Keep first-run Help invitations for their dedicated scenario.
+        window.localStorage.setItem('scriptor:help-guides:v1', JSON.stringify({
+          version: 1,
+          progress: Object.fromEntries([
+            'workbench', 'graph', 'canvas', 'tasks', 'kanban', 'reader',
+            'export', 'plugins', 'modules', 'integrations', 'gmail', 'mcp',
+            'custom-theme', 'resource-sync',
+          ].map(id => [id, { step: 0, completed: false, introduced: true }])),
+        }))
         window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
       }, WORKSPACE_CHROME_PREFS)
       await scaledPage.goto('/', { waitUntil: 'domcontentloaded' })

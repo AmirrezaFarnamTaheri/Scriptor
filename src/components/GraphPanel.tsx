@@ -439,7 +439,7 @@ export const GraphPanel = memo(function GraphPanel({
   }
 
   return (
-    <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')} data-help-topic="graph">
+    <div ref={dialogRef} className="graph-overlay graph-overlay-interactive" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')} data-help-topic="graph">
       <header className="graph-header">
         <div>
           <h2>{t('graph.title')}</h2>
