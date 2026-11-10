@@ -488,4 +488,4 @@
  * the drawing area explicitly rather than letting an implicit grid row collapse
  * the 120-note canvas to the remaining 84 pixels. Short windows scroll. */
 .graph-overlay.graph-overlay-interactive { display:flex; flex-direction:column; overflow-y:auto; min-height:0; }
-.graph-overlay-interactive > .graph-stage { height:auto; flex:1 0 360px; min-height:360px; }
+.graph-overlay-interactive > .graph-stage { height:auto; flex:1 0 400px; min-height:400px; }
