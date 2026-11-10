@@ -536,6 +536,10 @@ export function GmailManagerPanel({
                 <Key size={32} aria-hidden="true" />
                 <h3>{t('integrations.gmail.notConnected')}</h3>
                 <p>{t('integrations.gmail.connectPrompt')}</p>
+                <p className="gmail-manager-setup-hint">{t('integrations.gmail.setupGuidance')}</p>
+                <button type="button" className="toolbar-button gmail-manager-account-help" onClick={() => setActiveTab('account')}>
+                  {t('integrations.gmail.reviewAccountSetup')}
+                </button>
                 <button type="button" className="action-button"
                   disabled={loading || sending || checkingAuth || !nativeReady}
                   onClick={() => void handleStartAuth()}>

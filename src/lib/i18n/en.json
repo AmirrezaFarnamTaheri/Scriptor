@@ -862,6 +862,8 @@
       "developerSetup": "Advanced: use your own Google OAuth client (developers)"
     },
     "gmail": {
+      "setupGuidance": "Enable Gmail Manager in Plugins, then connect your Google account. For recovery, check Settings > Integrations.",
+      "reviewAccountSetup": "Review account setup",
       "title": "Gmail",
       "subtitle": "Read, send, and save Gmail messages as Markdown notes.",
       "ariaLabel": "Gmail integration panel",

@@ -333,3 +333,18 @@ html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
     padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* Quick Capture must remain operable on narrow docked and zoomed mobile panes. */
+.quick-capture-panel .quick-capture-actions button,
+.quick-capture-panel .quick-todo-compose button,
+.quick-capture-panel .quick-todo-actions button,
+.quick-capture-panel .quick-todo-list .icon-button { min-height:44px; min-width:44px; }
+.quick-capture-panel :is(.scratchpad-editor, .quick-todo-compose textarea, .quick-todo-list textarea) { box-sizing:border-box; min-width:0; width:100%; line-height:1.5; }
+@container unified-panel (max-width:460px) {
+  .quick-capture-panel .quick-capture-section-header { align-items:flex-start; flex-direction:column; gap:10px; }
+  .quick-capture-panel .quick-capture-actions { display:grid; grid-template-columns:minmax(0,1fr); width:100%; gap:8px; }
+  .quick-capture-panel .quick-capture-actions button { width:100%; white-space:normal; overflow-wrap:anywhere; }
+  .quick-capture-panel .quick-todo-compose { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; }
+  .quick-capture-panel .quick-todo-list > li { grid-template-columns:44px minmax(0,1fr); }
+  .quick-capture-panel .quick-todo-actions { grid-column:1 / -1; justify-content:flex-end; }
+}

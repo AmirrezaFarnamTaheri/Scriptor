@@ -19,6 +19,12 @@ for (const scenario of [
     await runCommand(page, 'Note history timeline')
     const panel = page.locator('.note-history-panel')
     await expect(panel.locator('.note-history-revision-markdown')).toContainText('Previous revision')
+    const revisionText = await panel.locator('.note-history-revision-markdown').evaluate(element => {
+      const style = getComputedStyle(element)
+      return { font: Number.parseFloat(style.fontSize), line: Number.parseFloat(style.lineHeight) }
+    })
+    expect(revisionText.font).toBeGreaterThanOrEqual(13)
+    expect(revisionText.line).toBeGreaterThanOrEqual(20)
     await expect.poll(() => panel.evaluate(element => {
       const box = element.getBoundingClientRect()
       return box.left >= 0 && box.top >= 0

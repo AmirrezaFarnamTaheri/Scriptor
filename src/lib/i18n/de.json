@@ -862,6 +862,8 @@
       "developerSetup": "Erweitert: eigenen Google-OAuth-Client verwenden (Entwicklung)"
     },
     "gmail": {
+      "setupGuidance": "Aktivieren Sie Gmail Manager unter Plugins und verbinden Sie Ihr Google-Konto. Hilfe zur Wiederherstellung finden Sie unter Einstellungen > Integrationen.",
+      "reviewAccountSetup": "Kontoeinrichtung prüfen",
       "title": "Gmail",
       "subtitle": "Gmail-Nachrichten lesen, senden und als Markdown-Notizen speichern.",
       "ariaLabel": "Gmail-Integrationsbereich",

@@ -405,3 +405,8 @@
     font-size: 0.8rem;
   }
 }
+
+/* Disconnected Gmail introduces a clear setup path without burying the
+ * connection action or masquerading as an active account. */
+.gmail-manager-setup-hint { max-width: 56ch; margin-inline: auto; color: var(--muted); line-height: 1.55; }
+.gmail-manager-account-help { min-height: 44px; white-space: normal; text-align: center; }
