@@ -1272,7 +1272,18 @@ test.describe('visual review states', () => {
     await daemon.scrollIntoViewIfNeeded()
     await captureElement(page, daemon, 'visual-settings-daemon-operations.png')
 
-    const releaseQuality = settings.locator('.release-quality-panel')
+    // VIS-012: advanced diagnostics and quality evidence start collapsed.
+    // Keyboard users can reveal a section without stepping through unrelated
+    // settings on the way to their task.
+    const disclosures = settings.locator('details.settings-advanced-disclosure')
+    await expect(disclosures).toHaveCount(3)
+    const releaseDisclosure = settings.locator('details[data-section="performance"]')
+    await expect(releaseDisclosure).not.toHaveAttribute('open', '')
+    const summary = releaseDisclosure.locator('summary')
+    await summary.focus()
+    await summary.press('Enter')
+    await expect(releaseDisclosure).toHaveAttribute('open', '')
+    const releaseQuality = releaseDisclosure.locator('.release-quality-panel')
     await expect(releaseQuality).toBeVisible()
     const releaseQualityHeading = releaseQuality.getByRole('heading', { name: 'Performance checks', exact: true })
     await releaseQualityHeading.scrollIntoViewIfNeeded()
