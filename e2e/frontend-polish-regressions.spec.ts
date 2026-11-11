@@ -281,7 +281,9 @@ test.describe('Frontend polish regressions', () => {
           const editor = document.querySelector('.editor-panel')!.getBoundingClientRect()
           const inspector = document.querySelector('.inspector-panel')!.getBoundingClientRect()
           const chrome = document.querySelector('.app-chrome')!.getBoundingClientRect()
+          const shell = document.querySelector('.app-shell')!
           const failures: string[] = []
+          if (shell.scrollTop !== 0 || shell.scrollLeft !== 0) failures.push('fixed app shell scrolled under chrome')
           if (inspector.left < editor.right - 1) failures.push('inspector overlaps editor')
           if (inspector.top < chrome.bottom - 1) failures.push('inspector overlaps chrome')
           for (const button of document.querySelectorAll('.editor-toolbar button')) {
