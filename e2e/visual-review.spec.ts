@@ -711,7 +711,18 @@ test.describe('visual review states', () => {
   test('minimum-width mobile workspace evidence', async ({ page }) => {
     await openMobileWorkspace(page, 320, 720)
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
-    await expect(nav.getByRole('button')).toHaveCount(3)
+    await expect(nav.getByRole('button')).toHaveCount(4)
+    await expect(nav.getByRole('button', { name: 'Command', exact: true })).toBeVisible()
+    const topbar = page.locator('header.topbar')
+    const history = topbar.locator('.history-controls')
+    const mode = topbar.locator('.workspace-mode-strip')
+    if (await history.locator('button:not(:disabled)').count() === 0) {
+      // When Back and Forward are disabled, vault and workspace mode should
+      // share the second row rather than consume two rows of writing space.
+      const historyBox = (await history.boundingBox())!
+      const modeBox = (await mode.boundingBox())!
+      expect(Math.abs(historyBox.y - modeBox.y)).toBeLessThanOrEqual(2)
+    }
     await nav.getByRole('button', { name: 'More' }).click()
     await expect(page.getByRole('group', { name: 'More destinations' }).getByRole('button', { name: 'Plugins' })).toBeVisible()
     await page.keyboard.press('Escape')
