@@ -75,9 +75,6 @@ function MobileWorkspaceNavImpl({
           <button type="button" onClick={() => { setMoreOpen(false); onSelectPane('inspector') }}>
             <BookOpen size={18} aria-hidden="true" />{t('mobile.inspector')}
           </button>
-          <button type="button" onClick={() => { setMoreOpen(false); onOpenCommand() }}>
-            <Command size={18} aria-hidden="true" />{t('mobile.command')}
-          </button>
           <button type="button" onClick={() => { setMoreOpen(false); onOpenPlugins() }}>
             <Puzzle size={18} aria-hidden="true" />{t('topBar.plugins')}
           </button>
@@ -94,6 +91,14 @@ function MobileWorkspaceNavImpl({
             <span>{t(labelKey)}</span>
           </button>
         ))}
+        <button type="button"
+          className="mobile-nav-item pressable"
+          aria-label={t('mobile.command')}
+          title={t('mobile.command')}
+          onClick={() => { setMoreOpen(false); onOpenCommand() }}>
+          <Command aria-hidden="true" />
+          <span>{t('mobile.command')}</span>
+        </button>
         <button ref={moreButton} type="button"
           className={`mobile-nav-item pressable ${moreActive ? 'is-active' : ''}`}
           aria-label={t('mobile.more')}

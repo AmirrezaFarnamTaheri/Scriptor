@@ -36,7 +36,16 @@ async function openEditor(page: Page, theme = 'light', plainText = true) {
   })
   await openCommandPalette(page); await runCommand(page, 'Source file editor')
   const editor = page.getByRole('region', { name: 'Source file editor', exact: true })
-  await expect(editor.getByRole('heading', { name: 'Source files', exact: true })).toBeVisible()
+  await expect(editor).toBeVisible()
+  await expect(editor.getByLabel('File path', { exact: true })).toBeVisible()
+  // At 390px the duplicate embedded title is intentionally hidden to put the
+  // editor above the fold; at desktop widths the heading remains visible.
+  const embeddedHeader = editor.locator(':scope > header[data-workspace-header-only="true"]')
+  if ((page.viewportSize()?.width ?? 1024) <= 400 && await embeddedHeader.count() > 0) {
+    await expect(embeddedHeader).toBeHidden()
+  } else {
+    await expect(editor.getByRole('heading', { name: 'Source files', exact: true })).toBeVisible()
+  }
   if (plainText) await editor.getByRole('button', { name: 'Plain text', exact: true }).click()
   return editor
 }

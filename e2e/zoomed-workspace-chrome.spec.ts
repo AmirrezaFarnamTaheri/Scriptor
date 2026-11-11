@@ -101,9 +101,11 @@ for (const direction of ['ltr', 'rtl']) for (const width of [320, 375]) for (con
     const navigation = page.getByRole('navigation', { name: 'Mobile workspace navigation', exact: true })
     const buttons = await navigation.getByRole('button').all()
     const boxes = await Promise.all(buttons.map(button => button.boundingBox()))
-    // Three destinations must not expand into two rows at extreme zoom:
-    // the second row previously stole the Source/Diagram/Runtime work area.
-    expect(boxes).toHaveLength(3)
+    // Vault, Write, Command and More must remain on one row even at zoom.
+    expect(boxes).toHaveLength(4)
+    for (const name of ['Vault', 'Write', 'Command', 'More']) {
+      await expect(navigation.getByRole('button', { name, exact: true })).toBeVisible()
+    }
     const rowTops = boxes.map(box => box!.y)
     expect(Math.max(...rowTops) - Math.min(...rowTops)).toBeLessThanOrEqual(2)
     for (const [index, box] of boxes.entries()) {

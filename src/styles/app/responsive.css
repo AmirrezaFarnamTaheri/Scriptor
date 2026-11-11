@@ -664,7 +664,7 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
   .workspace-mode-select { display: block; width: 100%; min-height: 40px; }
 }
 @container mobile-chrome (max-width: 240px) {
-  .mobile-workspace-nav { grid-template-columns: repeat(2, minmax(44px, 1fr)); gap: 2px; padding: 4px; }
+  .mobile-workspace-nav { grid-template-columns: repeat(4, minmax(44px, 1fr)); gap: 2px; padding: 4px; }
   .mobile-nav-item { min-height: 44px; }
   .mobile-nav-item > span { display: none; }
 }
@@ -678,7 +678,7 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
    keeping the navigation chrome smaller than the document it serves. */
 html[data-ui-zoom='high'] [data-workspace-header-only='true'] { display:none; }
 html[data-ui-zoom='high'] .workspace-embedded-panel .unified-panel-body { padding:8px; }
-html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(3,minmax(32px,1fr)); gap:2px; padding:4px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(4,minmax(32px,1fr)); gap:2px; padding:4px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item { min-width:32px; min-height:32px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item > span { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls button:disabled { display:none; }
@@ -687,14 +687,12 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header h2 { fo
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header h2 svg { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header .health-subtitle { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .asset-deck-split:not(.has-reader) .embedded-panel-shell > header { display:none; }
-/* The mobile bar has three actual destinations; use three columns at every
-   zoom level. The compact threshold keeps its targets bounded in RTL/LTR. */
+/* Vault, Write, Command and More are four one-row destinations. Effective
+   high-zoom widths use scaled 32px controls to retain a full one-row bar. */
 @container mobile-chrome (max-width: 200px) {
-  /* There are exactly three primary destinations: Vault, Write and More.
-     Two columns forced More onto a second row at 200% app zoom. */
   .mobile-workspace-nav,
   html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav {
-    grid-template-columns: repeat(3,minmax(32px,1fr));
+    grid-template-columns: repeat(4,minmax(32px,1fr));
   }
 }
 
