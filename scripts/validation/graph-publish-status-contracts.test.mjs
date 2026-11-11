@@ -99,8 +99,9 @@ test('graph node labels are masked so edge lines do not cross the glyphs', () =>
   // over the bottom of the r=22 keyboard focus ring.
   assert.match(graphCanvas, /ctx\.measureText\(label\)/)
   assert.match(graphCanvas, /fillStyle = surfaceColor[\s\S]{0,900}?roundRect/)
-  const platePass = graphCanvas.indexOf('fillStyle = surfaceColor')
-  const nodePass = graphCanvas.indexOf('ctx.arc(node.x, node.y, radius')
+  const platePass = graphCanvas.indexOf('ctx.roundRect(')
+  const nodePass = graphCanvas.indexOf('ctx.arc(node.x, node.y, appearance.radius')
+  assert.ok(platePass >= 0 && nodePass >= 0, 'both paint passes must exist')
   assert.ok(platePass < nodePass, 'label plates must be painted before the node circles and focus rings')
   const focusRing = graphCanvas.indexOf('ctx.arc(node.x, node.y, isFocus ? 26 : 22')
   assert.ok(focusRing > platePass, 'label plates must be painted before the keyboard focus ring')

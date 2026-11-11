@@ -231,6 +231,28 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       ctx.restore()
     }
 
+    // Paint opaque text plates after edges but before node circles and focus
+    // rings. Labels sit below their own nodes; neighboring focus rings must
+    // never disappear behind a later label's rectangle.
+    for (const node of nodes) {
+      const showLabel = nodes.length < 60 || highlightedNeighborIds.includes(node.id) || node.path === focusPath || hoveredId === node.id || keyboardNode?.id === node.id
+      if (showLabel) {
+        const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
+        ctx.font = '11px sans-serif'
+        ctx.textAlign = 'center'
+        const metrics = ctx.measureText(label)
+        const labelY = node.y + 44
+        ctx.fillStyle = surfaceColor
+        ctx.beginPath()
+        ctx.roundRect(node.x - metrics.width / 2 - LABEL_PLATE_PAD_X, labelY - LABEL_PLATE_HEIGHT + 2,
+          metrics.width + LABEL_PLATE_PAD_X * 2, LABEL_PLATE_HEIGHT, 3)
+        ctx.fill()
+        ctx.fillStyle = inkColor
+        ctx.fillText(label, node.x, labelY)
+      }
+    }
+
+
     for (const node of nodes) {
       const isFocus = node.path === focusPath
       const isHovered = hoveredId === node.id
@@ -267,26 +289,6 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
         ctx.stroke()
       }
       ctx.restore()
-    }
-
-    // Paint labels after every node so later nodes cannot obscure earlier
-    // glyphs. The plate starts below even the 26px keyboard focus ring.
-    for (const node of nodes) {
-      const showLabel = nodes.length < 60 || highlightedNeighborIds.includes(node.id) || node.path === focusPath || hoveredId === node.id || keyboardNode?.id === node.id
-      if (showLabel) {
-        const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
-        ctx.font = '11px sans-serif'
-        ctx.textAlign = 'center'
-        const metrics = ctx.measureText(label)
-        const labelY = node.y + 44
-        ctx.fillStyle = surfaceColor
-        ctx.beginPath()
-        ctx.roundRect(node.x - metrics.width / 2 - LABEL_PLATE_PAD_X, labelY - LABEL_PLATE_HEIGHT + 2,
-          metrics.width + LABEL_PLATE_PAD_X * 2, LABEL_PLATE_HEIGHT, 3)
-        ctx.fill()
-        ctx.fillStyle = inkColor
-        ctx.fillText(label, node.x, labelY)
-      }
     }
 
     ctx.restore()

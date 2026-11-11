@@ -564,6 +564,22 @@ test.describe('visual review states', () => {
     expect(svgBox).not.toBeNull()
     expect((stageBox?.height ?? 0) - (svgBox?.height ?? 0)).toBeLessThanOrEqual(96)
 
+    // VIS-019: a loaded board must not lose the bottom cards behind the
+    // viewport edge. The source scene is tight without padding, so this
+    // assertion fails on the old viewBox even though 5 SVG groups exist.
+    const margins = await stageSvg.evaluate((element) => {
+      const frame = element.getBoundingClientRect()
+      const cards = Array.from(element.querySelectorAll<SVGGElement>('.canvas-block'))
+      return cards.map((card) => {
+        const rect = card.getBoundingClientRect()
+        return { top: rect.top - frame.top, bottom: frame.bottom - rect.bottom }
+      })
+    })
+    expect(margins).toHaveLength(5)
+    for (const margin of margins) {
+      expect(margin.top, 'card top must be visible with a frame margin').toBeGreaterThanOrEqual(12)
+      expect(margin.bottom, 'card bottom must not meet the stage boundary').toBeGreaterThanOrEqual(12)
+    }
     await captureElement(page, canvas, 'visual-canvas-populated.png')
   })
 
