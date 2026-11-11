@@ -26,6 +26,31 @@ async function expectFullConsentInsidePanelBody(label:Locator, note:string) {
   expect(geometry!.bottom,note+' label end must be readable above mobile nav').toBeLessThanOrEqual(geometry!.bodyBottom+1)
   expect(geometry!.left,note+' label left must remain in body').toBeGreaterThanOrEqual(geometry!.bodyLeft-1)
   expect(geometry!.right,note+' label right must remain in body').toBeLessThanOrEqual(geometry!.bodyRight+1)
+  // Bounding rectangles alone do not detect a sticky header, footer, or
+  // floating panel painted above the consent. Probe the actual hit-test stack.
+  const unobstructed = await label.evaluate(element => {
+    const rect = element.getBoundingClientRect()
+    const points = [
+      [rect.left + rect.width / 2, rect.top + Math.min(12, rect.height / 3)],
+      [rect.left + rect.width / 2, rect.bottom - Math.min(12, rect.height / 3)],
+    ]
+    return points.every(([x, y]) => {
+      const over = document.elementFromPoint(x!, y!)
+      return over === element || (over !== null && element.contains(over))
+    })
+  })
+  expect(unobstructed, note+' consent must not be covered by sticky chrome').toBe(true)
+}
+
+async function expectConsentKeyboardActivation(checkbox: Locator, label: Locator, note: string) {
+  await checkbox.focus()
+  await expect(checkbox, note+' must accept focus').toBeFocused()
+  await expectFullConsentInsidePanelBody(label, note+' after keyboard focus')
+  const before = await checkbox.isChecked()
+  await checkbox.press('Space')
+  expect(await checkbox.isChecked(), note+' Space toggles consent').toBe(!before)
+  await checkbox.press('Space')
+  expect(await checkbox.isChecked(), note+' Space restores consent').toBe(before)
 }
 
 // Direct CSS stress zoom publishes the effective viewport dimensions used by
@@ -78,7 +103,7 @@ for (const theme of ['light','dark']) for (const surface of [
     await testInfo.attach(`${direction}-${width}-${zoom}`,{body:JSON.stringify(geometry),contentType:'application/json'})
     if (width === 320 || width === 1440) {
       await label.scrollIntoViewIfNeeded()
-      if (width === 320 && zoom === 2) await expectFullConsentInsidePanelBody(label,`${surface.command} ${theme} ${direction} 320px at 200% app zoom`)
+      if (width === 320 && zoom === 2) await expectConsentKeyboardActivation(checkbox,label,`${surface.command} ${theme} ${direction} 320px at 200% app zoom`)
       await label.screenshot({path:testInfo.outputPath(`${theme}-${direction}-${width}-${zoom}-toggle.png`)})
       await panel.screenshot({path:testInfo.outputPath(`${theme}-${direction}-${width}-${zoom}.png`)})
       if (width === 320 && zoom === 2) await page.screenshot({path:testInfo.outputPath(`${theme}-${direction}-320-zoom2-full.png`),fullPage:true})
@@ -123,7 +148,7 @@ for (const theme of ['light','dark']) test(`persistent Python ${theme} setup kee
     expect(startButton!.height).toBeGreaterThanOrEqual(44 * zoom - 1)
     expect(startButton!.width).toBeLessThanOrEqual(paneBounds!.width + 1)
     await checkbox.locator('..').scrollIntoViewIfNeeded()
-    if (width === 320 && zoom === 2) await expectFullConsentInsidePanelBody(checkbox.locator('..'),`Runtime ${theme} ${direction} 320px at 200% app zoom`)
+    if (width === 320 && zoom === 2) await expectConsentKeyboardActivation(checkbox,checkbox.locator('..'),`Runtime ${theme} ${direction} 320px at 200% app zoom`)
     await checkbox.locator('..').screenshot({path:testInfo.outputPath(`runtime-toggle-${theme}-${direction}-${width}-${zoom}.png`)})
     await panel.screenshot({path:testInfo.outputPath(`runtime-setup-${theme}-${direction}-${width}-${zoom}.png`)})
     if (width === 320 && zoom === 2) await page.screenshot({path:testInfo.outputPath(`runtime-${theme}-${direction}-320-zoom2-full.png`),fullPage:true})
@@ -149,6 +174,10 @@ async function auditConsent(page:Page,panel:Locator,label:Locator,name:string,te
     expect(geometry.left).toBeGreaterThanOrEqual(0)
     expect(geometry.right).toBeLessThanOrEqual(width+1)
     await label.scrollIntoViewIfNeeded()
+    if (width === 320 && zoom === 2) {
+      const checkbox = label.locator('input[type="checkbox"]')
+      await expectConsentKeyboardActivation(checkbox, label, `${name} ${direction} 320px at 200% app zoom`)
+    }
     await label.screenshot({path:testInfo.outputPath(`${name}-${direction}-${width}-${zoom}-toggle.png`)})
     await panel.screenshot({path:testInfo.outputPath(`${name}-${direction}-${width}-${zoom}.png`)})
     if (width === 320 && zoom === 2 && name.startsWith('overleaf-')) {
