@@ -132,6 +132,34 @@ test.describe('Canvas panel', () => {
     await expect(form.getByRole('button', { name: 'Remove relation' })).toHaveCount(0)
   })
 
+  test('an explicit relation renders a directed visual link and a readable text alternative', async ({ page }) => {
+    await page.addInitScript(() => sessionStorage.setItem('e2e:canvas-populated', '1'))
+    const panel = await openCanvas(page)
+    await expect(panel.locator('.canvas-block')).toHaveCount(5)
+    await panel.getByRole('button', { name: 'Add note relation' }).click()
+    const form = panel.getByRole('form', { name: 'Connector note relation' })
+    await form.getByLabel('From note').fill('Methodology.md')
+    await form.getByLabel('To note').fill('Research Plan.md')
+    await form.getByLabel('Relation', { exact: true }).fill('supports')
+    await form.getByRole('button', { name: 'Save relation' }).click()
+
+    const arrow = panel.locator('.canvas-note-relation line')
+    await expect(arrow).toHaveCount(1)
+    await expect(arrow).toHaveAttribute('marker-end', /canvas-note-relation-arrow/)
+    const text = panel.getByRole('list', { name: 'Visible note relations' })
+    await expect(text).toContainText('Methodology.md supports Research Plan.md')
+    const geometry = await arrow.evaluate(element => ({
+      source: Number(element.getAttribute('x1')),
+      target: Number(element.getAttribute('x2')),
+    }))
+    expect(geometry.source).toBeLessThan(geometry.target)
+
+    await panel.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect(arrow).toHaveCount(0)
+    await panel.getByRole('button', { name: 'Redo', exact: true }).click()
+    await expect(arrow).toHaveCount(1)
+  })
+
   test('opens via command palette', async ({ page }) => {
     const panel = await openCanvas(page)
     await expect(panel.locator('.canvas-stage')).toBeVisible()
