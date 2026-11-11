@@ -19,14 +19,14 @@ function contrast(a, b) {
   return (Math.max(left, right) + 0.05) / (Math.min(left, right) + 0.05)
 }
 
-test('all built-in themes keep secondary and faint body text at 4.5:1 on opaque surfaces', () => {
+test('all built-in themes keep secondary and status text readable on opaque surfaces', () => {
   assert.ok(themes.length >= 18, `Expected all 18 built-in themes, found ${themes.length}`)
   for (const [, theme, body] of themes) {
     const colors = Object.fromEntries(
       [...body.matchAll(/--([a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/g)]
         .map(match => [match[1], match[2]]),
     )
-    for (const textColor of ['muted', 'faint']) {
+    for (const textColor of ['muted', 'faint', 'primary', 'primary-strong', 'success', 'danger', 'amber']) {
       assert.match(colors[textColor] ?? '', /^#[\da-f]{6}$/i, `${theme} missing ${textColor}`)
       for (const background of ['bg', 'bg-elevated']) {
         assert.match(colors[background] ?? '', /^#[\da-f]{6}$/i, `${theme} missing ${background}`)
