@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n } from '../lib/i18n'
+import { graphNodeAppearance } from '../lib/graphNodeAppearance'
 
 const FOLDER_COLORS = ['#6366f1', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#a855f7', '#22c55e']
 
@@ -174,7 +175,9 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     const { x: tx, y: ty, scale } = transformRef.current
     const hoveredId = hoveredIdRef.current
     const keyboardNode = keyboardFocused ? nodes[activeKeyboardNodeIndex] : undefined
-    const reduceClutter = focusNeighborhoodOnly && Boolean(focusedNodeId) && !hoveredId
+    // Hovering a background dot must not bring the entire 120-node web to the
+    // foreground. Only that note escapes the focused-neighborhood treatment.
+    const reduceClutter = focusNeighborhoodOnly && Boolean(focusedNodeId)
     ctx.clearRect(0, 0, width, height)
     ctx.fillStyle = surfaceColor
     ctx.fillRect(0, 0, width, height)
@@ -232,13 +235,19 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       const isFocus = node.path === focusPath
       const isHovered = hoveredId === node.id
       const isKeyboardFocus = keyboardNode?.id === node.id
-      const radius = isFocus || isHovered ? 18 : 14
+      const appearance = graphNodeAppearance({
+        focusMode: reduceClutter,
+        isFocus,
+        isNeighbor: focusedNeighborhood.has(node.id),
+        isHovered,
+        isKeyboardFocus,
+      })
       const fill = node.color ?? folderColor(node.path)
 
       ctx.save()
-      if (reduceClutter && !focusedNeighborhood.has(node.id) && !isKeyboardFocus) ctx.globalAlpha = 0.18
+      ctx.globalAlpha = appearance.alpha
       ctx.beginPath()
-      ctx.arc(node.x, node.y, radius, 0, Math.PI * 2)
+      ctx.arc(node.x, node.y, appearance.radius, 0, Math.PI * 2)
       ctx.fillStyle = node.unresolved ? mutedColor : fill
       ctx.fill()
 
