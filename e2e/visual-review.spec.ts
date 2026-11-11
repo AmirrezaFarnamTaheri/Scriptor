@@ -2134,6 +2134,26 @@ test.describe('visual review states', () => {
       await expect(tab).toHaveAttribute('aria-selected', 'true')
       const body = settings.locator('.unified-panel-body')
       await expect.poll(() => body.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+      if (state.tab === 'Workspace') {
+        // VIS-016: "Author Current" must not split the preset name inside a
+        // fixed 115px tile. Measure actual glyph lines, not just box overflow.
+        const author = settings.locator('.layout-preset-choice').filter({ has: settings.getByRole('radio', { name: /Author/ }) })
+        const nameLines = await author.locator(':scope > span').evaluate(element => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          return range.getClientRects().length
+        })
+        expect(nameLines, 'Author template name must remain on one visual line').toBe(1)
+        const current = author.locator(':scope > small')
+        if (await current.count()) {
+          const geometry = await author.evaluate(element => {
+            const name = element.querySelector('span')!.getBoundingClientRect()
+            const status = element.querySelector('small')!.getBoundingClientRect()
+            return { nameBottom: name.bottom, statusTop: status.top }
+          })
+          expect(geometry.statusTop, 'Current status follows the name without collision').toBeGreaterThanOrEqual(geometry.nameBottom - 1)
+        }
+      }
       await captureElement(page, settings, state.image)
     }
   })
