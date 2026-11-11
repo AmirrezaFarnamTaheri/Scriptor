@@ -855,8 +855,11 @@ test.describe('visual review states', () => {
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav).toBeVisible()
     await nav.getByRole('button', { name: 'Command', exact: true }).click()
-    await expect(page.locator('.command-search')).toBeVisible()
+    // The mobile entry opens the command dialog; .command-search is the
+    // intentionally hidden desktop top-bar trigger, not the dialog.
+    await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
     await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: 'Command palette' })).toHaveCount(0)
     await expect(page.locator('.status-strip')).toBeHidden()
     await expect(page.locator('.command-search')).toBeHidden()
     const modeSelect = page.locator('.workspace-mode-select')
