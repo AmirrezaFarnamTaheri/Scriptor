@@ -83,7 +83,24 @@ test('translated inspector tabs stay on one row and remain reachable by scrollin
     clipped: node.scrollWidth > node.clientWidth + 1,
   })))
   expect(new Set(geometry.map(item => item.top)).size).toBe(1)
-  expect(geometry.every(item => !item.clipped)).toBe(true)
+  expect(geometry.every(item => !item.clipped), 'scrolling the rail must not truncate a tab inside its own button').toBe(true)
+
+  // The full German publishing heading must wrap inside its card, not paint
+  // past the inspector edge even when the rail is narrower than a single word.
+  const publishing = page.locator('.inspector-panel .widget-card h3').filter({ hasText: 'Veröffentlichungsbereitschaft' })
+  await publishing.scrollIntoViewIfNeeded()
+  await expect(publishing).toBeVisible()
+  const heading = await publishing.evaluate(element => {
+    const box = element.getBoundingClientRect()
+    const card = element.closest('.widget-card')!.getBoundingClientRect()
+    return {
+      hasHorizontalOverflow: element.scrollWidth > element.clientWidth + 1,
+      withinCard: box.left >= card.left - 1 && box.right <= card.right + 1,
+    }
+  })
+  expect(heading.hasHorizontalOverflow, 'the translated card heading must be fully readable').toBe(false)
+  expect(heading.withinCard, 'the heading must stay within the widget card').toBe(true)
+
   const reveal = page.locator('.inspector-tabs-reveal')
   await expect(reveal).toBeVisible()
   await expect(reveal).toHaveAccessibleName(/\S/)

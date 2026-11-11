@@ -77,7 +77,12 @@
 
   .inspector-tabs button {
     min-height: 44px;
-    max-width: 100%;
+    /* Tablet rail is a horizontal scrollport, not an ellipsis for each tab.
+       `max-width:100%` constrained the translated label to a single narrow
+       grid column and hid its ending even when scrolling right. */
+    max-width: none;
+    min-width: max-content;
+    width: max-content;
     padding-inline: 2px;
     font-size: 11px;
     /* Keep the 44px touch target, but do not let the labels wrap. This band used to
@@ -87,8 +92,8 @@
        A tab row stays one line; a label that genuinely cannot fit ellipsises like
        every other tab, and the full name stays on the accessible name. */
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
     line-height: 1.2;
   }
 }
@@ -432,8 +437,12 @@
 /* Translated tabs keep their full accessible names and stay on one row.
  * Narrow inspector rails scroll horizontally instead of cutting words or
  * consuming a second row of writing space. */
-html[lang='de'] .inspector-panel .widget-card h2 {
+/* WidgetCard defaults to h3. Include the actual semantic heading so the
+   translated `Veröffentlichungsbereitschaft` remains inside a 160px rail. */
+.inspector-panel .widget-card :is(h2, h3, h4) {
   min-width: 0;
+  max-width: 100%;
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 
