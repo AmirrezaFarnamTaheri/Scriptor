@@ -1,4 +1,4 @@
-import { memo, useState } from 'react'
+import { memo, useId, useState } from 'react'
 import type { WorkspaceLayout } from '../hooks/useWorkspaceLayout'
 import { LAYOUT_PRESETS, type LayoutPreset } from '../lib/workspace/layoutPresets'
 import '../styles/components/layout-preset-gallery.css'
@@ -21,6 +21,7 @@ export const LayoutPresetGallery = memo(function LayoutPresetGallery({ current, 
   // The first preview should reflect the layout actually active in Settings or
   // Store, not always show Zen as a selected, unapplied alternative. Explicit
   // selection takes precedence after the user chooses another template.
+  const radioGroupName = useId()
   const [userSelectedId, setUserSelectedId] = useState<string | null>(null)
   const currentPresetId = activeId ?? LAYOUT_PRESETS.find(preset => matchesLayout(current, preset.layout))?.id
   const selectedId = userSelectedId ?? currentPresetId ?? LAYOUT_PRESETS[0]!.id
@@ -38,7 +39,7 @@ export const LayoutPresetGallery = memo(function LayoutPresetGallery({ current, 
         {LAYOUT_PRESETS.map(preset => (
           <li key={preset.id} className="layout-preset-item">
             <label className="layout-preset-choice" data-selected={selected.id === preset.id}>
-              <input type="radio" name="scriptor-layout-preset" checked={selected.id === preset.id}
+              <input type="radio" name={radioGroupName} checked={selected.id === preset.id}
                 onChange={() => setUserSelectedId(preset.id)} />
               <span>{preset.name}</span>
               {isCurrent(preset) ? <small>Current</small> : null}

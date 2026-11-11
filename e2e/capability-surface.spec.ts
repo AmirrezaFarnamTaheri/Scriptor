@@ -59,6 +59,25 @@ test.describe('capability surfaces', () => {
     await expect(page.getByRole('button', { name: /^Apply .* layout template$/ })).toHaveCount(1)
   })
 
+  test('layout galleries have separate native radio groups for Store and Settings', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Tools' }).click()
+    await page.getByRole('tab', { name: 'Layouts' }).click()
+    const storeGallery = page.locator('.store-root .settings-layout-presets')
+    await expect(storeGallery).toBeVisible()
+    const storeName = await storeGallery.getByRole('radio', { name: 'Zen', exact: true }).getAttribute('name')
+    expect(storeName).toBeTruthy()
+
+    await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await expect(settings).toBeVisible()
+    await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
+    const settingsGallery = settings.locator('.settings-layout-presets')
+    await expect(settingsGallery).toBeVisible()
+    const settingsName = await settingsGallery.getByRole('radio', { name: 'Zen', exact: true }).getAttribute('name')
+    expect(settingsName).toBeTruthy()
+    expect(settingsName).not.toBe(storeName)
+  })
+
   test('keeps populated knowledge repair rows separated at 200% text zoom', async ({ page }) => {
     await page.evaluate(() => window.sessionStorage.setItem('e2e:knowledge-repair-notes', '1'))
     await page.reload()
