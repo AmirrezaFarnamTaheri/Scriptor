@@ -2148,10 +2148,16 @@ test.describe('visual review states', () => {
       if (state.tab === 'Workspace') {
         // The active saved layout must be the initial preview selection, not
         // an arbitrary Zen alternative that users could mistake for current.
-        await expect(settings.getByRole('radio', { name: 'Author', exact: true })).toBeChecked()
-        // VIS-016: "Author Current" must not split the preset name inside a
-        // fixed 115px tile. Measure actual glyph lines, not just box overflow.
-        const author = settings.locator('.layout-preset-choice').filter({ has: settings.getByRole('radio', { name: /Author/ }) })
+        // The word "Current" is part of the label's accessible name. A
+        // currently applied preset (if one matches) must be selected, but a
+        // custom layout is allowed to have no matching built-in preset.
+        const applied = settings.locator('.layout-preset-choice').filter({ has: settings.locator('small:text-is("Current")') })
+        if (await applied.count()) {
+          await expect(applied).toHaveCount(1)
+          await expect(applied.locator('input[type="radio"]')).toBeChecked()
+        }
+        // VIS-016: "Author Current" must not split the template name.
+        const author = settings.locator('.layout-preset-choice').filter({ has: settings.getByRole('radio', { name: /^Author(?: Current)?$/ }) })
         const nameLines = await author.locator(':scope > span').evaluate(element => {
           const range = document.createRange()
           range.selectNodeContents(element)

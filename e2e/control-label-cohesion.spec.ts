@@ -5,19 +5,36 @@ import { launchApp, openCommandPalette, runCommand } from './helpers'
  * clips the beginning or end after scrollIntoViewIfNeeded at high app zoom. */
 async function expectFullConsentInsidePanelBody(label:Locator, note:string) {
   const geometry=await label.evaluate(element => {
-    const body=element.closest('.unified-panel-body')
+    // A consent may live in a modal's unified body OR an embedded source
+    // editor leaf. Locate the real clipping ancestor rather than assuming the
+    // modal class exists. Intersect it with the visible viewport/nav so a
+    // scrolled-off, covered or clipped consent still fails this acceptance.
+    let body: Element | null = element.closest('.unified-panel-body')
+    if (!body) {
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent)
+        if (/(auto|scroll|hidden|clip)/.test(style.overflowY) && parent.clientHeight > 0) {
+          body = parent
+          break
+        }
+      }
+    }
+    if (!body) body = element.closest('.source-file-editor')
     if (!body) return null
     const labelBox=element.getBoundingClientRect()
     const bodyBox=body.getBoundingClientRect()
     const bottomNav=document.querySelector<HTMLElement>('.mobile-workspace-nav')
     const navBox=bottomNav?.getBoundingClientRect()
-    const limit=navBox && navBox.height>0 ? Math.min(navBox.top,bodyBox.bottom) : bodyBox.bottom
+    const top = Math.max(0, bodyBox.top)
+    const left = Math.max(0, bodyBox.left)
+    const right = Math.min(window.innerWidth, bodyBox.right)
+    const limit=navBox && navBox.height>0 ? Math.min(navBox.top,bodyBox.bottom,window.innerHeight) : Math.min(bodyBox.bottom,window.innerHeight)
     return {
       top:labelBox.top, bottom:labelBox.bottom,
       left:labelBox.left, right:labelBox.right,
-      bodyTop:bodyBox.top, bodyBottom:limit,
-      bodyLeft:bodyBox.left, bodyRight:bodyBox.right,
-      bodyHeight:bodyBox.height, labelHeight:labelBox.height,
+      bodyTop:top, bodyBottom:limit,
+      bodyLeft:left, bodyRight:right,
+      bodyHeight:limit-top, labelHeight:labelBox.height,
     }
   })
   expect(geometry,note+' must have an owning scrollport').not.toBeNull()

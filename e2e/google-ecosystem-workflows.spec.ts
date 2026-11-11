@@ -61,7 +61,9 @@ test('Drive keeps important account and cache privacy details available without 
   const details = panel.locator('details.collaboration-guidance').filter({ hasText: 'How sharing works and where data is stored' })
   await expect(details).toBeVisible()
   await expect(details).not.toHaveAttribute('open', '')
-  await expect(panel.getByRole('button', { name: 'Connect Google Drive', exact: true })).toBeEnabled()
+  // The fixture already owns an authenticated Drive account. Its first
+  // available action is switching that account, not connecting a new one.
+  await expect(panel.getByRole('button', { name: 'Switch Google account', exact: true })).toBeEnabled()
   await expect(panel.locator('details.google-developer-setup')).toHaveCount(0)
   await expect(panel.getByText('The last shared ancestor and this note’s peer identity', { exact: false })).toBeHidden()
   await details.locator('summary').click()
@@ -198,7 +200,11 @@ test('External Drive account changes clear discoveries and discard late Docs pre
   await expect(panel.getByRole('combobox', { name: 'Choose a Google document', exact: true })).toHaveCount(0)
   await expect(panel.getByRole('combobox', { name: 'Choose a Drive folder', exact: true })).toHaveCount(0)
   await expect(panel.getByLabel('Google document ID', { exact: true })).toHaveValue('')
-  await attachVisualState(page, testInfo, 'drive-disconnected-review-cleared', panel, panel.getByLabel('Google document ID', { exact: true }))
+  // After an external disconnect the protected workflow is deliberately
+  // collapsed. Capture its visible recovery action, not a hidden input.
+  await expect(panel.getByLabel('Google document ID', { exact: true })).toBeHidden()
+  await expect(panel.locator('.collaboration-workflow-details')).not.toHaveAttribute('open', '')
+  await attachVisualState(page, testInfo, 'drive-disconnected-review-cleared', panel, panel.getByRole('button', { name: 'Connect Google Drive', exact: true }))
   expect((await calls(page)).filter(call => call.cmd === 'vault_save_note')).toHaveLength(0)
 })
 
@@ -382,7 +388,7 @@ test('Drive reconnect clears its own old-account resources and reviewed previews
   await panel.getByRole('combobox', { name: 'Choose a Google document', exact: true }).selectOption('shared-doc')
   await panel.getByRole('button', { name: 'Preview text from Google Docs', exact: true }).click()
   await expect(panel.getByRole('textbox', { name: 'Review imported text', exact: true })).toBeVisible()
-  await panel.getByRole('button', { name: 'Connect Google Drive', exact: true }).click()
+  await panel.getByRole('button', { name: 'Switch Google account', exact: true }).click()
   await expect(panel.getByRole('status').filter({ hasText: 'Google setup saved' })).toContainText('Google setup saved')
   await expect(panel.getByRole('textbox', { name: 'Review imported text', exact: true })).toHaveCount(0)
   await expect(panel.getByRole('combobox', { name: 'Choose a Google document', exact: true })).toHaveCount(0)

@@ -22,10 +22,22 @@ test('new review workspaces expose usable geometry, focus and cancellation contr
     const panel = surface.name === 'Asset deck' ? page.locator('.asset-deck-workspace[role="region"]') : page.getByRole(modal ? 'dialog' : 'region', { name: surface.name, exact: true })
     await expect(panel).toBeVisible()
     if (surface.command === 'Drive collaboration') {
+      // A collapsed disclosure's next tab-stop can be outside the region.
+      // First open the visible Docs disclosure with the keyboard, then
+      // verify that its contents enter the tab order and focus can return.
       const summary = panel.locator('summary').last()
-      await summary.focus(); await page.keyboard.press('Tab'); await expect(summary).not.toBeFocused()
-      expect(await page.evaluate(() => Boolean(document.activeElement?.getClientRects().length))).toBe(true)
-      await page.keyboard.press('Shift+Tab'); await expect(summary).toBeFocused()
+      await summary.focus()
+      await expect(summary).toBeFocused()
+      await summary.press('Enter')
+      const disclosure = summary.locator('..')
+      await expect(disclosure).toHaveAttribute('open', '')
+      await page.keyboard.press('Tab')
+      const inside = await disclosure.evaluate(element => element.contains(document.activeElement))
+      expect(inside, 'Tab should enter the expanded Drive Docs disclosure').toBe(true)
+      await page.keyboard.press('Shift+Tab')
+      await expect(summary).toBeFocused()
+      await summary.press('Enter')
+      await expect(disclosure).not.toHaveAttribute('open', '')
     }
     for (const direction of ['ltr', 'rtl']) {
       await page.locator('html').evaluate((element, value) => element.setAttribute('dir', value), direction)
