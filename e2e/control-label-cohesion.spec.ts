@@ -239,6 +239,12 @@ for (const theme of ['light','dark']) test(`saved LaTeX and Overleaf ${theme} co
     expect(area, `Source content bounds ${theme} ${direction}`).not.toBeNull()
     expect(nav).not.toBeNull()
     expect(area!.y, `Source editing controls must start above navigation ${theme} ${direction}`).toBeLessThan(nav!.y-8)
+    // Starting the textarea just 8px above the fixed navigation is not a
+    // usable first viewport. Require several readable source lines at 200%.
+    const editable = await editor.getByRole('textbox', { name: 'Source file content', exact: true }).boundingBox()
+    expect(editable).not.toBeNull()
+    const visibleEditorHeight = Math.min(editable!.y + editable!.height, nav!.y) - Math.max(editable!.y, 0)
+    expect(visibleEditorHeight, `Source edit area at ${theme} ${direction} 320px / 200%`).toBeGreaterThanOrEqual(136)
   }
   await page.locator('html').evaluate(element => {
     element.dir='ltr'; element.style.zoom='1'

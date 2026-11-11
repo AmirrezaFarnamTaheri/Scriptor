@@ -152,7 +152,12 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
       <button type="button" disabled={busy || compiling || !sourceLanguage(filePath) || Boolean(document && !dirty)} onClick={() => { void save() }}>{busy ? 'Working…' : document ? 'Save file' : 'Create file'}</button>
       </div>
     </div>
-    <p className="source-file-status" role="status"><bdi dir="ltr">{document?.path ?? 'New file'}</bdi> · <bdi dir="auto">{sourceLanguage(filePath) ?? 'Choose a supported file extension'}</bdi> · {dirty ? 'Unsaved changes' : document ? 'Saved' : 'Not created'} · <bdi dir="ltr">{new TextEncoder().encode(draft).length.toLocaleString()} / {SOURCE_FILE_LIMIT.toLocaleString()}</bdi> bytes</p>
+    <p className="source-file-status" role="status">
+      <bdi dir="ltr">{document?.path ?? 'New file'}</bdi>
+      <span className="source-file-status-detail"> · <bdi dir="auto">{sourceLanguage(filePath) ?? 'Choose a supported file extension'}</bdi></span>
+      <span> · {dirty ? 'Unsaved changes' : document ? 'Saved' : 'Not created'}</span>
+      <span className="source-file-status-detail"> · <bdi dir="ltr">{new TextEncoder().encode(draft).length.toLocaleString()} / {SOURCE_FILE_LIMIT.toLocaleString()}</bdi> bytes</span>
+    </p>
     {error && <p role="alert">{error}</p>}
     {status && <p role="status">{status}</p>}
     <div className="source-file-content">

@@ -94,3 +94,35 @@ html[data-ui-zoom='high'] .source-file-editor .source-file-content {
   .source-file-mode > button { padding: 5px 6px; font-size: 12px; }
   .source-file-status { font-size: 12px; line-height: 1.35; }
 }
+
+/* Extreme effective widths occur at 320px physical / 200% application zoom.
+ * Keep editing immediately usable: retain the file identity and Save/dirty
+ * status, but put secondary language/size metadata in the accessibility tree
+ * without letting it consume an extra visual line. The editor-mode radio-like
+ * buttons have their own accessible group label, so the duplicate visible
+ * "File content" heading can be visually hidden in this one narrow band. */
+.source-file-editor { container: source-file / inline-size; }
+@container source-file (max-width: 220px) {
+  .source-file-status-detail,
+  .source-file-mode-toolbar > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .source-file-status { min-width: 0; }
+  .source-file-mode-toolbar { min-width: 0; }
+  .source-file-mode {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex: 1 1 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .source-file-mode > button {
+    min-width: 0;
+    padding-inline: 3px;
+  }
+}
