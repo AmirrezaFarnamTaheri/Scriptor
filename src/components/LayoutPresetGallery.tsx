@@ -18,7 +18,12 @@ interface LayoutPresetGalleryProps {
 }
 
 export const LayoutPresetGallery = memo(function LayoutPresetGallery({ current, activeId, onApply }: LayoutPresetGalleryProps) {
-  const [selectedId, setSelectedId] = useState(LAYOUT_PRESETS[0]!.id)
+  // The first preview should reflect the layout actually active in Settings or
+  // Store, not always show Zen as a selected, unapplied alternative. Explicit
+  // selection takes precedence after the user chooses another template.
+  const [userSelectedId, setUserSelectedId] = useState<string | null>(null)
+  const currentPresetId = activeId ?? LAYOUT_PRESETS.find(preset => matchesLayout(current, preset.layout))?.id
+  const selectedId = userSelectedId ?? currentPresetId ?? LAYOUT_PRESETS[0]!.id
   const selected = LAYOUT_PRESETS.find(preset => preset.id === selectedId) ?? LAYOUT_PRESETS[0]!
   // Store owns a preset ID; Settings infers its current state from layout values.
   const isCurrent = (preset: LayoutPreset) => activeId !== undefined
@@ -34,7 +39,7 @@ export const LayoutPresetGallery = memo(function LayoutPresetGallery({ current, 
           <li key={preset.id} className="layout-preset-item">
             <label className="layout-preset-choice" data-selected={selected.id === preset.id}>
               <input type="radio" name="scriptor-layout-preset" checked={selected.id === preset.id}
-                onChange={() => setSelectedId(preset.id)} />
+                onChange={() => setUserSelectedId(preset.id)} />
               <span>{preset.name}</span>
               {isCurrent(preset) ? <small>Current</small> : null}
             </label>

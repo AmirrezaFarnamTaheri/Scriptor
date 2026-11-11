@@ -2146,6 +2146,9 @@ test.describe('visual review states', () => {
       const body = settings.locator('.unified-panel-body')
       await expect.poll(() => body.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
       if (state.tab === 'Workspace') {
+        // The active saved layout must be the initial preview selection, not
+        // an arbitrary Zen alternative that users could mistake for current.
+        await expect(settings.getByRole('radio', { name: 'Author', exact: true })).toBeChecked()
         // VIS-016: "Author Current" must not split the preset name inside a
         // fixed 115px tile. Measure actual glyph lines, not just box overflow.
         const author = settings.locator('.layout-preset-choice').filter({ has: settings.getByRole('radio', { name: /Author/ }) })
