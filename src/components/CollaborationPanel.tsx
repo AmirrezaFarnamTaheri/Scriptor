@@ -251,7 +251,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       {/* Keep setup and all review actions available, but stop presenting dozens
           of disabled controls before OAuth. Re-keying on account change opens
           the workflow automatically after a successful connection. */}
-      <details className="collaboration-workflow-details" key={account ? 'connected' : 'disconnected'} open={undefined} defaultOpen={Boolean(account)}>
+      <details className="collaboration-workflow-details" key={account ? 'connected' : 'disconnected'} open={Boolean(account)}>
         <summary>{account ? copy.setupReady : copy.setupNext}</summary>
         <CollaborationResources kind="folders" resources={folders} selectedId={folderId} busy={busy || !vaultId} canAccess={Boolean(account)} hasMore={Boolean(folderPage)} onSelect={selectFolder}
         onBrowse={next => void run(current => browseResources(current, 'folders', next))} newFolderName={newFolderName} onNameChange={setNewFolderName}
