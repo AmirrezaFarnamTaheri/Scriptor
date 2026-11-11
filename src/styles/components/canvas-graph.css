@@ -503,3 +503,62 @@
 @media (max-width:600px) {
   .graph-focus-toggle { flex:1 1 100%; min-height:44px; }
 }
+
+/* VIS-005/018: an optional semantic alternative to a 120+ node bitmap.
+ * It is collapsed initially; expanding it scrolls within a bounded list
+ * rather than taking the drawing stage's minimum height away. */
+.graph-directed-relationships {
+  min-width: 0;
+  padding: 0 14px 8px;
+  border-block-end: 1px solid var(--border);
+}
+.graph-directed-relationships summary {
+  cursor: pointer;
+  display: list-item;
+  min-height: 40px;
+  align-content: center;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.graph-directed-relationships summary:focus-visible,
+.graph-directed-relationships button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.graph-directed-relationships ul {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 220px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 6px;
+}
+.graph-directed-relationships li { min-width: 0; }
+.graph-directed-relationships button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 10px;
+  text-align: start;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+.graph-relationship-direction {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+.graph-directed-relationships small {
+  color: var(--muted);
+  font-size: 12px;
+}

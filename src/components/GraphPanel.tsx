@@ -288,6 +288,22 @@ export const GraphPanel = memo(function GraphPanel({
       .slice(0, 4)
   }, [useCanvas, focusPath, layout, adjacency, nodeById])
 
+  // Preserve every authored direction as a named, keyboard-readable row.
+  // The canvas may render more than 100 nodes, but a user can inspect the
+  // selected note's inbound and outbound relationships without pixel hunting.
+  const focusRelationships = useMemo(() => {
+    if (!graph || !focusPath) return []
+    const focusNode = layout.find((node) => node.path === focusPath)
+    if (!focusNode) return []
+    return graph.edges.flatMap((edge) => {
+      if (edge.source !== focusNode.id && edge.target !== focusNode.id) return []
+      const source = nodeById.get(edge.source)
+      const target = nodeById.get(edge.target)
+      if (!source?.path || !target?.path) return []
+      return [{ id: edge.id, source, target, kind: edge.kind }]
+    })
+  }, [graph, focusPath, layout, nodeById])
+
   const graphMatches = useMemo(() => {
     const query = graphSearch.trim().toLocaleLowerCase()
     if (!query) return [] as CanvasNode[]
@@ -560,6 +576,28 @@ export const GraphPanel = memo(function GraphPanel({
             <button type="button" key={node.id} onClick={() => onSelectNode(node.path)}>{node.label}</button>
           ))}</div>
         </div>
+      ) : null}
+      {useCanvas && focusRelationships.length > 0 ? (
+        <details className="graph-directed-relationships">
+          <summary>{t('graph.directedLink')} · {t('graph.edgeCount', { count: focusRelationships.length })}</summary>
+          <ul>
+            {focusRelationships.map((relation, index) => {
+              const destination = relation.source.path === focusPath ? relation.target : relation.source
+              return (
+                <li key={`${relation.id}-${index}`}>
+                  <button type="button" onClick={() => onSelectNode(destination.path)}>
+                    <span className="graph-relationship-direction" dir="ltr">
+                      <bdi dir="auto">{relation.source.label}</bdi>
+                      <span aria-hidden="true"> → </span>
+                      <bdi dir="auto">{relation.target.label}</bdi>
+                    </span>
+                    <small>{relation.kind}</small>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </details>
       ) : null}
       </div>
       <div ref={liveRegionRef} aria-live="polite" className="sr-only" />

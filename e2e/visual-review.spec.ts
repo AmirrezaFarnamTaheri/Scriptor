@@ -507,6 +507,17 @@ test.describe('visual review states', () => {
     for (const label of ['Topic 002', 'Topic 018', 'Topic 120']) {
       await expect(neighbors.getByRole('button', { name: label, exact: true })).toBeVisible()
     }
+    // The bitmap has a real alternative: all inbound/outbound edges of the
+    // focused note, in authored direction. The disclosure starts collapsed so
+    // large graphs retain their drawing area.
+    const relations = graph.locator('.graph-directed-relationships')
+    await expect(relations).toBeVisible()
+    await expect(relations).not.toHaveAttribute('open', '')
+    await relations.locator('summary').click()
+    await expect(relations.locator('li').first()).toBeVisible()
+    await expect(relations.locator('.graph-relationship-direction').first()).toContainText('→')
+    await relations.locator('summary').click()
+
     const allLinks = graph.getByRole('button', { name: 'Show all links', exact: true })
     await expect(allLinks).toHaveAttribute('aria-pressed', 'true')
     await allLinks.click()
