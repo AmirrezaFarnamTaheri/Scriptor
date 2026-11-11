@@ -399,4 +399,10 @@ html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
     scroll-padding-block-start: 8px;
     scroll-padding-block-end: calc(64px + env(safe-area-inset-bottom, 0px));
   }
+
+  /* Vault health's status badge is the first actionable diagnostic result.
+     Preserve its divider clearance in the compact RTL/LTR dialog. */
+  .unified-panel-shell.health-dashboard .unified-panel-body {
+    padding-top: 12px;
+  }
 }

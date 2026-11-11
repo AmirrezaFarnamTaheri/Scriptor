@@ -10,10 +10,13 @@
   color: var(--ink);
 }
 
+/* The app shell is already a bounded, non-scrolling grid. Making its first
+ * row sticky creates an overlapping paint layer at tablet rail widths when
+ * the Inspector content switches modes; keep the chrome in ordinary grid
+ * flow so the workspace starts after its actual measured block height. */
 .app-chrome {
   display: grid;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: var(--comp-shell-sticky-z);
 }
 

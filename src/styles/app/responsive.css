@@ -807,6 +807,12 @@ html[data-ui-reflow='mobile'] .workspace-embedded-panel .unified-panel-body { sc
     grid-row: 1;
     grid-column: 2;
   }
+  /* An empty history picker and the mode select occupy the same grid row.
+     Stretch both tracks to the same top edge instead of center-aligning their
+     different intrinsic heights. */
+  html[data-ui-reflow='mobile']:not([data-ui-zoom='high']) .topbar :is(.history-controls, .workspace-mode-strip) {
+    align-self: stretch;
+  }
   html[data-ui-reflow='mobile']:not([data-ui-zoom='high']) .topbar .history-controls {
     grid-row: 2;
     grid-column: 1;
@@ -831,4 +837,25 @@ html[data-ui-reflow='mobile'] .workspace-embedded-panel .unified-panel-body { sc
     grid-row: 3;
     grid-column: 1 / -1;
   }
+}
+
+/* At extreme application zoom 4 fixed minimum-width nav tracks can exceed
+   the real physical viewport. The four tracks share all available width;
+   physical hit targets remain large because the app itself is magnified. */
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-chrome {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav {
+  box-sizing: border-box;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-width: 100%;
+  width: 100%;
+}
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
 }
