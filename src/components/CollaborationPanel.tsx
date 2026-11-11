@@ -234,7 +234,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           await persistSetup()
           if (current === epoch.current) { setMessage(copy.saved); await onApplied() }
           })
-        }}>Connect Google Drive</button>
+        }}>{account ? copy.switchDrive : copy.connectDrive}</button>
         {account ? <button disabled={busy || polling.starting} onClick={() => void run(async current => {
           polling.stop(); await collaborationDisconnect()
           accountReadGeneration.current++
@@ -248,7 +248,12 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         })}>{t('collaborationUi.disconnect')}</button> : null}
       </div>
       {account && <p role="status">{t('collaborationUi.connected', { account })}</p>}
-      <CollaborationResources kind="folders" resources={folders} selectedId={folderId} busy={busy || !vaultId} canAccess={Boolean(account)} hasMore={Boolean(folderPage)} onSelect={selectFolder}
+      {/* Keep setup and all review actions available, but stop presenting dozens
+          of disabled controls before OAuth. Re-keying on account change opens
+          the workflow automatically after a successful connection. */}
+      <details className="collaboration-workflow-details" key={account ? 'connected' : 'disconnected'} open={undefined} defaultOpen={Boolean(account)}>
+        <summary>{account ? copy.setupReady : copy.setupNext}</summary>
+        <CollaborationResources kind="folders" resources={folders} selectedId={folderId} busy={busy || !vaultId} canAccess={Boolean(account)} hasMore={Boolean(folderPage)} onSelect={selectFolder}
         onBrowse={next => void run(current => browseResources(current, 'folders', next))} newFolderName={newFolderName} onNameChange={setNewFolderName}
         onCreate={() => void run(async current => {
           const folder = await collaborationCreateFolder(vaultId!, newFolderName.trim())
@@ -347,6 +352,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           const result = await collaborationCreateDocs(vaultId!, folderId, `${path} — text copy`, docsPlainTextExport(local.markdown))
           if (current === epoch.current) { setDocsConsent(false); setMessage(`Created new Google document “${result.name}”. Existing documents and local note were unchanged.`) }
         })}>{t('collaborationUi.docsCreate')}</button>
+      </details>
       </details>
       {busy && <p role="status">Working…</p>}
       {message && <p role="status">{message}</p>}

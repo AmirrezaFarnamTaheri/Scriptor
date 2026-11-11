@@ -11,6 +11,31 @@ async function open(page: Page) {
 async function calls(page: Page, cmd: string) {
   return page.evaluate(command => (JSON.parse(sessionStorage.getItem('e2e:collaboration-calls') ?? '[]') as Array<{cmd: string; payload: Record<string, unknown>}>).filter(call => call.cmd === command), cmd)
 }
+test('VIS-022: disconnected Drive presents connection before the optional sharing workflow', async ({ page }) => {
+  await launchApp(page)
+  await openCommandPalette(page)
+  await runCommand(page, 'Drive collaboration')
+  const panel = page.getByRole('region', { name: 'Drive collaboration', exact: true })
+  await expect(panel.getByRole('button', { name: 'Connect Google Drive', exact: true })).toBeVisible()
+  const workflow = panel.locator('.collaboration-workflow-details')
+  await expect(workflow).not.toHaveAttribute('open', '')
+  await expect(panel.getByLabel('Shared folder ID', { exact: true })).not.toBeVisible()
+  const summary = workflow.locator(':scope > summary')
+  await summary.focus()
+  await summary.press('Enter')
+  await expect(workflow).toHaveAttribute('open', '')
+  await expect(panel.getByLabel('Shared folder ID', { exact: true })).toBeVisible()
+  await summary.press('Enter')
+  await expect(workflow).not.toHaveAttribute('open', '')
+})
+
+test('VIS-022: connected account opens folder setup without another disclosure step', async ({ page }) => {
+  const panel = await open(page)
+  await expect(panel.locator('.collaboration-workflow-details')).toHaveAttribute('open', '')
+  await expect(panel.getByRole('button', { name: 'Switch Google account', exact: true })).toBeVisible()
+  await expect(panel.getByLabel('Shared folder ID', { exact: true })).toHaveValue('shared-folder')
+})
+
 test('polling requires explicit consent and stop prevents late replies or future checks', async ({ page }) => {
   await page.clock.install()
   const panel = await open(page)
