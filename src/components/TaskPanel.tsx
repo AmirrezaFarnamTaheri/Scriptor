@@ -425,7 +425,7 @@ export const TaskPanel = memo(function TaskPanel({
                   {calendarSync.events.slice(0, 8).map((event) => (
                     <li key={event.id}>
                       <strong>{event.summary || t('tasks.google.untitledEvent')}</strong>{' '}
-                      <time dateTime={event.start}>{new Date(event.start).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' })}</time>
+                      <time dateTime={event.start}>{new Date(event.start).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}</time>
                       {event.location ? <span> · {event.location}</span> : null}
                     </li>
                   ))}

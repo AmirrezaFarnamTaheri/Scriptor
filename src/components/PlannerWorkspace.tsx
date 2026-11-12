@@ -35,7 +35,7 @@ const taskValue = (task: TaskRow): PlannerTaskValue => ({title:task.title,done:t
 const remoteValue = (task: GoogleTask): PlannerTaskValue => ({title:task.title,done:task.status === 'completed',due:task.due?.slice(0,10) ?? null})
 const eventValue = (event: CalendarEvent) => ({title:event.summary,start:event.start,end:event.end})
 const inputTime = (iso: string) => { const date = new Date(iso); return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16) }
-const readableTime = (iso: string) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' }) }
+const readableTime = (iso: string) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : date.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }) }
 const readablePeriod = (start: string, end: string) => `${readableTime(start)} – ${readableTime(end)}`
 function readBases(key: string): Record<string,PlannerTaskValue> {
   try {
