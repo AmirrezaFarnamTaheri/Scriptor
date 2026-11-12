@@ -235,6 +235,7 @@ test('Read-only Google Calendar permits reviewed inbound changes but not remote 
   await expect(row.locator('pre')).toBeHidden()
   await expect(row).toContainText('Read-only calendar')
   await expect(row.locator('.planner-review__summary')).toBeVisible()
+  await expect(row.locator('.planner-review__row-index')).toContainText(/Change \d+ of \d+/)
   await capture(page, 'visual-integration-calendar-readonly-sync-review.png', inbound)
   await inbound.click()
   const status = planner.getByRole('status').filter({ hasText: 'Change applied' })

@@ -85,6 +85,10 @@ test('Gmail sign-in, connected inbox, message, draft and failed-send evidence', 
   await expect(messageBody.locator('script, img')).toHaveCount(0)
   await expect(panel.getByText('Shown as plain text; remote content was not loaded.')).toBeVisible()
   await captureProvider(page, 'visual-provider-gmail-message-detail.png', messageBody)
+  await panel.getByRole('tab', { name: 'Account', exact: true }).click()
+  await expect(panel.locator('.gmail-manager-maturity')).toBeVisible()
+  await expect(panel.getByRole('button', { name: 'Integration limitations' })).toHaveCount(0)
+  await panel.getByRole('tab', { name: 'Messages', exact: true }).click()
 
   await panel.getByRole('tab', { name: 'Compose', exact: true }).click()
   await panel.getByLabel('Recipient (To)').fill('recipient@example.com')
@@ -304,6 +308,10 @@ test('Overleaf connection requirements, remote comparison, consent and conflict 
   await expect(dialog.getByRole('status')).not.toContainText('Reviewed source shared with Overleaf')
   await expect(dialog.getByRole('button', { name: 'Fetch latest remote preview' })).toBeEnabled()
   await expect(dialog.getByText('Previous successful share')).toBeVisible()
+  // A stale remote revision invalidates consent; sharing must be impossible
+  // until a fresh remote preview is fetched and reviewed.
+  await expect(dialog.getByRole('status')).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: 'Share reviewed source with Overleaf' })).toHaveCount(0)
   await captureProvider(page, 'visual-provider-overleaf-stale-revision.png', alert)
 })
 
@@ -443,5 +451,7 @@ test('Resource sync requires a reviewed plan and visibly reports partial complet
   await expect(partial).toHaveAttribute('role', 'alert')
   await expect(partial.locator('.lucide-triangle-alert')).toBeVisible()
   await expect(partial.getByRole('button', { name: 'Review changed destinations' })).toBeEnabled()
+  await expect(partial.getByText('Confirmed operations')).toBeVisible()
+  await expect(partial.locator('.resource-sync-confirmed-ops')).toContainText('Already aligned')
   await captureProvider(page, 'visual-provider-resource-sync-partial-result.png', partial)
 })
