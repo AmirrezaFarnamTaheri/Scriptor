@@ -9,6 +9,7 @@ import { classifyVaultRestoreStatus } from '../restoreOutcome.ts'
 export interface OperationReceipt {
   readonly operationId: string
   readonly operationIdOrigin: 'renderer'
+  readonly observedAt?: string
   readonly vaultId: string
   readonly operation: 'restore-backup'
   readonly target: string
@@ -39,6 +40,7 @@ export function buildRestoreOperationReceipt(input: {
   const common = {
     operationId: input.operationId,
     operationIdOrigin: 'renderer' as const,
+    observedAt: new Date().toISOString(),
     vaultId: input.vaultId,
     operation: 'restore-backup' as const,
     target: input.backupName,

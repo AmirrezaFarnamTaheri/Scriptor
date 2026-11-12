@@ -515,3 +515,13 @@
   padding: 10px 14px 14px;
   border: 0;
 }
+
+/* VIS-030: keep rollback and successful restore distinguishable, with one receipt. */
+.backup-restore-outcome { display: grid; justify-items: start; gap: 8px; margin-block: 12px; padding: 12px; border: 1px solid var(--border); border-inline-start: 4px solid var(--primary); border-radius: var(--radius-md, 8px); background: var(--surface-raised); }
+.backup-restore-outcome.warning { border-color: var(--amber); border-inline-start-color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, var(--surface)); }
+.backup-restore-outcome.success { border-color: var(--success); border-inline-start-color: var(--success); }
+.backup-restore-outcome__status { display: grid; gap: 5px; overflow-wrap: anywhere; }
+.backup-restore-outcome__status strong { font-size: 1rem; }
+.backup-restore-outcome__status p { margin: 0; line-height: 1.5; }
+.backup-restore-outcome__details summary { cursor: pointer; min-height: 36px; }
+.backup-restore-outcome > button { min-height: 44px; }
