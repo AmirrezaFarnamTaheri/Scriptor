@@ -81,3 +81,17 @@
   .overleaf-panel > header button { height:auto; width:100%; white-space:normal; line-height:1.35; }
   .overleaf-panel-body { padding:10px; gap:10px; scroll-padding-block-end:32px; }
 }
+
+/* VIS-023/027: the current operation is authoritative; older shares are history. */
+.overleaf-operation-error { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--danger); border-inline-start: 4px solid var(--danger); border-radius: 8px; background: color-mix(in srgb, var(--danger) 9%, var(--surface)); overflow-wrap: anywhere; }
+.overleaf-operation-error strong { line-height: 1.5; }
+.overleaf-operation-error button { justify-self: start; }
+.overleaf-current-status.is-error { font-weight: 700; }
+.overleaf-previous-share { color: var(--ink-muted, var(--muted)); }
+.overleaf-previous-share summary { cursor: pointer; }
+.overleaf-diff-legend { padding: 7px 10px; border-inline-start: 3px solid var(--primary); background: var(--surface-raised); overflow-wrap: anywhere; }
+.overleaf-diff-line { display: block; min-height: 1.2em; white-space: pre-wrap; }
+.overleaf-diff-line.is-changed { background: color-mix(in srgb, var(--amber) 24%, var(--surface)); border-inline-start: 3px solid var(--amber); font-weight: 650; }
+.overleaf-action-footer { position: sticky; bottom: -16px; z-index: 2; display: grid; gap: 8px; padding: 12px; margin: 4px -16px -16px; border-block-start: 1px solid var(--border-strong, var(--border)); background: var(--bg); box-shadow: 0 -8px 18px color-mix(in srgb, var(--ink) 10%, transparent); }
+@media(max-width:600px) { .overleaf-action-footer { margin: 4px -10px -10px; bottom: -10px; padding: 10px; } }
+@media(min-width:600px) { .overleaf-review-actions { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
