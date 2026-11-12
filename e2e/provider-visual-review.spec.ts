@@ -437,7 +437,7 @@ test('Resource sync requires a reviewed plan and visibly reports partial complet
   await captureProvider(page, 'visual-provider-resource-sync-review-plan.png', apply)
 
   await apply.click()
-  const partial = sharing.getByRole('status').filter({ hasText: 'Sync partly finished' })
+  const partial = sharing.getByRole('alert').filter({ hasText: 'Sync partly finished' })
   await expect(partial).toContainText('1 steps confirmed · 1 failed')
   await expect(partial).toContainText('Destination changed since preview')
   await expect(partial).toHaveAttribute('role', 'alert')
