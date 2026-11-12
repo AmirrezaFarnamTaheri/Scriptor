@@ -938,6 +938,15 @@ test.describe('visual review states', () => {
     await expect(page.locator('html')).toHaveAttribute('data-ui-zoom', 'high')
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav).toBeVisible()
+    // VIS-021: a 1440px-wide window at 200% zoom still has room for all
+    // four labels beside their icons. Identifiable navigation must not cost
+    // another row of document height.
+    for (const name of ['Vault', 'Write', 'Command', 'More']) {
+      await expect(nav.getByRole('button', { name, exact: true }).locator('span')).toBeVisible()
+    }
+    const navBox = await nav.boundingBox()
+    expect(navBox).not.toBeNull()
+    expect(navBox!.height).toBeLessThanOrEqual(128)
     await nav.getByRole('button', { name: 'Command', exact: true }).click()
     // The mobile entry opens the command dialog; .command-search is the
     // intentionally hidden desktop top-bar trigger, not the dialog.
