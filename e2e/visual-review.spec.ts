@@ -2157,7 +2157,10 @@ test.describe('visual review states', () => {
           await expect(applied.locator('input[type="radio"]')).toBeChecked()
         }
         // VIS-016: "Author Current" must not split the template name.
-        const author = settings.locator('.layout-preset-choice').filter({ has: settings.getByRole('radio', { name: /^Author(?: Current)?$/ }) })
+        // The radio's computed name can include the separate Current badge.
+        // Locate the visible Author tile directly, then measure its name.
+        const author = settings.locator('.layout-preset-choice:has(> span:text-is("Author"))')
+        await expect(author).toHaveCount(1)
         const nameLines = await author.locator(':scope > span').evaluate(element => {
           const range = document.createRange()
           range.selectNodeContents(element)

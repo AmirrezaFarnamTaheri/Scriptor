@@ -46,6 +46,13 @@ test.describe('Editor markup fidelity', () => {
     const taskLine = preview.locator('.cm-line', { hasText: 'Draft methodology' })
     await expect(taskLine).toHaveCount(1)
 
+    // The active authoring line deliberately reveals the original Markdown.
+    // Move the caret to another line before asserting the inactive-line widget;
+    // the editor's initial selection varies between browser environments.
+    const otherLine = preview.locator('.cm-line', { hasText: 'Outline' })
+    await expect(otherLine).toBeVisible()
+    await otherLine.click()
+
     // Inactive task lines present the same semantic state as rendered output.
     const indicator = taskLine.locator('.cm-wysiwyg-task-status')
     await expect(indicator).toHaveAttribute('data-task-state', 'in-progress')
