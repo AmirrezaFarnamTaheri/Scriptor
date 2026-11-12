@@ -1145,7 +1145,9 @@
 
 .workspace-mode.active {
   background: var(--accent-soft);
-  color: var(--accent);
+  /* Small selected-mode labels must remain readable when the user's accent
+     stays dark across a dark appearance. The accent still marks selection. */
+  color: var(--ink-strong);
   font-weight: 600;
 }
 
