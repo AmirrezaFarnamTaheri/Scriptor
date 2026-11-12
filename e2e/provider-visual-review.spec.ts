@@ -219,6 +219,17 @@ test('Drive discovery and Docs preview are visible before any write approval', a
   await captureProvider(page, 'visual-provider-drive-docs-import-review.png', preview)
   await page.setViewportSize({ width: 390, height: 844 })
   await captureProvider(page, 'visual-provider-drive-docs-conflict-390.png', drive.getByRole('alert'))
+  // Coverage gap: conflict-free text is not equivalent to approved import.
+  // Capture the reviewed consent state without submitting a local note write.
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await preview.fill('# Conflict-free reviewed translation\n\nLocal and remote material has been compared.')
+  await expect(drive.getByRole('alert')).toHaveCount(0)
+  const docsSave = drive.getByRole('button', { name: 'Save reviewed text', exact: true })
+  await expect(docsSave).toBeDisabled()
+  const lossConsent = drive.getByRole('checkbox', { name: /I understand that comments, formatting, history, images and sharing permissions do not transfer/ })
+  await lossConsent.check()
+  await expect(docsSave).toBeEnabled()
+  await captureProvider(page, 'visual-provider-drive-docs-reviewed-consent.png', docsSave)
   const writes = await page.evaluate(() =>
     (JSON.parse(sessionStorage.getItem('e2e:google-ecosystem-calls') ?? '[]') as Array<{ cmd: string }>)
       .filter(call => call.cmd === 'vault_save_note' || call.cmd === 'collaboration_write'),
@@ -320,7 +331,24 @@ test('Overleaf connection requirements, remote comparison, consent and conflict 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.evaluate(() => { document.documentElement.dir = 'rtl' })
   await captureProvider(page, 'visual-provider-overleaf-stale-rtl-390.png', alert)
-  await expect(dialog.getByRole('button', { name: 'Fetch latest remote preview' })).toBeEnabled()
+  // Coverage gap: record the safe recovery from a rejected CAS share, not
+  // only its failure. A fresh preview must invalidate all prior consent.
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.evaluate(() => { document.documentElement.dir = 'ltr'; sessionStorage.removeItem('e2e:overleaf-stale') })
+  await dialog.getByRole('button', { name: 'Fetch latest remote preview' }).click()
+  const freshReview = dialog.getByLabel('Reviewed source to apply locally or share', { exact: true })
+  await expect(freshReview).toHaveValue('\\section{Remote}\n')
+  await expect(dialog.getByRole('alert')).toHaveCount(0)
+  const freshShare = dialog.getByRole('button', { name: 'Share reviewed source with Overleaf', exact: true })
+  await expect(freshShare).toBeDisabled()
+  await captureProvider(page, 'visual-provider-overleaf-fresh-review-required.png', freshReview)
+  await freshReview.fill('\\section{Reviewed recovery after remote change}\n')
+  await dialog.getByLabel('I compared both copies and reviewed this source for the selected action').check()
+  await freshShare.click()
+  const recovered = dialog.getByRole('status')
+  await expect(recovered).toContainText('Reviewed source shared with Overleaf')
+  await expect(dialog.getByRole('alert')).toHaveCount(0)
+  await captureProvider(page, 'visual-provider-overleaf-recovered-share-confirmed.png', recovered)
 })
 
 test('Resource sync requires a reviewed plan and visibly reports partial completion', async ({ page }) => {
@@ -410,6 +438,27 @@ test('Resource sync requires a reviewed plan and visibly reports partial complet
         if (payload.planId !== 'fixture-resource-sync-plan' || payload.authorizationToken !== 'fixture-approval-only') {
           throw new Error('Unreviewed or unauthorized fixture plan')
         }
+        // The initial partial result, a later hard failure and a fully
+        // confirmed completion are independent test states with distinct UI.
+        const fixtureOutcome = sessionStorage.getItem('e2e:resource-apply-outcome')
+        if (fixtureOutcome === 'failed') return {
+          planId: 'fixture-resource-sync-plan',
+          status: 'failed',
+          receipts: [],
+          failures: [{ operationId: 'sync-install', targetId: 'cursor', category: 'source_changed',
+            message: 'No destination was updated; inspect the changed source before another review.' }],
+        }
+        if (fixtureOutcome === 'completed') return {
+          planId: 'fixture-resource-sync-plan',
+          status: 'completed',
+          receipts: [
+            { operationId: 'sync-noop', targetId: 'cursor', outcome: 'unchanged',
+              destinationPath: operations[0].destinationPath, contentHash: resource.contentHash, quarantinePath: null },
+            { operationId: 'sync-install', targetId: 'cursor', outcome: 'installed',
+              destinationPath: operations[1].destinationPath, contentHash: resource.contentHash, quarantinePath: null },
+          ],
+          failures: [],
+        }
         return {
           planId: 'fixture-resource-sync-plan',
           status: 'partial',
@@ -464,6 +513,27 @@ test('Resource sync requires a reviewed plan and visibly reports partial complet
   await captureProvider(page, 'visual-provider-resource-sync-partial-result.png', partial)
   await page.setViewportSize({ width: 390, height: 844 })
   await captureProvider(page, 'visual-provider-resource-sync-partial-390.png', partial)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.evaluate(() => sessionStorage.setItem('e2e:resource-apply-outcome', 'failed'))
+  await partial.getByRole('button', { name: 'Review changed destinations' }).click()
+  const recheckedApply = plan.getByRole('button', { name: 'Apply these changes', exact: true })
+  await expect(recheckedApply).toBeEnabled()
+  await captureProvider(page, 'visual-provider-resource-sync-re-reviewed-plan.png', recheckedApply)
+  await recheckedApply.click()
+  const failure = sharing.getByRole('alert').filter({ hasText: 'Sync could not finish' })
+  await expect(failure).toContainText('0 steps confirmed · 1 failed')
+  await expect(failure).toContainText('No destination was updated')
+  await expect(failure.getByRole('button', { name: 'Review changed destinations' })).toBeEnabled()
+  await captureProvider(page, 'visual-provider-resource-sync-no-changes-applied.png', failure)
+
+  await page.evaluate(() => sessionStorage.setItem('e2e:resource-apply-outcome', 'completed'))
+  await failure.getByRole('button', { name: 'Review changed destinations' }).click()
+  await recheckedApply.click()
+  const confirmed = sharing.getByRole('status').filter({ hasText: 'Sync finished' })
+  await expect(confirmed).toContainText('2 steps confirmed · 0 failed')
+  await expect(confirmed).toContainText('Confirmed operations')
+  await expect(sharing.getByRole('alert')).toHaveCount(0)
+  await captureProvider(page, 'visual-provider-resource-sync-fully-confirmed.png', confirmed)
 })
 
 test('connected Gmail dialog stays bounded at 320px in dark appearance', async ({ page }) => {
@@ -491,4 +561,40 @@ test('Google authorization options remain reachable at 200 percent app zoom', as
   const connect = drive.getByRole('button', { name: /^(?:Connect Google|Reconnect) · Google Drive & Docs$/ })
   await expect(connect).toBeEnabled()
   await captureProvider(page, 'visual-provider-google-authorization-zoom-200.png', connect)
+})
+
+// Account state persists independently of a draft. Never reproduce an unknown
+// outbound Gmail send merely by reopening the compose surface.
+test('Gmail retained send-review hold has a distinct acknowledgement and confirmed new-send receipt', async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem('scriptor:gmail-send-review-required:v1', '1'))
+  const panel = await openGmail(page, true)
+  await panel.getByRole('tab', { name: 'Compose', exact: true }).click()
+  const alert = panel.getByRole('alert')
+  await expect(alert).toContainText('Delivery uncertain')
+  await expect(alert).toContainText('Check Gmail Sent before another send')
+  const send = panel.getByRole('button', { name: 'Send message', exact: true })
+  await expect(send).toBeDisabled()
+  const reviewed = panel.getByRole('button', { name: 'I checked Gmail Sent; allow another send', exact: true })
+  await expect(reviewed).toBeEnabled()
+  await captureProvider(page, 'visual-provider-gmail-review-hold-after-reopen.png', reviewed)
+  const beforeReview = await page.evaluate(() => (JSON.parse(sessionStorage.getItem('e2e:gmail-calls') ?? '[]') as Array<{ cmd: string }>)
+    .filter(item => item.cmd === 'google_gmail_send_message'))
+  expect(beforeReview).toHaveLength(0)
+
+  await reviewed.click()
+  await expect(alert).toHaveCount(0)
+  await expect(panel.getByLabel('Subject', { exact: true })).toHaveValue('')
+  await expect(send).toBeDisabled()
+  await captureProvider(page, 'visual-provider-gmail-reviewed-empty-compose.png', send)
+  await panel.getByLabel('Recipient (To)').fill('new-recipient@example.com')
+  await panel.getByLabel('Subject', { exact: true }).fill('A freshly reviewed message')
+  await panel.getByLabel('Message body (plain text)').fill('This is a new fixture message after reviewing Sent.')
+  await send.click()
+  const receipt = panel.getByRole('status').filter({ hasText: 'Email sent successfully.' })
+  await expect(receipt).toBeVisible()
+  await expect(panel.getByLabel('Subject', { exact: true })).toHaveValue('')
+  await captureProvider(page, 'visual-provider-gmail-new-send-confirmed.png', receipt)
+  const sends = await page.evaluate(() => (JSON.parse(sessionStorage.getItem('e2e:gmail-calls') ?? '[]') as Array<{ cmd: string }>)
+    .filter(item => item.cmd === 'google_gmail_send_message'))
+  expect(sends).toHaveLength(1)
 })
