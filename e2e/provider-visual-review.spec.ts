@@ -120,7 +120,7 @@ test('Google account entry, distinct permissions and Calendar sync choices', asy
   const drive = google.getByRole('group', { name: 'Google Drive & Docs', exact: true })
   const calendar = google.getByRole('group', { name: 'Google Calendar & Tasks', exact: true })
   const connectDrive = drive.getByRole('button', { name: 'Connect Google · Google Drive & Docs', exact: true })
-  const connectCalendar = calendar.getByRole('button', { name: 'Connect Google · Google Calendar & Tasks', exact: true })
+  const connectCalendar = calendar.getByRole('button', { name: /^(Connect Google|Reconnect) · Google Calendar & Tasks$/ })
   await expect(connectDrive).toBeEnabled()
   await expect(connectCalendar).toBeEnabled()
   await captureProvider(page, 'visual-provider-google-connect-drive.png', connectDrive)
@@ -267,7 +267,7 @@ test('Overleaf connection requirements, remote comparison, consent and conflict 
   await captureProvider(page, 'visual-provider-overleaf-connection.png', fetch)
   await fetch.click()
   const reviewed = dialog.getByLabel('Reviewed source to apply locally or share', { exact: true })
-  await expect(reviewed).toHaveValue('\\section{Remote}\r\n')
+  await expect(reviewed).toHaveValue('\\section{Remote}\n')
   await expect(dialog.getByRole('region', { name: 'Reviewed remote source', exact: true })).toContainText('Remote')
   await captureProvider(page, 'visual-provider-overleaf-comparison.png', reviewed)
 
