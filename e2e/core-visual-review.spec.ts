@@ -26,6 +26,11 @@ async function captureCore(page: Page, filename: string, focus: Locator) {
 async function openPanel(page: Page, command: string) {
   await launchApp(page)
   await waitForWorkspace(page, { allowHiddenVaultList: true })
+  // The built-in module registry finishes hydrating after the basic vault
+  // workspace appears. Avoid asserting permission states while still loading.
+  if (command === 'Open built-in modules') {
+    await expect(page.locator('.job-progress')).toHaveClass(/is-done/, { timeout: 45_000 })
+  }
   await openCommandPalette(page)
   await runCommand(page, command)
 }
