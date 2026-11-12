@@ -903,3 +903,30 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .editor-status > span:nth-of-
     order: 2;
   }
 }
+
+
+/* VIS-021: magnification should not hide destination names when real space
+ * remains. Keep the 32px high-zoom row height by laying out icon + short name
+ * horizontally. The 4 icon-only destinations remain at truly narrow
+ * effective widths, where labels would crowd or clip the targets. */
+@container mobile-chrome (min-width: 360px) {
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item {
+    flex-direction: row;
+    gap: 6px;
+    padding-inline: 6px;
+  }
+
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item > span {
+    display: inline;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1;
+    font-size: 11px;
+  }
+
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item svg {
+    flex: none;
+  }
+}
