@@ -54,3 +54,7 @@
 .collaboration-workflow-details > .collaboration-auto-checks {
   min-width: 0;
 }
+
+/* Keep translated note labels and LTR filenames as separate bidi isolates. */
+.collaboration-local-note { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; min-width:0; }
+.collaboration-local-note > :is(span,bdi) { unicode-bidi:isolate; overflow-wrap:anywhere; }

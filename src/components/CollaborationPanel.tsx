@@ -262,7 +262,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           selectFolder(folder.id); setMessage(copy.folderCreated)
         })}
         onSave={() => void run(async current => { await persistSetup(); if (current === epoch.current) { setMessage(copy.bindingSaved); await onApplied() } })} />
-      <p>{t('collaborationUi.localNote')}: <bdi>{path ?? 'Select a note'}</bdi></p>
+      <p className="collaboration-local-note"><span dir="auto">{t('collaborationUi.localNote')}:</span> <bdi dir="auto">{path ?? 'Select a note'}</bdi></p>
       {transport === 'google_docs' && <p role="note">{t('collaborationAtomic.legacyDocsReadOnly')}</p>}
       <div className="collaboration-actions">
         <button disabled={busy || !folderId || !path || !vaultId || !account || transport === 'google_docs'} onClick={() => void run(async current => {

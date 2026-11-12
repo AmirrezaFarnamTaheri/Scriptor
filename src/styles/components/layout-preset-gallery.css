@@ -4,7 +4,7 @@
 /* Choose once, preview, then apply: one primary action replaces eight equal
  * Apply buttons and previews the effect before changing layout state. */
 .settings-layout-presets { min-width:0; }
-.settings-layout-presets .layout-preset-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(115px,1fr)); gap:8px; }
+.settings-layout-presets .layout-preset-list { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
 .settings-layout-presets .layout-preset-item { display:block; border:0; padding:0; min-width:0; }
 /* The current-state badge cannot steal the last characters of a translated
  * preset name. A two-track grid aligns each radio with its label, then places
@@ -37,3 +37,7 @@
 .store-root .layout-preset-detail { grid-template-columns:minmax(0,1fr); gap:10px; }
 .store-root .layout-preset-preview { min-height:108px; }
 .store-root .layout-preset-detail-copy > button { width:100%; }
+
+/* Eight templates form two balanced rows rather than seven plus an orphan. */
+@media (max-width: 900px) { .settings-layout-presets .layout-preset-list { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width: 360px) { .settings-layout-presets .layout-preset-list { grid-template-columns:minmax(0,1fr); } }

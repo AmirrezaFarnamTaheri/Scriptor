@@ -56,8 +56,8 @@ export function HelpRuntime() {
     }
     // Only first-open guides belonging to the visible topmost dialog may replace
     // a pending invitation from a background workspace.
-    const activeModal = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'))
-      .filter(isVisibleHelpTarget).at(-1)
+    const activeModal = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"]'))
+      .filter(element => element.getAttribute('role') === 'dialog' && isVisibleHelpTarget(element)).at(-1)
     for (const element of elements) {
       if (!isVisibleHelpTarget(element) || (activeModal && !activeModal.contains(element))) continue
       const id = (element as HTMLElement).dataset.helpTopic

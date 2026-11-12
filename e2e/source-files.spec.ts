@@ -217,6 +217,8 @@ test('source editor retains conflicts and dirty drafts across cancelled close an
   await page.evaluate(() => sessionStorage.setItem('e2e:source-stale', '1'))
   await editor.getByRole('button', { name: 'Save file', exact: true }).click()
   await expect(editor.getByRole('alert')).toContainText('Source changed on disk')
+  await expect(editor.getByRole('alert')).toContainText('Disk conflict — local changes retained')
+  await expect(editor.getByRole('button', { name: 'Review reload from disk', exact: true })).toBeVisible()
   await attachVisualState(page, testInfo, 'source-mobile-disk-conflict', editor, editor.getByRole('alert'))
   await closeWorkspacePanel(page, editor)
   await expect(editor.getByRole('button', { name: 'Keep editing', exact: true })).toBeFocused()

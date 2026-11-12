@@ -470,3 +470,8 @@
 .vault-panel > .vault-sidebar-scroll { min-width: 0; }
 .vault-sidebar-footer { flex: none; position: relative; z-index: 1; background: var(--surface); border-top: 1px solid var(--border); }
 .vault-recent-notes button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Use both usable columns when no command has a Reset action. */
+.shortcut-table--no-actions > .shortcut-table-header,
+.shortcut-table--no-actions > .shortcut-table-row { grid-template-columns:minmax(180px,1.2fr) minmax(180px,1fr); }
+@media (max-width:720px) { .shortcut-table--no-actions > .shortcut-table-row { grid-template-columns:minmax(0,1fr); } }

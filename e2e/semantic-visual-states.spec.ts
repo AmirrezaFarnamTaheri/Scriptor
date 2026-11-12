@@ -41,6 +41,10 @@ test('populated semantic projection rotates in 3D, filters similarity results an
   const projection = panel.locator('.semantic-projection')
   await expect(projection.locator('g[role="button"]')).toHaveCount(3)
   await expect(projection.locator('circle.stale')).toHaveCount(1)
+  await expect(projection.locator('.semantic-projection-axis')).toHaveText(['PCA 1', 'PCA 2'])
+  const legend = panel.getByRole('group', { name: 'Projection key' })
+  await expect(legend).toContainText('Current vector')
+  await expect(legend).toContainText('Stale vector')
   await expect(panel.getByRole('button', { name: 'Reindex changed notes', exact: true })).toBeEnabled()
   await attachVisualState(page, testInfo, 'semantic-dark-populated-2d', panel, projection)
 
@@ -72,6 +76,7 @@ test('populated semantic projection rotates in 3D, filters similarity results an
   await page.locator('html').evaluate(element => { element.dir = 'rtl' })
   await panel.getByRole('button', { name: 'Reindex changed notes', exact: true }).click()
   await expect(panel.getByRole('alert')).toContainText('Existing vectors were retained')
+  await expect(panel.getByRole('alert')).toHaveAttribute('dir', 'auto')
   await expect(projection.locator('g[role="button"]')).toHaveCount(3)
   await expect(panel.getByRole('button', { name: 'Reindex changed notes', exact: true })).toBeEnabled()
   await expect.poll(() => panel.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)

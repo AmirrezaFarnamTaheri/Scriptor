@@ -97,7 +97,8 @@ test('graph node labels are masked so edge lines do not cross the glyphs', () =>
   // it has to measure the text to size the plate. The plate pass is separate from
   // the node pass on purpose: drawn inline, its top edge reaches y+18 and paints
   // over the bottom of the r=22 keyboard focus ring.
-  assert.match(graphCanvas, /ctx\.measureText\(label\)/)
+  assert.match(graphCanvas, /ctx\.measureText\(labelText\.get\(node\.id\) \?\? ''\)/)
+  assert.match(graphCanvas, /placeGraphLabels\(/, 'dense canvas labels must use collision-safe placement')
   assert.match(graphCanvas, /fillStyle = surfaceColor[\s\S]{0,900}?roundRect/)
   const platePass = graphCanvas.indexOf('ctx.roundRect(')
   const nodePass = graphCanvas.indexOf('ctx.arc(node.x, node.y, appearance.radius')

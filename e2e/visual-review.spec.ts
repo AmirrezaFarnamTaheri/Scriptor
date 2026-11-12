@@ -1507,6 +1507,8 @@ test.describe('visual review states', () => {
       context.fillRect(0, 0, 1, 1)
       return context.getImageData(0, 0, 1, 1).data[3]
     })).toBe(255)
+    await expect(annotation.locator('.annotation-popover__swatch-label')).toHaveText(['Yellow', 'Green', 'Blue', 'Pink'])
+    await expect(annotation.locator('.annotation-popover__swatch[aria-pressed="true"]')).toHaveCount(1)
     await annotation.getByRole('button', { name: 'Comment (c)', exact: true }).click()
     await expect(annotation.getByPlaceholder('Add a comment…')).toBeVisible()
     await expect.poll(() => annotation.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
@@ -2159,6 +2161,11 @@ test.describe('visual review states', () => {
       const body = settings.locator('.unified-panel-body')
       await expect.poll(() => body.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
       if (state.tab === 'Workspace') {
+        const presetRows = await settings.locator('.layout-preset-item').evaluateAll(items => items.map(item => Math.round(item.getBoundingClientRect().top)))
+        expect(presetRows).toHaveLength(8)
+        expect(new Set(presetRows).size).toBe(2)
+        expect(presetRows.slice(0, 4).every(top => top === presetRows[0])).toBe(true)
+        expect(presetRows.slice(4).every(top => top === presetRows[4])).toBe(true)
         // The active saved layout must be the initial preview selection, not
         // an arbitrary Zen alternative that users could mistake for current.
         // The word "Current" is part of the label's accessible name. A
@@ -2189,6 +2196,10 @@ test.describe('visual review states', () => {
           })
           expect(geometry.statusTop, 'Current status follows the name without collision').toBeGreaterThanOrEqual(geometry.nameBottom - 1)
         }
+      }
+      if (state.tab === 'Shortcuts') {
+        await expect(settings.locator('.shortcut-table')).toHaveClass(/shortcut-table--no-actions/)
+        await expect(settings.getByRole('columnheader', { name: 'Actions' })).toHaveCount(0)
       }
       await captureElement(page, settings, state.image)
     }

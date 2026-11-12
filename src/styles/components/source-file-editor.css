@@ -126,3 +126,9 @@ html[data-ui-zoom='high'] .source-file-editor .source-file-content {
     padding-inline: 3px;
   }
 }
+
+/* Unsaved source conflicts require an alert separate from routine status. */
+.source-file-alert { display:grid; gap:8px; padding:12px; border:1px solid var(--danger); border-inline-start:4px solid var(--danger); border-radius:8px; background:var(--surface-muted); color:var(--ink); min-width:0; }
+.source-file-alert strong { color:var(--ink-strong); }
+.source-file-alert p { margin:0; overflow-wrap:anywhere; }
+.source-file-alert > button { justify-self:start; min-height:44px; white-space:normal; }

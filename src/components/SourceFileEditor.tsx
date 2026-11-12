@@ -158,7 +158,12 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
       <span> · {dirty ? 'Unsaved changes' : document ? 'Saved' : 'Not created'}</span>
       <span className="source-file-status-detail"> · <bdi dir="ltr">{new TextEncoder().encode(draft).length.toLocaleString()} / {SOURCE_FILE_LIMIT.toLocaleString()}</bdi> bytes</span>
     </p>
-    {error && <p role="alert">{error}</p>}
+    {error && <div className={`source-file-alert${/source changed on disk/i.test(error) ? ' source-file-alert--conflict' : ''}`} role="alert">
+      <strong>{/source changed on disk/i.test(error) ? 'Disk conflict — local changes retained' : 'Source file error'}</strong>
+      <p dir="auto">{error}</p>
+      {/source changed on disk/i.test(error) && document && <button type="button" disabled={busy || compiling || Boolean(pending) || overleafOpen}
+        onClick={() => { if (dirty) replacePending({ reload: true }); else void load(document.path) }}>Review reload from disk</button>}
+    </div>}
     {status && <p role="status">{status}</p>}
     <div className="source-file-content">
       <div className="source-file-mode-toolbar">
