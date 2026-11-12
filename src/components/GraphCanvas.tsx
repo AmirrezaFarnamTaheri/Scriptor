@@ -305,10 +305,8 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
 
     ctx.restore()
   }, [
-    nodes,
     renderNodes,
     renderEdges,
-    edges,
     focusPath,
     width,
     height,
@@ -329,7 +327,6 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     // A view change must not reuse the pan/zoom from a different projection.
     transformRef.current = { x: 0, y: 0, scale: 1 }
     hoveredIdRef.current = null
-    setKeyboardNodeIndex(0)
   }, [focusNeighborhoodOnly, focusedNodeId, width, height])
 
   useEffect(() => {

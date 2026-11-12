@@ -70,6 +70,7 @@ test('populated semantic projection rotates in 3D, filters similarity results an
   await threshold.focus()
   await threshold.press('End')
   await expect(search.getByText('No results meet this threshold.', { exact: true })).toBeVisible()
+  await expect(search.getByText('No results meet this threshold.', { exact: true })).toHaveAttribute('dir', 'auto')
   await attachVisualState(page, testInfo, 'semantic-filtered-empty-results', search, search.getByText('No results meet this threshold.', { exact: true }))
 
   await page.setViewportSize({ width: 375, height: 844 })

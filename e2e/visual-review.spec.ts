@@ -776,6 +776,7 @@ test.describe('visual review states', () => {
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
     const mobileTools = page.locator('.editor-primary-formatting .tools-trigger')
     await expect(mobileTools).toBeInViewport({ ratio: 1 })
+    await expect(mobileTools.locator('.toolbar-menu-trigger-label')).toBeVisible()
     await mobileTools.click()
     await expect(page.getByRole('menuitem', { name: /Customize/i })).toBeVisible()
     await page.keyboard.press('Escape')
