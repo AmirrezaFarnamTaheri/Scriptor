@@ -526,13 +526,20 @@ test.describe('visual review states', () => {
 
     const allLinks = graph.getByRole('button', { name: 'Show all links', exact: true })
     const focusedHint = graph.locator('.graph-focus-hint')
+    const view = graph.getByRole('combobox', { name: 'View' })
+    // VIS-020: the focused canvas deliberately displays first-degree links
+    // even when the backend query includes two steps. The selected View label
+    // must describe what is visibly drawn rather than imply two drawn hops.
+    await expect(view.locator('option:checked')).toHaveText('Connected notes')
     await expect(focusedHint).toContainText('Showing direct connections only')
     await expect(allLinks).toHaveAttribute('aria-pressed', 'true')
     await allLinks.click()
     await expect(focusedHint).toBeHidden()
+    await expect(view.locator('option:checked')).toHaveText('Nearby notes (2 steps)')
     const focusLinks = graph.getByRole('button', { name: 'Highlight connected links', exact: true })
     await expect(focusLinks).toHaveAttribute('aria-pressed', 'false')
     await focusLinks.click()
+    await expect(view.locator('option:checked')).toHaveText('Connected notes')
     await expect(allLinks).toHaveAttribute('aria-pressed', 'true')
     const stage = graph.locator('.graph-stage')
     const canvas = graph.locator('.graph-canvas-accessible-shell canvas')
