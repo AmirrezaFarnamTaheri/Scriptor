@@ -15,6 +15,11 @@ import { getGoogleOAuthClientId, hasPackagedGoogleOAuthClient } from '../lib/goo
 import type { VaultConfig } from '../types/vault'
 import { CollaborationResources } from './CollaborationResources'
 
+/** Treat common conflict-marker variants as unresolved until manually removed. */
+function hasPossibleMergeMarkers(text: string): boolean {
+  return /^(?:<{7}|>{7}|\|{7}|={7})(?:\s|$)/m.test(text)
+}
+
 export interface CollaborationPanelProps {
   path: string | null
   vaultId: string | null
@@ -338,9 +343,14 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           const merged = mergeSharedRevision(sharedRevisionBase(base.current, path!), local.markdown, translated.markdown)
           setDocsConsent(false); setDocsPreview({ ...translated, markdown: merged.markdown, hash: local.metadata.content_hash })
         })}>{t('collaborationUi.docsPreview')}</button>
-        {docsPreview && <><h3><bdi>{docsPreview.title}</bdi></h3><ul>{docsPreview.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><label>{t('collaborationUi.docsReview')}<textarea rows={12} value={docsPreview.markdown} disabled={busy} onChange={event => setDocsPreview({ ...docsPreview, markdown: event.target.value })} /></label></>}
+        {docsPreview && <><h3><bdi>{docsPreview.title}</bdi></h3><ul>{docsPreview.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
+          {hasPossibleMergeMarkers(docsPreview.markdown) && <div className="collaboration-conflict-warning" role="alert">
+            <strong>Possible unresolved merge markers</strong>
+            <p>This text still contains conflict separators. Compare local, shared-base and remote sections, remove the markers, and review the resolved text before saving.</p>
+          </div>}
+          <label>{t('collaborationUi.docsReview')}<textarea rows={12} value={docsPreview.markdown} disabled={busy} onChange={event => setDocsPreview({ ...docsPreview, markdown: event.target.value })} /></label></>}
         <label><input type="checkbox" checked={docsConsent} disabled={busy} onChange={event => setDocsConsent(event.target.checked)} />{t('collaborationUi.docsConsent')}</label>
-        {docsPreview && <button disabled={busy || !docsConsent || !path || !vaultId || hasUnresolvedSharedConflict(docsPreview.markdown)} onClick={() => void run(async current => {
+        {docsPreview && <button disabled={busy || !docsConsent || !path || !vaultId || hasUnresolvedSharedConflict(docsPreview.markdown) || hasPossibleMergeMarkers(docsPreview.markdown)} onClick={() => void run(async current => {
           const applied = await runSourceNoteMutation(path!, () => vaultSaveNote(path!, docsPreview.markdown, docsPreview.hash, false, vaultId!).then(() => undefined))
           if (!applied) throw new Error('Save the editor draft and preview this translation again.')
           if (current === epoch.current) { setMessage(`Reviewed Google Docs translation saved.${remember(docsPreview.markdown)}`); setDocsPreview(null); setDocsConsent(false); await onApplied() }

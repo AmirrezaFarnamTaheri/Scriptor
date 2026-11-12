@@ -78,7 +78,13 @@ export function CaptureReviewerPanel({vaultOpen,vaultId,onClose,onSaved,embedded
       <button type="submit" disabled={!native||busy||!url.trim()}>Extract preview</button>
     </form>
     {!native?<p>Open a desktop vault to extract and save articles.</p>:null}
-    <p role="status">{status}</p>{error?<p role="alert">{error}</p>:null}
+    {!(error && status.startsWith('Extraction failed')) && <p role="status">{status}</p>}
+    {error && status.startsWith('Extraction failed') ? <section className="capture-extraction-alert" role="alert">
+      <strong>Extraction failed — nothing was saved</strong>
+      <p>{error}</p>
+      <p>Check the URL or connection before trying again.</p>
+      <button type="button" disabled={!native || busy || !url.trim()} onClick={() => void extract()}>Retry extraction</button>
+    </section> : error ? <p role="alert">{error}</p> : null}
     {savedCapture?.vaultId===vaultId ? <section aria-label="Research workflow next steps">
       <h3>Continue your research draft</h3>
       <p>Saved capture: <code>{savedCapture.path}</code>. Source ID: <code>{savedCapture.sourceId}</code>. Next, review the citation key in your bibliography, link the passage to a literature note, and cite that key in your manuscript before exporting. These later steps are not verified by this capture.</p>
