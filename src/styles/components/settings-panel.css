@@ -525,3 +525,10 @@
 .backup-restore-outcome__status p { margin: 0; line-height: 1.5; }
 .backup-restore-outcome__details summary { cursor: pointer; min-height: 36px; }
 .backup-restore-outcome > button { min-height: 44px; }
+
+/* VIS-031: separate browser authorization from locally saved vault preferences. */
+.google-account-auth-explainer { display: grid; gap: 4px; padding: 11px 13px; margin: 10px 0; border: 1px solid var(--border-strong, var(--border)); border-inline-start: 4px solid var(--primary); border-radius: 8px; background: var(--surface-raised); }
+.google-account-auth-explainer p { margin: 0; line-height: 1.5; }
+.google-integration-settings > .google-integration-fields { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-block: 10px; background: var(--surface); }
+.google-integration-fields .google-account-state { padding: 5px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-raised); font-weight: 600; overflow-wrap: anywhere; }
+.google-integration-fields .google-connection-actions { align-items: center; flex-wrap: wrap; }

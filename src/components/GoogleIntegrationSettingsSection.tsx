@@ -80,7 +80,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
     const reconnectRequired = account.status === 'reconnect-required'
     return <>
       <div className="calendar-sync-actions google-connection-actions">
-        <span role="status">{reconnectRequired ? t('integrations.google.reconnect') : account.email || t(`integrations.google.status.${account.status}`)}</span>
+        <span className="google-account-state" role="status">{reconnectRequired ? t('integrations.google.reconnect') : account.email || t(`integrations.google.status.${account.status}`)}</span>
         <button type="button" className="primary-button" disabled={account.busy} onClick={() => {
           if (!clientId.trim()) {
             setSetupError(t('integrations.google.notConfigured'))
@@ -107,6 +107,10 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
         <div><h3 id="google-integration-heading">{t('integrations.google.title')}</h3><p className="health-subtitle">{t('integrations.google.description')}</p></div>
       </div>
       <div className="integration-maturity-note" role="note"><strong>{t('integrations.google.experimental')}</strong> {t('integrations.google.security')}</div>
+      <div className="google-account-auth-explainer" role="note">
+        <strong>Account authorization</strong>
+        <p>Connecting a service opens its own Google permission flow and takes effect when authorized. Vault configuration changes are saved separately with Save vault settings.</p>
+      </div>
       {hasPackagedGoogleOAuthClient()
         ? <p className="health-subtitle" role="status">{t('integrations.google.appManaged')}</p>
         : <>
@@ -138,7 +142,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
       <div className="settings-subgroup google-integration-fields" role="group" aria-labelledby="google-calendar-heading">
         <h4 id="google-calendar-heading">{t('integrations.google.calendarTasks')}</h4>
           <div className="calendar-sync-actions google-connection-actions">
-            <span role="status">{calendarNeedsReconnect ? t('integrations.google.reconnect') : t(`integrations.google.status.${calendarSync.status}`)}{calendarSync.authedEmail ? ` · ${calendarSync.authedEmail}` : ''}</span>
+            <span className="google-account-state" role="status">{calendarNeedsReconnect ? t('integrations.google.reconnect') : t(`integrations.google.status.${calendarSync.status}`)}{calendarSync.authedEmail ? ` · ${calendarSync.authedEmail}` : ''}</span>
             <button type="button" className="primary-button" disabled={calendarBusy} onClick={() => void connectCalendar()}>{t(calendarSync.authedEmail || calendarNeedsReconnect ? 'integrations.google.reconnect' : 'integrations.google.connect')} · {t('integrations.google.calendarTasks')}</button>
             {calendarSync.authedEmail ? <>
               <button type="button" className="toolbar-button" disabled={calendarBusy} onClick={() => void calendarSync.refresh()}>{t('integrations.google.syncNow')}</button>

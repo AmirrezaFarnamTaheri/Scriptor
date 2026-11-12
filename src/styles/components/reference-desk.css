@@ -20,3 +20,10 @@
 .reference-import-review input[type=checkbox] {width:24px;height:24px;flex:none;}
 @media(max-width:600px){.reference-desk.knowledge-filters-panel {width:calc(var(--app-viewport-width,100vw) - 16px);max-width:calc(var(--app-viewport-width,100vw) - 16px);max-height:calc(var(--app-viewport-height,100dvh) - 16px);}.reference-desk-actions {align-items:stretch;flex-direction:column;}}
 @media(pointer:coarse){.reference-desk input::file-selector-button {min-height:44px;}}
+
+/* VIS-033/034: preserve clear scope counts and discoverable reference scrolling. */
+.reference-desk-filter { position: sticky; top: 0; z-index: 3; background: var(--dialog-bg, var(--surface)); padding: 8px 0; border-block-end: 1px solid var(--border); }
+.reference-import-review.has-scroll-cue { max-height: min(54dvh, 500px); overflow-y: auto; overscroll-behavior: contain; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); box-shadow: inset 0 -12px 14px -14px var(--ink); scroll-padding-block: 12px; }
+.reference-import-scroll-hint { margin: 0; border-inline-start: 3px solid var(--primary); padding: 7px 9px; color: var(--ink-muted, var(--muted)); font-size: 0.85rem; background: var(--surface); }
+.reference-import-review > ul { display: grid; gap: 8px; max-width: 100%; margin: 0; padding-inline-start: 18px; }
+.reference-import-review > ul li { padding: 6px 0; overflow-wrap: anywhere; }
