@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n } from '../lib/i18n'
 import { graphNodeAppearance } from '../lib/graphNodeAppearance'
+import { placeGraphLabels } from '../lib/graphLabelPlacement'
 
 const FOLDER_COLORS = ['#6366f1', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#a855f7', '#22c55e']
 
@@ -231,27 +232,27 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       ctx.restore()
     }
 
-    // Paint opaque text plates after edges but before node circles and focus
-    // rings. Labels sit below their own nodes; neighboring focus rings must
-    // never disappear behind a later label's rectangle.
-    for (const node of nodes) {
-      const showLabel = nodes.length < 60 || highlightedNeighborIds.includes(node.id) || node.path === focusPath || hoveredId === node.id || keyboardNode?.id === node.id
-      if (showLabel) {
-        const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
-        ctx.font = '11px sans-serif'
-        ctx.textAlign = 'center'
-        const metrics = ctx.measureText(label)
-        const labelY = node.y + 44
-        ctx.fillStyle = surfaceColor
-        ctx.beginPath()
-        ctx.roundRect(node.x - metrics.width / 2 - LABEL_PLATE_PAD_X, labelY - LABEL_PLATE_HEIGHT + 2,
-          metrics.width + LABEL_PLATE_PAD_X * 2, LABEL_PLATE_HEIGHT, 3)
-        ctx.fill()
-        ctx.fillStyle = inkColor
-        ctx.fillText(label, node.x, labelY)
-      }
+    // The focused note, hovered point and direct neighbors take precedence.
+    // Opaque label plates must not overlap when a 120-node view is clustered.
+    ctx.font = '11px sans-serif'
+    ctx.textAlign = 'center'
+    const visibleLabels = nodes.filter(node => nodes.length < 60 || highlightedNeighborIds.includes(node.id) ||
+      node.path === focusPath || hoveredId === node.id || keyboardNode?.id === node.id)
+    const labelText = new Map(visibleLabels.map(node => [node.id, node.label.length > 18 ? node.label.slice(0, 17) + '…' : node.label]))
+    const placedLabels = placeGraphLabels(visibleLabels.map(node => ({
+      id: node.id, x: node.x, y: node.y,
+      width: ctx.measureText(labelText.get(node.id) ?? '').width + LABEL_PLATE_PAD_X * 2,
+      height: LABEL_PLATE_HEIGHT,
+      priority: hoveredId === node.id || keyboardNode?.id === node.id ? 0 : node.path === focusPath ? 1 : 2,
+    })), width, height)
+    for (const label of placedLabels) {
+      ctx.fillStyle = surfaceColor
+      ctx.beginPath()
+      ctx.roundRect(label.left, label.top, label.right - label.left, label.bottom - label.top, 3)
+      ctx.fill()
+      ctx.fillStyle = inkColor
+      ctx.fillText(labelText.get(label.id) ?? '', (label.left + label.right) / 2, label.bottom - 4)
     }
-
 
     for (const node of nodes) {
       const isFocus = node.path === focusPath

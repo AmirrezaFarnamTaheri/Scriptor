@@ -477,12 +477,12 @@
 
 /* Search inside a dense graph without guessing which anonymous dot is which. */
 .graph-note-search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; padding: 8px 14px; border-block-end: 1px solid var(--border); }
-.graph-note-search > label { display: flex; align-items: center; gap: 8px; flex: 0 1 340px; min-width: min(100%, 220px); }
+.graph-note-search > label { display: flex; align-items: center; gap: 8px; flex: 0 1 390px; min-width: min(100%, 220px); white-space: nowrap; }
 .graph-note-search input { width: 100%; min-width: 0; min-height: 40px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--ink); }
 .graph-note-search-results { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
 .graph-note-search-results button { max-width: 190px; min-height: 40px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-raised); color: var(--ink); }
 .graph-note-search :is(input,button):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-@media(max-width:600px) { .graph-note-search { padding: 8px; } .graph-note-search > label { flex: 1 1 100%; } .graph-note-search-results button { min-height: 44px; } }
+@media(max-width:600px) { .graph-note-search { padding: 8px; } .graph-note-search > label { flex: 1 1 100%; flex-wrap: wrap; white-space: normal; } .graph-note-search input { flex: 1 1 170px; } .graph-note-search-results button { min-height: 44px; } }
 
 /* Graph search and named-neighbor controls added rows to the overlay. Reserve
  * the drawing area explicitly rather than letting an implicit grid row collapse

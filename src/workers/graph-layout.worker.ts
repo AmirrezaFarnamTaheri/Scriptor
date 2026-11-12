@@ -61,7 +61,7 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
     // layout to the viewport edge; this prevents the rectangular perimeter
     // crowding that made 100+ node screenshots unreadable.
     const fitPadding = dense ? Math.max(56, Math.min(width, height) * 0.07) : 44
-    const maxFitScale = dense ? 1 : 1.25
+    const maxFitScale = dense ? 1.45 : 1.25
     const fitted = fitGraphLayoutToViewport(
       simNodes.map((node) => ({
         id: node.id,
