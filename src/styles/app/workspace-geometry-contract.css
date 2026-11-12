@@ -497,7 +497,7 @@
 
 /* VIS-NEW-006: at phone/effective zoom widths, identify the overflow entry
  * with words rather than a tiny sliders glyph. No extra toolbar row is added. */
-@container (max-width: 360px) {
+@container (max-width: 440px) {
   .editor-primary-formatting .tools-trigger {
     width: auto;
     min-width: 72px;

@@ -460,6 +460,12 @@ test.describe('visual review states', () => {
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav.getByRole('button', { name: 'Write' })).toHaveAttribute('aria-current', 'page')
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
+    const mobileOverflow = page.locator('.editor-primary-formatting .tools-trigger')
+    await expect(mobileOverflow).toBeInViewport({ ratio: 1 })
+    await expect(mobileOverflow.locator('.toolbar-menu-trigger-label')).toBeVisible()
+    await mobileOverflow.click()
+    await expect(page.getByRole('menuitem', { name: /Customize/i })).toBeVisible()
+    await page.keyboard.press('Escape')
 
     await captureVisual(page, 'visual-mobile-editor-390.png')
   })
@@ -1891,6 +1897,11 @@ test.describe('visual review states', () => {
         && element.scrollWidth <= element.clientWidth + 1
     })).toBe(true)
     await expect(capture).toContainText('Tasks')
+    const scratchpad = capture.locator('.scratchpad-editor')
+    const scratchpadActions = capture.locator('.quick-capture-actions')
+    await expect.poll(() => Promise.all([scratchpad.boundingBox(), scratchpadActions.boundingBox()])
+      .then(([editor, actions]) => Boolean(editor && actions && actions.y >= editor.y + editor.height - 1))).toBe(true)
+    await expect(capture.getByRole('button', { name: 'Add sticky note', exact: true })).toBeInViewport({ ratio: 1 })
     await captureElement(page, capture, 'visual-quick-capture.png')
 
     await todoRow.getByRole('button', { name: 'Mark task complete: Review visual evidence before release', exact: true }).click()

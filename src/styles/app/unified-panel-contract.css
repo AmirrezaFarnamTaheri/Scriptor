@@ -408,3 +408,14 @@ html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
     padding-top: 13px;
   }
 }
+
+/* Writing precedes saving in Quick Capture. At 380-460px container width,
+ * place the two actions side-by-side to preserve the sticky-note CTA. */
+.quick-capture-panel .quick-capture-actions { margin-top: 8px; }
+@container unified-panel (min-width: 380px) and (max-width: 460px) {
+  .quick-capture-panel .quick-capture-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
