@@ -36,4 +36,4 @@
 
 /* Small semantic samples need note identities on the chart itself. Names are
  * also kept in the focusable SVG points and accessible note list. */
-.semantic-projection-point-label { fill:var(--ink); font-size:13px; font-weight:600; paint-order:stroke; stroke:var(--surface); stroke-width:4px; stroke-linejoin:round; pointer-events:none; }
+.semantic-projection-point-label { fill:var(--muted); font-size:13px; font-weight:600; paint-order:stroke; stroke:var(--surface); stroke-width:4px; stroke-linejoin:round; pointer-events:none; }

@@ -6,7 +6,7 @@ import { vaultLoadConfig, vaultSaveConfig } from '../bridge/commands/vault'
 import { projectSemanticPoints, type SemanticInspection } from '../lib/semanticInspector'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import type { VaultConfig } from '../types/vault'
-import './semantic-inspector.css'
+import '../styles/components/semantic-inspector.css'
 
 const SEMANTIC_INSPECTOR_LABELS = {
   title: 'Semantic Inspector', local: 'Index health and PCA are computed locally from stored vectors. Reindexing and similarity queries contact the selected provider after permission.',

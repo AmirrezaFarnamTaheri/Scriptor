@@ -43,6 +43,18 @@ test('populated semantic projection rotates in 3D, filters similarity results an
   await expect(projection.locator('circle.stale')).toHaveCount(1)
   await expect(projection.locator('.semantic-projection-axis')).toHaveText(['PCA 1', 'PCA 2'])
   await expect(projection.locator('.semantic-projection-point-label')).toHaveText(['Research Plan.md', 'Field Notes.md', 'Methodology.md'])
+  // The imported stylesheet must style note labels, not just the axis labels.
+  // Matching the already legible axis color guards against dark-on-dark text
+  // caused by an unimported duplicate semantic-inspector stylesheet.
+  await expect.poll(() => projection.evaluate((element) => {
+    const point = element.querySelector<SVGTextElement>('.semantic-projection-point-label')
+    const axis = element.querySelector<SVGTextElement>('.semantic-projection-axis')
+    if (!point || !axis) return false
+    const style = getComputedStyle(point)
+    return style.fill === getComputedStyle(axis).fill &&
+      Number.parseFloat(style.fontSize) >= 13 &&
+      style.pointerEvents === 'none'
+  })).toBe(true)
   const legend = panel.getByRole('group', { name: 'Projection key' })
   await expect(legend).toContainText('Current vector')
   await expect(legend).toContainText('Stale vector')
