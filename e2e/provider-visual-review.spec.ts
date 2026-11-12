@@ -263,7 +263,7 @@ test('Overleaf connection requirements, remote comparison, consent and conflict 
   await fetch.click()
   const reviewed = dialog.getByLabel('Reviewed source to apply locally or share', { exact: true })
   await expect(reviewed).toHaveValue('\\section{Remote}\r\n')
-  await expect(dialog.getByRole('region', { name: 'Remote source' })).toContainText('Remote')
+  await expect(dialog.getByRole('region', { name: 'Reviewed remote source', exact: true })).toContainText('Remote')
   await captureProvider(page, 'visual-provider-overleaf-comparison.png', reviewed)
 
   await reviewed.fill('\\section{Reviewed merged source}\n')
