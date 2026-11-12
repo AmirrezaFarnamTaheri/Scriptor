@@ -385,6 +385,7 @@
     "matchingNotes": "Passende Notizen",
     "noMatchingNotes": "Keine passenden Notizen",
     "nearbyNotes": "Verknüpfte Notizen",
+    "focusedViewHint": "Nur direkte Verbindungen sichtbar; mit „Alle Verknüpfungen anzeigen“ den ganzen Graphen öffnen.",
     "showAllLinks": "Alle Verknüpfungen anzeigen",
     "highlightConnectedLinks": "Verknüpfungen der aktuellen Notiz hervorheben",
     "directedLink": "Gerichteter Link",

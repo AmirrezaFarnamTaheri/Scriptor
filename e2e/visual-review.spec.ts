@@ -525,8 +525,11 @@ test.describe('visual review states', () => {
     await relations.locator('summary').click()
 
     const allLinks = graph.getByRole('button', { name: 'Show all links', exact: true })
+    const focusedHint = graph.locator('.graph-focus-hint')
+    await expect(focusedHint).toContainText('Showing direct connections only')
     await expect(allLinks).toHaveAttribute('aria-pressed', 'true')
     await allLinks.click()
+    await expect(focusedHint).toBeHidden()
     const focusLinks = graph.getByRole('button', { name: 'Highlight connected links', exact: true })
     await expect(focusLinks).toHaveAttribute('aria-pressed', 'false')
     await focusLinks.click()

@@ -561,6 +561,9 @@ export const GraphPanel = memo(function GraphPanel({
             {highlightConnectedOnly ? t('graph.showAllLinks') : t('graph.highlightConnectedLinks')}
           </button>
         ) : null}
+        {useCanvas && focusPath && highlightConnectedOnly ? (
+          <span className="graph-focus-hint" role="status">{t('graph.focusedViewHint')}</span>
+        ) : null}
         {graphSearch.trim() ? (
           <div className="graph-note-search-results" role="group" aria-label={t('graph.matchingNotes')}>
             {graphMatches.length ? graphMatches.map(node => (

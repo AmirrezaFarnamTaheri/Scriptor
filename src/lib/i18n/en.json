@@ -385,6 +385,7 @@
     "matchingNotes": "Matching notes",
     "noMatchingNotes": "No matching notes",
     "nearbyNotes": "Connected notes",
+    "focusedViewHint": "Showing direct connections only; select Show all links for the full graph.",
     "showAllLinks": "Show all links",
     "highlightConnectedLinks": "Highlight connected links",
     "directedLink": "Directed link",

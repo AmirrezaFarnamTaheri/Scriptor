@@ -492,6 +492,14 @@
 
 /* A dense vault graph opens with the selected note's connections emphasized.
    This toggle keeps the original full graph one deliberate action away. */
+.graph-focus-hint {
+  flex: 1 1 190px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
 .graph-focus-toggle {
   flex:0 1 auto;
   max-width:100%;
