@@ -117,6 +117,8 @@ test('Gmail sign-in, connected inbox, message, draft and failed-send evidence', 
   await expect(panel.getByLabel('Subject', { exact: true })).toHaveValue('Evidence review: retained draft')
   await expect(draft).toHaveValue(/No live messages are transmitted/)
   await captureProvider(page, 'visual-provider-gmail-send-failed-draft.png', alert)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await captureProvider(page, 'visual-provider-gmail-send-failed-390.png', alert)
 })
 
 test('Google account entry, distinct permissions and Calendar sync choices', async ({ page }) => {
@@ -215,6 +217,8 @@ test('Drive discovery and Docs preview are visible before any write approval', a
   await expect(preview).toHaveValue(/Remote translated text/)
   await expect(drive.getByRole('alert')).toContainText('Possible unresolved merge markers')
   await captureProvider(page, 'visual-provider-drive-docs-import-review.png', preview)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await captureProvider(page, 'visual-provider-drive-docs-conflict-390.png', drive.getByRole('alert'))
   const writes = await page.evaluate(() =>
     (JSON.parse(sessionStorage.getItem('e2e:google-ecosystem-calls') ?? '[]') as Array<{ cmd: string }>)
       .filter(call => call.cmd === 'vault_save_note' || call.cmd === 'collaboration_write'),
@@ -313,6 +317,10 @@ test('Overleaf connection requirements, remote comparison, consent and conflict 
   await expect(dialog.getByRole('status')).toHaveCount(0)
   await expect(dialog.getByRole('button', { name: 'Share reviewed source with Overleaf' })).toHaveCount(0)
   await captureProvider(page, 'visual-provider-overleaf-stale-revision.png', alert)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.evaluate(() => { document.documentElement.dir = 'rtl' })
+  await captureProvider(page, 'visual-provider-overleaf-stale-rtl-390.png', alert)
+  await expect(dialog.getByRole('button', { name: 'Fetch latest remote preview' })).toBeEnabled()
 })
 
 test('Resource sync requires a reviewed plan and visibly reports partial completion', async ({ page }) => {
@@ -454,4 +462,33 @@ test('Resource sync requires a reviewed plan and visibly reports partial complet
   await expect(partial.getByText('Confirmed operations')).toBeVisible()
   await expect(partial.locator('.resource-sync-confirmed-ops')).toContainText('Already aligned')
   await captureProvider(page, 'visual-provider-resource-sync-partial-result.png', partial)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await captureProvider(page, 'visual-provider-resource-sync-partial-390.png', partial)
+})
+
+test('connected Gmail dialog stays bounded at 320px in dark appearance', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 })
+  await page.addInitScript(() => window.localStorage.setItem('scriptor:app-theme', 'dark'))
+  const panel = await openGmail(page, true)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  const inbox = panel.locator('.gmail-manager-message-row').first()
+  await expect(inbox).toContainText('Research meeting')
+  await captureProvider(page, 'visual-provider-gmail-dark-320.png', inbox)
+})
+
+test('Google authorization options remain reachable at 200 percent app zoom', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.addInitScript(() => {
+    window.localStorage.setItem('scriptor:ui-zoom', '2')
+    window.sessionStorage.setItem('e2e:google-ecosystem', '1')
+    window.sessionStorage.setItem('e2e:research', '1')
+    window.sessionStorage.setItem('e2e:google-drive-connected', '0')
+  })
+  await launchApp(page)
+  await expect.poll(() => page.evaluate(() => Number(document.body.style.zoom))).toBe(2)
+  const { google } = await openGoogleSettings(page)
+  const drive = google.getByRole('group', { name: 'Google Drive & Docs', exact: true })
+  const connect = drive.getByRole('button', { name: /^(?:Connect Google|Reconnect) · Google Drive & Docs$/ })
+  await expect(connect).toBeEnabled()
+  await captureProvider(page, 'visual-provider-google-authorization-zoom-200.png', connect)
 })
