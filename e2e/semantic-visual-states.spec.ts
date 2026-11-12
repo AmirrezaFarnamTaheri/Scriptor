@@ -42,6 +42,7 @@ test('populated semantic projection rotates in 3D, filters similarity results an
   await expect(projection.locator('g[role="button"]')).toHaveCount(3)
   await expect(projection.locator('circle.stale')).toHaveCount(1)
   await expect(projection.locator('.semantic-projection-axis')).toHaveText(['PCA 1', 'PCA 2'])
+  await expect(projection.locator('.semantic-projection-point-label')).toHaveText(['Research Plan.md', 'Field Notes.md', 'Methodology.md'])
   const legend = panel.getByRole('group', { name: 'Projection key' })
   await expect(legend).toContainText('Current vector')
   await expect(legend).toContainText('Stale vector')

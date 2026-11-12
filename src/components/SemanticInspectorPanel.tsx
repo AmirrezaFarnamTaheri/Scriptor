@@ -102,7 +102,19 @@ export function SemanticInspectorPanel({ vaultId, onClose, onOpenNote, embedded 
               <line x1={30} x2={570} y1={180} y2={180} /><line x1={300} x2={300} y1={30} y2={330} />
               <text className="semantic-projection-axis" x="555" y="171" textAnchor="end">PCA 1</text>
               <text className="semantic-projection-axis" x="309" y="48">PCA 2</text>
-              {points.map(p => <g key={p.note_path} role="button" tabIndex={0} aria-label={p.note_path} onClick={() => onOpenNote(p.note_path)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenNote(p.note_path) } }}><title>{p.note_path}</title><circle className={p.stale ? 'stale' : ''} cx={p.x} cy={p.y} r={7} /></g>)}
+              {points.map(p => (
+                <g key={p.note_path} role="button" tabIndex={0} aria-label={p.note_path}
+                  onClick={() => onOpenNote(p.note_path)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenNote(p.note_path) } }}>
+                  <title>{p.note_path}</title>
+                  <circle className={p.stale ? 'stale' : ''} cx={p.x} cy={p.y} r={7} />
+                  {points.length <= 8 ? <text aria-hidden="true" className="semantic-projection-point-label"
+                    x={p.x > 460 ? p.x - 12 : p.x + 12} y={Math.max(18, p.y - 12)}
+                    textAnchor={p.x > 460 ? 'end' : 'start'}>
+                    {p.note_path.length > 24 ? p.note_path.slice(0, 23) + '…' : p.note_path}
+                  </text> : null}
+                </g>
+              ))}
             </svg>
             <div className="semantic-projection-legend" role="group" aria-label="Projection key">
               <span><i className="semantic-projection-key-dot" aria-hidden="true" />{copy.current} vector</span>
