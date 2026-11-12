@@ -814,6 +814,8 @@
   },
   "integrations": {
     "google": {
+      "authorizationHeading": "Kontoberechtigung",
+      "authorizationHelp": "Zum Verbinden öffnet jeder Dienst eine eigene Google-Berechtigungsfreigabe. Tresoreinstellungen speichern Sie separat mit Tresoreinstellungen speichern; eine erfolgreiche Verbindung kann Kontoeinstellungen sofort erfassen.",
       "title": "Google",
       "description": "Drive, Kalender, Tasks und Gmail getrennt verbinden. Sie bestimmen die Zugriffsrechte.",
       "clientLifecycle": "Eine geänderte Google-App-ID löscht bisherige Anmeldungen nicht. Verbinden Sie jeden Dienst mit der neuen ID erneut und speichern Sie dann die Tresoreinstellungen.",
@@ -866,6 +868,11 @@
       "developerSetup": "Erweitert: eigenen Google-OAuth-Client verwenden (Entwicklung)"
     },
     "gmail": {
+      "integrationLimitations": "Integrationsbeschränkungen",
+      "deliveryUncertain": "Zustellung ungewiss",
+      "deliveryUncertainExplanation": "Prüfen Sie vor erneutem Senden den Gmail-Ordner Gesendet. Ihr aktueller Entwurf bleibt bis zur Klärung erhalten.",
+      "technicalErrorDetails": "Technische Fehlerdetails",
+      "safePlainText": "Als Klartext angezeigt; entfernte Inhalte wurden nicht geladen.",
       "setupGuidance": "Aktivieren Sie Gmail Manager unter Plugins und verbinden Sie Ihr Google-Konto. Hilfe zur Wiederherstellung finden Sie unter Einstellungen > Integrationen.",
       "reviewAccountSetup": "Kontoeinrichtung prüfen",
       "title": "Gmail",
@@ -1329,6 +1336,17 @@
     "eventMissing": "Ereignis liegt außerhalb des geladenen Zeitraums oder wurde gelöscht. Aktualisieren oder lösen Sie die Verknüpfung.",
     "activeFinished": "Die laufende Änderung wurde abgeschlossen. Die Prüfung wurde beendet; übernommene Änderungen bleiben gespeichert.",
     "changeApplied": "Änderung übernommen. Aktualisieren und prüfen Sie die verbleibenden Unterschiede.",
+      "reviewVault": "Tresor",
+      "reviewGoogle": "Google",
+      "reviewedChanges": "Geprüfte Änderungen",
+      "noDueDate": "Kein Fälligkeitsdatum",
+      "notLinked": "Nicht verknüpft",
+      "readOnlyCalendarExplanation": "Schreibgeschützter Kalender: Änderungen können nur in den Tresor übernommen werden. Tresor → Google ist für diesen Kalender nicht verfügbar.",
+      "technicalDetails": "Technische Details",
+      "directionFromGoogle": "Google → Tresor",
+      "directionToGoogle": "Tresor → Google",
+      "remainingToReview": "{{count}} weitere Änderungen zu prüfen",
+      "reviewRowIndex": "Änderung {{index}} von {{count}}",
     "localRemoved": "Lokaler Block entfernt. Das Google-Ereignis bleibt unverändert.",
     "cancelAfterActive": "Nach der laufenden Änderung beenden. Eine gesendete Anbieteranfrage kann nicht zurückgerufen werden.",
     "cancelledReview": "Prüfung abgebrochen. Keine weiteren Änderungen übernommen."

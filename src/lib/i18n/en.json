@@ -814,6 +814,8 @@
   },
   "integrations": {
     "google": {
+      "authorizationHeading": "Account authorization",
+      "authorizationHelp": "Connecting a service opens its own Google permission flow and takes effect when authorized. Vault configuration changes are saved separately with Save vault settings; a successful connection can also record account settings immediately.",
       "title": "Google",
       "description": "Connect Drive, Calendar, Tasks, and Gmail separately. Choose what each service can access.",
       "clientLifecycle": "Changing the Google app ID keeps previous sign-ins. Reconnect each service to use the new ID, then save your vault settings.",
@@ -866,6 +868,11 @@
       "developerSetup": "Advanced: use your own Google OAuth client (developers)"
     },
     "gmail": {
+      "integrationLimitations": "Integration limitations",
+      "deliveryUncertain": "Delivery uncertain",
+      "deliveryUncertainExplanation": "Check Gmail Sent before another send. Your current draft is retained until you review the result.",
+      "technicalErrorDetails": "Technical error details",
+      "safePlainText": "Shown as plain text; remote content was not loaded.",
       "setupGuidance": "Enable Gmail Manager in Plugins, then connect your Google account. For recovery, check Settings > Integrations.",
       "reviewAccountSetup": "Review account setup",
       "title": "Gmail",
@@ -1329,6 +1336,17 @@
     "eventMissing": "Event is outside the loaded window or was removed. Refresh or unlink before recreating.",
     "activeFinished": "The active change finished. Review stopped; applied changes remain saved.",
     "changeApplied": "Change applied. Refresh and review the remaining differences.",
+      "reviewVault": "Vault",
+      "reviewGoogle": "Google",
+      "reviewedChanges": "Reviewed changes",
+      "noDueDate": "No due date",
+      "notLinked": "Not linked",
+      "readOnlyCalendarExplanation": "Read-only calendar: changes can only be imported into the vault. Vault → Google is unavailable for this calendar.",
+      "technicalDetails": "Technical details",
+      "directionFromGoogle": "Google → vault",
+      "directionToGoogle": "Vault → Google",
+      "remainingToReview": "{{count}} remaining to review",
+      "reviewRowIndex": "Change {{index}} of {{count}}",
     "localRemoved": "Local block removed. Its Google event remains unchanged.",
     "cancelAfterActive": "Stopping after the active change. A sent provider request cannot be recalled.",
     "cancelledReview": "Review cancelled. No further changes applied."

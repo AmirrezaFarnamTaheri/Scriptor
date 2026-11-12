@@ -108,8 +108,8 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
       </div>
       <div className="integration-maturity-note" role="note"><strong>{t('integrations.google.experimental')}</strong> {t('integrations.google.security')}</div>
       <div className="google-account-auth-explainer" role="note">
-        <strong>Account authorization</strong>
-        <p>Connecting a service opens its own Google permission flow and takes effect when authorized. Vault configuration changes are saved separately with Save vault settings; a successful connection can also record account settings immediately.</p>
+        <strong>{t('integrations.google.authorizationHeading')}</strong>
+        <p>{t('integrations.google.authorizationHelp')}</p>
       </div>
       {hasPackagedGoogleOAuthClient()
         ? <p className="health-subtitle" role="status">{t('integrations.google.appManaged')}</p>

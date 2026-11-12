@@ -35,8 +35,9 @@ const taskValue = (task: TaskRow): PlannerTaskValue => ({title:task.title,done:t
 const remoteValue = (task: GoogleTask): PlannerTaskValue => ({title:task.title,done:task.status === 'completed',due:task.due?.slice(0,10) ?? null})
 const eventValue = (event: CalendarEvent) => ({title:event.summary,start:event.start,end:event.end})
 const inputTime = (iso: string) => { const date = new Date(iso); return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16) }
-const readableTime = (iso: string) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : date.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }) }
-const readablePeriod = (start: string, end: string) => `${readableTime(start)} – ${readableTime(end)}`
+const DATE_LANG = { en: 'en-US', de: 'de-DE', fa: 'fa-IR-u-ca-gregory' } as const
+const readableTime = (iso: string, locale: 'en' | 'de' | 'fa') => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : date.toLocaleString(DATE_LANG[locale], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }) }
+const readablePeriod = (start: string, end: string, locale: 'en' | 'de' | 'fa') => `${readableTime(start, locale)} – ${readableTime(end, locale)}`
 function readBases(key: string): Record<string,PlannerTaskValue> {
   try {
     const raw = localStorage.getItem(key)
@@ -187,7 +188,7 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
           ? tasks.find(task => task.id === row.block.taskId)?.title ?? row.block.title
           : row.task.title
         setMessage(cancelRef.current ? t('plannerWorkspace.activeFinished') :
-          `${t('plannerWorkspace.changeApplied')} · ${direction === 'pull' ? 'Google → vault' : 'Vault → Google'} · ${subject} · ${new Date().toLocaleString()} · ${Math.max(0, (review?.length ?? 1) - 1)} remaining to review.`)
+          `${t('plannerWorkspace.changeApplied')} · ${t(direction === 'pull' ? 'plannerWorkspace.directionFromGoogle' : 'plannerWorkspace.directionToGoogle')} · ${subject} · ${new Date().toLocaleString(DATE_LANG[locale])} · ${t('plannerWorkspace.remainingToReview', { count: Math.max(0, (review?.length ?? 1) - 1) })}.`)
       }
     } catch(error) {if (contextCurrent()) setMessage(String(error))} finally {if (contextCurrent()) setBusy(false)}
   }
@@ -221,20 +222,20 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
     {message && <p role="status" className={message.startsWith(t('plannerWorkspace.changeApplied')) ? 'planner-apply-receipt' : 'health-subtitle'}>{message}</p>}
     {review && <div className="planner-review" role="region" aria-label={t('plannerWorkspace.reviewRegion')} aria-busy={busy}>
       <p>{t('plannerWorkspace.reviewCount', {count: review.length})}</p>
-      {review.map((row,index)=><div className="planner-review__row" role="group" aria-label={`Change ${index + 1} of ${review.length}`} key={index}>
-        <p className="planner-review__row-index">Change {index + 1} of {review.length}</p>
+      {review.map((row,index)=><div className="planner-review__row" role="group" aria-label={t('plannerWorkspace.reviewRowIndex', { index: index + 1, count: review.length })} key={index}>
+        <p className="planner-review__row-index">{t("plannerWorkspace.reviewRowIndex", { index: index + 1, count: review.length })}</p>
         <strong dir="auto">{row.kind === 'task' ? row.task.title : row.block.title}</strong>
         <span>{row.direction}</span>
-        <dl className="planner-review__summary" aria-label="Reviewed changes">
-          <div><dt>Vault</dt><dd dir="auto">{row.kind === 'task'
-            ? `${row.task.title} · ${row.task.dueAt ?? 'No due date'}`
-            : `${tasks.find(task => task.id === row.block.taskId)?.title ?? row.block.title} · ${readablePeriod(row.block.start, row.block.end)}`}</dd></div>
-          <div><dt>Google</dt><dd dir="auto">{row.kind === 'task'
-            ? row.remote ? `${row.remote.title} · ${row.remote.due?.slice(0, 10) ?? 'No due date'}` : 'Not linked'
-            : row.remote ? `${row.remote.summary} · ${readablePeriod(row.remote.start, row.remote.end)}` : 'Not linked'}</dd></div>
+        <dl className="planner-review__summary" aria-label={t("plannerWorkspace.reviewedChanges")}>
+          <div><dt>{t("plannerWorkspace.reviewVault")}</dt><dd dir="auto">{row.kind === 'task'
+            ? `${row.task.title} · ${row.task.dueAt ?? t('plannerWorkspace.noDueDate')}`
+            : `${tasks.find(task => task.id === row.block.taskId)?.title ?? row.block.title} · ${readablePeriod(row.block.start, row.block.end, locale)}`}</dd></div>
+          <div><dt>{t("plannerWorkspace.reviewGoogle")}</dt><dd dir="auto">{row.kind === 'task'
+            ? row.remote ? `${row.remote.title} · ${row.remote.due?.slice(0, 10) ?? t('plannerWorkspace.noDueDate')}` : t('plannerWorkspace.notLinked')
+            : row.remote ? `${row.remote.summary} · ${readablePeriod(row.remote.start, row.remote.end, locale)}` : t('plannerWorkspace.notLinked')}</dd></div>
         </dl>
-        {row.kind === 'event' && !calendarWritable ? <p className="planner-review__constraint" role="note">Read-only calendar: changes can only be imported into the vault. Vault → Google is unavailable for this calendar.</p> : null}
-        <details className="planner-review__technical"><summary>Technical details</summary><pre>{JSON.stringify(row.kind === 'task'
+        {row.kind === 'event' && !calendarWritable ? <p className="planner-review__constraint" role="note">{t('plannerWorkspace.readOnlyCalendarExplanation')}</p> : null}
+        <details className="planner-review__technical"><summary>{t('plannerWorkspace.technicalDetails')}</summary><pre>{JSON.stringify(row.kind === 'task'
           ? {vault:taskValue(row.task),google:row.remote?remoteValue(row.remote):null}
           : {vault:row.block,google:row.remote?eventValue(row.remote):null},null,2)}</pre></details>
         <div className="planner-review__actions"><button type="button" disabled={!connected || busy || row.direction === 'duplicate mapping' || (row.kind === 'event' && !calendarWritable)} onClick={()=>void apply(row,'push')}>{t('plannerWorkspace.push')}</button><button type="button" disabled={!connected || busy || !row.remote} onClick={()=>void apply(row,'pull')}>{t('plannerWorkspace.pull')}</button></div>

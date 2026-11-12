@@ -462,7 +462,7 @@ export function GmailManagerPanel({
       <div className="gmail-manager-content">
         <div className="gmail-manager-limits">
           {activeTab !== 'account' && <button type="button" className="gmail-manager-limits-toggle" aria-expanded={showIntegrationLimits}
-            onClick={() => setShowIntegrationLimits((current) => !current)}>Integration limitations</button>}
+            onClick={() => setShowIntegrationLimits((current) => !current)}>{t('integrations.gmail.integrationLimitations')}</button>}
           {(showIntegrationLimits || activeTab === 'account') && <div className="gmail-manager-maturity" role="note">
             <strong>{t('integrations.google.experimental')}</strong>{' '}
             {t('integrations.gmail.experimentalNote')}
@@ -478,9 +478,9 @@ export function GmailManagerPanel({
 
         {sendReviewRequired ? (
           <div className="gmail-manager-status gmail-manager-status--error gmail-manager-send-review" role="alert">
-            <strong>Delivery uncertain</strong>
-            <p>Check Gmail Sent before another send. Your current draft is retained until you review the result.</p>
-            {error ? <details><summary>Technical error details</summary><span>{error.includes('Gmail send failed') ? 'Gmail send failed' : error}</span></details> : null}
+            <strong>{t('integrations.gmail.deliveryUncertain')}</strong>
+            <p>{t('integrations.gmail.deliveryUncertainExplanation')}</p>
+            {error ? <details><summary>{t('integrations.gmail.technicalErrorDetails')}</summary><span>{error.includes('Gmail send failed') ? 'Gmail send failed' : error}</span></details> : null}
           </div>
         ) : error ? (
           <div className="gmail-manager-status gmail-manager-status--error" role="alert">
@@ -645,7 +645,7 @@ export function GmailManagerPanel({
                         <div><dt>{t('integrations.gmail.date')}</dt><dd dir="auto">{formatGmailDate(selectedMessage.date)}</dd></div>
                       </dl>
                     </header>
-                    <p className="gmail-manager-message-safety" role="note">Shown as plain text; remote content was not loaded.</p>
+                    <p className="gmail-manager-message-safety" role="note">{t('integrations.gmail.safePlainText')}</p>
                     <div className="gmail-manager-message-body" dir="auto">
                       {selectedMessage.plainText || selectedMessage.snippet}
                     </div>
