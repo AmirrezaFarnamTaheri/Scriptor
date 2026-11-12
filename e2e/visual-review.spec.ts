@@ -530,6 +530,18 @@ test.describe('visual review states', () => {
     await expect(stage).toBeVisible()
     await expect(canvas).toBeVisible({ timeout: 15_000 })
     await expect(canvas).toHaveAttribute('aria-label', /120 notes and 160 links/)
+    await expect(canvas).toHaveAttribute('aria-label', /Connected notes: 3/)
+    // The root of a focused graph must be visually prominent at the actual
+    // center of the bitmap. The old 120-node clustering put the focus at the
+    // lower left; testing only canvas dimensions would have missed this.
+    await expect.poll(() => canvas.evaluate((element) => {
+      const bitmap = element as HTMLCanvasElement
+      const ctx = bitmap.getContext('2d')
+      if (!ctx) return false
+      const center = ctx.getImageData(Math.floor(bitmap.width / 2), Math.floor(bitmap.height / 2), 1, 1).data
+      const corner = ctx.getImageData(8, 8, 1, 1).data
+      return Math.hypot(center[0] - corner[0], center[1] - corner[1], center[2] - corner[2]) > 80
+    })).toBe(true)
     const geometry = await stage.evaluate((element) => {
       const canvas = element.querySelector('canvas')
       if (!canvas) return null
