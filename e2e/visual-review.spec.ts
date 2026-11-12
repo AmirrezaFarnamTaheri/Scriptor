@@ -268,6 +268,14 @@ test.describe('visual review states', () => {
       )
       .toBe('rgb(15, 23, 42)')
 
+    // VIS-022: the active 11px workspace mode label must use the readable
+    // theme ink, not a palette accent that can drop below 4.5:1 on dark chrome.
+    // The tinted active background remains a separate non-color selection cue.
+    const modeColors = await page.locator('header.topbar .workspace-mode.active').evaluate((element) => ({
+      selected: getComputedStyle(element).color,
+      heading: getComputedStyle(document.querySelector('header.topbar .brand')!).color,
+    }))
+    expect(modeColors.selected).toBe(modeColors.heading)
     await captureVisual(page, 'visual-editor-split-dark.png')
   })
 
