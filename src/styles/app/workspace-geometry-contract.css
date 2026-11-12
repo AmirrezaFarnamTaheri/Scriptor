@@ -475,3 +475,13 @@
 .shortcut-table--no-actions > .shortcut-table-header,
 .shortcut-table--no-actions > .shortcut-table-row { grid-template-columns:minmax(180px,1.2fr) minmax(180px,1fr); }
 @media (max-width:720px) { .shortcut-table--no-actions > .shortcut-table-row { grid-template-columns:minmax(0,1fr); } }
+
+/* A compact toolbar scrolls horizontally; make the overflow discoverable.
+ * Preserve the single row and every original keyboard/touch target. */
+@media (max-width: 640px) {
+  .editor-toolbar-wrapper::after { content:''; position:absolute; pointer-events:none; top:0; bottom:0; inset-inline-end:0; width:14px; background:linear-gradient(to left, var(--bg), transparent); }
+  [dir='rtl'] .editor-toolbar-wrapper::after { background:linear-gradient(to right, var(--bg), transparent); }
+  .format-row.editor-toolbar { scrollbar-width:thin; scrollbar-color:var(--border-strong) transparent; }
+  .format-row.editor-toolbar::-webkit-scrollbar { display:block; height:4px; }
+  .format-row.editor-toolbar::-webkit-scrollbar-thumb { background:var(--border-strong); border-radius:6px; }
+}
