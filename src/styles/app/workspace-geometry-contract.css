@@ -168,6 +168,7 @@
 }
 
 .shortcut-table {
+  container:shortcut-table / inline-size;
   display: grid;
   margin-top: 12px;
   border: 1px solid var(--border);
@@ -484,4 +485,12 @@
   .format-row.editor-toolbar { scrollbar-width:thin; scrollbar-color:var(--border-strong) transparent; }
   .format-row.editor-toolbar::-webkit-scrollbar { display:block; height:4px; }
   .format-row.editor-toolbar::-webkit-scrollbar-thumb { background:var(--border-strong); border-radius:6px; }
+}
+
+/* An app-zoomed Settings dialog can be narrow even at a desktop viewport. */
+@container shortcut-table (max-width:520px) {
+  .shortcut-table-header { display:none; }
+  .shortcut-table-row,
+  .shortcut-table--no-actions > .shortcut-table-row { grid-template-columns:minmax(0,1fr); gap:8px; }
+  .shortcut-row-actions { justify-content:flex-start; }
 }

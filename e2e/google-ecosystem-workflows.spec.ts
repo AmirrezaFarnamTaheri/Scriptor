@@ -336,6 +336,8 @@ test('Drive resource controls stay usable at narrow width, RTL and 200% zoom', a
   await expect.poll(() => page.evaluate(() => Number(document.body.style.zoom))).toBe(2)
   await page.locator('html').evaluate(node => { node.setAttribute('dir', 'rtl') })
   await settleLayout(page)
+  await expect(panel.locator('.collaboration-local-note > bdi')).toHaveAttribute('dir', 'auto')
+  await expect(panel.locator('.collaboration-local-note > span')).toHaveAttribute('dir', 'auto')
   await expect.poll(() => panel.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1)
   const controls = panel.locator('.collaboration-resources').first()
   await expect.poll(() => controls.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1)

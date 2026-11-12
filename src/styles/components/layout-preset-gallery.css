@@ -3,7 +3,7 @@
 .layout-preset-list { list-style:none; margin:8px 0 0; padding:0; }
 /* Choose once, preview, then apply: one primary action replaces eight equal
  * Apply buttons and previews the effect before changing layout state. */
-.settings-layout-presets { min-width:0; }
+.settings-layout-presets { min-width:0; container:layout-presets / inline-size; }
 .settings-layout-presets .layout-preset-list { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
 .settings-layout-presets .layout-preset-item { display:block; border:0; padding:0; min-width:0; }
 /* The current-state badge cannot steal the last characters of a translated
@@ -41,3 +41,12 @@
 /* Eight templates form two balanced rows rather than seven plus an orphan. */
 @media (max-width: 900px) { .settings-layout-presets .layout-preset-list { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width: 360px) { .settings-layout-presets .layout-preset-list { grid-template-columns:minmax(0,1fr); } }
+
+/* Container width, unlike media width, also tracks 200% application zoom. */
+@container layout-presets (max-width:720px) {
+  .settings-layout-presets .layout-preset-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@container layout-presets (max-width:280px) {
+  .settings-layout-presets .layout-preset-list,
+  .store-root .settings-layout-presets .layout-preset-list { grid-template-columns:minmax(0,1fr); }
+}
