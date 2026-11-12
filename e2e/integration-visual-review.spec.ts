@@ -157,8 +157,8 @@ test('Backup verification, restore confirmation and native rollback receipt', as
         ]
       }
       if (command === 'vault_restore_backup') {
-        if (args?.backupPath !== 'vault-backup-valid' && args?.backup_path !== 'vault-backup-valid') {
-          throw new Error('Refusing an unverified fixture restore')
+        if (args?.backupName !== 'vault-backup-valid' || args?.backupPath !== 'C:/EvidenceFixture') {
+          throw new Error('Refusing an unverified or cross-folder fixture restore')
         }
         return { status: 'rolled-back', message: 'Restore was safely rolled back by the native service.' }
       }
