@@ -485,7 +485,9 @@ export const GraphPanel = memo(function GraphPanel({
               {presets.map((preset) => (
                 <option key={preset.id} value={preset.id}>
                   {preset.id === 'local'
-                    ? t('graph.neighborhood', { depth: preset.depth })
+                    ? useCanvas && focusPath && highlightConnectedOnly
+                      ? t('graph.nearbyNotes')
+                      : t('graph.neighborhood', { depth: preset.depth })
                     : preset.id === 'vault'
                       ? t('graph.fullVault')
                       : preset.label}
