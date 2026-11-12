@@ -640,6 +640,28 @@ test.describe('visual review states', () => {
     await captureElement(page, workbench, 'visual-knowledge-triage-populated.png')
   })
 
+  test('a returning writer keeps diagnostics dock collapsed until requested', async ({ page }) => {
+    // The broad screenshot baseline intentionally opens the dock. Verify the
+    // real clean default separately so VIS-021 is not judged from test-only chrome.
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:status-dock-collapsed', 'true')
+    })
+    await openVisualWorkspace(page)
+    const footer = page.locator('.status-strip')
+    await expect(footer).toHaveClass(/is-dock-collapsed/)
+    await expect(page.locator('#status-dock-chrome')).toHaveCount(0)
+    await expect(footer.locator('.jobs-button')).toBeVisible()
+    await expect(footer.locator('.dock-chrome-toggle')).toHaveAttribute('aria-expanded', 'false')
+    await captureVisual(page, 'visual-workspace-compact-default.png')
+
+    await footer.locator('.jobs-button').click()
+    await expect(page.locator('#status-dock-chrome')).toBeVisible()
+    await expect(footer.locator('.dock-chrome-toggle')).toHaveAttribute('aria-expanded', 'true')
+    await footer.locator('.dock-chrome-toggle').click()
+    await expect(page.locator('#status-dock-chrome')).toHaveCount(0)
+    await expect(footer.locator('.jobs-button')).toBeVisible()
+  })
+
   test('Help stays centralized while F1 remains contextual', async ({ page }) => {
     await openVisualWorkspace(page)
     await expect(page.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
@@ -957,9 +979,21 @@ test.describe('visual review states', () => {
     expect(topbarBox).not.toBeNull()
     expect(modeBox!.y).toBeGreaterThanOrEqual(topbarBox!.y)
     expect(modeBox!.y + modeBox!.height).toBeLessThanOrEqual(topbarBox!.y + topbarBox!.height + 1)
+    // The mode selector belongs beside identity/settings at wide high-zoom widths,
+    // not on a dedicated second chrome row that steals writing height.
+    const [brandBox, settingsBox] = await Promise.all([
+      page.locator('header.topbar .brand').boundingBox(),
+      page.locator('header.topbar .topbar-settings-toggle').boundingBox(),
+    ])
+    expect(brandBox).not.toBeNull()
+    expect(settingsBox).not.toBeNull()
+    expect(modeBox!.y).toBeLessThan(topbarBox!.y + topbarBox!.height / 2)
+    expect(modeBox!.x).toBeGreaterThanOrEqual(brandBox!.x + brandBox!.width - 2)
+    expect(modeBox!.x + modeBox!.width).toBeLessThanOrEqual(settingsBox!.x + 2)
     await expect(page.locator('.monaco-editor')).toBeVisible()
     await expect.poll(() => page.locator('.monaco-editor').evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(96)
-    await expect.poll(() => page.locator('.monaco-editor').evaluate(element => element.getBoundingClientRect().height / window.innerHeight)).toBeGreaterThan(0.46)
+    // VIS-007: at 200% UI zoom the writing viewport must occupy at least half the screen.
+    await expect.poll(() => page.locator('.monaco-editor').evaluate(element => element.getBoundingClientRect().height / window.innerHeight)).toBeGreaterThanOrEqual(0.5)
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-ui-zoom-200-editor.png')
 
