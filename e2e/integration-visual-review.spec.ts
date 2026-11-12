@@ -9,7 +9,9 @@ import { launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspa
 async function capture(page: Page, name: string, focus: Locator) {
   await expect(focus).toBeVisible()
   await focus.scrollIntoViewIfNeeded()
-  await expect(focus).toBeInViewport({ ratio: 1 })
+  // Nested scrollports can clip a subpixel of the focused element on Windows Edge.
+  // Require at least 99% visibility instead of an unattainable perfect ratio.
+  await expect(focus).toBeInViewport({ ratio: 0.99 })
   await settleLayout(page)
   await expect.poll(() => page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
