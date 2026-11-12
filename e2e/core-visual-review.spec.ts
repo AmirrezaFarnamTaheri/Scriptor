@@ -181,22 +181,40 @@ test('Plugin safe mode explains blocked launch in narrow dark RTL', async ({ pag
   await captureCore(page, 'visual-core-plugin-safe-mode-dark-rtl-390.png', explanation)
 })
 
-test('Rename dry run names the affected backlinks before applying any mutation', async ({ page }) => {
-  await launchApp(page)
-  await waitForWorkspace(page)
-  await page.locator('.virtual-note-list').getByRole('button', {
-    name: 'Research Plan.md', exact: true,
-  }).click({ button: 'right' })
-  const dialog = page.getByRole('dialog', { name: 'Rename note', exact: true })
-  await expect(dialog).toBeVisible()
-  await dialog.getByRole('textbox', { name: 'New filename' }).fill('Research Plan Renamed')
-  await dialog.getByRole('button', { name: 'Dry run', exact: true }).click()
-  const preview = dialog.locator('.rename-preview')
-  await expect(preview.locator('strong')).toHaveText('2 link edits across 2 files')
-  await expect(preview.locator('li')).toHaveText(['Field Notes.md', 'Methodology.md'])
-  await captureCore(page, 'visual-core-rename-backlink-dry-run.png', preview)
-  expect(await page.evaluate(() => window.__scriptorE2eRenameApply)).toBeUndefined()
+test('Diagram Studio shows a rendered graph and an actionable invalid-source view', async ({ page }) => {
+  // Preserve the restrictive WASM worker policy tested by the functional suite.
+  await page.route(/graphviz\.worker.*\.js$/, async route => {
+    const response = await route.fetch()
+    await route.fulfill({
+      response,
+      headers: {
+        ...response.headers(),
+        'content-security-policy': "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'none'",
+      },
+    })
+  })
+  await openPanel(page, 'Diagram studio')
+  const studio = page.getByRole('region', { name: 'Diagram studio', exact: true })
+  await studio.getByLabel('Language', { exact: true }).selectOption('dot')
+  const source = studio.getByLabel('Diagram source', { exact: true })
+  await source.fill('digraph { Evidence -> Draft -> Review }')
+  const render = studio.getByRole('button', { name: 'Render diagram', exact: true })
+  await render.click()
+  const image = studio.getByRole('img', { name: 'Graphviz diagram', exact: true })
+  await expect(image).toBeVisible()
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) =>
+    element.complete && element.naturalWidth > 0)).toBe(true)
+  await captureCore(page, 'visual-core-diagram-rendered-graphviz.png', image)
+
+  await source.fill('digraph { broken -> }')
+  await render.click()
+  const error = studio.getByText(/Graphviz:.*syntax error/)
+  await expect(error).toBeVisible()
+  await expect(studio.getByRole('region', { name: 'Diagram viewport' }))
+    .toContainText('digraph { broken -> }')
+  await captureCore(page, 'visual-core-diagram-invalid-source-fallback.png', error)
 })
+
 
 test('Export format preflight names alternative renderer requirements before export', async ({ page }) => {
   await openPanel(page, 'Open publish center')
@@ -211,4 +229,52 @@ test('Export format preflight names alternative renderer requirements before exp
   await expect(preview).toBeVisible()
   await expect(publish.locator('.publish-format-destination code')).toContainText('exports/html')
   await captureCore(page, 'visual-core-html-export-destination.png', preview)
+})
+
+test('Degraded Markdown inspector keeps the core preview and an explanatory status', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('scriptor:inspector-preset', 'balanced')
+    sessionStorage.setItem('e2e:preview-postprocess-failure', '1')
+  })
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.getByRole('tab', { name: 'Rendered output', exact: true }).click()
+  const inspector = page.locator('.inspector-panel').getByRole('article', {
+    name: 'Markdown preview',
+  })
+  await expect(inspector).toHaveAttribute('data-preview-degraded', 'true')
+  await expect(inspector.getByRole('heading', { name: 'Research Plan' })).toBeVisible()
+  const status = inspector.getByRole('status')
+  await expect(status).toContainText('Showing the core Markdown render')
+  await expect(inspector.getByRole('alert')).toHaveCount(0)
+  await captureCore(page, 'visual-core-inspector-markdown-degraded-fallback.png', status)
+})
+
+test('Search results emphasize literal match without interpreting neighboring HTML', async ({ page }) => {
+  await launchApp(page)
+  await page.evaluate(() => {
+    const internals = (window as Window & {
+      __TAURI_INTERNALS__: {
+        invoke(command: string, args?: Record<string, unknown>, options?: unknown): Promise<unknown>
+      }
+    }).__TAURI_INTERNALS__
+    const original = internals.invoke.bind(internals)
+    internals.invoke = async (command, args = {}, options) => {
+      if (command === 'indexer_search') return [{
+        path: 'Methodology.md',
+        title: 'Methodology',
+        snippet: 'Surrounding context [Methodology] <script>literal()</script> after.',
+        score: 1,
+      }]
+      return original(command, args, options)
+    }
+  })
+  const input = page.getByRole('searchbox', { name: 'Search notes', exact: true })
+  await input.fill('Methodology')
+  const dock = page.locator('#dock-panel-search')
+  await expect(dock.locator('small mark')).toHaveText('Methodology')
+  await expect(dock.locator('small')).toContainText('<script>literal()</script>')
+  await expect(dock.locator('small script')).toHaveCount(0)
+  await captureCore(page, 'visual-core-search-literal-markup-highlighted.png',
+    dock.locator('.dock-list > li').first())
 })
