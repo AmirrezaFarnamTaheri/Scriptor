@@ -1897,9 +1897,9 @@ test.describe('visual review states', () => {
         && element.scrollWidth <= element.clientWidth + 1
     })).toBe(true)
     await expect(capture).toContainText('Tasks')
-    const scratchpad = capture.locator('.scratchpad-editor')
+    const scratchpadField = capture.locator('.scratchpad-editor')
     const scratchpadActions = capture.locator('.quick-capture-actions')
-    await expect.poll(() => Promise.all([scratchpad.boundingBox(), scratchpadActions.boundingBox()])
+    await expect.poll(() => Promise.all([scratchpadField.boundingBox(), scratchpadActions.boundingBox()])
       .then(([editor, actions]) => Boolean(editor && actions && actions.y >= editor.y + editor.height - 1))).toBe(true)
     await expect(capture.getByRole('button', { name: 'Add sticky note', exact: true })).toBeInViewport({ ratio: 1 })
     await captureElement(page, capture, 'visual-quick-capture.png')
@@ -2321,6 +2321,20 @@ test.describe('visual review states', () => {
 
     await page.locator('header.topbar').getByRole('button', { name: /Switch to dark appearance/ }).click()
     await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark')
+    const colorHealth = await page.locator('.inspector-panel').evaluate(panel => {
+      const active = panel.querySelector('.inspector-preset-row button.active')
+      const health = panel.querySelector('.widget-action')
+      const title = panel.querySelector('.widget-card h3')
+      if (!active || !health || !title) return null
+      return {
+        active: getComputedStyle(active).color,
+        status: getComputedStyle(health).color,
+        heading: getComputedStyle(title).color,
+      }
+    })
+    expect(colorHealth).not.toBeNull()
+    expect(colorHealth?.active).toBe(colorHealth?.heading)
+    expect(colorHealth?.status).toBe(colorHealth?.heading)
     await expect(page.locator('.cm-editor .cm-content')).toBeVisible()
     await captureVisual(page, 'visual-codemirror-workspace-dark.png')
   })
