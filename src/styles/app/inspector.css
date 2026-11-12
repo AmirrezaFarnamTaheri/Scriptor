@@ -457,8 +457,11 @@ html[dir='rtl'] .inspector-tabs-reveal svg { transform:scaleX(-1); }
 
 /* At dark appearance the teal accent is ~3:1 against the badge background:
  * too weak for small text. Preserve the accent border/fill but use readable ink. */
+/* Dark-mode badge and selected-chip labels should match readable widget
+ * headings. --ink-strong was noticeably brighter than the headings, creating
+ * inconsistent contrast across the same inspector panel. */
 html:is([data-theme='dark'], [data-appearance='dark']) .inspector-preset-row button.active,
 html:is([data-theme='dark'], [data-appearance='dark']) .widget-card header span,
 html:is([data-theme='dark'], [data-appearance='dark']) .widget-action {
-  color: var(--ink-strong);
+  color: var(--ink);
 }
