@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { collaborationAppend, collaborationConnect, collaborationDisconnect, collaborationList, collaborationRead, vaultReadNote, vaultSaveNote } from '../bridge/commands'
-import { hasUnresolvedSharedConflict, mergeSharedRevision, sharedRevisionBase, parseCollaborationMapping, preparePendingSharedRevision, pendingSharedRevisionKey, type SharedRevision } from '../lib/collaboration'
+import { hasUnresolvedSharedConflict, hasPossibleMergeMarkers, mergeSharedRevision, sharedRevisionBase, parseCollaborationMapping, preparePendingSharedRevision, pendingSharedRevisionKey, type SharedRevision } from '../lib/collaboration'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { collaborationReadDocs, collaborationCreateDocs, collaborationGenerateRevisionId } from '../bridge/commands/collaboration'
 import type { CollaborationTransport } from '../bridge/commands/collaboration'
@@ -14,11 +14,6 @@ import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import { getGoogleOAuthClientId, hasPackagedGoogleOAuthClient } from '../lib/googleOAuthClient'
 import type { VaultConfig } from '../types/vault'
 import { CollaborationResources } from './CollaborationResources'
-
-/** Treat common conflict-marker variants as unresolved until manually removed. */
-function hasPossibleMergeMarkers(text: string): boolean {
-  return /^(?:<{7}|>{7}|\|{7}|={7})(?:\s|$)/m.test(text)
-}
 
 export interface CollaborationPanelProps {
   path: string | null
