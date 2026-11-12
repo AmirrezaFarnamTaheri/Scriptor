@@ -35,6 +35,8 @@ const taskValue = (task: TaskRow): PlannerTaskValue => ({title:task.title,done:t
 const remoteValue = (task: GoogleTask): PlannerTaskValue => ({title:task.title,done:task.status === 'completed',due:task.due?.slice(0,10) ?? null})
 const eventValue = (event: CalendarEvent) => ({title:event.summary,start:event.start,end:event.end})
 const inputTime = (iso: string) => { const date = new Date(iso); return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16) }
+const readableTime = (iso: string) => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? iso : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' }) }
+const readablePeriod = (start: string, end: string) => `${readableTime(start)} – ${readableTime(end)}`
 function readBases(key: string): Record<string,PlannerTaskValue> {
   try {
     const raw = localStorage.getItem(key)
@@ -180,7 +182,13 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
       }
       if (!contextCurrent()) return
       setReview(null);await onReload()
-      if (contextCurrent()) setMessage(cancelRef.current ? t('plannerWorkspace.activeFinished') : t('plannerWorkspace.changeApplied'))
+      if (contextCurrent()) {
+        const subject = row.kind === 'event'
+          ? tasks.find(task => task.id === row.block.taskId)?.title ?? row.block.title
+          : row.task.title
+        setMessage(cancelRef.current ? t('plannerWorkspace.activeFinished') :
+          `${t('plannerWorkspace.changeApplied')} · ${direction === 'pull' ? 'Google → vault' : 'Vault → Google'} · ${subject} · ${new Date().toLocaleString()} · ${Math.max(0, (review?.length ?? 1) - 1)} remaining to review.`)
+      }
     } catch(error) {if (contextCurrent()) setMessage(String(error))} finally {if (contextCurrent()) setBusy(false)}
   }
   const shownEvents = events.filter(event => !blocks.some(block => block.eventId === event.id))
@@ -210,7 +218,27 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
       {blocks.some(block=>block.taskId===taskId) && <button type="button" className="toolbar-button" disabled={busy} onClick={()=>{try{saveBlocks(blocks.filter(block=>block.taskId!==taskId));setReview(null);setMessage(t('plannerWorkspace.localRemoved'))}catch(error){setMessage(String(error))}}}>{t('plannerWorkspace.removeBlock')}</button>}
     </form>
     <button type="button" className="toolbar-button" disabled={!connected || busy} onClick={prepare}>{t('plannerWorkspace.reviewSync')}</button>
-    {message && <p role="status" className="health-subtitle">{message}</p>}
-    {review && <div className="planner-review" role="region" aria-label={t('plannerWorkspace.reviewRegion')} aria-busy={busy}><p>{t('plannerWorkspace.reviewCount', {count: review.length})}</p>{review.map((row,index)=><div className="planner-review__row" key={index}><strong dir="auto">{row.kind==='task'?row.task.title:row.block.title}</strong><span>{row.direction}</span><pre>{JSON.stringify(row.kind==='task'?{vault:taskValue(row.task),google:row.remote?remoteValue(row.remote):null}:{vault:row.block,google:row.remote?eventValue(row.remote):null},null,2)}</pre><div className="planner-review__actions"><button type="button" disabled={!connected || busy || row.direction==='duplicate mapping' || (row.kind==='event' && !calendarWritable)} onClick={()=>void apply(row,'push')}>{t('plannerWorkspace.push')}</button><button type="button" disabled={!connected || busy || !row.remote} onClick={()=>void apply(row,'pull')}>{t('plannerWorkspace.pull')}</button></div></div>)}<button type="button" onClick={()=>{cancelRef.current=true;if(!busy)setReview(null);setMessage(busy?t('plannerWorkspace.cancelAfterActive'):t('plannerWorkspace.cancelledReview'))}}>{t('plannerWorkspace.cancelReview')}</button></div>}
+    {message && <p role="status" className={message.startsWith(t('plannerWorkspace.changeApplied')) ? 'planner-apply-receipt' : 'health-subtitle'}>{message}</p>}
+    {review && <div className="planner-review" role="region" aria-label={t('plannerWorkspace.reviewRegion')} aria-busy={busy}>
+      <p>{t('plannerWorkspace.reviewCount', {count: review.length})}</p>
+      {review.map((row,index)=><div className="planner-review__row" key={index}>
+        <strong dir="auto">{row.kind === 'task' ? row.task.title : row.block.title}</strong>
+        <span>{row.direction}</span>
+        <dl className="planner-review__summary" aria-label="Reviewed changes">
+          <div><dt>Vault</dt><dd dir="auto">{row.kind === 'task'
+            ? `${row.task.title} · ${row.task.dueAt ?? 'No due date'}`
+            : `${tasks.find(task => task.id === row.block.taskId)?.title ?? row.block.title} · ${readablePeriod(row.block.start, row.block.end)}`}</dd></div>
+          <div><dt>Google</dt><dd dir="auto">{row.kind === 'task'
+            ? row.remote ? `${row.remote.title} · ${row.remote.due?.slice(0, 10) ?? 'No due date'}` : 'Not linked'
+            : row.remote ? `${row.remote.summary} · ${readablePeriod(row.remote.start, row.remote.end)}` : 'Not linked'}</dd></div>
+        </dl>
+        {row.kind === 'event' && !calendarWritable ? <p className="planner-review__constraint" role="note">Read-only calendar: changes can only be imported into the vault. Vault → Google is unavailable for this calendar.</p> : null}
+        <details className="planner-review__technical"><summary>Technical details</summary><pre>{JSON.stringify(row.kind === 'task'
+          ? {vault:taskValue(row.task),google:row.remote?remoteValue(row.remote):null}
+          : {vault:row.block,google:row.remote?eventValue(row.remote):null},null,2)}</pre></details>
+        <div className="planner-review__actions"><button type="button" disabled={!connected || busy || row.direction === 'duplicate mapping' || (row.kind === 'event' && !calendarWritable)} onClick={()=>void apply(row,'push')}>{t('plannerWorkspace.push')}</button><button type="button" disabled={!connected || busy || !row.remote} onClick={()=>void apply(row,'pull')}>{t('plannerWorkspace.pull')}</button></div>
+      </div>)}
+      <button type="button" onClick={()=>{cancelRef.current=true;if(!busy)setReview(null);setMessage(busy?t('plannerWorkspace.cancelAfterActive'):t('plannerWorkspace.cancelledReview'))}}>{t('plannerWorkspace.cancelReview')}</button>
+    </div>}
   </section>
 }
