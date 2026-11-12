@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspace } from './helpers'
+import { launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers'
 
 /**
  * Additional full-product visual evidence for user decisions that ordinary
@@ -237,12 +237,18 @@ test('Export format preflight names alternative renderer requirements before exp
 })
 
 test('Degraded Markdown inspector keeps the core preview and an explanatory status', async ({ page }) => {
-  await page.addInitScript(() => {
+  await page.addInitScript((prefs) => {
+    localStorage.setItem('scriptor:app-theme', 'light')
+    localStorage.setItem('scriptor:onboarding-complete', 'true')
+    localStorage.setItem('scriptor:editor-mode', 'monaco')
+    localStorage.setItem('scriptor:workspace-mode', 'writing')
     localStorage.setItem('scriptor:inspector-preset', 'balanced')
+    localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(prefs))
     sessionStorage.setItem('e2e:preview-postprocess-failure', '1')
-  })
+  }, WORKSPACE_CHROME_PREFS)
   await launchApp(page)
   await waitForWorkspace(page)
+  await expect(page.locator('.inspector-panel')).toBeVisible()
   await page.getByRole('tab', { name: 'Rendered output', exact: true }).click()
   const inspector = page.locator('.inspector-panel').getByRole('article', {
     name: 'Markdown preview',

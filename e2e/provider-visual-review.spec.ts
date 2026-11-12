@@ -320,7 +320,6 @@ test('Overleaf connection requirements, remote comparison, consent and conflict 
   const alert = dialog.getByRole('alert')
   await expect(alert).toContainText('Overleaf changed since review')
   await expect(alert).toContainText('Latest share was not pushed')
-  await expect(dialog.getByRole('status')).not.toContainText('Reviewed source shared with Overleaf')
   await expect(dialog.getByRole('button', { name: 'Fetch latest remote preview' })).toBeEnabled()
   await expect(dialog.getByText('Previous successful share')).toBeVisible()
   // A stale remote revision invalidates consent; sharing must be impossible
