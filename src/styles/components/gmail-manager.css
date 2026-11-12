@@ -413,7 +413,7 @@
 
 /* VIS-024/035/036: a single important operation result; passive limitations as disclosure. */
 .gmail-manager-limits { display: grid; gap: 6px; justify-items: start; }
-.gmail-manager-limits-toggle { border: 0; background: transparent; color: var(--ink-muted, var(--muted)); padding: 4px 0; min-height: 30px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 0.82rem; }
+.gmail-manager-limits-toggle { border: 0; background: transparent; color: var(--ink-muted, var(--muted)); padding: 4px 0; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 0.82rem; }
 .gmail-manager-limits-toggle:focus-visible { outline: var(--focus-outline, 2px solid var(--primary)); outline-offset: 2px; }
 .gmail-manager-send-review { display: grid; align-items: start; gap: 6px; }
 .gmail-manager-send-review p { margin: 0; line-height: 1.45; }

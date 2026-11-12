@@ -461,8 +461,8 @@ export function GmailManagerPanel({
     >
       <div className="gmail-manager-content">
         <div className="gmail-manager-limits">
-          <button type="button" className="gmail-manager-limits-toggle" aria-expanded={showIntegrationLimits}
-            onClick={() => setShowIntegrationLimits((current) => !current)}>Integration limitations</button>
+          {activeTab !== 'account' && <button type="button" className="gmail-manager-limits-toggle" aria-expanded={showIntegrationLimits}
+            onClick={() => setShowIntegrationLimits((current) => !current)}>Integration limitations</button>}
           {(showIntegrationLimits || activeTab === 'account') && <div className="gmail-manager-maturity" role="note">
             <strong>{t('integrations.google.experimental')}</strong>{' '}
             {t('integrations.gmail.experimentalNote')}

@@ -44,6 +44,9 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
         const stale = operation === 'share' && /changed since review|stale|revision conflict/i.test(detail)
         setStatus(stale ? 'Latest share was not pushed. Fetch the remote revision again before sharing.' :
           operation === 'share' ? 'Latest share not confirmed; check the remote project before retrying.' : 'Latest operation did not complete.')
+        // A rejected or uncertain share invalidates the previous review. Native
+        // CAS remains authoritative, and the UI must not offer a blind retry.
+        if (operation === 'share') { setAccepted(false); setSnapshot(null) }
         setError(stale ? `Latest share was not pushed: ${detail}` : detail)
       }
     } finally {
@@ -81,7 +84,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     <label>Overleaf project ID or official URL<input value={project} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setProject(event.target.value) }}/></label>
     <label>Remote project source path<input value={remotePath} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setRemotePath(event.target.value) }}/></label>
     <button type="button" disabled={busy || !project.trim() || !remotePath.trim()} onClick={fetchRemote}>Fetch remote source preview</button>
-    <p role="status" className={error ? 'overleaf-current-status is-error' : 'overleaf-current-status'}>{status}</p>
+    {!error && <p role="status" className="overleaf-current-status">{status}</p>}
     {error && <div className="overleaf-operation-error" role="alert">
       <strong>{error}</strong>
       <button type="button" disabled={busy || !project.trim() || !remotePath.trim()} onClick={fetchRemote} aria-label="Fetch latest remote preview">Fetch latest remote preview</button>

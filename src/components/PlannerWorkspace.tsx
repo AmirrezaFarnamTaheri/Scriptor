@@ -221,7 +221,8 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
     {message && <p role="status" className={message.startsWith(t('plannerWorkspace.changeApplied')) ? 'planner-apply-receipt' : 'health-subtitle'}>{message}</p>}
     {review && <div className="planner-review" role="region" aria-label={t('plannerWorkspace.reviewRegion')} aria-busy={busy}>
       <p>{t('plannerWorkspace.reviewCount', {count: review.length})}</p>
-      {review.map((row,index)=><div className="planner-review__row" key={index}>
+      {review.map((row,index)=><div className="planner-review__row" role="group" aria-label={`Change ${index + 1} of ${review.length}`} key={index}>
+        <p className="planner-review__row-index">Change {index + 1} of {review.length}</p>
         <strong dir="auto">{row.kind === 'task' ? row.task.title : row.block.title}</strong>
         <span>{row.direction}</span>
         <dl className="planner-review__summary" aria-label="Reviewed changes">

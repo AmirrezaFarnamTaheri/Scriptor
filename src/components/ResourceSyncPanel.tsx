@@ -527,6 +527,18 @@ export function ResourceSyncPanel() {
               <div>
                 <strong>{applyResult.status === 'completed' ? 'Sync finished' : applyResult.status === 'partial' ? 'Sync partly finished' : 'Sync could not finish'}</strong>
                 <span>{applyResult.receipts.length} steps confirmed · {applyResult.failures.length} failed</span>
+                {applyResult.receipts.length > 0 && <div className="resource-sync-confirmed-ops">
+                  <strong>Confirmed operations</strong>
+                  <ul>{applyResult.receipts.slice(0, 3).map(receipt => <li key={receipt.operationId}>
+                    <bdi>{receipt.targetId}</bdi> · {receipt.outcome === 'unchanged' ? 'Already aligned' : 'Applied'} · <bdi>{receipt.destinationPath}</bdi>
+                  </li>)}</ul>
+                  {applyResult.receipts.length > 3 && <details>
+                    <summary>View {applyResult.receipts.length - 3} more confirmed operations</summary>
+                    <ul>{applyResult.receipts.slice(3).map(receipt => <li key={receipt.operationId}>
+                      <bdi>{receipt.targetId}</bdi> · {receipt.outcome === 'unchanged' ? 'Already aligned' : 'Applied'} · <bdi>{receipt.destinationPath}</bdi>
+                    </li>)}</ul>
+                  </details>}
+                </div>}
                 {applyResult.failures.length > 0 && <strong>Needs review before another sync:</strong>}
                 {applyResult.failures.map((failure) => (
                   <p className="resource-sync-failure" key={failure.operationId}><strong>{failure.targetId}</strong>: {failure.message}</p>

@@ -380,3 +380,9 @@
 .resource-sync-message .resource-sync-failure { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
 .resource-sync-message > div { min-width: 0; flex: 1; }
 .resource-sync-message .toolbar-button { justify-self: start; margin-block-start: 5px; min-height: 40px; }
+
+/* Distinguish the confirmed subset from the steps needing review. */
+.resource-sync-confirmed-ops { display: grid; gap: 5px; padding: 8px 0; border-block: 1px solid var(--border); }
+.resource-sync-confirmed-ops ul { margin: 0; padding-inline-start: 18px; display: grid; gap: 3px; }
+.resource-sync-confirmed-ops li { line-height: 1.4; overflow-wrap: anywhere; }
+.resource-sync-confirmed-ops details summary { cursor: pointer; }

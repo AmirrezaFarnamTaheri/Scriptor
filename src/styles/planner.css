@@ -56,3 +56,8 @@
 .planner-review__technical { margin: 6px 0 12px; }
 .planner-review__technical summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; color: var(--ink-muted, var(--muted)); }
 .planner-apply-receipt { border: 1px solid var(--success); border-inline-start: 4px solid var(--success); background: color-mix(in srgb, var(--success) 9%, var(--surface)); padding: 10px; border-radius: 7px; overflow-wrap: anywhere; line-height: 1.5; }
+
+/* Distinct change cards prevent the preceding row's actions from looking like a duplicate. */
+.planner-review__row { padding: 12px; margin: 10px 0; border: 1px solid var(--border-strong, var(--border)); border-radius: 10px; background: var(--surface); }
+.planner-review__row-index { margin: 0 0 7px; font-size: 0.8rem; color: var(--ink-muted, var(--muted)); font-weight: 700; }
+.planner-review__actions { margin-top: 10px; }

@@ -227,7 +227,8 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
       ) : null}
       {recoveryRequired ? <p className="settings-status warn" role="alert">This vault needs recovery before backup operations can continue. Backup, restore and delete are paused. Restart Scriptor and reopen the vault before editing or retrying.</p> : null}
       {lastMessage && !receiptView ? <p className="settings-status ok">{lastMessage}</p> : null}
-      {lastError && !receiptView ? <p className="settings-status warn" role="alert">{lastError}</p> : null}
+      {lastError && (!receiptView || /editor persistence could not resume|workspace resynchronization failed|result could not be confirmed|editing remains paused/i.test(lastError))
+        ? <p className="settings-status warn" role="alert">{lastError}</p> : null}
       {backupListError ? <p className="settings-status warn" role="alert">{backupListError}</p> : null}
       {receiptView ? (
         <section aria-labelledby="backup-last-restore-title" className={`backup-restore-outcome ${receiptView.tone}`}>
