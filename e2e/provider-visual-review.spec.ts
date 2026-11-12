@@ -124,7 +124,11 @@ test('Google account entry, distinct permissions and Calendar sync choices', asy
   await expect(connectDrive).toBeEnabled()
   await expect(connectCalendar).toBeEnabled()
   await captureProvider(page, 'visual-provider-google-connect-drive.png', connectDrive)
+  // Capture Calendar sign-in with its advanced sync settings expanded; otherwise
+  // two snapshots of the untouched settings dialog are byte-identical.
+  await calendar.locator('details.google-calendar-options > summary').click()
   await captureProvider(page, 'visual-provider-google-connect-calendar.png', connectCalendar)
+  await calendar.locator('details.google-calendar-options > summary').click()
 
   await connectDrive.click()
   await expect(drive.getByRole('status')).toContainText('drive@example.com')
@@ -161,6 +165,7 @@ test('Expired Google authorization has separate actionable Drive and Calendar re
   await expect(driveReconnect).toBeEnabled()
   await expect(calendarReconnect).toBeEnabled()
   await captureProvider(page, 'visual-provider-google-drive-expired.png', driveReconnect)
+  await calendar.locator('details.google-calendar-options > summary').click()
   await captureProvider(page, 'visual-provider-google-calendar-expired.png', calendarReconnect)
 
   // A cancelled authorization must retain the recovery action. No provider
