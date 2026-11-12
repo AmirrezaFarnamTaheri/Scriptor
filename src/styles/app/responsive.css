@@ -869,3 +869,37 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .format-row.editor-toolbar { 
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .editor-status { min-height:24px; gap:8px; padding-inline:8px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .editor-status > span:nth-of-type(2),
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .editor-status > span:nth-of-type(3) { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+
+
+/* VIS-007: at 200% UI zoom a desktop-width writing workspace still has
+ * enough effective inline room to place mode selection between identity and
+ * Settings. Reclaim the otherwise redundant second topbar row instead of
+ * reducing target dimensions. At genuinely narrow effective widths retain
+ * the existing two-row high-zoom arrangement and its complete controls. */
+@container workspace-chrome (min-width: 360px) {
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .brand {
+    grid-column: 1;
+    grid-row: 1;
+    order: 0;
+  }
+
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .workspace-mode-strip {
+    grid-column: 2;
+    grid-row: 1;
+    order: 1;
+    min-width: 0;
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .top-actions {
+    grid-column: 3;
+    grid-row: 1;
+    order: 2;
+  }
+}
