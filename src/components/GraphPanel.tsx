@@ -202,6 +202,15 @@ export const GraphPanel = memo(function GraphPanel({
 
   const useCanvas = (graph?.nodes.length ?? 0) >= USE_CANVAS_THRESHOLD
 
+  // The graph stage intentionally keeps enough height to inspect 120 nodes.
+  // On phones the surrounding navigation makes that stage start below the
+  // available viewport. After opting into all links, reveal the whole stage
+  // rather than presenting only the top half of the node cluster.
+  useEffect(() => {
+    if (!useCanvas || highlightConnectedOnly || !window.matchMedia('(max-width: 720px)').matches) return
+    graphStageRef.current?.scrollIntoView({ block: 'end', behavior: 'auto' })
+  }, [highlightConnectedOnly, useCanvas])
+
   useEffect(() => {
     const stage = graphStageRef.current
     if (!stage || !graph || hibernated || !isGraphEnabled) return
