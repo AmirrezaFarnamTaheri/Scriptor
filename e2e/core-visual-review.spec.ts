@@ -187,6 +187,11 @@ test('Plugin safe mode explains blocked launch in narrow dark RTL', async ({ pag
   // is RTL. Text direction is content-derived so periods do not lead lines.
   const description = manager.locator('.plugin-card-description').first()
   await expect(description).toHaveAttribute('dir', 'auto')
+  // English "Feature set:" is a label with trailing punctuation, not an RTL
+  // phrase whose colon should appear before its first letter.
+  const profileLabel = manager.locator('.plugin-manager-profiles .profiles-label').first()
+  await expect(profileLabel).toHaveAttribute('dir', 'auto')
+  await expect(profileLabel).toHaveCSS('direction', 'ltr')
   await expect(explanation).toHaveAttribute('dir', 'auto')
   await expect.poll(() => explanation.evaluate(node => getComputedStyle(node).direction)).toBe('ltr')
   await captureCore(page, 'visual-core-plugin-safe-mode-dark-rtl-390.png', explanation)
