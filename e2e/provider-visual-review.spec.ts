@@ -575,6 +575,13 @@ test('Google authorization options remain reachable at 200 percent app zoom', as
   const drive = google.getByRole('group', { name: 'Google Drive & Docs', exact: true })
   const connect = drive.getByRole('button', { name: /^(?:Connect Google|Reconnect) · Google Drive & Docs$/ })
   await expect(connect).toBeEnabled()
+  // A clean vault must not lose a large slice of its 200%-zoom viewport to
+  // a disabled save action and redundant "settings loaded" explanation.
+  const saveFooter = page.locator('.settings-footer-actions')
+  await expect(saveFooter.getByRole('button', { name: 'Save vault settings' })).toBeDisabled()
+  const footerAtZoom = await saveFooter.boundingBox()
+  expect(footerAtZoom).not.toBeNull()
+  expect(footerAtZoom!.height).toBeLessThanOrEqual(112)
   await captureProvider(page, 'visual-provider-google-authorization-zoom-200.png', connect)
 })
 
@@ -650,6 +657,11 @@ test('Expired Google authorization remains distinguishable on dark narrow settin
   const calendarReconnect = calendar.getByRole('button', { name: 'Reconnect · Google Calendar & Tasks', exact: true })
   await expect(drive.getByRole('alert')).toContainText('Google authorization expired')
   await expect(calendar.getByRole('alert')).toContainText('Google authorization expired')
+  const cleanFooter = page.locator('.settings-footer-actions')
+  await expect(cleanFooter.getByRole('button', { name: 'Save vault settings' })).toBeDisabled()
+  const footerAtMobile = await cleanFooter.boundingBox()
+  expect(footerAtMobile).not.toBeNull()
+  expect(footerAtMobile!.height).toBeLessThanOrEqual(102)
   await captureProvider(page, 'visual-provider-google-drive-expired-dark-390.png', driveReconnect)
   await calendar.locator('details.google-calendar-options > summary').click()
   await captureProvider(page, 'visual-provider-google-calendar-expired-dark-390.png', calendarReconnect)
