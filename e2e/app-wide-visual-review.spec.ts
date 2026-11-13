@@ -92,11 +92,18 @@ test('Source file editor retains its mode controls and editing area at 200% app 
   const editor = await openSourceEditor(page)
   await expect.poll(() => page.evaluate(() => Number(document.body.style.zoom))).toBe(2)
   await editor.getByRole('button', { name: 'Plain text', exact: true }).click()
-  await expect(editor.getByRole('textbox', { name: 'Source file content', exact: true })).toBeVisible()
+  const content = editor.getByRole('textbox', { name: 'Source file content', exact: true })
+  await expect(content).toBeVisible()
   await expect(editor.getByRole('button', { name: 'Code editor', exact: true })).toBeEnabled()
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth - document.documentElement.clientWidth,
   )).toBeLessThanOrEqual(1)
+  // Keep the high-zoom toolbar evidence separate from an editor-focused frame:
+  // the old screenshot showed only the top edge of the editing area.
+  await page.screenshot({ path: testInfo.outputPath('visual-app-source-editor-mode-zoom-200.png'), animations: 'disabled', caret: 'hide' })
+  await content.scrollIntoViewIfNeeded()
+  await expect(content).toBeInViewport({ ratio: 0.7 })
+  await settleLayout(page)
   await page.screenshot({ path: testInfo.outputPath('visual-app-source-editor-zoom-200.png'), animations: 'disabled', caret: 'hide' })
 })
 
