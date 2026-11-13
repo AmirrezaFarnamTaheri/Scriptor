@@ -315,19 +315,18 @@ function SettingsPanelImpl({
             }}
             className="settings-unsaved-confirmation"
           />
-        ) : ((activeTab === 'general' || activeTab === 'integrations' || configDirty) && vaultOpen && nativeReady && configReady ? (
+        ) : (configReady && vaultOpen && nativeReady && configDirty ? (
           <div className="settings-footer-actions" role="group" aria-label={t('settingsPanel.vaultSaveStatusAria')}>
             <div className="settings-save-scope">
               <strong>{t('settingsPanel.vaultManualSave')}</strong>
-              <span className="settings-status" role="status">
-                {configDirty ? t('settings.unsavedConfig') : t('settingsPanel.noPendingVaultChanges')}
-              </span>
-              {!configDirty && status ? <small>{status}</small> : null}
+              <span className="settings-status" role="status">{t('settings.unsavedConfig')}</span>
             </div>
-            <button type="button" className="primary-button" onClick={() => void saveConfig()} disabled={!configDirty}>
+            <button type="button" className="primary-button" onClick={() => void saveConfig()}>
               {t('settingsPanel.saveVaultConfig')}
             </button>
           </div>
+        ) : configReady && status === t('settingsPanel.configSaved') ? (
+          <p className="settings-save-confirmation" role="status">{status}</p>
         ) : null)
       }
     >
