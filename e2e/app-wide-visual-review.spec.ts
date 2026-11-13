@@ -121,6 +121,12 @@ test('dense Knowledge Graph focused and all-link modes are captured at phone wid
   await all.click()
   await expect(graph.locator('.graph-focus-hint')).toBeHidden()
   await expect(graph.getByRole('button', { name: 'Highlight connected links', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  // The previous 390px capture cut off the bottom 140px of the 400px graph.
+  // Opening the complete graph should reveal its canvas, without scrolling the
+  // close button away or requiring the user to guess that the graph is clipped.
+  await expect(graph.locator('.graph-stage')).toBeInViewport({ ratio: 0.98 })
+  await expect(graph.locator('.graph-header')).toBeInViewport({ ratio: 0.95 })
+  await expect(graph.locator('.graph-header')).toHaveCSS('position', 'sticky')
   await page.screenshot({ path: testInfo.outputPath('visual-app-graph-dense-all-links-390.png'), animations: 'disabled', caret: 'hide' })
 })
 
