@@ -73,7 +73,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
   })
   return <div className="modal-backdrop"><section className="modal-card overleaf-panel" ref={dialog} role="dialog" aria-modal="true" aria-label="Overleaf source sync" data-help-topic="git">
     <header><h2>Overleaf source sync</h2><button type="button" aria-label="Close Overleaf sync" title="Close" onClick={onClose}><X aria-hidden="true" size={18} /></button></header>
-    <div className="overleaf-panel-body">
+    <div className="overleaf-panel-body" dir="auto">
     <p>Compare this saved source file with Overleaf before applying or sharing changes. Only this file is synchronized; the rest of the project stays untouched.</p>
     <details className="overleaf-requirements">
       <summary>Connection requirements and limits</summary>
