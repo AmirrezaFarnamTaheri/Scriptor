@@ -671,6 +671,12 @@ test('Overleaf line comparison and reviewed actions remain reachable at 200 perc
   const source = dialog.getByLabel('Reviewed source to apply locally or share', { exact: true })
   await expect(source).toHaveValue('\\section{Remote}\n')
   await expect(dialog.locator('.overleaf-diff-line.is-changed')).not.toHaveCount(0)
+  // At 200% app zoom the consent/action row used to remain sticky over the
+  // remote-path and comparison sections, using much of the logical viewport.
+  // At high zoom, actions must follow the content in normal scroll order.
+  const footer = dialog.locator('.overleaf-action-footer')
+  await expect(footer).toHaveCSS('position', 'static')
+  await captureProvider(page, 'visual-provider-overleaf-comparison-zoom-200.png', dialog.locator('.overleaf-diff-line.is-changed').first())
   const review = dialog.getByLabel('I compared both copies and reviewed this source for the selected action')
   const share = dialog.getByRole('button', { name: 'Share reviewed source with Overleaf', exact: true })
   await expect(share).toBeDisabled()
