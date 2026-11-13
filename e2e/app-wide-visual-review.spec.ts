@@ -205,10 +205,23 @@ test('populated weekly planner and RTL time blocks have full-app mobile evidence
   await block.scrollIntoViewIfNeeded()
   await expect(block).toBeInViewport({ ratio: 0.95 })
   await page.screenshot({ path: testInfo.outputPath('visual-app-planner-populated-390.png'), animations: 'disabled', caret: 'hide' })
-  await page.locator('html').evaluate(node => { node.dir = 'rtl' })
-  await expect.poll(() => planner.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1)
-  await block.scrollIntoViewIfNeeded()
-  await expect(block).toBeInViewport({ ratio: 0.95 })
+  // Planner sets its own lang/dir: flipping <html dir> alone would give a
+  // falsely labelled RTL screenshot. Load Persian as a real persisted locale
+  // and verify that the saved time block survives the reload.
+  await page.evaluate(() => localStorage.setItem('scriptor:locale', 'fa'))
+  await page.reload()
+  await waitForWorkspace(page, { allowHiddenVaultList: true })
+  await openCommandPalette(page)
+  await runCommand(page, 'Open tasks panel')
+  const rtlPlanner = page.getByRole('region', { name: 'برنامه‌ریز هفتگی', exact: true })
+  await expect(rtlPlanner).toHaveAttribute('lang', 'fa')
+  await expect(rtlPlanner).toHaveAttribute('dir', 'rtl')
+  await rtlPlanner.locator('.planner-week-control input[type="date"]').fill('2026-10-01')
+  const rtlBlock = rtlPlanner.getByRole('listitem', { name: '2026-10-01', exact: true }).getByRole('button', { name: /Collect sources/ })
+  await expect(rtlBlock).toBeVisible()
+  await expect.poll(() => rtlPlanner.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1)
+  await rtlBlock.scrollIntoViewIfNeeded()
+  await expect(rtlBlock).toBeInViewport({ ratio: 0.95 })
   await page.screenshot({ path: testInfo.outputPath('visual-app-planner-populated-rtl-390.png'), animations: 'disabled', caret: 'hide' })
 })
 
