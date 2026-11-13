@@ -570,3 +570,14 @@
   color: var(--muted);
   font-size: 12px;
 }
+
+/* VIS-GRAPH-MOBILE-OVERVIEW: after showing all 120 links, the graph scrolls
+   into view inside this short modal. Keep its close button and view selector
+   available instead of losing the header above the scrollport. */
+@media (max-width: 720px) {
+  .graph-overlay-interactive > .graph-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+  }
+}
