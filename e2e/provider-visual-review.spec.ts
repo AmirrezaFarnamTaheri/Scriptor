@@ -329,6 +329,16 @@ test('Overleaf connection requirements, remote comparison, consent and conflict 
   await captureProvider(page, 'visual-provider-overleaf-stale-revision.png', alert)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.evaluate(() => { document.documentElement.dir = 'rtl' })
+  // At compact RTL widths the Close action belongs beside the heading,
+  // not in a full-width second row that pushes recovery below the fold.
+  const headerTitle = dialog.locator(':scope > header h2')
+  const headerClose = dialog.getByRole('button', { name: 'Close Overleaf sync' })
+  const titleBox = await headerTitle.boundingBox()
+  const closeBox = await headerClose.boundingBox()
+  expect(titleBox).not.toBeNull()
+  expect(closeBox).not.toBeNull()
+  expect(closeBox!.width).toBeLessThanOrEqual(48)
+  expect(Math.abs((titleBox!.y + titleBox!.height / 2) - (closeBox!.y + closeBox!.height / 2))).toBeLessThanOrEqual(25)
   await captureProvider(page, 'visual-provider-overleaf-stale-rtl-390.png', alert)
   // Coverage gap: record the safe recovery from a rejected CAS share, not
   // only its failure. A fresh preview must invalidate all prior consent.
