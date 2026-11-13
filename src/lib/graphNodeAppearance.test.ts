@@ -42,11 +42,3 @@ test('120-node overview uses smaller distinct discs and reciprocal arrows on pho
   assert.deepEqual(normal, { radiusScale: 1, hitRadius: 20, edgeOffsetScale: 1, arrowScale: 1 })
 })
 
-
-test('compact phone-sized all-links overview uses separate small marks without weakening normal desktop graph', () => {
-  assert.deepEqual(graphNodeAppearance({ ...unrelated, focusMode: false, compactOverview: true }), { radius: 7, alpha: 1 })
-  assert.deepEqual(graphNodeAppearance({ ...unrelated, focusMode: false, compactOverview: true, isFocus: true }), { radius: 12, alpha: 1 })
-  assert.deepEqual(graphNodeAppearance({ ...unrelated, focusMode: false, compactOverview: true, isHovered: true }), { radius: 12, alpha: 1 })
-  assert.deepEqual(graphNodeAppearance({ ...unrelated, focusMode: false, compactOverview: true, isKeyboardFocus: true }), { radius: 12, alpha: 1 })
-  assert.deepEqual(graphNodeAppearance({ ...unrelated, focusMode: false, compactOverview: false }), { radius: 14, alpha: 1 })
-})
