@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n } from '../lib/i18n'
-import { graphNodeAppearance } from '../lib/graphNodeAppearance'
+import { graphNodeAppearance, graphCanvasDensityMetrics } from '../lib/graphNodeAppearance'
 import { projectFocusedGraph } from '../lib/graphFocusLayout'
 import { placeGraphLabels } from '../lib/graphLabelPlacement'
 
@@ -94,6 +94,7 @@ function reciprocalOffsetFor(
   source: { x: number; y: number },
   target: { x: number; y: number },
   reciprocal: boolean,
+  offsetScale = 1,
 ): { ox: number; oy: number } {
   if (!reciprocal) return { ox: 0, oy: 0 }
   const sourceFirst = sourceId < targetId
@@ -102,8 +103,8 @@ function reciprocalOffsetFor(
   const distance = Math.hypot(cdx, cdy) || 1
   const sign = sourceFirst ? 1 : -1
   return {
-    ox: (-cdy / distance) * RECIPROCAL_EDGE_OFFSET * sign,
-    oy: (cdx / distance) * RECIPROCAL_EDGE_OFFSET * sign,
+    ox: (-cdy / distance) * RECIPROCAL_EDGE_OFFSET * sign * offsetScale,
+    oy: (cdx / distance) * RECIPROCAL_EDGE_OFFSET * sign * offsetScale,
   }
 }
 
@@ -154,6 +155,8 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     const visible = new Set(renderNodes.map((node) => node.id))
     return edges.filter((edge) => visible.has(edge.source) && visible.has(edge.target))
   }, [renderNodes, edges, focusNeighborhoodOnly, focusedNodeId])
+  const { radiusScale, hitRadius, edgeOffsetScale, arrowScale } = graphCanvasDensityMetrics(renderNodes.length, width, focusNeighborhoodOnly)
+
   useEffect(() => {
     nodeMap.current = new Map(renderNodes.map((node) => [node.id, node]))
   }, [renderNodes])
@@ -210,10 +213,10 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       const uy = dy / distance
       const directions = reciprocalPairs.get(directedPairKey(edge.source, edge.target))
       const reciprocal = (directions?.size ?? 0) > 1
-      const { ox, oy } = reciprocalOffsetFor(edge.source, edge.target, src, tgt, reciprocal)
+      const { ox, oy } = reciprocalOffsetFor(edge.source, edge.target, src, tgt, reciprocal, edgeOffsetScale)
       const startX = src.x + ox
       const startY = src.y + oy
-      const targetRadius = tgt.path === focusPath ? 22 : 17
+      const targetRadius = (tgt.path === focusPath ? 22 : 17) * radiusScale
       const endX = tgt.x + ox - ux * targetRadius
       const endY = tgt.y + oy - uy * targetRadius
       const faded = Boolean(hoveredId && hoveredId !== edge.source && hoveredId !== edge.target)
@@ -229,7 +232,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       ctx.lineTo(endX, endY)
       ctx.stroke()
 
-      const arrowSize = ARROW_SIZE
+      const arrowSize = ARROW_SIZE * arrowScale
       // The arrowhead spans the edge's own perpendicular, which is unrelated to
       // the reciprocal offset above.
       const perpX = -uy
@@ -281,13 +284,13 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       ctx.save()
       ctx.globalAlpha = appearance.alpha
       ctx.beginPath()
-      ctx.arc(node.x, node.y, appearance.radius, 0, Math.PI * 2)
+      ctx.arc(node.x, node.y, appearance.radius * radiusScale, 0, Math.PI * 2)
       ctx.fillStyle = node.unresolved ? mutedColor : fill
       ctx.fill()
 
       if (isFocus) {
         ctx.beginPath()
-        ctx.arc(node.x, node.y, 22, 0, Math.PI * 2)
+        ctx.arc(node.x, node.y, 22 * radiusScale, 0, Math.PI * 2)
         ctx.strokeStyle = primaryColor
         ctx.lineWidth = 2
         ctx.stroke()
@@ -295,7 +298,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
 
       if (isKeyboardFocus) {
         ctx.beginPath()
-        ctx.arc(node.x, node.y, isFocus ? 26 : 22, 0, Math.PI * 2)
+        ctx.arc(node.x, node.y, (isFocus ? 26 : 22) * radiusScale, 0, Math.PI * 2)
         ctx.strokeStyle = inkColor
         ctx.lineWidth = 2
         ctx.stroke()
@@ -321,6 +324,9 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     focusNeighborhoodOnly,
     focusedNodeId,
     focusedNeighborhood,
+    radiusScale,
+    edgeOffsetScale,
+    arrowScale,
   ])
 
   useEffect(() => {
@@ -349,10 +355,10 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       const node = renderNodes[i]
       const dx = node.x - cx
       const dy = node.y - cy
-      if (dx * dx + dy * dy <= 20 * 20) return node
+      if (dx * dx + dy * dy <= hitRadius * hitRadius) return node
     }
     return null
-  }, [renderNodes])
+  }, [renderNodes, hitRadius])
 
   const scheduleDraw = useCallback(() => {
     if (frameRef.current) cancelAnimationFrame(frameRef.current)
