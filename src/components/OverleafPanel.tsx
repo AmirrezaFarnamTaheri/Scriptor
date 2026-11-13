@@ -87,7 +87,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     <button type="button" disabled={busy || !project.trim() || !remotePath.trim()} onClick={fetchRemote}>Fetch remote source preview</button>
     {!error && <p role="status" className="overleaf-current-status">{status}</p>}
     {error && <div className="overleaf-operation-error" role="alert">
-      <strong>{error}</strong>
+      <strong dir="auto">{error}</strong>
       <button type="button" disabled={busy || !project.trim() || !remotePath.trim()} onClick={fetchRemote} aria-label="Fetch latest remote preview">Fetch latest remote preview</button>
     </div>}
     {error && previousShare && <details className="overleaf-previous-share">
