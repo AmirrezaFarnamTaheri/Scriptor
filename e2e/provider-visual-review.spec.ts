@@ -339,6 +339,9 @@ test('Overleaf connection requirements, remote comparison, consent and conflict 
   expect(closeBox).not.toBeNull()
   expect(closeBox!.width).toBeLessThanOrEqual(48)
   expect(Math.abs((titleBox!.y + titleBox!.height / 2) - (closeBox!.y + closeBox!.height / 2))).toBeLessThanOrEqual(25)
+  // English provider errors must be directionally isolated in an RTL shell;
+  // otherwise trailing punctuation jumps to the wrong visual edge.
+  await expect(alert.locator('strong')).toHaveCSS('direction', 'ltr')
   await captureProvider(page, 'visual-provider-overleaf-stale-rtl-390.png', alert)
   // Coverage gap: record the safe recovery from a rejected CAS share, not
   // only its failure. A fresh preview must invalidate all prior consent.
