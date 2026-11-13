@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { overleafRead, overleafPush } from '../bridge/commands/overleaf'
 import { sourceFileRead, sourceFileSave } from '../bridge/commands/source_files'
 import { type SourceDocument } from '../lib/sourceFile'
@@ -71,7 +72,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     setStatus(result.content === null ? 'Remote file does not exist. Sharing creates it; applying a remote copy is unavailable.' : 'Remote preview loaded. Compare both copies and explicitly review the merged source.')
   })
   return <div className="modal-backdrop"><section className="modal-card overleaf-panel" ref={dialog} role="dialog" aria-modal="true" aria-label="Overleaf source sync" data-help-topic="git">
-    <header><h2>Overleaf source sync</h2><button type="button" aria-label="Close Overleaf sync" onClick={onClose}>Close</button></header>
+    <header><h2>Overleaf source sync</h2><button type="button" aria-label="Close Overleaf sync" title="Close" onClick={onClose}><X aria-hidden="true" size={18} /></button></header>
     <div className="overleaf-panel-body">
     <p>Compare this saved source file with Overleaf before applying or sharing changes. Only this file is synchronized; the rest of the project stays untouched.</p>
     <details className="overleaf-requirements">
