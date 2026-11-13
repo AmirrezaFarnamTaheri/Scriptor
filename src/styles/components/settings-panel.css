@@ -478,6 +478,16 @@
 .settings-save-scope { display: grid; flex: 1 1 200px; gap: 2px; min-width: 0; }
 .settings-save-scope strong { font-size: .85rem; line-height: 1.3; color: var(--ink); }
 .settings-save-scope .settings-status { font-size: .8rem; line-height: 1.4; }
+.settings-save-outcome {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: .85rem;
+  line-height: 1.45;
+  color: var(--danger);
+  font-weight: 600;
+}
+.settings-save-outcome[role='status'] { color: var(--ink); font-weight: 400; }
 /* A successful write needs acknowledgement, not a disabled save bar. */
 .settings-save-confirmation {
   margin: 0;
