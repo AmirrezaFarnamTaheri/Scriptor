@@ -183,6 +183,12 @@ test('Plugin safe mode explains blocked launch in narrow dark RTL', async ({ pag
   await expect(disabled).toBeDisabled()
   const explanation = manager.getByText('Plugin workspaces are unavailable in safe mode.', { exact: true })
   await expect(explanation).toBeVisible()
+  // Plugin manifests and runtime reasons can be English even when the shell
+  // is RTL. Text direction is content-derived so periods do not lead lines.
+  const description = manager.locator('.plugin-card-description').first()
+  await expect(description).toHaveAttribute('dir', 'auto')
+  await expect(explanation).toHaveAttribute('dir', 'auto')
+  await expect.poll(() => explanation.evaluate(node => getComputedStyle(node).direction)).toBe('ltr')
   await captureCore(page, 'visual-core-plugin-safe-mode-dark-rtl-390.png', explanation)
 })
 
