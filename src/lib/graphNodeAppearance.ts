@@ -31,3 +31,20 @@ export function graphNodeAppearance({
   }
   return { radius: isFocus || isHovered ? 18 : 14, alpha: 1 }
 }
+
+/**
+ * A 120-note expanded network cannot fit 28px-diameter markers into the
+ * 350px-wide phone graph stage. Reduce only the *overview* symbol and
+ * reciprocal-arrow geometry. Focused views and desktop targets remain intact.
+ * Search and keyboard traversal provide precise access to crowded notes.
+ */
+export function graphCanvasDensityMetrics(
+  nodeCount: number,
+  width: number,
+  focusNeighborhoodOnly: boolean,
+): { radiusScale: number; hitRadius: number; edgeOffsetScale: number; arrowScale: number } {
+  if (nodeCount >= 80 && width <= 480 && !focusNeighborhoodOnly) {
+    return { radiusScale: 0.52, hitRadius: 12, edgeOffsetScale: 0.6, arrowScale: 0.7 }
+  }
+  return { radiusScale: 1, hitRadius: 20, edgeOffsetScale: 1, arrowScale: 1 }
+}
