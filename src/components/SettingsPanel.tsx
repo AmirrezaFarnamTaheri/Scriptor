@@ -320,6 +320,11 @@ function SettingsPanelImpl({
             <div className="settings-save-scope">
               <strong>{t('settingsPanel.vaultManualSave')}</strong>
               <span className="settings-status" role="status">{t('settings.unsavedConfig')}</span>
+              {status && status !== t('settingsPanel.configLoaded') && status !== t('settingsPanel.configSaved') ? (
+                <span className="settings-save-outcome" role={status === t('settingsPanel.saving') ? 'status' : 'alert'}>
+                  {status}
+                </span>
+              ) : null}
             </div>
             <button type="button" className="primary-button" onClick={() => void saveConfig()}>
               {t('settingsPanel.saveVaultConfig')}
