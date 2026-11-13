@@ -339,6 +339,11 @@ test('Overleaf connection requirements, remote comparison, consent and conflict 
   expect(closeBox).not.toBeNull()
   expect(closeBox!.width).toBeLessThanOrEqual(48)
   expect(Math.abs((titleBox!.y + titleBox!.height / 2) - (closeBox!.y + closeBox!.height / 2))).toBeLessThanOrEqual(25)
+  // This panel currently uses English-only workflow text even inside an RTL
+  // application shell. Keep step numbers, inline file identities and sentence
+  // punctuation readable in their source direction while retaining RTL chrome.
+  await expect(dialog.locator('.overleaf-panel-body')).toHaveCSS('direction', 'ltr')
+  await expect(dialog.locator('.overleaf-step-heading').first()).toHaveCSS('direction', 'ltr')
   // English provider errors must be directionally isolated in an RTL shell;
   // otherwise trailing punctuation jumps to the wrong visual edge.
   await expect(alert.locator('strong')).toHaveCSS('direction', 'ltr')
