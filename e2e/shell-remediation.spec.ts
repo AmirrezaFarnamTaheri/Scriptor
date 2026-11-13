@@ -39,7 +39,9 @@ test.describe('workspace shell remediation contracts', () => {
     const dailyDirectory = settings.getByLabel('Daily note directory')
     await expect(dailyDirectory).toBeVisible()
     const saveScope = settings.getByRole('group', { name: 'Vault settings save status' })
-    await expect(saveScope).toContainText('No pending vault changes')
+    // A clean vault no longer wastes phone/zoom height on an inert save bar.
+    // The same footer must reappear as soon as the configuration is dirty.
+    await expect(saveScope).toHaveCount(0)
     await dailyDirectory.fill('daily-draft')
     await expect(saveScope).toContainText('Unsaved vault configuration changes')
 
