@@ -520,7 +520,7 @@ test('Resource sync requires a reviewed plan and visibly reports partial complet
 
   await apply.click()
   const partial = sharing.getByRole('alert').filter({ hasText: 'Sync partly finished' })
-  await expect(partial).toContainText('1 steps confirmed · 1 failed')
+  await expect(partial).toContainText('1 step confirmed · 1 failed')
   await expect(partial).toContainText('Destination changed since preview')
   await expect(partial).toHaveAttribute('role', 'alert')
   await expect(partial.locator('.lucide-triangle-alert')).toBeVisible()
