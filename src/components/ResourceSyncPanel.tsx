@@ -526,7 +526,7 @@ export function ResourceSyncPanel() {
               {applyResult.status === 'completed' ? <CheckCircle2 size={17} aria-hidden="true" /> : <AlertTriangle size={17} className="lucide-triangle-alert" aria-hidden="true" />}
               <div>
                 <strong>{applyResult.status === 'completed' ? 'Sync finished' : applyResult.status === 'partial' ? 'Sync partly finished' : 'Sync could not finish'}</strong>
-                <span>{applyResult.receipts.length} steps confirmed · {applyResult.failures.length} failed</span>
+                <span>{applyResult.receipts.length} {applyResult.receipts.length === 1 ? 'step' : 'steps'} confirmed · {applyResult.failures.length} failed</span>
                 {applyResult.receipts.length > 0 && <div className="resource-sync-confirmed-ops">
                   <strong>Confirmed operations</strong>
                   <ul>{applyResult.receipts.slice(0, 3).map(receipt => <li key={receipt.operationId}>
