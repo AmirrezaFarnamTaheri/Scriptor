@@ -263,7 +263,8 @@ test('Calendar and task-list discovery persists selections without authorizing o
   await google.getByRole('combobox', { name: 'Calendar', exact: true }).selectOption('reader@example.com')
   await google.getByRole('combobox', { name: 'Task list', exact: true }).selectOption('research-tasks')
   await settings.getByRole('button', { name: 'Save vault settings', exact: true }).click()
-  await expect(settings.getByRole('button', { name: 'Save vault settings', exact: true })).toBeDisabled()
+  // A completed write becomes a small confirmation, not a permanently disabled save footer.
+  await expect(settings.locator('.settings-save-confirmation')).toContainText('Vault settings saved')
   await attachVisualState(page, testInfo, 'google-settings-resource-selection', google, google.getByRole('combobox', { name: 'Task list', exact: true }))
   const save = (await calls(page)).filter(call => call.cmd === 'vault_save_config_cmd').at(-1)!
   expect((save.payload.config as { calendar_sync: unknown }).calendar_sync).toEqual(expect.objectContaining({ google_calendar_id: 'reader@example.com', google_task_list_id: 'research-tasks' }))
