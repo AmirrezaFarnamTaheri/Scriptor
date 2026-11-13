@@ -6,6 +6,8 @@ export interface GraphNodeAppearanceInput {
   isNeighbor: boolean
   isHovered: boolean
   isKeyboardFocus: boolean
+  /** Phone-width 100+ note overview: avoid 28px discs merging into a blob. */
+  compactOverview?: boolean
 }
 
 export interface GraphNodeAppearance {
@@ -25,9 +27,13 @@ export function graphNodeAppearance({
   isNeighbor,
   isHovered,
   isKeyboardFocus,
+  compactOverview = false,
 }: GraphNodeAppearanceInput): GraphNodeAppearance {
   if (focusMode && !isFocus && !isNeighbor && !isHovered && !isKeyboardFocus) {
     return { radius: 6, alpha: 0.2 }
+  }
+  if (compactOverview && !focusMode) {
+    return { radius: isFocus || isHovered || isKeyboardFocus ? 12 : 7, alpha: 1 }
   }
   return { radius: isFocus || isHovered ? 18 : 14, alpha: 1 }
 }
