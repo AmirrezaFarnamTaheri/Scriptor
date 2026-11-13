@@ -225,7 +225,7 @@ test('populated weekly planner and RTL time blocks have full-app mobile evidence
   await page.screenshot({ path: testInfo.outputPath('visual-app-planner-populated-rtl-390.png'), animations: 'disabled', caret: 'hide' })
 })
 
-test('Vault Health has full-app mobile summary and 9-metric evidence', async ({ page }, testInfo) => {
+test('Vault Health has full-app mobile metrics and lower recovery evidence', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await launchApp(page)
   await waitForWorkspace(page, { allowHiddenVaultList: true })
@@ -238,10 +238,15 @@ test('Vault Health has full-app mobile summary and 9-metric evidence', async ({ 
   await expect(panel.locator('.health-metrics .metric')).toHaveCount(9)
   await intro.scrollIntoViewIfNeeded()
   await expect(intro).toBeInViewport({ ratio: 0.95 })
-  await page.screenshot({ path: testInfo.outputPath('visual-app-vault-health-summary-390.png'), animations: 'disabled', caret: 'hide' })
-  const metric = panel.locator('.health-metrics .metric').first()
-  await metric.scrollIntoViewIfNeeded()
-  await expect(metric).toBeInViewport({ ratio: 0.95 })
-  await expect.poll(() => panel.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1)
+  // This frame already contains the summary and all nine metrics.
   await page.screenshot({ path: testInfo.outputPath('visual-app-vault-health-metrics-390.png'), animations: 'disabled', caret: 'hide' })
+  // The previous second frame scrolled to the first metric, which was already visible,
+  // producing an identical PNG and failing the duplicate-evidence packaging guard.
+  // Capture a genuinely different, lower recovery state instead.
+  const recovery = panel.locator('.health-repair-recovery > summary')
+  await recovery.scrollIntoViewIfNeeded()
+  await expect(recovery).toBeInViewport({ ratio: 0.95 })
+  await expect(intro).not.toBeInViewport()
+  await expect.poll(() => panel.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1)
+  await page.screenshot({ path: testInfo.outputPath('visual-app-vault-health-recovery-390.png'), animations: 'disabled', caret: 'hide' })
 })

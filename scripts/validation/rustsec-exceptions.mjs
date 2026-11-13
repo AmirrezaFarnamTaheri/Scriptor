@@ -38,6 +38,18 @@ export function parseCargoLockNames(source) {
   return new Set([...source.matchAll(/^\[\[package\]\]\r?\nname = "([^"\r\n]+)"/gm)].map((match) => match[1]))
 }
 
+// Compare stable crate versions by numeric components, including patch releases in
+// the same minor line (for example, 4.2.5 is newer than patched 4.2.4).
+export function isVersionAtLeast(version, minimum) {
+  const parse = value => /^\d+\.\d+\.\d+$/.test(value) ? value.split('.').map(Number) : null
+  const current = parse(version), floor = parse(minimum)
+  if (!current || !floor) return false
+  for (let i = 0; i < 3; i += 1) {
+    if (current[i] !== floor[i]) return current[i] > floor[i]
+  }
+  return true
+}
+
 export function validateRustSecExceptions({ denySource, ledgerSource, asOf, lockSource }) {
   const ignored = parseIgnoredAdvisories(denySource)
   const ledger = parseLedger(ledgerSource)
