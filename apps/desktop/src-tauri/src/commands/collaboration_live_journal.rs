@@ -513,6 +513,25 @@ mod tests {
     }
 
     #[test]
+    fn projection_baseline_advances_by_cas_without_losing_pending_operations() {
+        let temporary = tempdir().unwrap();
+        let scope = scope();
+        let mut journal = LocalJournal::open(temporary.path()).unwrap();
+        journal.begin(&scope, hash()).unwrap();
+        journal.append(&scope, hash(), "op_one", 1, &[1, 2]).unwrap();
+        let next = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        assert!(journal.advance_projected_baseline(&scope, hash(), next).unwrap());
+        assert!(!journal.advance_projected_baseline(&scope, hash(), next).unwrap());
+        assert!(journal.append(&scope, hash(), "op_two", 2, &[3]).is_err());
+        assert!(journal.append(&scope, next, "op_two", 2, &[3]).is_ok());
+        assert_eq!(journal.pending(&scope, 0).unwrap().len(), 2);
+        drop(journal);
+        let mut reopened = LocalJournal::open(temporary.path()).unwrap();
+        assert!(!reopened.begin(&scope, next).unwrap().file_diverged);
+        assert_eq!(reopened.pending(&scope, 0).unwrap().len(), 2);
+    }
+
+    #[test]
     fn refuses_cross_path_rebinding_and_unsafe_identities() {
         let temporary = tempdir().unwrap();
         let s = scope();
