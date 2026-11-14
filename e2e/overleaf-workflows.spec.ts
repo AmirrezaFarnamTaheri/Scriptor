@@ -155,6 +155,20 @@ test('Turning Overleaf auto-sync off prevents all automatic provider requests', 
   expect(calls.filter(call => call.command === 'overleaf_read' || call.command === 'overleaf_push' || call.command === 'source_file_save')).toHaveLength(0)
 })
 
+test('Explicit Overleaf Auto-sync Off survives panel close and reopen', async ({ page }) => {
+  await page.clock.install()
+  const { editor, dialog } = await open(page)
+  const toggle = dialog.getByRole('checkbox', { name: 'Auto-sync this Overleaf source (on by default)' })
+  await toggle.uncheck()
+  await dialog.getByRole('button', { name: 'Close Overleaf sync', exact: true }).click()
+  await editor.getByRole('button', { name: 'Open Overleaf sync', exact: true }).click()
+  const reopened = page.getByRole('dialog', { name: 'Overleaf source sync', exact: true })
+  await expect(reopened.getByRole('checkbox', { name: 'Auto-sync this Overleaf source (on by default)' })).not.toBeChecked()
+  await page.clock.fastForward(61_000)
+  const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command: string}>)
+  expect(calls.filter(call => call.command === 'overleaf_read' || call.command === 'overleaf_push' || call.command === 'source_file_save')).toHaveLength(0)
+})
+
 test('Overleaf remembers a confirmed project link and explicitly forgets it', async ({ page }) => {
   const { editor, dialog } = await open(page)
   await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
