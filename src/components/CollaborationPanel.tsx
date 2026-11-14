@@ -9,6 +9,7 @@ import { useCollaborationPolling } from '../hooks/useCollaborationPolling'
 import { collaborationCreateFolder, collaborationGetAccount, collaborationListDocs, collaborationListFolders } from '../bridge/commands/collaboration'
 import { acceptGoogleResourcePage, appendGoogleResources, GOOGLE_COLLABORATION_COPY, googleCollaborationMappingKey, parseGoogleCollaborationSetup, type GoogleResource } from '../lib/googleCollaborationSetup'
 import { useI18n } from '../lib/i18n'
+import { alignReviewedSource } from '../lib/reviewDiff'
 import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import { getGoogleOAuthClientId, hasPackagedGoogleOAuthClient } from '../lib/googleOAuthClient'
@@ -45,7 +46,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   const [pollConsent, setPollConsent] = useState(false)
   const [docsId, setDocsId] = useState('')
   const [docsConsent, setDocsConsent] = useState(false)
-  const [docsPreview, setDocsPreview] = useState<{ markdown: string; hash: string; warnings: string[]; title: string } | null>(null)
+  const [docsPreview, setDocsPreview] = useState<{ markdown: string; hash: string; warnings: string[]; title: string; lineChanges: { added: number; removed: number; changed: number } } | null>(null)
   const [transport, setTransport] = useState<CollaborationTransport>(initial.transport)
   const [folders, setFolders] = useState<GoogleResource[] | null>(null)
   const [folderPage, setFolderPage] = useState<string>()
@@ -340,9 +341,9 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
           if (current !== epoch.current) return
           const merged = mergeSharedRevision(sharedRevisionBase(base.current, path!), local.markdown, translated.markdown)
-          setDocsConsent(false); setDocsPreview({ ...translated, markdown: merged.markdown, hash: local.metadata.content_hash })
+          setDocsConsent(false); setDocsPreview({ ...translated, markdown: merged.markdown, hash: local.metadata.content_hash, lineChanges: alignReviewedSource(local.markdown, translated.markdown).summary })
         })}>{t('collaborationUi.docsPreview')}</button>
-        {docsPreview && <><h3><bdi>{docsPreview.title}</bdi></h3><ul>{docsPreview.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
+        {docsPreview && <><h3><bdi>{docsPreview.title}</bdi></h3><p className="collaboration-import-summary" role="note">Google Docs text comparison: {docsPreview.lineChanges.added} added, {docsPreview.lineChanges.removed} removed, {docsPreview.lineChanges.changed} changed. This compares text only; formatting and comments do not transfer.</p><ul>{docsPreview.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
           {hasPossibleMergeMarkers(docsPreview.markdown) && <div className="collaboration-conflict-warning" role="alert">
             <strong>Possible unresolved merge markers</strong>
             <p>This text still contains conflict separators. Compare local, shared-base and remote sections, remove the markers, and review the resolved text before saving.</p>
