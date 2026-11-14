@@ -852,6 +852,7 @@
       "mirrorTasks": "Vault → Google Tasks-Spiegelung aktivieren (Änderungen werden erst nach Ihrer Bestätigung übertragen)",
       "connect": "Mit Google verbinden",
       "switchAccount": "Google-Konto wechseln",
+      "lastSync": "Letzte erfolgreiche Aktualisierung von Kalender und Aufgaben: {time}",
       "syncNow": "Jetzt synchronisieren",
       "disconnect": "Trennen",
       "status": {
