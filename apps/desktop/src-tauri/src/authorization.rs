@@ -219,7 +219,7 @@ impl SensitiveOperation {
                 "A vault-private durable journal will store updates for this specific note and collaboration room. No network connection starts until you separately enable a trusted relay."
             }
             Self::LiveCollaborationConnect => {
-                "Encrypted note updates and collaboration metadata will be exchanged with the explicitly selected WSS relay and its approved room members. This grants network access only for the selected room, note and endpoint."
+                "The selected note's updates and collaboration metadata will be sent over TLS to the approved WSS relay and its room members. The relay can access document content; this is not end-to-end encryption. Only this note, room and endpoint are approved."
             }
             Self::PdfTranslation => {
                 "An external executable will read the selected PDF and write translated output."
