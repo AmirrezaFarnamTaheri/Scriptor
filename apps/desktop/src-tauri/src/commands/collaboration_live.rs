@@ -7,7 +7,10 @@ use std::sync::{
 };
 
 use base64::Engine as _;
-use scriptor_vault::{RelativeVaultPath, SaveNoteOptions, SaveNoteOutput, VaultUpdateLock, content_hash, read_note, save_note_with_options, try_lock_vault_update};
+use scriptor_vault::{
+    RelativeVaultPath, SaveNoteOptions, SaveNoteOutput, VaultUpdateLock, content_hash, read_note,
+    save_note_with_options, try_lock_vault_update,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -80,9 +83,7 @@ pub(crate) fn reject_if_live_owned(
         .values()
         .any(|lease| scope_owns_note(&lease.scope, vault_id, note_path))
     {
-        return Err(
-            "Live collaboration owns this Markdown note; ordinary save is disabled".into(),
-        );
+        return Err("Live collaboration owns this Markdown note; ordinary save is disabled".into());
     }
     Ok(())
 }
@@ -157,8 +158,12 @@ pub fn collaboration_live_start(
     let mut journal = LocalJournal::open(session.root.root())?;
     let begin = journal.begin(&scope, &document.metadata.content_hash)?;
     let ownership_key = scriptor_vault::hash::path_hash(&scope.note_path);
-    let ownership_target = session.root.root().join(".scriptor")
-        .join("collaboration").join(format!("live-owner-{ownership_key}"));
+    let ownership_target = session
+        .root
+        .root()
+        .join(".scriptor")
+        .join("collaboration")
+        .join(format!("live-owner-{ownership_key}"));
     let file_owner = try_lock_vault_update(&ownership_target)
         .map_err(|error| error.to_string())?
         .ok_or("Another Scriptor process already owns this live note's file projection")?;
@@ -167,9 +172,10 @@ pub fn collaboration_live_start(
     if leases.len() >= MAX_LOCAL_SESSIONS {
         return Err("Local collaboration session limit reached".into());
     }
-    if leases.values().any(|existing| {
-        scope_owns_note(&existing.scope, &scope.vault_id, &scope.note_path)
-    }) {
+    if leases
+        .values()
+        .any(|existing| scope_owns_note(&existing.scope, &scope.vault_id, &scope.note_path))
+    {
         return Err("Live collaboration already has an owner for this note".into());
     }
     leases.insert(
@@ -295,7 +301,9 @@ pub fn collaboration_live_project(
 ) -> Result<SaveNoteOutput, String> {
     if markdown.len() > 2 * 1024 * 1024
         || expected_content_hash.len() != 64
-        || !expected_content_hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+        || !expected_content_hash
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit())
     {
         return Err("Invalid or oversized collaboration projection".into());
     }
@@ -322,7 +330,8 @@ pub fn collaboration_live_project(
             &markdown,
             Some(&expected_content_hash),
             SaveNoteOptions { dry_run: false },
-        ).map_err(|error| error.to_string())?
+        )
+        .map_err(|error| error.to_string())?
     } else if current.metadata.content_hash == next_hash {
         // Idempotent restart recovery. The file is byte-identical to the
         // requested projection, so advancing the baseline cannot overwrite
@@ -333,7 +342,9 @@ pub fn collaboration_live_project(
             dry_run: false,
         }
     } else {
-        return Err("Collaboration source changed externally; retain journal and resolve conflict".into());
+        return Err(
+            "Collaboration source changed externally; retain journal and resolve conflict".into(),
+        );
     };
     if !journal.advance_projected_baseline(&lease.scope, &expected_content_hash, &next_hash)? {
         return Err("Collaboration projection journal CAS failed; retain recovery data".into());
