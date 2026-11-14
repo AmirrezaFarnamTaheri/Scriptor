@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
+import { alignReviewedSource } from '../lib/reviewDiff'
 import { overleafRead, overleafPush } from '../bridge/commands/overleaf'
 import { sourceFileRead, sourceFileSave } from '../bridge/commands/source_files'
 import { type SourceDocument } from '../lib/sourceFile'
@@ -7,13 +8,6 @@ import { type OverleafSnapshot } from '../lib/overleaf'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import '../styles/components/overleaf.css'
-/** Highlight the source lines that differ in the other reviewed copy. */
-function comparedLines(content: string, other: string) {
-  const otherLines = other.split(/\r?\n/)
-  return content.split(/\r?\n/).map((line, index) => (
-    <span key={index} className={line === otherLines[index] ? 'overleaf-diff-line' : 'overleaf-diff-line is-changed'}>{line || '\u00a0'}</span>
-  ))
-}
 export interface OverleafPanelProps { document: SourceDocument; onClose: () => void; onApplied: (document: SourceDocument) => void }
 export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelProps) {
   const [project, setProject] = useState(''); const [remotePath, setRemotePath] = useState(document.path)
@@ -71,6 +65,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     setAccepted(false)
     setStatus(result.content === null ? 'Remote file does not exist. Sharing creates it; applying a remote copy is unavailable.' : 'Remote preview loaded. Compare both copies and explicitly review the merged source.')
   })
+  const comparison = snapshot ? alignReviewedSource(document.content, snapshot.content ?? '') : null
   return <div className="modal-backdrop"><section className="modal-card overleaf-panel" ref={dialog} role="dialog" aria-modal="true" aria-label="Overleaf source sync" data-help-topic="git">
     <header><h2>Overleaf source sync</h2><button type="button" aria-label="Close Overleaf sync" title="Close" onClick={onClose}><X aria-hidden="true" size={18} /></button></header>
     <div className="overleaf-panel-body" dir="auto">
@@ -96,8 +91,11 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     </details>}
     {snapshot && <>
       <h3 className="overleaf-step-heading">2. Compare and review changes</h3>
-      <p className="overleaf-diff-legend">Changed lines are highlighted. Local content check <code>{document.content_hash.slice(0, 10)}</code> · Remote revision <code>{snapshot.head.slice(0, 10)}</code>.</p>
-      <div className="overleaf-comparison"><section aria-label="Saved local source"><h3>Saved local source</h3><pre>{comparedLines(document.content, snapshot.content ?? '')}</pre></section><section aria-label="Reviewed remote source"><h3>Remote source</h3><pre>{snapshot.content === null ? 'File absent from remote project.' : comparedLines(snapshot.content, document.content)}</pre></section></div>
+      <p className="overleaf-diff-legend">Aligned line review · {comparison?.summary.added ?? 0} added · {comparison?.summary.removed ?? 0} removed · {comparison?.summary.changed ?? 0} changed. Local content check <code>{document.content_hash.slice(0, 10)}</code> · Remote revision <code>{snapshot.head.slice(0, 10)}</code>. {comparison?.simplified ? 'Large comparison: simplified alignment; review both full copies before sharing.' : null}</p>
+      <div className="overleaf-comparison">
+        <section aria-label="Saved local source"><h3>Saved local source</h3><pre>{comparison?.rows.map((row, index) => <span key={index} className={`overleaf-diff-line${row.kind === 'equal' ? '' : ' is-changed'}${row.local === null ? ' is-placeholder' : ''}`}>{row.local ?? '\u00a0'}</span>)}</pre></section>
+        <section aria-label="Reviewed remote source"><h3>Remote source</h3><pre>{snapshot.content === null ? 'File absent from remote project.' : comparison?.rows.map((row, index) => <span key={index} className={`overleaf-diff-line${row.kind === 'equal' ? '' : ' is-changed'}${row.remote === null ? ' is-placeholder' : ''}`}>{row.remote ?? '\u00a0'}</span>)}</pre></section>
+      </div>
       <label>Reviewed source to apply locally or share<textarea aria-label="Reviewed source to apply locally or share" value={reviewed} disabled={busy} spellCheck={false} onChange={event => { setReviewed(event.target.value); setAccepted(false) }}/></label>
       <div className="overleaf-action-footer">
       <label className="overleaf-consent"><input type="checkbox" checked={accepted} disabled={busy} onChange={event => setAccepted(event.target.checked)}/><span>I compared both copies and reviewed this source for the selected action</span></label>
