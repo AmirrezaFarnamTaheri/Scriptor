@@ -19,6 +19,8 @@ export function OverleafBackgroundSync({ document, canTransfer, onApplied, onSta
   const callbacks = useRef({ canTransfer, onApplied, onStatus })
   useLayoutEffect(() => { callbacks.current = { canTransfer, onApplied, onStatus } }, [canTransfer, onApplied, onStatus])
   const baseline = useRef<{ key: string; text: string } | null>(null)
+  const currentDocument = useRef(document)
+  useLayoutEffect(() => { currentDocument.current = document }, [document])
   const lastNotice = useRef('')
   const scope = useMemo(() => {
     try {
@@ -52,6 +54,10 @@ export function OverleafBackgroundSync({ document, canTransfer, onApplied, onSta
       try {
         const local = await sourceFileRead(document.vault_id, document.path)
         if (!allowed()) return
+        if (local.content_hash !== currentDocument.current.content_hash) {
+          note('The saved local source changed outside the editor. Reload it before Overleaf auto-sync resumes.')
+          return
+        }
         const remote = await overleafRead(document.vault_id, scope.projectId, scope.remotePath)
         if (!allowed()) return
         const previous = baseline.current?.key === scope.key ? baseline.current.text : null
@@ -63,8 +69,9 @@ export function OverleafBackgroundSync({ document, canTransfer, onApplied, onSta
           const saved = await sourceFileSave(local, remote.content)
           if (!live) return
           baseline.current = { key: scope.key, text: remote.content }
-          callbacks.current.onApplied(saved)
-          note('Auto-sync imported a co-author update from Overleaf. Local save was checked for conflicts.')
+          if (callbacks.current.canTransfer()) callbacks.current.onApplied(saved)
+          else note('Overleaf updated the saved source while an editor draft was created. Your draft is preserved; review a reload before saving.')
+          if (callbacks.current.canTransfer()) note('Auto-sync imported a co-author update from Overleaf. Local save was checked for conflicts.')
         } else if (direction === 'push' && remote.content !== null) {
           if (!allowed()) return
           await overleafPush(document.vault_id, scope.projectId, scope.remotePath, local.content, remote)
@@ -76,8 +83,8 @@ export function OverleafBackgroundSync({ document, canTransfer, onApplied, onSta
         }
       } catch (caught) {
         if (!live) return
-        live = false
         note(`Overleaf auto-sync paused after an error: ${caught instanceof Error ? caught.message : String(caught)}. Open Overleaf sync to review and retry.`)
+        live = false
       } finally {
         if (live) schedule(30_000)
       }
