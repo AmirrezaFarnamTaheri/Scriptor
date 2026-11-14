@@ -16,6 +16,7 @@ const translate = (key, params = {}) => {
 }
 const plannerSource = compile('../../src/lib/planner.ts')
 const ownershipSource = compile('../../src/lib/plannerGoogleOwnership.ts')
+const labelsSource = compile('../../src/lib/plannerReviewLabels.ts')
 const deferred = () => {
   let resolve
   const promise = new Promise(done => { resolve = done })
@@ -45,6 +46,7 @@ function harness() {
   }
   const planner = loadModule(plannerSource, () => ({}))
   const ownership = loadModule(ownershipSource, () => planner)
+  const reviewLabels = loadModule(labelsSource, () => ({}))
   const nodes = tree => {
     if (Array.isArray(tree)) return tree.flatMap(nodes)
     if (!tree || typeof tree !== 'object') return []
@@ -75,6 +77,7 @@ function harness() {
       if (id === 'react') return react
       if (id === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'fragment' }
       if (id.includes('plannerGoogleOwnership')) return ownership
+      if (id.includes('plannerReviewLabels')) return reviewLabels
       if (id.includes('/planner')) return planner
       if (id.includes('/date')) return { formatLocalDate: () => '2026-10-09' }
       if (id.includes('/i18n')) return { useI18n: () => ({ locale: 'en', t: translate }) }
