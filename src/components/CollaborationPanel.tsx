@@ -64,6 +64,8 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     catch { return null }
   })()
   const autoEnabled = autoKey !== null && (autoChoice?.key === autoKey ? autoChoice.enabled : readAutoSyncEnabled(localStorage, autoKey))
+  const autoEnabledRef = useRef(autoEnabled)
+  useEffect(() => { autoEnabledRef.current = autoEnabled }, [autoEnabled])
   const polling = useCollaborationPolling(folderId, vaultId, path, transport, result => {
     revisionTokens.current.clear(); revisionTokens.current.add('')
     setRows(appendGoogleResources([], result.files)); setPageToken(result.nextPageToken)
@@ -82,20 +84,22 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     void run(async current => {
       for (const row of batch) {
         const record = await collaborationRead(vaultId, folderId, row.id, transport)
-        if (current !== epoch.current) return
+        if (current !== epoch.current || !autoEnabledRef.current) return
         if (record.document !== path || record.peer_id === peer.current) continue
         const local = await vaultReadNote(path)
-        if (current !== epoch.current) return
+        if (current !== epoch.current || !autoEnabledRef.current) return
         if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
         const decision = decideAutoSync(record.base_markdown, local.markdown, record.markdown)
         if (decision === 'equal') { remember(local.markdown); continue }
         const merged = mergeSharedRevision(record.base_markdown, local.markdown, record.markdown)
         if (decision === 'pull' && !hasPossibleMergeMarkers(record.markdown)) {
+          if (!autoEnabledRef.current) return
           const saved = await runSourceNoteMutation(path, async () => {
+            if (!autoEnabledRef.current || current !== epoch.current) return
             await vaultSaveNote(path, record.markdown, local.metadata.content_hash, false, vaultId)
           })
+          if (current !== epoch.current || !autoEnabledRef.current) return
           if (!saved) throw new Error('An unsaved editor draft prevented automatic import. Save it and review the incoming revision.')
-          if (current !== epoch.current) return
           setMessage(`Incoming shared revision automatically applied from ${record.peer_id}.${remember(record.markdown)}`)
           await onApplied()
         } else {
@@ -356,6 +360,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           try {
             const enabled = event.target.checked
             writeAutoSyncEnabled(localStorage, autoKey, enabled)
+            autoEnabledRef.current = enabled
             setAutoChoice({ key: autoKey, enabled })
             if (!enabled) polling.stop()
           } catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)) }
