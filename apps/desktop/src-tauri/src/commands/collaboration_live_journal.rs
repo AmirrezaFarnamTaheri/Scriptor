@@ -576,10 +576,20 @@ mod tests {
         let scope = scope();
         let mut journal = LocalJournal::open(temporary.path()).unwrap();
         journal.begin(&scope, hash()).unwrap();
-        journal.append(&scope, hash(), "op_one", 1, &[1, 2]).unwrap();
+        journal
+            .append(&scope, hash(), "op_one", 1, &[1, 2])
+            .unwrap();
         let next = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-        assert!(journal.advance_projected_baseline(&scope, hash(), next).unwrap());
-        assert!(!journal.advance_projected_baseline(&scope, hash(), next).unwrap());
+        assert!(
+            journal
+                .advance_projected_baseline(&scope, hash(), next)
+                .unwrap()
+        );
+        assert!(
+            !journal
+                .advance_projected_baseline(&scope, hash(), next)
+                .unwrap()
+        );
         assert!(journal.append(&scope, hash(), "op_two", 2, &[3]).is_err());
         assert!(journal.append(&scope, next, "op_two", 2, &[3]).is_ok());
         assert_eq!(journal.pending(&scope, 0).unwrap().len(), 2);
