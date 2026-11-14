@@ -38,12 +38,14 @@ test('VIS-022: connected account opens folder setup without another disclosure s
 
 test('default-on automatic checks stop immediately when the user turns them off', async ({ page }) => {
   await page.clock.install()
+  await page.addInitScript(() => sessionStorage.setItem('e2e:poll-delay', '1'))
   const panel = await open(page)
   const auto = panel.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })
   await expect(auto).toBeChecked()
   await expect.poll(() => calls(page, 'collaboration_poll_read')).toHaveLength(1)
   await auto.uncheck()
   await page.clock.fastForward(61_000)
+  await expect(panel.getByRole('button', { name: 'Shared revision 1', exact: true })).toHaveCount(0)
   expect(await calls(page, 'collaboration_poll_read')).toHaveLength(1)
   expect(await calls(page, 'collaboration_poll_stop')).toHaveLength(1)
   expect(await calls(page, 'collaboration_write')).toHaveLength(0)
