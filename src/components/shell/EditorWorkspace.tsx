@@ -20,6 +20,7 @@ import type {
   TocEntry,
   TypographyAction,
 } from '@scriptor/editor'
+import type { CollaborativeEditorBinding } from '@scriptor/editor/collaboration-port'
 import type { MonacoCompletionContext } from '../../lib/monaco-completions'
 
 type EditorTransformAction = import('@scriptor/editor').EditorTransformAction
@@ -68,6 +69,8 @@ interface EditorWorkspaceProps {
   onOpenTab: (path: string) => void
   onCloseTab: (path: string) => void
   draftMarkdown: string
+  /** Opt-in only after native journal recovery and normal save suspension. */
+  collaboration?: CollaborativeEditorBinding
   updateDraft: (markdown: string) => void
   externalChangeConflict: ExternalChangeConflict | null
   onReloadExternalChange: () => void
@@ -171,6 +174,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
     onOpenTab,
     onCloseTab,
     draftMarkdown,
+    collaboration,
     updateDraft,
     externalChangeConflict,
     onReloadExternalChange,
