@@ -117,6 +117,34 @@ export async function collaborationLivePending(
   })
 }
 
+/**
+ * Single-owner native projection. The native command retains Scriptor's
+ * write-lock/CAS/backup/history protections and updates its own durable
+ * baseline only after the file has been written. A caller MUST NOT use this
+ * while the normal autosave engine owns the note.
+ */
+export async function collaborationLiveProject(
+  scope: NativeCollaborationDocument,
+  sessionId: string,
+  markdown: string,
+  expectedContentHash: string,
+): Promise<unknown> {
+  requireNative()
+  parseLiveCollaborationScope(scope)
+  if (typeof markdown !== 'string' ||
+      new TextEncoder().encode(markdown).byteLength > 2 * 1024 * 1024 ||
+      typeof expectedContentHash !== 'string' ||
+      !/^[a-f0-9]{64}$/i.test(expectedContentHash)) {
+    throw new Error('Invalid collaboration projection or content revision')
+  }
+  return invoke('collaboration_live_project', {
+    expectedVaultId: scope.vaultId,
+    sessionId,
+    markdown,
+    expectedContentHash,
+  })
+}
+
 /** Closes the ephemeral permission lease. Persisted updates are not deleted. */
 export async function collaborationLiveStop(
   expectedVaultId: string,
