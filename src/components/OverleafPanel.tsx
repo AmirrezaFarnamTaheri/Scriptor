@@ -167,7 +167,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
   return <div className="modal-backdrop"><section className="modal-card overleaf-panel" ref={dialog} role="dialog" aria-modal="true" aria-label="Overleaf source sync" data-help-topic="git">
     <header><h2>Overleaf source sync</h2><button type="button" aria-label="Close Overleaf sync" title="Close" onClick={onClose}><X aria-hidden="true" size={18} /></button></header>
     <div className="overleaf-panel-body" dir="auto">
-    <p>Compare this saved source file with Overleaf before applying or sharing changes. Only this file is synchronized; the rest of the project stays untouched.</p>
+    <p>Linked source files sync automatically when both copies share a known common revision. First-time differences and concurrent edits require review. Only this file is exchanged; the rest of the Overleaf project stays untouched.</p>
     <details className="overleaf-requirements">
       <summary>Connection requirements and limits</summary>
       <p>Overleaf Cloud Git access requires an eligible paid plan and a Git token stored in your operating-system credential manager with username “git”. Scriptor does not import browser sessions or passwords.</p>
