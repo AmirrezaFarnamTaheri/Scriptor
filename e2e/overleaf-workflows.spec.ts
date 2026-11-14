@@ -133,13 +133,16 @@ test('Overleaf auto-sync defaults on and fast-forwards a clean remote co-author 
   await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-live-update', '1'))
   await page.clock.fastForward(31_000)
   await expect(dialog).toBeVisible()
-  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('\\section{Remote updated by co-author}\r\n')
+  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('\\section{Remote updated by co-author}\n')
   await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-live-update', '2'))
   await page.clock.fastForward(31_000)
   await expect(dialog).toBeVisible()
-  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('\\section{Another co-author update}\r\n')
+  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('\\section{Another co-author update}\n')
   const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command: string}>)
-  expect(calls.filter(call => call.command === 'source_file_save')).toHaveLength(2)
+  const saved = calls.filter(call => call.command === 'source_file_save') as Array<{ command: string; args: { content: string } }>
+  expect(saved).toHaveLength(2)
+  // Browser textareas normalize CRLF to LF, but vault writes must retain CRLF.
+  expect(saved.map(call => call.args.content)).toEqual(['\\section{Remote updated by co-author}\r\n', '\\section{Another co-author update}\r\n'])
   expect(calls.filter(call => call.command === 'overleaf_push')).toHaveLength(0)
 })
 test('Turning Overleaf auto-sync off prevents all automatic provider requests', async ({ page }) => {
