@@ -123,7 +123,7 @@ test('Docs discovery stays in the selected folder and a conflicted preview canno
   await panel.getByRole('button', { name: 'Preview text from Google Docs', exact: true }).click()
   const preview = panel.getByRole('textbox', { name: 'Review imported text', exact: true })
   await expect(preview).toHaveValue(/Remote translated text/)
-  await expect(panel.locator('.collaboration-import-summary')).toContainText(/Google Docs text comparison: \\d+ added, \\d+ removed, \\d+ changed/)
+  await expect(panel.locator('.collaboration-import-summary')).toContainText(/Google Docs text comparison: [0-9]+ added, [0-9]+ removed, [0-9]+ changed/)
   await attachVisualState(page, testInfo, 'docs-translated-preview', panel, preview)
   await panel.getByLabel('I understand that comments, formatting, history, images and sharing permissions do not transfer.').check()
   await expect(panel.getByRole('button', { name: 'Save reviewed text', exact: true })).toBeDisabled()
