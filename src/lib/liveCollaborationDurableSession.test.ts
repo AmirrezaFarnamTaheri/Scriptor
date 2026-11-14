@@ -30,6 +30,10 @@ class FakeJournal {
   stored: RecordUpdate[] = []
   attempts: LiveCollaborationEnvelope[] = []
   failNext = false
+  stoppedLeases: string[] = []
+  async stop(_scope: ReturnType<typeof scope>, lease: string) {
+    this.stoppedLeases.push(lease)
+  }
   private gate: Promise<void> | null = null
   private release: (() => void) | null = null
   deferNext() {
@@ -210,4 +214,22 @@ test('replayed local transactions converge with a trusted remote peer without pu
   assert.match(session.value, / alice/)
   assert.match(session.value, / bob/)
   assert.equal(session.pendingForRelay().length, 1)
+})
+
+
+test('closing a durable session revokes its native lease without deleting pending data', async () => {
+  const { owner } = initial()
+  const store = new FakeJournal()
+  const session = new DurableCollaborationSession(scope(), 'lease_clean', store, owner)
+  await session.restore()
+  const outgoing = await session.edit(4, 4, ' retained')
+  assert.ok(outgoing)
+  assert.equal(store.stored.length, 1)
+  await session.close()
+  assert.equal(session.ready, false)
+  assert.deepEqual(store.stoppedLeases, ['lease_clean'])
+  assert.equal(store.stored.length, 1, 'stopping must never discard the native journal')
+  await session.close()
+  assert.deepEqual(store.stoppedLeases, ['lease_clean'], 'closing twice must be idempotent')
+  await assert.rejects(session.edit(4, 4, 'unauthorized'), /recover|ready|session/i)
 })
