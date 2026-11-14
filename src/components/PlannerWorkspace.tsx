@@ -6,6 +6,7 @@ import { vaultReadNote, vaultSaveNote } from '../bridge/commands/vault'
 import { indexerSyncNoteTasks } from '../bridge/commands/indexer'
 import { layoutPlannerDay, planReconciliation, rewritePlannerTask, taskSourceMarker, weekDays, type PlannerBlock, type PlannerTaskValue } from '../lib/planner'
 import { plannerGoogleTaskBaseKey, readGoogleOwnedPlannerBlocks, serializeGoogleOwnedPlannerBlocks } from '../lib/plannerGoogleOwnership'
+import { plannerReviewDirectionLabel } from '../lib/plannerReviewLabels'
 import { formatLocalDate } from '@scriptor/core/date'
 import '../styles/planner.css'
 import { useI18n } from '../lib/i18n'
@@ -188,7 +189,7 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
           ? tasks.find(task => task.id === row.block.taskId)?.title ?? row.block.title
           : row.task.title
         setMessage(cancelRef.current ? t('plannerWorkspace.activeFinished') :
-          `${t('plannerWorkspace.changeApplied')} · ${t(direction === 'pull' ? 'plannerWorkspace.directionFromGoogle' : 'plannerWorkspace.directionToGoogle')} · ${subject} · ${new Date().toLocaleString(DATE_LANG[locale])} · ${t('plannerWorkspace.remainingToReview', { count: Math.max(0, (review?.length ?? 1) - 1) })}.`)
+          `${t('plannerWorkspace.changeApplied')} · ${t(direction === 'pull' ? 'plannerWorkspace.directionFromGoogle' : 'plannerWorkspace.directionToGoogle')} · ${subject} · ${new Date().toLocaleString(DATE_LANG[locale])}.`)
       }
     } catch(error) {if (contextCurrent()) setMessage(String(error))} finally {if (contextCurrent()) setBusy(false)}
   }
@@ -225,7 +226,7 @@ export function PlannerWorkspace({vaultId,tasks,events,remoteTasks,calendarId,ta
       {review.map((row,index)=><div className="planner-review__row" role="group" aria-label={t('plannerWorkspace.reviewRowIndex', { index: index + 1, count: review.length })} key={index}>
         <p className="planner-review__row-index">{t("plannerWorkspace.reviewRowIndex", { index: index + 1, count: review.length })}</p>
         <strong dir="auto">{row.kind === 'task' ? row.task.title : row.block.title}</strong>
-        <span>{row.direction}</span>
+        <span>{plannerReviewDirectionLabel(row.direction, locale)}</span>
         <dl className="planner-review__summary" aria-label={t("plannerWorkspace.reviewedChanges")}>
           <div><dt>{t("plannerWorkspace.reviewVault")}</dt><dd dir="auto">{row.kind === 'task'
             ? `${row.task.title} · ${row.task.dueAt ?? t('plannerWorkspace.noDueDate')}`
