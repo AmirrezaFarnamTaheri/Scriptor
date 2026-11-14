@@ -152,7 +152,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
             </> : null}
           </div>
           {calendarSync.error ? <p className="publish-error" role="alert">{calendarSync.error}</p> : null}
-          {calendarSync.lastSyncedAt !== null && calendarSync.authedEmail ? <p className="health-subtitle google-calendar-last-sync" role="status">
+          {calendarSync.lastSyncedAt !== null && calendarSync.authedEmail ? <p className="health-subtitle google-calendar-last-sync" role="note">
             {t('integrations.google.lastSync', { time: new Date(calendarSync.lastSyncedAt).toLocaleString(locale === 'fa' ? 'fa-IR-u-ca-gregory' : locale === 'de' ? 'de-DE' : 'en-US') })}
           </p> : null}
         <details className="google-calendar-options">
