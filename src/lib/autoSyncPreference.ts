@@ -39,3 +39,12 @@ export function decideAutoSync(base: string | null, local: string, remote: strin
   if (remote === base) return 'push'
   return 'review'
 }
+
+/** Trust only the ancestor previously confirmed for this exact local note.
+ * Remote writers cannot make arbitrary content eligible for silent import by
+ * claiming that their version branched from a fabricated local base. */
+export function safeIncomingDecision(knownBase: string | null, claimedBase: string, local: string, remote: string): 'equal' | 'pull' | 'review' {
+  if (local === remote) return 'equal'
+  if (knownBase === null || knownBase !== claimedBase) return 'review'
+  return decideAutoSync(knownBase, local, remote) === 'pull' ? 'pull' : 'review'
+}
