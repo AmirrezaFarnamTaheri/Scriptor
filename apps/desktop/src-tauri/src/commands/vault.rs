@@ -62,11 +62,16 @@ pub fn vault_open(
         crate::state::reset_daemon_vault(&state);
         {
             let mut leases = crate::state::lock_recover(
-                &state.live_collaboration_sessions, "collaboration leases"
+                &state.live_collaboration_sessions,
+                "collaboration leases",
             );
             for lease in leases.values() {
-                lease.relay_generation.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
-                lease.relay_active.store(false, std::sync::atomic::Ordering::Release);
+                lease
+                    .relay_generation
+                    .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+                lease
+                    .relay_active
+                    .store(false, std::sync::atomic::Ordering::Release);
             }
             leases.clear();
         }
