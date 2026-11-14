@@ -13,7 +13,12 @@ export class AutoRevisionInbox {
       return []
     }
     if (this.reviewRequired) return []
-    return ids.filter(id => !this.seen.has(id)).slice(0, Math.max(0, Math.min(10, limit)))
+    const queued = new Set<string>()
+    return ids.filter(id => {
+      if (this.seen.has(id) || queued.has(id)) return false
+      queued.add(id)
+      return true
+    }).slice(0, Math.max(0, Math.min(10, limit)))
   }
 
   markHandled(id: string): void { this.seen.add(id) }
