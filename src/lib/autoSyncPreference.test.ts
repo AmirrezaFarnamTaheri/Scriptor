@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled, decideAutoSync } from './autoSyncPreference.ts'
+import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled, decideAutoSync, safeIncomingDecision } from './autoSyncPreference.ts'
 
 test('auto-sync is ON for a connected project unless a user explicitly turns it OFF', () => {
   const saved = new Map<string, string>()
@@ -38,4 +38,12 @@ test('automatic sync only modifies fast-forward copies after a known shared base
   assert.equal(decideAutoSync('same', 'changed locally', 'changed remotely'), 'review')
   assert.equal(decideAutoSync('same', 'same', null), 'review')
   assert.equal(decideAutoSync('same', 'same', 'same'), 'equal')
+})
+
+test('incoming peer text is never auto-applied without a trusted matching local ancestor', () => {
+  assert.equal(safeIncomingDecision(null, 'claimed', 'claimed', 'remote'), 'review')
+  assert.equal(safeIncomingDecision('trusted', 'forged', 'forged', 'remote'), 'review')
+  assert.equal(safeIncomingDecision('trusted', 'trusted', 'trusted', 'remote'), 'pull')
+  assert.equal(safeIncomingDecision('trusted', 'trusted', 'locally changed', 'remote'), 'review')
+  assert.equal(safeIncomingDecision('trusted', 'trusted', 'same', 'same'), 'equal')
 })
