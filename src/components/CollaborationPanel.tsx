@@ -10,7 +10,7 @@ import { collaborationCreateFolder, collaborationGetAccount, collaborationListDo
 import { acceptGoogleResourcePage, appendGoogleResources, GOOGLE_COLLABORATION_COPY, googleCollaborationMappingKey, parseGoogleCollaborationSetup, type GoogleResource } from '../lib/googleCollaborationSetup'
 import { useI18n } from '../lib/i18n'
 import { alignReviewedSource } from '../lib/reviewDiff'
-import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled } from '../lib/autoSyncPreference'
+import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled, decideAutoSync } from '../lib/autoSyncPreference'
 import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import { getGoogleOAuthClientId, hasPackagedGoogleOAuthClient } from '../lib/googleOAuthClient'
@@ -57,6 +57,8 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   const folderTokens = useRef(new Set<string>())
   const documentTokens = useRef(new Set<string>())
   const revisionTokens = useRef(new Set<string>())
+  const autoSeenRevisions = useRef(new Set<string>())
+  const autoListingInitialized = useRef(false)
   const autoKey = (() => {
     try { return account && vaultId && folderId && path ? autoSyncPreferenceKey('google_drive', vaultId, account, folderId, path) : null }
     catch { return null }
@@ -65,6 +67,39 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   const polling = useCollaborationPolling(folderId, vaultId, path, transport, result => {
     revisionTokens.current.clear(); revisionTokens.current.add('')
     setRows(appendGoogleResources([], result.files)); setPageToken(result.nextPageToken)
+    if (!autoEnabled || !account || !vaultId || !path || !folderId || result.nextPageToken) return
+    const fresh = result.files.filter(item => !autoSeenRevisions.current.has(item.id))
+    for (const item of result.files) autoSeenRevisions.current.add(item.id)
+    if (!autoListingInitialized.current) { autoListingInitialized.current = true; return }
+    // Only newly discovered revisions are candidates. Historic folder content
+    // must never be silently imported on the first connection.
+    if (occupied.current || !fresh.length) return
+    void run(async current => {
+      for (const row of fresh.slice(0, 5)) {
+        const record = await collaborationRead(vaultId, folderId, row.id, transport)
+        if (current !== epoch.current) return
+        if (record.document !== path || record.peer_id === peer.current) continue
+        const local = await vaultReadNote(path)
+        if (current !== epoch.current) return
+        if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
+        const decision = decideAutoSync(record.base_markdown, local.markdown, record.markdown)
+        if (decision === 'equal') { remember(local.markdown); continue }
+        const merged = mergeSharedRevision(record.base_markdown, local.markdown, record.markdown)
+        if (decision === 'pull' && !hasPossibleMergeMarkers(record.markdown)) {
+          const saved = await runSourceNoteMutation(path, async () => {
+            await vaultSaveNote(path, record.markdown, local.metadata.content_hash, false, vaultId)
+          })
+          if (!saved) throw new Error('An unsaved editor draft prevented automatic import. Save it and review the incoming revision.')
+          if (current !== epoch.current) return
+          setMessage(`Incoming shared revision automatically applied from ${record.peer_id}.${remember(record.markdown)}`)
+          await onApplied()
+        } else {
+          setPreview({ record, ...merged, hash: local.metadata.content_hash, lineChanges: alignReviewedSource(local.markdown, record.markdown).summary })
+          setMessage('Concurrent shared changes need a manual merge. Nothing was overwritten.')
+          return
+        }
+      }
+    })
   }, autoEnabled)
   const epoch = useRef(0)
   const base = useRef<{ path: string; markdown: string } | null>(null)
@@ -111,6 +146,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       setFolders(null); setFolderPage(undefined); setDocuments(null); setDocumentPage(undefined)
       setPageToken(undefined); setDocsId(''); setDocsConsent(false)
       folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
+      autoSeenRevisions.current.clear(); autoListingInitialized.current = false
       base.current = null; peer.current = crypto.randomUUID()
       setMessage(copy.accountChanged)
       loadAccount()
@@ -125,6 +161,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     epoch.current++
     operation.current++; occupied.current = false; setBusy(false)
     setRows([]); setPageToken(undefined); setPreview(null); setDocsPreview(null)
+    autoSeenRevisions.current.clear(); autoListingInitialized.current = false
     setDocuments(null); setDocumentPage(undefined); setDocsId(''); setDocsConsent(false); 
     documentTokens.current.clear(); revisionTokens.current.clear()
     base.current = null
@@ -184,6 +221,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     epoch.current++; operation.current++; occupied.current = false; setBusy(false)
     polling.stop()
     setFolderId(id); setPreview(null); setRows([]); setPageToken(undefined)
+    autoSeenRevisions.current.clear(); autoListingInitialized.current = false
     setDocsConsent(false); setDocsPreview(null); setDocsId('')
     setDocuments(null); setDocumentPage(undefined); documentTokens.current.clear()
   }
