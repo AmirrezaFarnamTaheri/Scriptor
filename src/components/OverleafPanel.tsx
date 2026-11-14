@@ -10,7 +10,7 @@ import { overleafBindingKey, readOverleafBinding, saveOverleafBinding, forgetOve
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import '../styles/components/overleaf.css'
-export interface OverleafPanelProps { document: SourceDocument; onClose: () => void; onApplied: (document: SourceDocument) => void }
+export interface OverleafPanelProps { document: SourceDocument; onClose: () => void; onApplied: (document: SourceDocument, keepWatching?: boolean) => void }
 export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelProps) {
   const bindingKey = useMemo(() => {
     try { return overleafBindingKey(document.vault_id, document.path) }
@@ -122,8 +122,9 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
           const updated = await sourceFileSave(local, remote.content)
           if (!current()) return
           baseline.current = { key: autoTarget.key, content: remote.content }
+          setSnapshot(remote); setReviewed(remote.content); setAccepted(false)
           setStatus('Auto-sync imported an unchanged-base update from Overleaf.')
-          onApplied(updated)
+          onApplied(updated, true)
         } else if (direction === 'push' && remote.content !== null) {
           if (!current()) return
           const result = await overleafPush(document.vault_id, project, remotePath, local.content, remote)
