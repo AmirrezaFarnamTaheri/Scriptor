@@ -85,3 +85,11 @@ export function alignReviewedSource(local: string, remote: string): ReviewDiff {
   }
   return { rows, summary, simplified }
 }
+
+/** Detect source formatting that an aligned, text-only line comparison cannot display. */
+export function sourceLineEndingStyle(text: string): 'none' | 'LF' | 'CRLF' | 'CR' | 'mixed' {
+  const endings = text.match(/\r\n|\r|\n/g)
+  if (!endings?.length) return 'none'
+  const kinds = new Set(endings.map(ending => ending === '\r\n' ? 'CRLF' : ending === '\r' ? 'CR' : 'LF'))
+  return kinds.size === 1 ? ([...kinds][0] as 'LF' | 'CRLF' | 'CR') : 'mixed'
+}
