@@ -1,6 +1,8 @@
 # Scriptor collaboration relay — durable store (not a running relay)
 
-**Status: experimental persistence component only.** No network listener, WSS authentication, invitations, public-key challenge flow, native journal, CRDT codec, or editor integration exists here. Nothing starts automatically. Do not deploy this component as a public collaboration service or show a live-sharing status based on these tests.
+**Status: experimental persistence component only.** No network listener, completed WSS authentication, invitations, native journal, CRDT codec, or editor integration exists here. Nothing starts automatically. Do not deploy this component as a public collaboration service or show a live-sharing status based on these tests.
+
+`src/challenge-auth.mjs` separately implements one-use Ed25519 challenges bound to room/document/epoch/peer and verified against a caller-supplied registry of current, owner-approved public keys. This helper is **not wired to a WSS connection**; its verification result must be propagated by trusted server code, not client JSON. The persistent key registry and join/leave state remain unimplemented.
 
 `src/room-store.mjs` persists **server-side update envelopes** in SQLite WAL with `synchronous=FULL`. Its `createRoom` method atomically inserts a room, an owner grant, and a first update. `append` checks the current room role, exact `(room, document, epoch, peer, messageId)` identity, per-peer sequence uniqueness, validated update framing, and a bounded document-storage budget. Duplicate sends return the original cursor. `read` returns cursor-paginated updates, capped at 100 items and 2 MiB of payload per page. Owner changes to `editor`, `viewer`, and `revoked` take effect transactionally; a revoked member is denied new reads and appends. Room epoch changes are never inferred from a new bootstrap.
 
