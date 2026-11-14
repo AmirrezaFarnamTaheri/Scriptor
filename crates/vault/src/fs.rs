@@ -67,7 +67,9 @@ pub fn try_lock_vault_update(target: &Path) -> Result<Option<VaultUpdateLock>, V
     let lock_path = parent.join(format!(".scriptor-{}.lock", name.to_string_lossy()));
     match fs::symlink_metadata(&lock_path) {
         Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
-            return Err(VaultError::InvalidRelativePath(lock_path.display().to_string()));
+            return Err(VaultError::InvalidRelativePath(
+                lock_path.display().to_string(),
+            ));
         }
         Ok(_) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -83,9 +85,7 @@ pub fn try_lock_vault_update(target: &Path) -> Result<Option<VaultUpdateLock>, V
     match fs4::FileExt::try_lock(&file) {
         Ok(()) => Ok(Some(VaultUpdateLock { _file: file })),
         Err(fs4::TryLockError::WouldBlock) => Ok(None),
-        Err(fs4::TryLockError::Error(source)) => {
-            Err(VaultError::io(&lock_path, source))
-        }
+        Err(fs4::TryLockError::Error(source)) => Err(VaultError::io(&lock_path, source)),
     }
 }
 
@@ -360,11 +360,17 @@ mod tests {
     #[test]
     fn live_note_projection_owner_is_exclusive_and_reusable() {
         let directory = tempfile::tempdir().expect("vault directory");
-        let target = directory.path().join("collaboration").join("live-note-owner");
+        let target = directory
+            .path()
+            .join("collaboration")
+            .join("live-note-owner");
         let first = super::try_lock_vault_update(&target).expect("first owner");
         assert!(first.is_some());
         let second = super::try_lock_vault_update(&target).expect("second owner check");
-        assert!(second.is_none(), "another process must not obtain ownership");
+        assert!(
+            second.is_none(),
+            "another process must not obtain ownership"
+        );
         drop(first);
         let third = super::try_lock_vault_update(&target).expect("released owner");
         assert!(third.is_some());
