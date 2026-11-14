@@ -6,6 +6,7 @@ pub mod code_chunk;
 pub mod collaboration;
 pub mod collaboration_live;
 pub(crate) mod collaboration_live_journal;
+pub(crate) mod collaboration_live_identity;
 pub mod daemon;
 pub mod export;
 pub mod export_pdf;
