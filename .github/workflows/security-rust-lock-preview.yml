@@ -1,0 +1,41 @@
+name: Security Cargo lockfile preview
+
+on:
+  push:
+    branches: [fix/rustsec-nov-2026-sqlite-ammonia]
+    paths:
+      - '.github/workflows/security-rust-lock-preview.yml'
+      - 'crates/**/Cargo.toml'
+
+permissions:
+  contents: read
+
+jobs:
+  rustsec-lock-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CARGO_HTTP_MULTIPLEXING: 'false'
+      CARGO_NET_RETRY: '5'
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install pinned Rust 1.96.0
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+          rustc --version
+      - name: Generate patched dependency lockfile
+        run: |
+          set -euo pipefail
+          cargo update -p ammonia --precise 4.2.5
+          cargo update -p r2d2_sqlite --precise 0.36.0
+          cargo update -p rusqlite --precise 0.41.1
+          cargo metadata --locked --no-deps --format-version 1 >/dev/null
+          echo SCRIPTOR_RUSTSEC_CARGO_LOCK_DIFF_BEGIN
+          git --no-pager diff --no-color -- Cargo.lock
+          echo SCRIPTOR_RUSTSEC_CARGO_LOCK_DIFF_END
+          cargo tree -i libsqlite3-sys --locked
+          cargo tree -i ammonia --locked
+      - name: Check indexer and patched sanitizer
+        run: cargo check --locked -p scriptor-indexer -p scriptor-capture -p scriptor-daemon
