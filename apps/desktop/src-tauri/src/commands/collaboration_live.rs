@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use base64::Engine as _;
-use scriptor_vault::{RelativeVaultPath, read_note};
+use scriptor_vault::{RelativeVaultPath, SaveNoteOptions, SaveNoteOutput, content_hash, read_note, save_note_with_options};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -245,6 +245,66 @@ pub fn collaboration_live_pending(
             payload: base64::engine::general_purpose::STANDARD.encode(update.payload),
         })
         .collect())
+}
+
+/// Only the owner of the native approved note may materialize canonical text.
+/// Scriptor's standard vault CAS, backup and note-history protections remain
+/// authoritative. A crash after a file save but before journal advancement
+/// leaves the outbox intact and requires a safe, exact-content retry.
+#[tauri::command]
+pub fn collaboration_live_project(
+    state: tauri::State<AppState>,
+    expected_vault_id: String,
+    session_id: String,
+    markdown: String,
+    expected_content_hash: String,
+) -> Result<SaveNoteOutput, String> {
+    if markdown.len() > 2 * 1024 * 1024
+        || expected_content_hash.len() != 64
+        || !expected_content_hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+    {
+        return Err("Invalid or oversized collaboration projection".into());
+    }
+    let session = active_session(&state)?;
+    super::vault::validate_expected_vault(&session.descriptor.id, Some(&expected_vault_id))?;
+    let lease = {
+        let leases = lock_recover(&state.live_collaboration_sessions, "collaboration leases");
+        lease_for(&leases, &session_id, &expected_vault_id)?
+    };
+    let mut journal = lock_recover(&lease.journal, "collaboration local journal");
+    if journal.projected_baseline(&lease.scope)? != expected_content_hash {
+        return Err("Collaboration projection baseline changed; refusing stale overwrite".into());
+    }
+    let relative =
+        RelativeVaultPath::parse(&lease.scope.note_path).map_err(|error| error.to_string())?;
+    let current = read_note(&lease.scope.vault_id, &session.root, &relative)
+        .map_err(|error| error.to_string())?;
+    let next_hash = content_hash(&markdown);
+    let receipt = if current.metadata.content_hash == expected_content_hash {
+        save_note_with_options(
+            &lease.scope.vault_id,
+            &session.root,
+            &relative,
+            &markdown,
+            Some(&expected_content_hash),
+            SaveNoteOptions { dry_run: false },
+        ).map_err(|error| error.to_string())?
+    } else if current.metadata.content_hash == next_hash {
+        // Idempotent restart recovery. The file is byte-identical to the
+        // requested projection, so advancing the baseline cannot overwrite
+        // another author's data or produce a duplicate history entry.
+        SaveNoteOutput {
+            metadata: current.metadata,
+            previous_content_hash: Some(expected_content_hash.clone()),
+            dry_run: false,
+        }
+    } else {
+        return Err("Collaboration source changed externally; retain journal and resolve conflict".into());
+    };
+    if !journal.advance_projected_baseline(&lease.scope, &expected_content_hash, &next_hash)? {
+        return Err("Collaboration projection journal CAS failed; retain recovery data".into());
+    }
+    Ok(receipt)
 }
 
 /// Stop drops only this process-local lease, retaining unsent journal entries.
