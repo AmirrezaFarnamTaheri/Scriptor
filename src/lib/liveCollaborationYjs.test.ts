@@ -96,7 +96,7 @@ test('Persian RTL, emoji, combining marks and UTF-16 cursor offsets survive conc
   bob.applyRemote(a, sender('alice'))
   assert.equal(owner.value, bob.value)
   assert.match(owner.value, /سلام/)
-  assert.match(owner.value, /\u{1F469}\u{1F3FD}\u200D\u{1F4BB}/)
+  assert.ok(owner.value.includes('\u{1F469}\u{1F3FD}\u200D\u{1F4BB}'))
   assert.match(owner.value, /é/)
 })
 
