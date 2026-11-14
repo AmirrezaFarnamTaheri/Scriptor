@@ -6,12 +6,14 @@ on:
       - feat/collaboration-yjs-convergence-2026-11-14
     paths:
       - 'src/lib/liveCollaborationYjs*'
+      - 'services/collaboration-relay/test/yjs-wss.test.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/collaboration-yjs.yml'
   pull_request:
     paths:
       - 'src/lib/liveCollaborationYjs*'
+      - 'services/collaboration-relay/test/yjs-wss.test.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/collaboration-yjs.yml'
@@ -44,3 +46,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Validate Yjs convergence contracts
         run: node --experimental-strip-types --test src/lib/liveCollaborationYjs.test.ts
+      - name: Verify actual WSS and SQLite replay with three Yjs authors
+        run: |
+          openssl version
+          pnpm --dir services/collaboration-relay exec node -e "require.resolve('ws')"
+          node --experimental-sqlite --experimental-strip-types --test services/collaboration-relay/test/yjs-wss.test.mjs
