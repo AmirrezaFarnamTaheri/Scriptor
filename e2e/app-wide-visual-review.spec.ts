@@ -124,7 +124,15 @@ test('dense Knowledge Graph focused and all-link modes are captured at phone wid
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth - document.documentElement.clientWidth,
   )).toBeLessThanOrEqual(1)
+  // The overview frame documents controls; it shows only the upper edge of
+  // the 400px graph on a phone. Preserve a second, stage-focused frame so
+  // reviewers can inspect the actual three-neighbor drawing and labels.
   await page.screenshot({ path: testInfo.outputPath('visual-app-graph-dense-focused-390.png'), animations: 'disabled', caret: 'hide' })
+  const focusedStage = graph.locator('.graph-stage')
+  await focusedStage.scrollIntoViewIfNeeded()
+  await expect(focusedStage).toBeInViewport({ ratio: 0.98 })
+  await expect(graph.locator('.graph-header')).toBeInViewport({ ratio: 0.95 })
+  await page.screenshot({ path: testInfo.outputPath('visual-app-graph-dense-focused-stage-390.png'), animations: 'disabled', caret: 'hide' })
   await all.click()
   await expect(graph.locator('.graph-focus-hint')).toBeHidden()
   await expect(graph.getByRole('button', { name: 'Highlight connected links', exact: true })).toHaveAttribute('aria-pressed', 'false')
