@@ -10,6 +10,7 @@ import { PendingCollaborationQueue } from './liveCollaborationQueue.ts'
 import {
   type PreparedCollaborationChange,
   type CollaborativeMarkdown,
+  type RemoteCollaborationAuthor,
 } from './liveCollaborationYjs.ts'
 import type {
   NativeCollaborationDocument,
@@ -94,6 +95,8 @@ export class DurableCollaborationSession {
   private staged: InFlightChange | null = null
   private inFlight = false
   private closePromise: Promise<void> | null = null
+  private editorOwned = false
+  private readonly subscribers = new Set<(markdown: string) => void>()
 
   constructor(
     scope: NativeCollaborationDocument,
@@ -132,6 +135,42 @@ export class DurableCollaborationSession {
 
   get value(): string {
     return this.text.value
+  }
+
+  /**
+   * Only one active source editor can own a document at a time. Split preview
+   * and independent autosave must not act as additional canonical writers.
+   */
+  claimEditorOwner(): () => void {
+    this.ensureReady()
+    if (this.editorOwned) throw new Error('Collaboration editor already has an owner')
+    this.editorOwned = true
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      this.editorOwned = false
+    }
+  }
+
+  subscribe(listener: (markdown: string) => void): () => void {
+    this.ensureReady()
+    this.subscribers.add(listener)
+    return () => { this.subscribers.delete(listener) }
+  }
+
+  private notifySubscribers(): void {
+    for (const listener of this.subscribers) listener(this.text.value)
+  }
+
+  /**
+   * Only the verified native relay client may call this with an authenticated
+   * peer identity; never pass renderer-supplied awareness or identity here.
+   */
+  receiveRemote(update: Uint8Array, author: RemoteCollaborationAuthor): void {
+    this.ensureReady()
+    this.text.applyRemote(update, author)
+    this.notifySubscribers()
   }
 
   /** Reconstruct all locally durable updates before accepting any new edits. */
@@ -203,6 +242,7 @@ export class DurableCollaborationSession {
       // The exact content identity was committed, including on an ambiguous
       // result that the native journal reported as an idempotent duplicate.
       this.text.commitPrepared(stage.prepared)
+      this.notifySubscribers()
       this.queue.enqueue(stage.message)
       this.staged = null
       return { ...stage.message }
@@ -269,6 +309,8 @@ export class DurableCollaborationSession {
     if (this.phase === 'stopped') return
     this.phase = 'stopped'
     this.staged = null
+    this.subscribers.clear()
+    this.editorOwned = false
     this.text.close()
   }
 }
