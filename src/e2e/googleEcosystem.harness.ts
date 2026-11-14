@@ -45,9 +45,9 @@ export function createGoogleEcosystemHarness() {
     if (cmd.startsWith('google_gmail_')) return { handled: false }
     if (cmd === 'collaboration_get_account') {
       if (sessionStorage.getItem('e2e:google-drive-auth-expired') === '1') throw new Error('GOOGLE_AUTH_REQUIRED: Google authorization expired. Reconnect the account.')
-      return delayed(sessionStorage.getItem('e2e:google-drive-connected') === '0' ? null : 'drive@example.com', 'account')
+      return delayed(sessionStorage.getItem('e2e:google-drive-connected') === '0' ? null : sessionStorage.getItem('e2e:google-return-other-account') === '1' ? 'switched@example.com' : 'drive@example.com', 'account')
     }
-    if (cmd === 'collaboration_connect') { sessionStorage.setItem('e2e:google-drive-connected', '1'); return reply('drive@example.com') }
+    if (cmd === 'collaboration_connect') { sessionStorage.setItem('e2e:google-drive-connected', '1'); return reply(sessionStorage.getItem('e2e:google-return-other-account') === '1' ? 'switched@example.com' : 'drive@example.com') }
     if (cmd === 'collaboration_disconnect') { sessionStorage.setItem('e2e:google-drive-connected', '0'); return reply(null) }
 
     // Connected Drive fixtures use the same bounded 90-request lease shape as
