@@ -331,6 +331,8 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
             setError(t('integrations.google.notConfigured'))
             return
           }
+          // Retire any pending callback from the previous OAuth identity.
+          epoch.current++
           polling.stop()
           void run(async current => {
           const value = await collaborationConnect(clientId.trim())
@@ -348,8 +350,11 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           if (current === epoch.current) { setMessage(copy.saved); await onApplied() }
           })
         }}>{account ? copy.switchDrive : copy.connectDrive}</button>
-        {account ? <button disabled={busy || polling.starting} onClick={() => void run(async current => {
-          polling.stop(); await collaborationDisconnect()
+        {account ? <button disabled={busy || polling.starting} onClick={() => {
+          epoch.current++
+          polling.stop()
+          void run(async current => {
+          await collaborationDisconnect()
           accountReadGeneration.current++
           window.dispatchEvent(new CustomEvent('scriptor:google-account-changed', { detail: { service: 'drive', origin: current === epoch.current ? accountOrigin.current : {} } }))
           if (current !== epoch.current) return
@@ -357,8 +362,10 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           setFolderPage(undefined); setDocumentPage(undefined); setPageToken(undefined); setDocsId('')
           setDocsConsent(false); folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
           base.current = null; peer.current = crypto.randomUUID()
+          autoInbox.current.reset(); autoUploadPaused.current = false
           setMessage(copy.removed)
-        })}>{t('collaborationUi.disconnect')}</button> : null}
+          })
+        }}>{t('collaborationUi.disconnect')}</button> : null}
       </div>
       {account && <p role="status">{t('collaborationUi.connected', { account })}</p>}
       {/* Keep setup and all review actions available, but stop presenting dozens
