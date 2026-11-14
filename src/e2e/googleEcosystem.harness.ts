@@ -49,6 +49,27 @@ export function createGoogleEcosystemHarness() {
     }
     if (cmd === 'collaboration_connect') { sessionStorage.setItem('e2e:google-drive-connected', '1'); return reply('drive@example.com') }
     if (cmd === 'collaboration_disconnect') { sessionStorage.setItem('e2e:google-drive-connected', '0'); return reply(null) }
+
+    // Connected Drive fixtures use the same bounded 90-request lease shape as
+    // the native broker. Without it, default-on monitoring introduces unrelated
+    // authorization errors into resource discovery and review tests.
+    if (cmd === 'collaboration_poll_start') {
+      requireAccount('drive')
+      if (body.expectedVaultId !== 'screenshot-vault') throw new Error('Vault changed before starting shared checks')
+      sessionStorage.setItem('e2e:google-poll-lease', String(body.folderId))
+      return reply({ lease_id: 'google-fixture-lease', expires_at: new Date(Date.now() + 900_000).toISOString(), remaining_requests: 90 })
+    }
+    if (cmd === 'collaboration_poll_read') {
+      requireAccount('drive')
+      if (body.expectedVaultId !== 'screenshot-vault' || sessionStorage.getItem('e2e:google-poll-lease') === null) throw new Error('Polling lease not active')
+      // A stable historical listing: no newly created peer revisions and thus
+      // no unrequested file saves or provider writes from this fixture.
+      return reply({ files: [{ id: 'revision-1', name: 'Shared revision one' }] })
+    }
+    if (cmd === 'collaboration_poll_stop') {
+      sessionStorage.removeItem('e2e:google-poll-lease')
+      return reply(null)
+    }
     if (cmd === 'collaboration_read' || cmd === 'collaboration_write') {
       requireAccount('drive')
       if (body.expectedVaultId !== 'screenshot-vault') throw new Error('Vault changed before a Drive transfer')
