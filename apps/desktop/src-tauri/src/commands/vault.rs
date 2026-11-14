@@ -60,8 +60,16 @@ pub fn vault_open(
         *session_guard = Some(session);
         crate::state::reset_git_queue(&state);
         crate::state::reset_daemon_vault(&state);
-        crate::state::lock_recover(&state.live_collaboration_sessions, "collaboration leases")
-            .clear();
+        {
+            let mut leases = crate::state::lock_recover(
+                &state.live_collaboration_sessions, "collaboration leases"
+            );
+            for lease in leases.values() {
+                lease.relay_generation.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+                lease.relay_active.store(false, std::sync::atomic::Ordering::Release);
+            }
+            leases.clear();
+        }
         *lock_recover(&state.vault_watcher, "vault watcher") = Some(watcher);
         state
             .vault_watcher_generation
