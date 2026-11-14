@@ -173,6 +173,23 @@ pub fn collaboration_live_start(
     })
 }
 
+/// This is a public Ed25519 registration credential. The corresponding
+/// private key stays in the OS keychain and is never returned to the renderer.
+#[tauri::command]
+pub fn collaboration_live_public_key(
+    state: tauri::State<AppState>,
+    expected_vault_id: String,
+    session_id: String,
+) -> Result<String, String> {
+    let session = active_session(&state)?;
+    super::vault::validate_expected_vault(&session.descriptor.id, Some(&expected_vault_id))?;
+    let lease = {
+        let leases = lock_recover(&state.live_collaboration_sessions, "collaboration leases");
+        lease_for(&leases, &session_id, &expected_vault_id)?
+    };
+    super::collaboration_live_identity::public_key_pem(&lease.scope)
+}
+
 /// An update is accepted only after its SQLite FULL/WAL transaction commits.
 /// This is a local durable receipt, not an acknowledgement from the relay.
 #[tauri::command]
