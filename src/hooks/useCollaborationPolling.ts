@@ -5,7 +5,7 @@ import { MAX_POLL_REQUESTS, pollingDelay } from '../lib/collaborationPolling'
 
 type Listing = Awaited<ReturnType<typeof collaborationPollRead>>
 /** A visible panel owns a finite native lease; stopping invalidates late results. */
-export function useCollaborationPolling(folderId: string, vaultId: string | null, path: string | null, transport: CollaborationTransport, onListing: (listing: Listing) => void, autoStart = false) {
+export function useCollaborationPolling(folderId: string, vaultId: string | null, path: string | null, transport: CollaborationTransport, onListing: (listing: Listing) => void, autoStart = false, accountScope = '') {
   const [active, setActive] = useState(false)
   const [starting, setStarting] = useState(false)
   const [status, setStatus] = useState('')
@@ -42,7 +42,7 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
     }
     document.addEventListener('visibilitychange', hidden)
     return () => { release(); document.removeEventListener('visibilitychange', hidden) }
-  }, [folderId, vaultId, path, transport, stop, release])
+  }, [folderId, vaultId, path, transport, accountScope, stop, release])
   const start = useCallback(async () => {
     if (!folderId || !vaultId || pending.current || lease.current) return
     pending.current = true
@@ -93,7 +93,7 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
         })
       }
     }
-  }, [folderId, vaultId, transport, stop, release])
+  }, [folderId, vaultId, transport, accountScope, stop, release])
   useEffect(() => { startRef.current = start }, [start])
   useEffect(() => { autoEnabledRef.current = autoStart }, [autoStart])
   useEffect(() => {
@@ -101,6 +101,6 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
     let live = true
     void Promise.resolve().then(() => { if (live) void start() })
     return () => { live = false }
-  }, [autoStart, folderId, vaultId, path, transport, start])
+  }, [autoStart, folderId, vaultId, path, transport, accountScope, start])
   return { active, starting, status, error, start, stop }
 }
