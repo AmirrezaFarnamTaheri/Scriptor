@@ -10,7 +10,7 @@ import { collaborationCreateFolder, collaborationGetAccount, collaborationListDo
 import { acceptGoogleResourcePage, appendGoogleResources, GOOGLE_COLLABORATION_COPY, googleCollaborationMappingKey, parseGoogleCollaborationSetup, type GoogleResource } from '../lib/googleCollaborationSetup'
 import { useI18n } from '../lib/i18n'
 import { alignReviewedSource } from '../lib/reviewDiff'
-import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled, decideAutoSync } from '../lib/autoSyncPreference'
+import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled, safeIncomingDecision } from '../lib/autoSyncPreference'
 import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import { getGoogleOAuthClientId, hasPackagedGoogleOAuthClient } from '../lib/googleOAuthClient'
@@ -101,7 +101,8 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         const local = await vaultReadNote(path)
         if (current !== epoch.current || !autoEnabledRef.current) return
         if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
-        const decision = decideAutoSync(record.base_markdown, local.markdown, record.markdown)
+        const trustedBase = base.current?.path === path ? base.current.markdown : null
+        const decision = safeIncomingDecision(trustedBase, record.base_markdown, local.markdown, record.markdown)
         if (decision === 'equal') { remember(local.markdown); continue }
         const merged = mergeSharedRevision(record.base_markdown, local.markdown, record.markdown)
         if (decision === 'pull' && !hasPossibleMergeMarkers(record.markdown)) {
@@ -182,7 +183,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     epoch.current++
     operation.current++; occupied.current = false; setBusy(false)
     setRows([]); setPageToken(undefined); setPreview(null); setDocsPreview(null)
-    autoSeenRevisions.current.clear(); autoListingInitialized.current = false
+    autoSeenRevisions.current.clear(); autoListingInitialized.current = false; autoUploadPaused.current = false
     setDocuments(null); setDocumentPage(undefined); setDocsId(''); setDocsConsent(false); 
     documentTokens.current.clear(); revisionTokens.current.clear()
     base.current = null
@@ -236,7 +237,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     const note = await vaultReadNote(path)
     if (current !== epoch.current || !autoEnabledRef.current) return
     if (note.metadata.vault_id !== vaultId) throw new Error('Vault changed; cancel auto-sync.')
-    if (note.markdown === base.current.markdown || hasPossibleMergeMarkers(note.markdown)) return
+    if (note.markdown === base.current?.markdown || hasPossibleMergeMarkers(note.markdown)) return
     const pendingKey = pendingSharedRevisionKey(account, vaultId, folderId, path, transport)
     try {
       const existing = localStorage.getItem(pendingKey)
