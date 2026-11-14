@@ -36,6 +36,7 @@ test('insecure bootstrap and server startup missing TLS fail closed',async()=>{
     if(process.platform !== 'win32') await assert.rejects(executeRelayCommand('bootstrap',env),/private|permission/i)
     await assert.rejects(executeRelayCommand('serve',env),/TLS|certificate|key/i)
   }finally{rmSync(dir,{recursive:true,force:true})}
+})
 
 test('operator CLI scripts enable TypeScript stripping for the shared protocol parser', () => {
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
