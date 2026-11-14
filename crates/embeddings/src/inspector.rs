@@ -190,7 +190,11 @@ pub fn inspect_vault_embeddings(
     let identity_matches = config
         .as_ref()
         .is_some_and(|c| context.as_deref() == Some(configuration_identity(c).as_str()));
-    let records: usize = conn.query_row("SELECT count(*) FROM embeddings", [], |row| row.get(0))?;
+    // rusqlite stores SQL integer values as signed i64. Validate before converting
+    // to an in-memory size rather than relying on a platform-sized FromSql impl.
+    let records: i64 = conn.query_row("SELECT count(*) FROM embeddings", [], |row| row.get(0))?;
+    let records = usize::try_from(records)
+        .map_err(|_| EmbeddingError::Provider("invalid embedding record count".into()))?;
     if records > scriptor_vault::MAX_SCAN_ENTRIES {
         return Err(EmbeddingError::Provider(
             "embedding index exceeds the 250000-record inspection limit".into(),
@@ -203,7 +207,8 @@ pub fn inspect_vault_embeddings(
     while let Some(row) = rows.next()? {
         let id: String = row.get(0)?;
         let hash: Option<String> = row.get(1)?;
-        let stored_dimension: usize = row.get(2)?;
+        let stored_dimension = usize::try_from(row.get::<_, i64>(2)?)
+            .map_err(|_| EmbeddingError::Provider("invalid stored embedding dimension".into()))?;
         let Some(source_hash) = notes.get(&id) else {
             report.orphaned += 1;
             continue;
@@ -216,7 +221,8 @@ pub fn inspect_vault_embeddings(
             || hash != *source_hash;
         let raw = row.get_ref(3)?;
         let bytes = raw.as_blob().ok();
-        let byte_length: usize = row.get(4)?;
+        let byte_length = usize::try_from(row.get::<_, i64>(4)?)
+            .map_err(|_| EmbeddingError::Provider("invalid stored embedding byte length".into()))?;
         let invalid = stored_dimension == 0
             || stored_dimension > MAX_DIMENSION
             || stored_dimension.checked_mul(4) != Some(byte_length)
