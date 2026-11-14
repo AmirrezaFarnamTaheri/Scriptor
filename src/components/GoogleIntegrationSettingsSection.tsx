@@ -3,7 +3,7 @@ import { CalendarDays, ExternalLink, RefreshCw } from 'lucide-react'
 import { useGoogleCalendarSync } from '../hooks/useGoogleCalendarSync'
 import { useGoogleIntegrationAccounts } from '../hooks/useGoogleIntegrationAccounts'
 import { mutateVaultConfig } from '../lib/vaultConfigMutation'
-import { googleResourceOptions, mergeGoogleClientId } from '../lib/googleIntegrationSetup'
+import { googleConnectionAction, googleResourceOptions, mergeGoogleClientId } from '../lib/googleIntegrationSetup'
 import { getGoogleOAuthClientId, hasPackagedGoogleOAuthClient } from '../lib/googleOAuthClient'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import { useI18n } from '../lib/i18n'
@@ -40,6 +40,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
   const accounts = useGoogleIntegrationAccounts({ vaultId, clientId, persistClientId, gmailEnabled })
   const calendarBusy = savingConnection || calendarSync.status === 'authorizing' || calendarSync.status === 'syncing'
   const calendarNeedsReconnect = calendarSync.status === 'reconnect-required'
+  const calendarAction = googleConnectionAction(calendarSync.status, calendarSync.authedEmail)
   const setupBusy = calendarBusy || accounts.drive.busy || accounts.gmail.busy
   const calendarId = sync.google_calendar_id || 'primary'
   const taskListId = sync.google_task_list_id || '@default'
@@ -78,6 +79,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
   const accountControls = (service: 'drive' | 'gmail') => {
     const account = accounts[service]
     const reconnectRequired = account.status === 'reconnect-required'
+    const accountAction = googleConnectionAction(account.status, account.email)
     return <>
       <div className="calendar-sync-actions google-connection-actions">
         <span className="google-account-state" role="status">{reconnectRequired ? t('integrations.google.reconnect') : account.email || t(`integrations.google.status.${account.status}`)}</span>
@@ -89,7 +91,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
           setSetupError(null)
           void accounts.connect(service)
         }}>
-          <ExternalLink size={14} aria-hidden="true" />{t(account.email || reconnectRequired ? 'integrations.google.reconnect' : 'integrations.google.connect')} · {service === 'drive' ? t('integrations.google.driveDocs') : t('integrations.gmail.title')}
+          <ExternalLink size={14} aria-hidden="true" />{t(accountAction === 'switch' ? 'integrations.google.switchAccount' : accountAction === 'reconnect' ? 'integrations.google.reconnect' : 'integrations.google.connect')} · {service === 'drive' ? t('integrations.google.driveDocs') : t('integrations.gmail.title')}
         </button>
         {account.email ? <button type="button" className="toolbar-button" disabled={account.busy} onClick={() => void accounts.disconnect(service)}>{t('integrations.google.disconnect')}</button> : null}
         {account.email || account.status === 'error' || reconnectRequired ? <button type="button" className="toolbar-button" disabled={account.busy} onClick={() => void accounts.check(service)}>{t('integrations.google.checkConnection')}</button> : null}
@@ -143,7 +145,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
         <h4 id="google-calendar-heading">{t('integrations.google.calendarTasks')}</h4>
           <div className="calendar-sync-actions google-connection-actions">
             <span className="google-account-state" role="status">{calendarNeedsReconnect ? t('integrations.google.reconnect') : t(`integrations.google.status.${calendarSync.status}`)}{calendarSync.authedEmail ? ` · ${calendarSync.authedEmail}` : ''}</span>
-            <button type="button" className="primary-button" disabled={calendarBusy} onClick={() => void connectCalendar()}>{t(calendarSync.authedEmail || calendarNeedsReconnect ? 'integrations.google.reconnect' : 'integrations.google.connect')} · {t('integrations.google.calendarTasks')}</button>
+            <button type="button" className="primary-button" disabled={calendarBusy} onClick={() => void connectCalendar()}>{t(calendarAction === 'switch' ? 'integrations.google.switchAccount' : calendarAction === 'reconnect' ? 'integrations.google.reconnect' : 'integrations.google.connect')} · {t('integrations.google.calendarTasks')}</button>
             {calendarSync.authedEmail ? <>
               <button type="button" className="toolbar-button" disabled={calendarBusy} onClick={() => void calendarSync.refresh()}>{t('integrations.google.syncNow')}</button>
               <button type="button" className="toolbar-button" disabled={calendarBusy} onClick={() => void calendarSync.disconnect()}>{t('integrations.google.disconnect')}</button>
