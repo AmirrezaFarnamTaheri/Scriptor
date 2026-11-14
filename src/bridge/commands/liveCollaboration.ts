@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import type { DurableLocalJournalPort } from '../../lib/liveCollaborationDurableSession.ts'
 import { requireNative } from '../native.ts'
 import { authorizeSensitiveOperation } from './authorization.ts'
 import {
@@ -123,4 +124,21 @@ export async function collaborationLiveStop(
 ): Promise<boolean> {
   requireNative()
   return invoke<boolean>('collaboration_live_stop', { expectedVaultId, sessionId })
+}
+
+
+/**
+ * Native journal port for a previously consented collaboration document.
+ * This adapter cannot remove/acknowledge stored updates. The future authenticated
+ * native relay transport, not renderer-provided flags, must own durable ACKs.
+ */
+export function nativeLiveCollaborationJournalPort(): DurableLocalJournalPort {
+  return {
+    append: collaborationLiveAppend,
+    pending: (scope, sessionId, afterSequence) =>
+      collaborationLivePending(scope.vaultId, sessionId, afterSequence),
+    stop: async (scope, sessionId) => {
+      await collaborationLiveStop(scope.vaultId, sessionId)
+    },
+  }
 }

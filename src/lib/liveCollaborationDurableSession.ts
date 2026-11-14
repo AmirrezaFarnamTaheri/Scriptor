@@ -32,6 +32,7 @@ export interface DurableLocalJournalPort {
     sessionId: string,
     afterSequence: number,
   ): Promise<NativePendingUpdate[]>
+  stop?(scope: NativeCollaborationDocument, sessionId: string): Promise<void>
 }
 
 function toBase64(value: Uint8Array): string {
@@ -92,6 +93,7 @@ export class DurableCollaborationSession {
   private nextSequence = 0
   private staged: InFlightChange | null = null
   private inFlight = false
+  private closePromise: Promise<void> | null = null
 
   constructor(
     scope: NativeCollaborationDocument,
@@ -247,7 +249,22 @@ export class DurableCollaborationSession {
     return this.queue.pending().map(message => ({ ...message }))
   }
 
-  /** Closing revokes this renderer's ability to publish or commit a late reply. */
+  /**
+   * Immediately invalidate local work and request revocation of the native
+   * process-local capability. The durable outbox is never cleared by closing.
+   * Repeated calls share the same native stop request.
+   */
+  close(): Promise<void> {
+    if (!this.closePromise) {
+      this.stop()
+      this.closePromise = this.journal.stop
+        ? Promise.resolve().then(() => this.journal.stop!(this.scope, this.leaseId))
+        : Promise.resolve()
+    }
+    return this.closePromise
+  }
+
+  /** Immediately stop local work (native vault switching also clears leases). */
   stop(): void {
     if (this.phase === 'stopped') return
     this.phase = 'stopped'
