@@ -6621,6 +6621,7 @@ dependencies = [
  "hex",
  "mimalloc",
  "reqwest",
+ "rusqlite",
  "scriptor-canvas-engine",
  "scriptor-capture",
  "scriptor-daemon",
