@@ -100,6 +100,7 @@ pub fn vault_save_note(
 ) -> Result<SaveNoteOutput, String> {
     let session = active_session(&state)?;
     validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
+    super::collaboration_live::reject_if_live_owned(&state, &session.descriptor.id, &path)?;
     if use_headless_engine(&state) {
         let json = bridge_save_note(&state, path, markdown, expected_content_hash, dry_run)?;
         return parse_daemon_json(&json);
