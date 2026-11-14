@@ -59,6 +59,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   const revisionTokens = useRef(new Set<string>())
   const autoSeenRevisions = useRef(new Set<string>())
   const autoListingInitialized = useRef(false)
+  const autoUploadPaused = useRef(false)
   const autoKey = (() => {
     try { return account && vaultId && folderId && path ? autoSyncPreferenceKey('google_drive', vaultId, account, folderId, path) : null }
     catch { return null }
@@ -78,7 +79,18 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     }
     // Only newly discovered revisions are candidates. Historic folder content
     // must never be silently imported on the first connection.
-    if (occupied.current || !fresh.length) return
+    if (occupied.current) return
+    if (!fresh.length) {
+      if (transport === 'drive_json' && !autoUploadPaused.current && base.current?.path === path) {
+        const current = epoch.current
+        void vaultReadNote(path).then(note => {
+          if (current !== epoch.current || !autoEnabledRef.current || occupied.current || autoUploadPaused.current) return
+          if (note.markdown !== base.current?.markdown && !hasPossibleMergeMarkers(note.markdown))
+            void run(async generation => { await autoPublishSaved(generation) })
+        }).catch(() => { /* Local changes will be inspected during the next bounded check. */ })
+      }
+      return
+    }
     const batch = fresh.slice(0, 5)
     for (const item of batch) autoSeenRevisions.current.add(item.id)
     void run(async current => {
@@ -155,7 +167,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       setFolders(null); setFolderPage(undefined); setDocuments(null); setDocumentPage(undefined)
       setPageToken(undefined); setDocsId(''); setDocsConsent(false)
       folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
-      autoSeenRevisions.current.clear(); autoListingInitialized.current = false
+      autoSeenRevisions.current.clear(); autoListingInitialized.current = false; autoUploadPaused.current = false
       base.current = null; peer.current = crypto.randomUUID()
       setMessage(copy.accountChanged)
       loadAccount()
@@ -216,6 +228,43 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     catch (reason) { if (epoch.current === current) setError(reason instanceof Error ? reason.message : String(reason)) }
     finally { if (serial === operation.current) { occupied.current = false; if (epoch.current === current) setBusy(false) } }
   }
+  /** An immutable new revision is safe to append only after an owned base exists.
+   * An uncertain prior attempt keeps its original ID; no remote document is overwritten. */
+  async function autoPublishSaved(current: number) {
+    if (!autoEnabledRef.current || autoUploadPaused.current || transport !== 'drive_json'
+      || !account || !vaultId || !folderId || !path || base.current?.path !== path) return
+    const note = await vaultReadNote(path)
+    if (current !== epoch.current || !autoEnabledRef.current) return
+    if (note.metadata.vault_id !== vaultId) throw new Error('Vault changed; cancel auto-sync.')
+    if (note.markdown === base.current.markdown || hasPossibleMergeMarkers(note.markdown)) return
+    const pendingKey = pendingSharedRevisionKey(account, vaultId, folderId, path, transport)
+    try {
+      const existing = localStorage.getItem(pendingKey)
+      const allocated = existing === null ? await collaborationGenerateRevisionId(vaultId, folderId) : crypto.randomUUID()
+      if (current !== epoch.current || !autoEnabledRef.current) return
+      const candidate: SharedRevision = {
+        schema: 'scriptor.collaboration.v1', id: allocated, document: path, peer_id: peer.current,
+        base_markdown: sharedRevisionBase(base.current, path), markdown: note.markdown, created_at: new Date().toISOString(),
+      }
+      const record = preparePendingSharedRevision(localStorage, pendingKey, candidate)
+      peer.current = record.peer_id
+      if (current !== epoch.current || !autoEnabledRef.current) return
+      await collaborationAppend(vaultId, folderId, record, transport)
+      localStorage.removeItem(pendingKey)
+      if (current !== epoch.current) return
+      const latest = await vaultReadNote(path)
+      if (current !== epoch.current || !autoEnabledRef.current) return
+      if (latest.metadata.content_hash !== note.metadata.content_hash) {
+        setMessage('A previous saved revision was shared. New local edits will sync on the next check.')
+      } else {
+        setMessage(`Automatically shared saved local revision.${remember(note.markdown)}`)
+      }
+    } catch (caught) {
+      autoUploadPaused.current = true
+      throw new Error(`Automatic sharing paused. Review this attempt before retrying: ${caught instanceof Error ? caught.message : String(caught)}`, { cause: caught })
+    }
+  }
+
   async function list(current: number, next?: string) {
     if (!next) revisionTokens.current.clear()
     const result = await collaborationList(vaultId!, folderId, next, transport)
@@ -361,6 +410,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
             const enabled = event.target.checked
             writeAutoSyncEnabled(localStorage, autoKey, enabled)
             autoEnabledRef.current = enabled
+            if (enabled) autoUploadPaused.current = false
             setAutoChoice({ key: autoKey, enabled })
             if (!enabled) polling.stop()
           } catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)) }
