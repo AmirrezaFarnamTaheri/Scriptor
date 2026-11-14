@@ -1,7 +1,10 @@
 //! Native opt-in access to the vault-scoped collaboration outbox.
 //! No network traffic and no renderer-callable acknowledgement function.
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, AtomicU64, Ordering},
+};
 
 use base64::Engine as _;
 use scriptor_vault::{RelativeVaultPath, SaveNoteOptions, SaveNoteOutput, content_hash, read_note, save_note_with_options};
@@ -17,8 +20,10 @@ const MAX_BASE64_UPDATE_LENGTH: usize = (256 * 1024 / 3 + 1) * 4 + 4;
 
 #[derive(Clone)]
 pub(crate) struct LiveSessionLease {
-    scope: JournalScope,
-    journal: Arc<Mutex<LocalJournal>>,
+    pub(crate) scope: JournalScope,
+    pub(crate) journal: Arc<Mutex<LocalJournal>>,
+    pub(crate) relay_generation: Arc<AtomicU64>,
+    pub(crate) relay_active: Arc<AtomicBool>,
 }
 
 #[derive(Deserialize)]
@@ -86,7 +91,7 @@ fn approval_scope(scope: &JournalScope) -> String {
     )
 }
 
-fn lease_for(
+pub(crate) fn lease_for(
     leases: &HashMap<String, LiveSessionLease>,
     session_id: &str,
     expected_vault_id: &str,
@@ -163,6 +168,8 @@ pub fn collaboration_live_start(
         LiveSessionLease {
             scope,
             journal: Arc::new(Mutex::new(journal)),
+            relay_generation: Arc::new(AtomicU64::new(0)),
+            relay_active: Arc::new(AtomicBool::new(false)),
         },
     );
     Ok(LiveStartReceipt {
@@ -339,7 +346,13 @@ pub fn collaboration_live_stop(
     {
         return Err("Live collaboration session belongs to another vault".into());
     }
-    Ok(leases.remove(&session_id).is_some())
+    if let Some(lease) = leases.remove(&session_id) {
+        lease.relay_generation.fetch_add(1, Ordering::AcqRel);
+        lease.relay_active.store(false, Ordering::Release);
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 #[cfg(test)]
