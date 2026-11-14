@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { alignReviewedSource } from './reviewDiff.ts'
+import { alignReviewedSource, sourceLineEndingStyle } from './reviewDiff.ts'
 
 test('inserted lines align without marking subsequent matching lines as changed', () => {
   const result = alignReviewedSource('alpha\nbeta\ngamma', 'alpha\ninserted\nbeta\ngamma')
@@ -48,4 +48,12 @@ test('alignment is lossless for repeated source lines', () => {
     assert.equal(rows.filter(row => row.local !== null).map(row => row.local).join('\n'), local)
     assert.equal(rows.filter(row => row.remote !== null).map(row => row.remote).join('\n'), remote)
   }
+})
+
+test('line ending summaries distinguish CRLF, LF, CR and mixed source files', () => {
+  assert.equal(sourceLineEndingStyle('a\r\nb\r\n'), 'CRLF')
+  assert.equal(sourceLineEndingStyle('a\nb\n'), 'LF')
+  assert.equal(sourceLineEndingStyle('a\rb\r'), 'CR')
+  assert.equal(sourceLineEndingStyle('a\r\nb\n'), 'mixed')
+  assert.equal(sourceLineEndingStyle('single line'), 'none')
 })
