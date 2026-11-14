@@ -413,6 +413,12 @@ importers:
 
   packages/zotero-connector: {}
 
+  services/collaboration-relay:
+    dependencies:
+      ws:
+        specifier: 8.22.0
+        version: 8.22.0
+
 packages:
 
   '@antfu/install-pkg@2.1.0':

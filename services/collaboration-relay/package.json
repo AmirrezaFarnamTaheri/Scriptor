@@ -1,8 +1,17 @@
 {
   "name": "@scriptor/collaboration-relay",
-  "version": "0.0.0",
+  "version": "1.3.4",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.16.0" },
-  "scripts": { "test": "node --experimental-sqlite --experimental-strip-types --test test/*.test.mjs" }
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "scripts": {
+    "test": "node --experimental-sqlite --experimental-strip-types --test test/*.test.mjs",
+    "serve": "node --experimental-sqlite src/cli.mjs serve",
+    "bootstrap": "node --experimental-sqlite src/cli.mjs bootstrap"
+  },
+  "dependencies": {
+    "ws": "8.22.0"
+  }
 }
