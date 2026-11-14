@@ -340,6 +340,63 @@ export const OPERATION_CATALOG = {
       ]
     },
     {
+      "name": "collaboration_live_start",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "vault-note-collaboration-room",
+      "authorizationVariant": "LiveCollaborationStart",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_live_append",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "vault-bound-ephemeral-collaboration-lease",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_live_pending",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "vault-bound-ephemeral-collaboration-lease",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_live_stop",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "vault-bound-ephemeral-collaboration-lease",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
       "name": "health_repair_plan",
       "surface": "tauri",
       "owner": "apps/desktop/src-tauri/src/commands/health_repair.rs",

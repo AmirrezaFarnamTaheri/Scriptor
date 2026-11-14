@@ -278,6 +278,58 @@
       ]
     },
     {
+      "name": "collaboration_live_start",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "vault-note-collaboration-room",
+      "authorizationVariant": "LiveCollaborationStart",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_live_append",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "vault-bound-ephemeral-collaboration-lease",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_live_pending",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "vault-bound-ephemeral-collaboration-lease",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_live_stop",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "vault-bound-ephemeral-collaboration-lease",
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
       "name": "health_repair_plan",
       "owner": "apps/desktop/src-tauri/src/commands/health_repair.rs",
       "authorizationClass": "read-only",
