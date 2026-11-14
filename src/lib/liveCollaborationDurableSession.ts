@@ -217,7 +217,7 @@ export class DurableCollaborationSession {
       }
       if (!this.isStopped()) this.phase = 'ready'
     } catch (error) {
-      if (this.phase !== 'stopped') this.phase = 'blocked'
+      if (!this.isStopped()) this.phase = 'blocked'
       throw error
     }
   }
