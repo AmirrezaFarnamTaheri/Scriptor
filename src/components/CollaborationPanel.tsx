@@ -125,7 +125,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         throw reason
       }
     })
-  }, autoEnabled)
+  }, autoEnabled, account)
   const epoch = useRef(0)
   const base = useRef<{ path: string; markdown: string } | null>(null)
   const peer = useRef<string>(crypto.randomUUID())
@@ -326,11 +326,12 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       </details>}
       {!clientId && <p className="publish-error" role="alert">{t('integrations.google.notConfigured')}</p>}
       <div className="collaboration-actions">
-        <button type="button" disabled={busy || polling.active || polling.starting} onClick={() => {
+        <button type="button" disabled={busy || polling.starting} onClick={() => {
           if (!clientId.trim()) {
             setError(t('integrations.google.notConfigured'))
             return
           }
+          polling.stop()
           void run(async current => {
           const value = await collaborationConnect(clientId.trim())
           accountReadGeneration.current++
@@ -341,6 +342,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           setFolders(null); setFolderPage(undefined); setDocuments(null); setDocumentPage(undefined); setDocsId('')
           setDocsConsent(false)
           folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
+          autoInbox.current.reset(); autoUploadPaused.current = false
           base.current = null; peer.current = crypto.randomUUID()
           await persistSetup()
           if (current === epoch.current) { setMessage(copy.saved); await onApplied() }
