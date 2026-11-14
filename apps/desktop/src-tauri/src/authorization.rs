@@ -39,6 +39,7 @@ pub enum SensitiveOperation {
     KeychainWrite,
     LatexCompilation,
     LiveCollaborationStart,
+    LiveCollaborationConnect,
     PdfTranslation,
     PlantUmlExecution,
     PublishSite,
@@ -66,6 +67,7 @@ impl SensitiveOperation {
                 | Self::ImportVault
                 | Self::LatexCompilation
                 | Self::LiveCollaborationStart
+                | Self::LiveCollaborationConnect
                 | Self::PdfTranslation
                 | Self::PublishSite
                 | Self::RestoreBackup
@@ -116,6 +118,7 @@ impl SensitiveOperation {
             Self::KeychainWrite => "Store an AI provider credential",
             Self::LatexCompilation => "Compile a LaTeX document with Tectonic",
             Self::LiveCollaborationStart => "Enable local collaborative editing for this note",
+            Self::LiveCollaborationConnect => "Connect this note to an authenticated collaboration relay",
             Self::PdfTranslation => "Run the configured PDF translation tool",
             Self::PlantUmlExecution => "Run a local PlantUML renderer",
             Self::PublishSite => "Publish this vault as a site",
@@ -212,6 +215,9 @@ impl SensitiveOperation {
             }
             Self::LiveCollaborationStart => {
                 "A vault-private durable journal will store updates for this specific note and collaboration room. No network connection starts until you separately enable a trusted relay."
+            }
+            Self::LiveCollaborationConnect => {
+                "Encrypted note updates and collaboration metadata will be exchanged with the explicitly selected WSS relay and its approved room members. This grants network access only for the selected room, note and endpoint."
             }
             Self::PdfTranslation => {
                 "An external executable will read the selected PDF and write translated output."
