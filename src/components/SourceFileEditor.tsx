@@ -3,6 +3,7 @@ import { sourceFileCreate, sourceFileRead, sourceFileSave } from '../bridge/comm
 import { SOURCE_FILE_LIMIT, sourceLanguage, type SourceDocument } from '../lib/sourceFile'
 import { useLatexCompiler, type LatexCompilerConfig } from '../hooks/useLatexCompiler'
 import { OverleafPanel } from './OverleafPanel'
+import { OverleafBackgroundSync } from './OverleafBackgroundSync'
 import { useWorkspaceLeafCloseGuard, useWorkspaceLeafReveal } from '../context/WorkspaceLeafLifecycle'
 import { useWorkspaceEmbeddedPanel } from '../context/WorkspacePanelContext'
 import type { VaultSwitchDetail } from '../lib/vaultSwitchGuard'
@@ -194,6 +195,22 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
     {compiling && <button type="button" onClick={compiler.cancelJob}>Cancel compilation</button>}
     {lastJob && <div aria-live="polite"><p>Compilation: {lastJob.status}{lastJob.outputPath ? ` · ${lastJob.outputPath}` : ''}</p>{lastJob.stderr && <pre>{lastJob.stderr}</pre>}</div>}
     {document && /\.(tex|ltx|bib)$/i.test(document.path) && <button type="button" disabled={dirty || busy || compiling || Boolean(pending) || overleafOpen} onClick={() => setOverleafOpen(true)}>Open Overleaf sync</button>}
+    {document && !overleafOpen && /\.(tex|ltx|bib)$/i.test(document.path) && <OverleafBackgroundSync
+      key={`${document.vault_id}:${document.path}`}
+      document={document}
+      canTransfer={() => !current.current.dirty && !current.current.busy && !current.current.pending}
+      onApplied={next => {
+        if (next.vault_id !== expectedVaultId || next.path !== document.path || current.current.dirty) {
+          setError('Overleaf changed the saved source while an unsaved draft was open. Keep the draft and review a reload before editing further.')
+          return
+        }
+        setDocument(next); setDraft(next.content); setCompileConfirmed(false)
+        setStatus('Auto-sync imported an Overleaf co-author update.')
+        void Promise.resolve().then(() => onSaved?.(next.path)).catch(() => setStatus('Auto-sync saved the source. Reopen the file list to refresh.'))
+      }}
+      onStatus={setStatus}
+    />}
+
     {overleafOpen && document && <OverleafPanel document={document} onClose={() => setOverleafOpen(false)} onApplied={(next, keepWatching = false) => {
       if (next.vault_id !== expectedVaultId || next.path !== document.path) { setError('Synced source belongs to another file. Reload before continuing.'); return }
       setDocument(next); setDraft(next.content); setCompileConfirmed(false)
