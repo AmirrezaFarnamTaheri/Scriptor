@@ -1,9 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { sourceFileCreate, sourceFileRead, sourceFileSave } from '../bridge/commands/source_files'
 import { SOURCE_FILE_LIMIT, sourceLanguage, type SourceDocument } from '../lib/sourceFile'
 import { useLatexCompiler, type LatexCompilerConfig } from '../hooks/useLatexCompiler'
 import { OverleafPanel } from './OverleafPanel'
 import { OverleafBackgroundSync } from './OverleafBackgroundSync'
+import { overleafBindingKey, readOverleafBinding } from '../lib/overleafBinding'
+import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled } from '../lib/autoSyncPreference'
 import { useWorkspaceLeafCloseGuard, useWorkspaceLeafReveal } from '../context/WorkspaceLeafLifecycle'
 import { useWorkspaceEmbeddedPanel } from '../context/WorkspacePanelContext'
 import type { VaultSwitchDetail } from '../lib/vaultSwitchGuard'
@@ -32,6 +34,16 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
   const [pending, setPending] = useState<Pending | null>(null)
   const [compileConfirmed, setCompileConfirmed] = useState(false)
   const [overleafOpen, setOverleafOpen] = useState(false)
+  const [overleafPreferenceVersion, setOverleafPreferenceVersion] = useState(0)
+  const linkedOverleaf = useMemo(() => {
+    if (!document) return null
+    try {
+      const binding = readOverleafBinding(localStorage, overleafBindingKey(document.vault_id, document.path))
+      if (!binding) return null
+      const key = autoSyncPreferenceKey('overleaf', document.vault_id, binding.projectId, binding.remotePath)
+      return { key, enabled: readAutoSyncEnabled(localStorage, key) }
+    } catch { return null }
+  }, [document?.vault_id, document?.path, overleafOpen, overleafPreferenceVersion])
   const generation = useRef(0)
   const decisionRef = useRef<HTMLDivElement>(null)
   const dirty = document ? draft !== document.content : draft !== ''
@@ -195,8 +207,18 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
     {compiling && <button type="button" onClick={compiler.cancelJob}>Cancel compilation</button>}
     {lastJob && <div aria-live="polite"><p>Compilation: {lastJob.status}{lastJob.outputPath ? ` · ${lastJob.outputPath}` : ''}</p>{lastJob.stderr && <pre>{lastJob.stderr}</pre>}</div>}
     {document && /\.(tex|ltx|bib)$/i.test(document.path) && <button type="button" disabled={dirty || busy || compiling || Boolean(pending) || overleafOpen} onClick={() => setOverleafOpen(true)}>Open Overleaf sync</button>}
+    {document && !overleafOpen && linkedOverleaf && <label className="source-file-auto-sync"><input type="checkbox"
+      aria-label="Auto-sync linked Overleaf file" checked={linkedOverleaf.enabled} onChange={event => {
+        try {
+          writeAutoSyncEnabled(localStorage, linkedOverleaf.key, event.target.checked)
+          setOverleafPreferenceVersion(value => value + 1)
+          setStatus(event.target.checked ? 'Overleaf auto-sync enabled for this linked file.' : 'Overleaf auto-sync off for this linked file. Your unsaved draft is unchanged.')
+        } catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)) }
+      }} />Auto-sync linked Overleaf file</label>}
+
     {document && !overleafOpen && /\.(tex|ltx|bib)$/i.test(document.path) && <OverleafBackgroundSync
       key={`${document.vault_id}:${document.path}`}
+      enabled={linkedOverleaf?.enabled ?? false}
       document={document}
       canTransfer={() => !current.current.dirty && !current.current.busy && !current.current.pending}
       onApplied={next => {
