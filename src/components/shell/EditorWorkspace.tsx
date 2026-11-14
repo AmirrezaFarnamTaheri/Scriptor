@@ -431,6 +431,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                       ref={editorRef}
                       key={`visual:${activePath}`}
                       value={draftMarkdown}
+                      collaboration={collaboration}
                       onChange={updateDraft}
                       scrollToLine={scrollToEditorLine}
                       scrollSyncEnabled={scrollSyncEnabled}
@@ -485,6 +486,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                   key={activePath}
                   notePath={activePath}
                   value={draftMarkdown}
+                  collaboration={collaboration}
                   onChange={updateDraft}
                   insertRequest={editorInsertRequest}
                   transformRequest={editorTransformRequest}
@@ -503,6 +505,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                 ref={editorRef}
                 key={activePath}
                 value={draftMarkdown}
+                collaboration={collaboration}
                 onChange={updateDraft}
                 scrollToLine={scrollToEditorLine}
                 insertRequest={editorInsertRequest}
@@ -604,6 +607,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                     ref={previewEditorRef}
                     key={`split-visual:${activePath}`}
                     value={draftMarkdown}
+                    readOnly={Boolean(collaboration)}
                     onChange={updateDraft}
                     scrollSyncEnabled={scrollSyncEnabled}
                     onVisibleLineChange={handleVisualPreviewLineChange}
