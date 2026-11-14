@@ -1,4 +1,5 @@
 import type { DurableCollaborationSession } from './liveCollaborationDurableSession.ts'
+import type { CollaborativeEditorSurface } from '@scriptor/editor/collaboration-port'
 
 export interface CollaborationTextEdit {
   from: number
@@ -26,19 +27,8 @@ export function singleTextEdit(before: string, after: string): CollaborationText
 }
 
 /** The renderer adapter owns cursor/history mapping; the coordinator owns text. */
-export interface CollaborationEditorSurface {
-  getValue(): string
-  setReadOnly(value: boolean): void
-  /** Apply a remote edit WITHOUT placing it on the local user's undo stack. */
-  applyRemoteEdit(edit: CollaborationTextEdit): void
-}
+export type CollaborationEditorSurface = CollaborativeEditorSurface
 
-/**
- * One CodeMirror or Monaco writing surface at a time may own the durable
- * session. Caller must only construct this after an authenticated seed and
- * successful native journal replay, and must not run normal editor autosave
- * concurrently. No browser-side mutation may acknowledge native relay data.
- */
 export class CollaborationEditorController {
   private readonly releaseOwner: () => void
   private readonly unsubscribe: () => void
