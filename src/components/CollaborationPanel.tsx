@@ -89,6 +89,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     const candidates = new Set(fresh)
     const batch = result.files.filter(item => candidates.has(item.id))
     void run(async current => {
+      try {
       for (const row of batch) {
         const record = await collaborationRead(vaultId, folderId, row.id, transport)
         if (current !== epoch.current || !autoEnabledRef.current) return
@@ -119,7 +120,11 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           return
         }
       }
-    }).catch(() => { autoInbox.current.blockForReview() })
+      } catch (reason) {
+        if (current === epoch.current && autoEnabledRef.current) autoInbox.current.blockForReview()
+        throw reason
+      }
+    })
   }, autoEnabled)
   const epoch = useRef(0)
   const base = useRef<{ path: string; markdown: string } | null>(null)
@@ -251,12 +256,16 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       await collaborationAppend(vaultId, folderId, record, transport)
       localStorage.removeItem(pendingKey)
       if (current !== epoch.current) return
+      // A confirmed append advances the shared base even if another local edit
+      // landed during upload. Keep that newer edit unmodified for the next check.
+      if (current !== epoch.current) return
+      const cacheWarning = remember(note.markdown)
       const latest = await vaultReadNote(path)
-      if (current !== epoch.current || !autoEnabledRef.current) return
+      if (current !== epoch.current) return
       if (latest.metadata.content_hash !== note.metadata.content_hash) {
-        setMessage('A previous saved revision was shared. New local edits will sync on the next check.')
+        setMessage(`A previous saved revision was shared. New local edits will sync on the next check.${cacheWarning}`)
       } else {
-        setMessage(`Automatically shared saved local revision.${remember(note.markdown)}`)
+        setMessage(`Automatically shared saved local revision.${cacheWarning}`)
       }
     } catch (caught) {
       autoUploadPaused.current = true
@@ -397,6 +406,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
         if (current !== epoch.current) return
         const merged = mergeSharedRevision(record.base_markdown, local.markdown, record.markdown)
+        autoInbox.current.blockForReview()
         setPreview({ record, ...merged, hash: local.metadata.content_hash, lineChanges: alignReviewedSource(local.markdown, record.markdown).summary })
       })}><bdi>{row.name}</bdi></button></li>)}</ul>
       {rows.length >= 1000 && pageToken && <p>Listing reached 1,000 revisions. Use a smaller shared folder.</p>}
