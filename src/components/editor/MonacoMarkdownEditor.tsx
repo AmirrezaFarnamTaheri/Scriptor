@@ -13,6 +13,7 @@ import {
   type MarkdownEditorHandle,
   type TypographyAction,
 } from '@scriptor/editor/pure'
+import type { CollaborativeEditorBinding, CollaborativeEditorConnection } from '@scriptor/editor/collaboration-port'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 
 import {
@@ -53,6 +54,7 @@ export interface MonacoMarkdownEditorProps {
   scrollToLine?: number | null
   onVisibleLineChange?: (line: number) => void
   completionContext?: MonacoCompletionContext
+  collaboration?: CollaborativeEditorBinding
 }
 
 export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkdownEditorProps>(
@@ -73,6 +75,7 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       scrollToLine,
       onVisibleLineChange,
       completionContext,
+      collaboration,
     },
     ref,
   ) {
@@ -82,6 +85,10 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
     const monacoRef = useRef<typeof import('monaco-editor') | null>(null)
     const completionDisposableRef = useRef<{ dispose: () => void } | null>(null)
     const latest = useRef(value)
+    const collaborationConnectionRef = useRef<CollaborativeEditorConnection | null>(null)
+    const applyingRemoteRef = useRef(false)
+    const collaborationRef = useRef(collaboration)
+    collaborationRef.current = collaboration
     const onChangeRef = useRef(onChange)
     const onVisibleLineChangeRef = useRef(onVisibleLineChange)
     const lastSyncedValueRef = useRef(value)
@@ -117,6 +124,8 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
 
     useEffect(() => {
       return () => {
+        collaborationConnectionRef.current?.dispose()
+        collaborationConnectionRef.current = null
         completionDisposableRef.current?.dispose()
         modelRef.current?.dispose()
         modelRef.current = null
@@ -127,7 +136,7 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
     useEffect(() => {
       latest.current = value
       const model = modelRef.current
-      if (!model) return
+      if (!model || collaborationRef.current) return
       const current = model.getValue()
       if (current === value) {
         lastSyncedValueRef.current = value
@@ -159,6 +168,46 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       modelRef.current = model
       editor.setModel(model)
     }, [notePath])
+
+    const attachCollaboration = useCallback((binding: CollaborativeEditorBinding) => {
+      const editor = editorRef.current
+      const model = modelRef.current
+      if (!editor || !model) return
+      if (collaborationConnectionRef.current) {
+        collaborationConnectionRef.current.dispose()
+        collaborationConnectionRef.current = null
+      }
+      const connection = binding.connect({
+        getValue: () => model.getValue(),
+        setReadOnly: value => editor.updateOptions({ readOnly: value }),
+        applyRemoteEdit: ({ from, to, insert }) => {
+          // model.applyEdits updates tracked ranges but does not append to
+          // Monaco's local undo/redo stack as executeEdits would.
+          const range = {
+            startLineNumber: model.getPositionAt(from).lineNumber,
+            startColumn: model.getPositionAt(from).column,
+            endLineNumber: model.getPositionAt(to).lineNumber,
+            endColumn: model.getPositionAt(to).column,
+          }
+          applyingRemoteRef.current = true
+          try {
+            model.applyEdits([{ range, text: insert, forceMoveMarkers: true }])
+            lastSyncedValueRef.current = model.getValue()
+          } finally {
+            applyingRemoteRef.current = false
+          }
+        },
+      })
+      collaborationConnectionRef.current = connection
+    }, [])
+
+    useEffect(() => {
+      if (collaboration) attachCollaboration(collaboration)
+      return () => {
+        collaborationConnectionRef.current?.dispose()
+        collaborationConnectionRef.current = null
+      }
+    }, [collaboration, attachCollaboration])
 
     const handleInsertText = useCallback((text: string) => {
       const editor = editorRef.current
@@ -572,6 +621,8 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       editor.setModel(model)
       disableBracketPairColorization(model)
 
+      if (collaborationRef.current) attachCollaboration(collaborationRef.current)
+
       editor.onDidChangeCursorPosition((event) => {
         onVisibleLineChangeRef.current?.(event.position.lineNumber)
       })
@@ -641,9 +692,14 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
             bracketPairColorization: { enabled: false },
           }}
           onChange={(next) => {
+            if (applyingRemoteRef.current) return
             const nextValue = next ?? ''
             lastSyncedValueRef.current = nextValue
-            onChange(nextValue)
+            if (collaborationConnectionRef.current) {
+              void collaborationConnectionRef.current.localChange().catch(error => collaborationRef.current?.onError(error))
+            } else {
+              onChange(nextValue)
+            }
           }}
         />
       </div>
