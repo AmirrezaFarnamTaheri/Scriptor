@@ -39,7 +39,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   const [account, setAccount] = useState('')
   const [rows, setRows] = useState<Array<{ id: string; name: string }>>([])
   const [pageToken, setPageToken] = useState<string>()
-  const [preview, setPreview] = useState<{ record: SharedRevision; markdown: string; hash: string; conflict: boolean } | null>(null)
+  const [preview, setPreview] = useState<{ record: SharedRevision; markdown: string; hash: string; conflict: boolean; lineChanges: { added: number; removed: number; changed: number } } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(initial.error)
   const [message, setMessage] = useState('')
@@ -296,7 +296,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
         if (current !== epoch.current) return
         const merged = mergeSharedRevision(record.base_markdown, local.markdown, record.markdown)
-        setPreview({ record, ...merged, hash: local.metadata.content_hash })
+        setPreview({ record, ...merged, hash: local.metadata.content_hash, lineChanges: alignReviewedSource(local.markdown, record.markdown).summary })
       })}><bdi>{row.name}</bdi></button></li>)}</ul>
       {rows.length >= 1000 && pageToken && <p>Listing reached 1,000 revisions. Use a smaller shared folder.</p>}
       <section className="collaboration-auto-checks" aria-label={t('collaborationUi.autoTitle')}>
@@ -310,7 +310,8 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       </section>
       {preview && <>
         <h3>{t('collaborationUi.reviewHeading')}</h3>
-        <p className="collaboration-revision-provenance" role="note">Incoming revision by peer <bdi>{preview.record.peer_id}</bdi> · <time dateTime={preview.record.created_at}>{new Date(preview.record.created_at).toLocaleString()}</time>. Changes are applied only after your review; this is not simultaneous co-editing.</p>
+        <p className="collaboration-revision-provenance" role="note">Incoming revision by peer <bdi>{preview.record.peer_id}</bdi> · <time dateTime={preview.record.created_at}>{new Date(preview.record.created_at).toLocaleString(locale === 'de' ? 'de-DE' : locale === 'fa' ? 'fa-IR-u-ca-gregory' : 'en-US')}</time>. Changes are applied only after your review; this is not simultaneous co-editing.</p>
+        <p className="collaboration-revision-diff-summary" role="note">Your saved note compared with this revision: {preview.lineChanges.added} added, {preview.lineChanges.removed} removed, {preview.lineChanges.changed} changed. You can review and edit the proposed merge before saving.</p>
         <p>{t(preview.conflict || hasPossibleMergeMarkers(preview.markdown) ? 'collaborationUi.conflict' : 'collaborationUi.ready')}</p>
         {hasPossibleMergeMarkers(preview.markdown) && <div className="collaboration-conflict-warning" role="alert">
           <strong>Unresolved revision markers need review</strong>
