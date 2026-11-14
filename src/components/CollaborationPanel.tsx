@@ -10,6 +10,7 @@ import { collaborationCreateFolder, collaborationGetAccount, collaborationListDo
 import { acceptGoogleResourcePage, appendGoogleResources, GOOGLE_COLLABORATION_COPY, googleCollaborationMappingKey, parseGoogleCollaborationSetup, type GoogleResource } from '../lib/googleCollaborationSetup'
 import { useI18n } from '../lib/i18n'
 import { alignReviewedSource } from '../lib/reviewDiff'
+import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled } from '../lib/autoSyncPreference'
 import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import { getGoogleOAuthClientId, hasPackagedGoogleOAuthClient } from '../lib/googleOAuthClient'
@@ -43,7 +44,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(initial.error)
   const [message, setMessage] = useState('')
-  const [pollConsent, setPollConsent] = useState(false)
+  const [autoChoice, setAutoChoice] = useState<{ key: string; enabled: boolean } | null>(null)
   const [docsId, setDocsId] = useState('')
   const [docsConsent, setDocsConsent] = useState(false)
   const [docsPreview, setDocsPreview] = useState<{ markdown: string; hash: string; warnings: string[]; title: string; lineChanges: { added: number; removed: number; changed: number } } | null>(null)
@@ -56,10 +57,15 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   const folderTokens = useRef(new Set<string>())
   const documentTokens = useRef(new Set<string>())
   const revisionTokens = useRef(new Set<string>())
+  const autoKey = (() => {
+    try { return account && vaultId && folderId && path ? autoSyncPreferenceKey('google_drive', vaultId, account, folderId, path) : null }
+    catch { return null }
+  })()
+  const autoEnabled = autoKey !== null && (autoChoice?.key === autoKey ? autoChoice.enabled : readAutoSyncEnabled(localStorage, autoKey))
   const polling = useCollaborationPolling(folderId, vaultId, path, transport, result => {
     revisionTokens.current.clear(); revisionTokens.current.add('')
     setRows(appendGoogleResources([], result.files)); setPageToken(result.nextPageToken)
-  })
+  }, autoEnabled)
   const epoch = useRef(0)
   const base = useRef<{ path: string; markdown: string } | null>(null)
   const peer = useRef<string>(crypto.randomUUID())
@@ -103,7 +109,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       stopPolling()
       setAccount(''); setRows([]); setPreview(null); setDocsPreview(null); setBusy(false)
       setFolders(null); setFolderPage(undefined); setDocuments(null); setDocumentPage(undefined)
-      setPageToken(undefined); setDocsId(''); setPollConsent(false); setDocsConsent(false)
+      setPageToken(undefined); setDocsId(''); setDocsConsent(false)
       folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
       base.current = null; peer.current = crypto.randomUUID()
       setMessage(copy.accountChanged)
@@ -119,7 +125,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     epoch.current++
     operation.current++; occupied.current = false; setBusy(false)
     setRows([]); setPageToken(undefined); setPreview(null); setDocsPreview(null)
-    setDocuments(null); setDocumentPage(undefined); setDocsId(''); setDocsConsent(false); setPollConsent(false)
+    setDocuments(null); setDocumentPage(undefined); setDocsId(''); setDocsConsent(false); 
     documentTokens.current.clear(); revisionTokens.current.clear()
     base.current = null
     peer.current = crypto.randomUUID()
@@ -178,7 +184,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     epoch.current++; operation.current++; occupied.current = false; setBusy(false)
     polling.stop()
     setFolderId(id); setPreview(null); setRows([]); setPageToken(undefined)
-    setPollConsent(false); setDocsConsent(false); setDocsPreview(null); setDocsId('')
+    setDocsConsent(false); setDocsPreview(null); setDocsId('')
     setDocuments(null); setDocumentPage(undefined); documentTokens.current.clear()
   }
   async function browseResources(current: number, kind: 'folders' | 'docs', next: boolean) {
@@ -209,7 +215,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         <p>The last shared ancestor and this note’s peer identity are cached on this device, scoped to the confirmed Google account, vault and Drive folder. This cache includes note text; it is separate from your Markdown files and credentials.</p>
         <p>Revisions preserve local, base and remote text so overlapping changes can be resolved before applying them.</p>
       </details>
-      <label>{t('collaborationUi.format')}<select aria-label={t('collaborationUi.format')} value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); setTransport(event.target.value as CollaborationTransport); setPollConsent(false); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">{t('collaborationUi.driveFiles')}</option><option value="google_docs">{t('collaborationUi.legacyDocs')}</option></select></label>
+      <label>{t('collaborationUi.format')}<select aria-label={t('collaborationUi.format')} value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); setTransport(event.target.value as CollaborationTransport); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">{t('collaborationUi.driveFiles')}</option><option value="google_docs">{t('collaborationUi.legacyDocs')}</option></select></label>
       {!hasPackagedGoogleOAuthClient() && import.meta.env.DEV && <details className="google-developer-setup">
         <summary>{t('integrations.google.developerSetup')}</summary>
         <label>Google OAuth desktop client ID<input value={clientIdOverride ?? googleConfig?.google_client_id ?? ''} onChange={event => setClientIdOverride(event.target.value)} disabled={busy} autoComplete="off" /></label>
@@ -229,7 +235,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           setAccount(value)
           setRows([]); setPageToken(undefined); setPreview(null); setDocsPreview(null)
           setFolders(null); setFolderPage(undefined); setDocuments(null); setDocumentPage(undefined); setDocsId('')
-          setPollConsent(false); setDocsConsent(false)
+          setDocsConsent(false)
           folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
           base.current = null; peer.current = crypto.randomUUID()
           await persistSetup()
@@ -243,7 +249,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           if (current !== epoch.current) return
           setAccount(''); setRows([]); setPreview(null); setDocsPreview(null); setFolders(null); setDocuments(null)
           setFolderPage(undefined); setDocumentPage(undefined); setPageToken(undefined); setDocsId('')
-          setPollConsent(false); setDocsConsent(false); folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
+          setDocsConsent(false); folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
           base.current = null; peer.current = crypto.randomUUID()
           setMessage(copy.removed)
         })}>{t('collaborationUi.disconnect')}</button> : null}
@@ -301,10 +307,16 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       {rows.length >= 1000 && pageToken && <p>Listing reached 1,000 revisions. Use a smaller shared folder.</p>}
       <section className="collaboration-auto-checks" aria-label={t('collaborationUi.autoTitle')}>
         <h3>{t('collaborationUi.autoTitle')}</h3>
-        <p>{t('collaborationUi.autoExplain')}</p>
-        <label><input type="checkbox" checked={pollConsent} disabled={polling.active || polling.starting} onChange={event => setPollConsent(event.target.checked)} />{t('collaborationUi.autoConsent')}</label>
-        <button disabled={busy || polling.active || polling.starting || !pollConsent || !folderId || !vaultId || !account} onClick={() => void polling.start()}>Start automatic checks</button>
-        {(polling.active || polling.starting) && <button onClick={polling.stop}>Stop automatic checks</button>}
+        <p>{copy.autoSyncHelp}</p>
+        <label><input type="checkbox" checked={autoEnabled} disabled={!autoKey} onChange={event => {
+          if (!autoKey) return
+          try {
+            const enabled = event.target.checked
+            writeAutoSyncEnabled(localStorage, autoKey, enabled)
+            setAutoChoice({ key: autoKey, enabled })
+            if (!enabled) polling.stop()
+          } catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)) }
+        }} />{copy.autoSyncLabel}</label>
         {polling.status && <p role="status">{polling.status}</p>}{polling.error && <p role="alert">{polling.error}</p>}
         <details className="collaboration-guidance"><summary>{t('collaborationUi.autoLimits')}</summary><p>{t('collaborationUi.autoLimitsText')}</p></details>
       </section>
