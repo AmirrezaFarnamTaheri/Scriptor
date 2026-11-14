@@ -1,5 +1,5 @@
 import type { DurableCollaborationSession } from './liveCollaborationDurableSession.ts'
-import type { CollaborativeEditorSurface } from '@scriptor/editor/collaboration-port'
+import type { CollaborativeEditorSurface, CollaborativeEditorBinding } from '@scriptor/editor/collaboration-port'
 
 export interface CollaborationTextEdit {
   from: number
@@ -46,7 +46,7 @@ export class CollaborationEditorController {
     }
     this.releaseOwner = session.claimEditorOwner()
     this.unsubscribe = session.subscribe(value => {
-      if (!this.busy && !this.disposed) this.reconcile(value)
+      if (!this.busy && !this.failed && !this.disposed) this.reconcile(value)
     })
   }
 
@@ -106,5 +106,17 @@ export class CollaborationEditorController {
     this.releaseOwner()
     // Closing the editor does not destroy a recoverable native outbox.
     this.surface.setReadOnly(true)
+  }
+}
+
+/** Opt-in factory passed through Scriptor's editor workspace after the source
+ * save coordinator has explicitly transferred ownership to collaboration. */
+export function bindCollaborativeEditor(
+  session: DurableCollaborationSession,
+  onError: (error: unknown) => void,
+): CollaborativeEditorBinding {
+  return {
+    connect: surface => new CollaborationEditorController(session, surface),
+    onError,
   }
 }
