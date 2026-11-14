@@ -1,4 +1,7 @@
+use std::collections::HashMap;
 use std::path::Path;
+
+use crate::commands::collaboration_live::LiveSessionLease;
 use std::sync::{
     Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard,
     atomic::{AtomicBool, AtomicU64},
@@ -28,6 +31,8 @@ pub struct AppState {
     /// swap can never reuse the previous vault's queue.
     pub git_queue: Mutex<Option<Arc<GitQueue>>>,
     pub daemon_vault_root: Mutex<Option<String>>,
+    /// Opt-in document-scoped local collaboration leases. Reset on every vault open.
+    pub live_collaboration_sessions: Mutex<HashMap<String, LiveSessionLease>>,
     pub authorization: AuthorizationBroker,
     /// Best-effort cancellation flag for the LaTeX (Tectonic) compiler.
     pub latex_cancel: Arc<AtomicBool>,
@@ -50,6 +55,7 @@ impl AppState {
             headless_engine: Mutex::new(false),
             git_queue: Mutex::new(None),
             daemon_vault_root: Mutex::new(None),
+            live_collaboration_sessions: Mutex::new(HashMap::new()),
             authorization: AuthorizationBroker::default(),
             latex_cancel: Arc::new(AtomicBool::new(false)),
         }

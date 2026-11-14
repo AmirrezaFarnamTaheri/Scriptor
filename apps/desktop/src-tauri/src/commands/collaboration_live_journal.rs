@@ -26,7 +26,7 @@ pub(crate) struct JournalScope {
 }
 
 impl JournalScope {
-    fn validate(&self) -> Result<(), String> {
+    pub(crate) fn validate(&self) -> Result<(), String> {
         for id in [
             &self.vault_id,
             &self.room_id,

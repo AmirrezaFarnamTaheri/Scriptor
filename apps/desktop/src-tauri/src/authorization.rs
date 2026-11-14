@@ -38,6 +38,7 @@ pub enum SensitiveOperation {
     ImportVault,
     KeychainWrite,
     LatexCompilation,
+    LiveCollaborationStart,
     PdfTranslation,
     PlantUmlExecution,
     PublishSite,
@@ -64,6 +65,7 @@ impl SensitiveOperation {
                 | Self::GitPush
                 | Self::ImportVault
                 | Self::LatexCompilation
+                | Self::LiveCollaborationStart
                 | Self::PdfTranslation
                 | Self::PublishSite
                 | Self::RestoreBackup
@@ -113,6 +115,7 @@ impl SensitiveOperation {
             Self::KeychainDelete => "Delete the saved AI provider credential",
             Self::KeychainWrite => "Store an AI provider credential",
             Self::LatexCompilation => "Compile a LaTeX document with Tectonic",
+            Self::LiveCollaborationStart => "Enable local collaborative editing for this note",
             Self::PdfTranslation => "Run the configured PDF translation tool",
             Self::PlantUmlExecution => "Run a local PlantUML renderer",
             Self::PublishSite => "Publish this vault as a site",
@@ -206,6 +209,9 @@ impl SensitiveOperation {
             }
             Self::LatexCompilation => {
                 "The Tectonic engine will read the selected LaTeX source, write PDF output, and may download TeX packages over the network."
+            }
+            Self::LiveCollaborationStart => {
+                "A vault-private durable journal will store updates for this specific note and collaboration room. No network connection starts until you separately enable a trusted relay."
             }
             Self::PdfTranslation => {
                 "An external executable will read the selected PDF and write translated output."

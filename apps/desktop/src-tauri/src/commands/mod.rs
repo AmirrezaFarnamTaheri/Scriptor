@@ -4,6 +4,7 @@ mod backup_recovery_tests;
 pub mod canvas;
 pub mod code_chunk;
 pub mod collaboration;
+pub mod collaboration_live;
 pub(crate) mod collaboration_live_journal;
 pub mod daemon;
 pub mod export;

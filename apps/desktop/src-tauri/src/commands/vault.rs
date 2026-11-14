@@ -60,6 +60,7 @@ pub fn vault_open(
         *session_guard = Some(session);
         crate::state::reset_git_queue(&state);
         crate::state::reset_daemon_vault(&state);
+        crate::state::lock_recover(&state.live_collaboration_sessions, "collaboration leases").clear();
         *lock_recover(&state.vault_watcher, "vault watcher") = Some(watcher);
         state
             .vault_watcher_generation

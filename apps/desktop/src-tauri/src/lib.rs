@@ -21,6 +21,10 @@ use commands::code_chunk::code_chunk_run;
 use commands::code_chunk::runtime::{
     runtime_kernel_run, runtime_kernel_start, runtime_kernel_status, runtime_kernel_stop,
 };
+use commands::collaboration_live::{
+    collaboration_live_append, collaboration_live_pending, collaboration_live_start,
+    collaboration_live_stop,
+};
 use commands::collaboration::{
     collaboration_connect, collaboration_disconnect, collaboration_get_account,
     collaboration_poll_read, collaboration_poll_start, collaboration_poll_stop, collaboration_read,
@@ -228,6 +232,10 @@ pub fn run() {
             health_repair_apply,
             health_repair_restore,
             health_repair_receipts,
+            collaboration_live_start,
+            collaboration_live_append,
+            collaboration_live_pending,
+            collaboration_live_stop,
             collaboration_poll_start,
             collaboration_poll_read,
             collaboration_poll_stop,
