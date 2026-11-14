@@ -1350,8 +1350,8 @@ mod tests {
             take_poll_request(&mut lease, "vault-a", now).unwrap(),
             "folder"
         );
-        assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(29)).is_err());
-        assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(30)).is_ok());
+        assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(9)).is_err());
+        assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(10)).is_ok());
         assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(60)).is_err());
         lease.remaining = 1;
         assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(900)).is_err());
