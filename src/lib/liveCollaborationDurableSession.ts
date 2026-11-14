@@ -83,6 +83,7 @@ interface InFlightChange {
  */
 export class DurableCollaborationSession {
   private readonly scope: NativeCollaborationDocument
+  private readonly wireScope: LiveCollaborationScope
   private readonly leaseId: string
   private readonly journal: DurableLocalJournalPort
   private readonly text: CollaborativeMarkdown
@@ -116,6 +117,7 @@ export class DurableCollaborationSession {
     }
     if (!model.ready) throw new Error('CRDT seed must be authenticated before opening a local outbox')
     this.scope = { ...accepted, notePath: scope.notePath }
+    this.wireScope = accepted
     this.leaseId = leaseId
     this.journal = journal
     this.text = model
@@ -152,13 +154,13 @@ export class DurableCollaborationSession {
             throw new Error('Invalid native journal recovery sequence')
           }
           const envelope = parseLiveCollaborationEnvelope({
-            ...this.scope,
+            ...this.wireScope,
             version: LIVE_COLLABORATION_PROTOCOL_VERSION,
             kind: 'LOCAL_UPDATE',
             messageId: record.messageId,
             clientSeq: record.clientSeq,
             payload: record.payload,
-          }, this.scope)
+          }, this.wireScope)
           // Clone validation in applyRemote guarantees that corrupt CRDT data
           // cannot partially mutate the accepted document.
           const bytes = fromBase64(envelope.payload)
@@ -219,13 +221,13 @@ export class DurableCollaborationSession {
     }
     const clientSeq = ++this.nextSequence
     const message = parseLiveCollaborationEnvelope({
-      ...this.scope,
+      ...this.wireScope,
       version: LIVE_COLLABORATION_PROTOCOL_VERSION,
       kind: 'LOCAL_UPDATE',
       messageId: crypto.randomUUID(),
       clientSeq,
       payload: toBase64(prepared.update),
-    }, this.scope)
+    }, this.wireScope)
     this.staged = { prepared, message }
     return this.commitStage()
   }
