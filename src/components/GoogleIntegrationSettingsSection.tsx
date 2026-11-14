@@ -21,7 +21,7 @@ interface GoogleIntegrationSettingsSectionProps {
 
 /** A shared public client ID never implies shared credentials or permission. */
 export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationSettingsSection({ config, setConfig, vaultId, onOpenGoogleWorkspace, gmailEnabled = true, workspaceLaunchDisabled = false }: GoogleIntegrationSettingsSectionProps) {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const calendarSync = useGoogleCalendarSync({ config: config.calendar_sync, vaultId })
   const sync = config.calendar_sync ?? DEFAULT_VAULT_CONFIG.calendar_sync!
   const clientId = getGoogleOAuthClientId(sync.google_client_id)
@@ -152,6 +152,9 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
             </> : null}
           </div>
           {calendarSync.error ? <p className="publish-error" role="alert">{calendarSync.error}</p> : null}
+          {calendarSync.lastSyncedAt !== null && calendarSync.authedEmail ? <p className="health-subtitle google-calendar-last-sync" role="status">
+            {t('integrations.google.lastSync', { time: new Date(calendarSync.lastSyncedAt).toLocaleString(locale === 'fa' ? 'fa-IR-u-ca-gregory' : locale === 'de' ? 'de-DE' : 'en-US') })}
+          </p> : null}
         <details className="google-calendar-options">
           <summary>{t('integrations.google.calendarOptions')}</summary>
         <label className="diagnostics-opt-in"><input type="checkbox" checked={sync.enabled} disabled={calendarBusy} onChange={(event) => patchSync({ enabled: event.target.checked })} /><span>{t('integrations.google.enableCalendarTasks')}</span></label>
