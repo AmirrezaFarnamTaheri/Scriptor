@@ -32,12 +32,14 @@ export async function collaborationLiveStart(
   const bound = ['live', scope.roomId, scope.documentId, scope.epoch, scope.notePath].join(':')
   const authorizationToken = await authorizeSensitiveOperation('live_collaboration_start', bound)
   const lease: NativeCollaborationLease = await invoke('collaboration_live_start', {
-    expectedVaultId: scope.vaultId,
-    roomId: scope.roomId,
-    documentId: scope.documentId,
-    epoch: scope.epoch,
-    peerId: scope.peerId,
-    notePath: scope.notePath,
+    request: {
+      expectedVaultId: scope.vaultId,
+      roomId: scope.roomId,
+      documentId: scope.documentId,
+      epoch: scope.epoch,
+      peerId: scope.peerId,
+      notePath: scope.notePath,
+    },
     authorizationToken,
   })
   if (!lease || !/^[0-9a-f-]{36}$/i.test(lease.sessionId)

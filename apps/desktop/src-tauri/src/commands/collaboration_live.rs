@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use base64::Engine as _;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use scriptor_vault::{RelativeVaultPath, read_note};
 use uuid::Uuid;
 
@@ -19,6 +19,17 @@ const MAX_BASE64_UPDATE_LENGTH: usize = (256 * 1024 / 3 + 1) * 4 + 4;
 pub(crate) struct LiveSessionLease {
     scope: JournalScope,
     journal: Arc<Mutex<LocalJournal>>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveStartRequest {
+    expected_vault_id: String,
+    room_id: String,
+    document_id: String,
+    epoch: u64,
+    peer_id: String,
+    note_path: String,
 }
 
 #[derive(Serialize)]
@@ -74,14 +85,17 @@ fn lease_for(
 #[tauri::command]
 pub fn collaboration_live_start(
     state: tauri::State<AppState>,
-    expected_vault_id: String,
-    room_id: String,
-    document_id: String,
-    epoch: u64,
-    peer_id: String,
-    note_path: String,
+    request: LiveStartRequest,
     authorization_token: String,
 ) -> Result<LiveStartReceipt, String> {
+    let LiveStartRequest {
+        expected_vault_id,
+        room_id,
+        document_id,
+        epoch,
+        peer_id,
+        note_path,
+    } = request;
     let session = active_session(&state)?;
     super::vault::validate_expected_vault(&session.descriptor.id, Some(&expected_vault_id))?;
     let scope = JournalScope {
@@ -216,10 +230,10 @@ pub fn collaboration_live_stop(
     let session = active_session(&state)?;
     super::vault::validate_expected_vault(&session.descriptor.id, Some(&expected_vault_id))?;
     let mut leases = lock_recover(&state.live_collaboration_sessions, "collaboration leases");
-    if let Some(existing) = leases.get(&session_id) {
-        if existing.scope.vault_id != expected_vault_id {
-            return Err("Live collaboration session belongs to another vault".into());
-        }
+    if let Some(existing) = leases.get(&session_id)
+        && existing.scope.vault_id != expected_vault_id
+    {
+        return Err("Live collaboration session belongs to another vault".into());
     }
     Ok(leases.remove(&session_id).is_some())
 }

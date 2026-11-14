@@ -32,7 +32,7 @@ pub struct AppState {
     pub git_queue: Mutex<Option<Arc<GitQueue>>>,
     pub daemon_vault_root: Mutex<Option<String>>,
     /// Opt-in document-scoped local collaboration leases. Reset on every vault open.
-    pub live_collaboration_sessions: Mutex<HashMap<String, LiveSessionLease>>,
+    pub(crate) live_collaboration_sessions: Mutex<HashMap<String, LiveSessionLease>>,
     pub authorization: AuthorizationBroker,
     /// Best-effort cancellation flag for the LaTeX (Tectonic) compiler.
     pub latex_cancel: Arc<AtomicBool>,

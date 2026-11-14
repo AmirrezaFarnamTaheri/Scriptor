@@ -2,7 +2,9 @@
 //! No renderer-callable acknowledgement API: only a future native, authenticated
 //! relay transport may remove or confirm locally durable operations.
 use std::fs::{self, OpenOptions};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(test)]
+use std::path::PathBuf;
 use std::time::Duration;
 
 #[cfg(unix)]
