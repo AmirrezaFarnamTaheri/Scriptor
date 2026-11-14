@@ -30,6 +30,8 @@ export function singleTextEdit(before: string, after: string): CollaborationText
 export type CollaborationEditorSurface = CollaborativeEditorSurface
 
 export class CollaborationEditorController {
+  private readonly session: DurableCollaborationSession
+  private readonly surface: CollaborationEditorSurface
   private readonly releaseOwner: () => void
   private readonly unsubscribe: () => void
   private busy = false
@@ -37,9 +39,11 @@ export class CollaborationEditorController {
   private disposed = false
 
   constructor(
-    private readonly session: DurableCollaborationSession,
-    private readonly surface: CollaborationEditorSurface,
+    session: DurableCollaborationSession,
+    surface: CollaborationEditorSurface,
   ) {
+    this.session = session
+    this.surface = surface
     if (!session.ready) throw new Error('Collaboration must be recovered before attaching an editor')
     if (surface.getValue() !== session.value) {
       throw new Error('Unreviewed editor draft does not match authenticated canonical text')
