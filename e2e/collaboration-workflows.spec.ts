@@ -116,6 +116,7 @@ test('Legacy Google Docs opaque revisions remain readable but cannot be shared n
   expect((await calls(page, 'collaboration_poll_start'))[0].payload.transport).toBe('google_docs')
   await panel.getByRole('button', { name: 'Shared revision 1', exact: true }).click()
   await expect(panel.locator('.collaboration-revision-provenance')).toContainText('Incoming revision by peer')
+  await expect(panel.locator('.collaboration-revision-diff-summary')).toContainText(/Your saved note compared with this revision: [0-9]+ added, [0-9]+ removed, [0-9]+ changed/)
   expect(((await calls(page, 'collaboration_read')).at(-1)?.payload.request as Record<string, unknown>).kind).toBe('read_docs_record')
   await panel.getByLabel('Where shared versions are saved', { exact: true }).selectOption('drive_json')
   await page.clock.fastForward(31_000)
