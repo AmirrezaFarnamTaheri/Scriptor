@@ -155,6 +155,34 @@ test('Turning Overleaf auto-sync off prevents all automatic provider requests', 
   expect(calls.filter(call => call.command === 'overleaf_read' || call.command === 'overleaf_push' || call.command === 'source_file_save')).toHaveLength(0)
 })
 
+test('A linked Overleaf source keeps watching after the sync dialog closes', async ({ page }) => {
+  await page.clock.install()
+  const { editor, dialog } = await open(page)
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-matching', '1'))
+  await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Close Overleaf sync', exact: true }).click()
+  const before = await page.evaluate(() => (JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command:string}>).filter(call => call.command === 'overleaf_read').length)
+  await page.clock.fastForward(1_100)
+  await expect.poll(async () => page.evaluate(() => (JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command:string}>).filter(call => call.command === 'overleaf_read').length)).toBeGreaterThan(before)
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-live-update', '1'))
+  await page.clock.fastForward(31_000)
+  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('\\section{Remote updated by co-author}\n')
+  const history = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command:string; args: {content?: string}}>)
+  expect(history.filter(call => call.command === 'source_file_save').map(call => call.args.content)).toEqual(['\\section{Remote updated by co-author}\r\n'])
+  expect(history.filter(call => call.command === 'overleaf_push')).toHaveLength(0)
+})
+
+test('Off suppresses background Overleaf reads after closing the dialog', async ({ page }) => {
+  await page.clock.install()
+  const { dialog } = await open(page)
+  await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
+  await dialog.getByRole('checkbox', { name: 'Auto-sync this Overleaf source (on by default)' }).uncheck()
+  await dialog.getByRole('button', { name: 'Close Overleaf sync', exact: true }).click()
+  const before = await page.evaluate(() => (JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command:string}>).filter(call => call.command === 'overleaf_read').length)
+  await page.clock.fastForward(61_000)
+  expect(await page.evaluate(() => (JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command:string}>).filter(call => call.command === 'overleaf_read').length)).toBe(before)
+})
+
 test('Explicit Overleaf Auto-sync Off survives panel close and reopen', async ({ page }) => {
   await page.clock.install()
   const { editor, dialog } = await open(page)
