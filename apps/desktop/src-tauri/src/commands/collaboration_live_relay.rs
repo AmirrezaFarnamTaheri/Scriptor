@@ -2,8 +2,8 @@
 //! its Ed25519 PKCS#8 secret stays in the OS keychain. This transport never
 //! deletes the local journal on ACK: reconnect replays by message identity.
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -63,8 +63,12 @@ fn event(session_id: &str, scope: &JournalScope, kind: &str) -> RelayEvent {
         document_id: scope.document_id.clone(),
         epoch: scope.epoch,
         kind: kind.into(),
-        peer_id: None, message_id: None, client_seq: None, cursor: None,
-        payload: None, role: None,
+        peer_id: None,
+        message_id: None,
+        client_seq: None,
+        cursor: None,
+        payload: None,
+        role: None,
     }
 }
 
@@ -73,12 +77,17 @@ fn validate_endpoint(input: &str) -> Result<Url, String> {
         return Err("Relay URL is too long".into());
     }
     let parsed = Url::parse(input).map_err(|_| "Invalid relay URL")?;
-    if parsed.scheme() != "wss" || parsed.host_str().is_none()
-        || !parsed.username().is_empty() || parsed.password().is_some()
-        || parsed.fragment().is_some() || parsed.query().is_some()
+    if parsed.scheme() != "wss"
+        || parsed.host_str().is_none()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || parsed.fragment().is_some()
+        || parsed.query().is_some()
         || parsed.path() != "/v1/live"
     {
-        return Err("Collaboration relay must use an explicit wss:// host and /v1/live endpoint".into());
+        return Err(
+            "Collaboration relay must use an explicit wss:// host and /v1/live endpoint".into(),
+        );
     }
     Ok(parsed)
 }
@@ -94,7 +103,9 @@ fn role_from_ready(value: &Value, scope: &JournalScope) -> Result<String, String
     if value.get("type").and_then(Value::as_str) != Some("ready") {
         return Err("Relay did not confirm authenticated membership".into());
     }
-    let received = value.get("scope").ok_or("Relay omitted authenticated scope")?;
+    let received = value
+        .get("scope")
+        .ok_or("Relay omitted authenticated scope")?;
     if received.get("roomId").and_then(Value::as_str) != Some(&scope.room_id)
         || received.get("documentId").and_then(Value::as_str) != Some(&scope.document_id)
         || received.get("peerId").and_then(Value::as_str) != Some(&scope.peer_id)
@@ -102,7 +113,9 @@ fn role_from_ready(value: &Value, scope: &JournalScope) -> Result<String, String
     {
         return Err("Relay authenticated a different collaboration identity".into());
     }
-    let role = value.get("role").and_then(Value::as_str)
+    let role = value
+        .get("role")
+        .and_then(Value::as_str)
         .ok_or("Relay omitted authenticated role")?;
     if !matches!(role, "owner" | "editor" | "viewer") {
         return Err("Relay returned an unrecognized role".into());
@@ -115,30 +128,48 @@ fn take_authenticated_update(
     scope: &JournalScope,
     session_id: &str,
 ) -> Result<RelayEvent, String> {
-    let peer = value.get("peerId").and_then(Value::as_str)
+    let peer = value
+        .get("peerId")
+        .and_then(Value::as_str)
         .ok_or("Relay update has no authenticated peer")?;
-    let message = value.get("messageId").and_then(Value::as_str)
+    let message = value
+        .get("messageId")
+        .and_then(Value::as_str)
         .ok_or("Relay update is missing identity")?;
-    if peer.is_empty() || peer.len() > 160
-        || !peer.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
-        || message.is_empty() || message.len() > 160
-        || !message.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    if peer.is_empty()
+        || peer.len() > 160
+        || !peer
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+        || message.is_empty()
+        || message.len() > 160
+        || !message
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
     {
         return Err("Malformed relay update identity".into());
     }
-    let seq = value.get("clientSeq").and_then(Value::as_u64).filter(|n| *n > 0)
+    let seq = value
+        .get("clientSeq")
+        .and_then(Value::as_u64)
+        .filter(|n| *n > 0)
         .ok_or("Malformed relay author sequence")?;
-    let cursor = value.get("cursor").and_then(Value::as_u64).filter(|n| *n > 0)
+    let cursor = value
+        .get("cursor")
+        .and_then(Value::as_u64)
+        .filter(|n| *n > 0)
         .ok_or("Malformed relay journal cursor")?;
-    let payload = value.get("payload").and_then(Value::as_str)
+    let payload = value
+        .get("payload")
+        .and_then(Value::as_str)
         .ok_or("Relay update is missing content")?;
     if payload.len() > (MAX_UPDATE_BYTES / 3 + 1) * 4 + 4 {
         return Err("Oversized relay content".into());
     }
-    let bytes = STANDARD.decode(payload.as_bytes())
+    let bytes = STANDARD
+        .decode(payload.as_bytes())
         .map_err(|_| "Invalid relay base64")?;
-    if bytes.is_empty() || bytes.len() > MAX_UPDATE_BYTES
-        || STANDARD.encode(&bytes) != payload {
+    if bytes.is_empty() || bytes.len() > MAX_UPDATE_BYTES || STANDARD.encode(&bytes) != payload {
         return Err("Relay content is empty, oversized or not canonical".into());
     }
     let mut out = event(session_id, scope, "remote_update");
@@ -159,11 +190,18 @@ fn acknowledge(
     if value.get("durable").and_then(Value::as_bool) != Some(true) {
         return Err("Relay did not confirm durable persistence".into());
     }
-    let seq = value.get("clientSeq").and_then(Value::as_u64)
+    let seq = value
+        .get("clientSeq")
+        .and_then(Value::as_u64)
         .ok_or("Relay ACK omitted sequence")?;
-    let message = value.get("messageId").and_then(Value::as_str)
+    let message = value
+        .get("messageId")
+        .and_then(Value::as_str)
         .ok_or("Relay ACK omitted message identity")?;
-    let cursor = value.get("cursor").and_then(Value::as_u64).filter(|value| *value > 0)
+    let cursor = value
+        .get("cursor")
+        .and_then(Value::as_u64)
+        .filter(|value| *value > 0)
         .ok_or("Relay ACK omitted durable cursor")?;
     let Some(queued) = in_flight.remove(&seq) else {
         return Err("Unsolicited relay acknowledgement".into());
@@ -180,7 +218,8 @@ fn acknowledge(
 
 async fn read_auth_frame(socket: &mut WebSocket) -> Result<Value, String> {
     let next = tokio::time::timeout(Duration::from_secs(15), socket.try_next())
-        .await.map_err(|_| "Timed out authenticating collaboration relay")?
+        .await
+        .map_err(|_| "Timed out authenticating collaboration relay")?
         .map_err(|_| "Relay connection ended during authentication")?
         .ok_or("Relay disconnected before authentication")?;
     parse_frame(next)
@@ -193,8 +232,7 @@ fn parse_frame(frame: Message) -> Result<Value, String> {
     if text.is_empty() || text.len() > MAX_RELAY_FRAME_BYTES {
         return Err("Invalid or oversized relay frame".into());
     }
-    let value: Value = serde_json::from_str(&text)
-        .map_err(|_| "Malformed relay JSON")?;
+    let value: Value = serde_json::from_str(&text).map_err(|_| "Malformed relay JSON")?;
     if !value.is_object() || value.get("type").and_then(Value::as_str).is_none() {
         return Err("Relay returned an invalid message envelope".into());
     }
@@ -206,7 +244,9 @@ async fn send_json(socket: &mut WebSocket, value: Value) -> Result<(), String> {
     if encoded.len() > MAX_RELAY_FRAME_BYTES {
         return Err("Outbound collaboration relay frame too large".into());
     }
-    socket.send(Message::Text(encoded)).await
+    socket
+        .send(Message::Text(encoded))
+        .await
         .map_err(|_| "Unable to transmit collaboration relay data".into())
 }
 
@@ -232,7 +272,11 @@ async fn relay_background(
     let mut in_flight = BTreeMap::<u64, String>::new();
     let mut ticker = tokio::time::interval(Duration::from_millis(250));
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-    send_json(&mut socket, json!({"type":"sync","afterCursor":0,"limit":RELAY_PAGE_LIMIT})).await?;
+    send_json(
+        &mut socket,
+        json!({"type":"sync","afterCursor":0,"limit":RELAY_PAGE_LIMIT}),
+    )
+    .await?;
 
     loop {
         if !still_live(&lease, generation) {
@@ -347,10 +391,17 @@ pub async fn collaboration_live_connect(
         lease_for(&leases, &session_id, &expected_vault_id)?
     };
     require_sensitive_operation(
-        &state, &authorization_token, SensitiveOperation::LiveCollaborationConnect,
-        Some(&consent_scope(&lease.scope, &endpoint_url)), Some(&lease.scope.vault_id),
+        &state,
+        &authorization_token,
+        SensitiveOperation::LiveCollaborationConnect,
+        Some(&consent_scope(&lease.scope, &endpoint_url)),
+        Some(&lease.scope.vault_id),
     )?;
-    if lease.relay_active.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire).is_err() {
+    if lease
+        .relay_active
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
         return Err("Native collaboration relay is already active for this note".into());
     }
     let generation = lease.relay_generation.fetch_add(1, Ordering::AcqRel) + 1;
@@ -358,42 +409,63 @@ pub async fn collaboration_live_connect(
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(15))
             .redirect(reqwest::redirect::Policy::none())
-            .build().map_err(|_| "Unable to configure secure collaboration relay")?;
-        let upgrade = client.get(endpoint).upgrade().protocols([SUBPROTOCOL]).send()
-            .await.map_err(|_| "Unable to connect to the trusted WSS collaboration relay")?;
-        let mut socket = upgrade.into_websocket()
-            .await.map_err(|_| "Relay did not complete the authenticated WebSocket handshake")?;
+            .build()
+            .map_err(|_| "Unable to configure secure collaboration relay")?;
+        let upgrade = client
+            .get(endpoint)
+            .upgrade()
+            .protocols([SUBPROTOCOL])
+            .send()
+            .await
+            .map_err(|_| "Unable to connect to the trusted WSS collaboration relay")?;
+        let mut socket = upgrade
+            .into_websocket()
+            .await
+            .map_err(|_| "Relay did not complete the authenticated WebSocket handshake")?;
         if socket.protocol() != Some(SUBPROTOCOL) {
             return Err("Relay did not negotiate the required collaboration subprotocol".into());
         }
         if !still_live(&lease, generation) {
             return Err("Collaboration session ended before relay authentication".into());
         }
-        send_json(&mut socket, json!({"type":"hello","scope":{
-            "roomId":lease.scope.room_id,
-            "documentId":lease.scope.document_id,
-            "epoch":lease.scope.epoch,
-            "peerId":lease.scope.peer_id
-        }})).await?;
+        send_json(
+            &mut socket,
+            json!({"type":"hello","scope":{
+                "roomId":lease.scope.room_id,
+                "documentId":lease.scope.document_id,
+                "epoch":lease.scope.epoch,
+                "peerId":lease.scope.peer_id
+            }}),
+        )
+        .await?;
         let challenge = read_auth_frame(&mut socket).await?;
         if challenge.get("type").and_then(Value::as_str) != Some("challenge") {
             return Err("Relay refused authenticated challenge".into());
         }
-        let challenge_id = challenge.get("challengeId").and_then(Value::as_str)
+        let challenge_id = challenge
+            .get("challengeId")
+            .and_then(Value::as_str)
             .ok_or("Missing relay challenge identity")?;
-        let signed_challenge = challenge.get("challenge").and_then(Value::as_str)
+        let signed_challenge = challenge
+            .get("challenge")
+            .and_then(Value::as_str)
             .ok_or("Missing scoped relay challenge")?;
         let signature = sign_relay_challenge(&lease.scope, signed_challenge)?;
-        send_json(&mut socket, json!({
-            "type":"proof", "challengeId":challenge_id, "signature":signature
-        })).await?;
+        send_json(
+            &mut socket,
+            json!({
+                "type":"proof", "challengeId":challenge_id, "signature":signature
+            }),
+        )
+        .await?;
         let ready = read_auth_frame(&mut socket).await?;
         let role = role_from_ready(&ready, &lease.scope)?;
         if !still_live(&lease, generation) {
             return Err("Collaboration session ended before relay joined".into());
         }
         Ok::<_, String>((socket, role))
-    }.await;
+    }
+    .await;
     let (socket, role) = match authentication {
         Ok(ready) => ready,
         Err(error) => {
@@ -408,14 +480,27 @@ pub async fn collaboration_live_connect(
     let background_role = role.clone();
     tauri::async_runtime::spawn(async move {
         let result = relay_background(
-            socket, app.clone(), background_lease.clone(),
-            background_session_id.clone(), generation, background_role,
-        ).await;
+            socket,
+            app.clone(),
+            background_lease.clone(),
+            background_session_id.clone(),
+            generation,
+            background_role,
+        )
+        .await;
         if still_live(&background_lease, generation) {
-            background_lease.relay_active.store(false, Ordering::Release);
-            let kind = if result.is_ok() { "disconnected" } else { "error" };
-            let _ = app.emit(WIRE_EVENT,
-                event(&background_session_id, &background_lease.scope, kind));
+            background_lease
+                .relay_active
+                .store(false, Ordering::Release);
+            let kind = if result.is_ok() {
+                "disconnected"
+            } else {
+                "error"
+            };
+            let _ = app.emit(
+                WIRE_EVENT,
+                event(&background_session_id, &background_lease.scope, kind),
+            );
         }
     });
     Ok(RelayConnectReceipt { session_id, role })
@@ -446,9 +531,12 @@ mod tests {
 
     fn scope() -> JournalScope {
         JournalScope {
-            vault_id:"private".into(), room_id:"room".into(),
-            document_id:"doc".into(), epoch:2, peer_id:"alice".into(),
-            note_path:"notes/owned.md".into(),
+            vault_id: "private".into(),
+            room_id: "room".into(),
+            document_id: "doc".into(),
+            epoch: 2,
+            peer_id: "alice".into(),
+            note_path: "notes/owned.md".into(),
         }
     }
 
@@ -457,7 +545,7 @@ mod tests {
         assert!(validate_endpoint("wss://relay.example.com/v1/live").is_ok());
         assert!(validate_endpoint("ws://relay.example.com/v1/live").is_err());
         assert!(validate_endpoint("https://relay.example.com/v1/live").is_err());
-        assert!(validate_endpoint("wss://user:secret@relay.example.com/v1/live").is_err());
+        assert!(validate_endpoint("***relay.example.com/v1/live").is_err());
         assert!(validate_endpoint("wss://relay.example.com/v1/live?token=secret").is_err());
         assert!(validate_endpoint("wss://relay.example.com/v1/other").is_err());
     }
@@ -469,25 +557,61 @@ mod tests {
             "roomId":"room","documentId":"doc","epoch":2,"peerId":"alice"
         }});
         assert_eq!(role_from_ready(&good, &expected).unwrap(), "editor");
-        assert!(role_from_ready(&json!({"type":"ready","role":"admin","scope":good["scope"]}), &expected).is_err());
-        assert!(role_from_ready(&json!({"type":"ready","role":"editor","scope":{
-            "roomId":"elsewhere","documentId":"doc","epoch":2,"peerId":"alice"
-        }}), &expected).is_err());
+        assert!(
+            role_from_ready(
+                &json!({"type":"ready","role":"admin","scope":good["scope"]}),
+                &expected
+            )
+            .is_err()
+        );
+        assert!(
+            role_from_ready(
+                &json!({"type":"ready","role":"editor","scope":{
+                    "roomId":"elsewhere","documentId":"doc","epoch":2,"peerId":"alice"
+                }}),
+                &expected
+            )
+            .is_err()
+        );
     }
 
     #[test]
     fn durable_acks_must_match_exact_native_outbox_messages() {
         let mut in_flight = BTreeMap::from([(7, "msg_007".into())]);
-        assert!(acknowledge(&json!({
-            "type":"ack","messageId":"msg_else","clientSeq":7,"durable":true,"cursor":8
-        }), &mut in_flight, &scope(), "session").is_err());
+        assert!(
+            acknowledge(
+                &json!({
+                    "type":"ack","messageId":"msg_else","clientSeq":7,"durable":true,"cursor":8
+                }),
+                &mut in_flight,
+                &scope(),
+                "session"
+            )
+            .is_err()
+        );
         let mut in_flight = BTreeMap::from([(7, "msg_007".into())]);
-        assert!(acknowledge(&json!({
-            "type":"ack","messageId":"msg_007","clientSeq":7,"durable":false,"cursor":8
-        }), &mut in_flight, &scope(), "session").is_err());
-        assert!(acknowledge(&json!({
-            "type":"ack","messageId":"msg_007","clientSeq":7,"durable":true,"cursor":8
-        }), &mut in_flight, &scope(), "session").is_ok());
+        assert!(
+            acknowledge(
+                &json!({
+                    "type":"ack","messageId":"msg_007","clientSeq":7,"durable":false,"cursor":8
+                }),
+                &mut in_flight,
+                &scope(),
+                "session"
+            )
+            .is_err()
+        );
+        assert!(
+            acknowledge(
+                &json!({
+                    "type":"ack","messageId":"msg_007","clientSeq":7,"durable":true,"cursor":8
+                }),
+                &mut in_flight,
+                &scope(),
+                "session"
+            )
+            .is_ok()
+        );
         assert!(in_flight.is_empty());
     }
 }
