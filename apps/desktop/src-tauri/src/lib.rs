@@ -29,6 +29,7 @@ use commands::collaboration::{
 use commands::collaboration_live::{
     collaboration_live_append, collaboration_live_pending, collaboration_live_project,
     collaboration_live_public_key,
+    collaboration_live_relay::{collaboration_live_connect, collaboration_live_disconnect},
     collaboration_live_start, collaboration_live_stop,
 };
 use commands::daemon::{
@@ -238,6 +239,8 @@ pub fn run() {
             collaboration_live_pending,
             collaboration_live_project,
             collaboration_live_public_key,
+            collaboration_live_connect,
+            collaboration_live_disconnect,
             collaboration_live_stop,
             collaboration_poll_start,
             collaboration_poll_read,
