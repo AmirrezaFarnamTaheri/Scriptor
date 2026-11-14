@@ -65,6 +65,20 @@ test('auto-sync is scoped to the selected folder; switching safely stops the pre
   expect(await calls(page, 'collaboration_write')).toHaveLength(0)
 })
 
+test('connected auto-sync restarts on the new folder after an in-flight authorization resolves', async ({ page }) => {
+  await page.clock.install()
+  await page.addInitScript(() => sessionStorage.setItem('e2e:poll-start-delay', '1'))
+  const panel = await open(page)
+  await expect.poll(async () => (await calls(page, 'collaboration_poll_start')).length).toBe(1)
+  await panel.getByLabel('Shared folder ID', { exact: true }).fill('another-folder')
+  await page.clock.fastForward(5_100)
+  await expect.poll(async () => (await calls(page, 'collaboration_poll_start')).length).toBe(2)
+  const starts = await calls(page, 'collaboration_poll_start')
+  expect(starts.map(call => call.payload.folderId)).toEqual(['shared-folder', 'another-folder'])
+  const stopped = await calls(page, 'collaboration_poll_stop')
+  expect(stopped).toHaveLength(1)
+})
+
 test('Google Docs translation previews loss disclosures and writes only after acceptance', async ({ page }) => {
   const panel = await open(page)
   await panel.getByText('Google Docs text copies', { exact: true }).click()
