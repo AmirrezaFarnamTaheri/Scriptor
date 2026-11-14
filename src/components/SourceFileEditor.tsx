@@ -194,9 +194,12 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
     {compiling && <button type="button" onClick={compiler.cancelJob}>Cancel compilation</button>}
     {lastJob && <div aria-live="polite"><p>Compilation: {lastJob.status}{lastJob.outputPath ? ` · ${lastJob.outputPath}` : ''}</p>{lastJob.stderr && <pre>{lastJob.stderr}</pre>}</div>}
     {document && /\.(tex|ltx|bib)$/i.test(document.path) && <button type="button" disabled={dirty || busy || compiling || Boolean(pending) || overleafOpen} onClick={() => setOverleafOpen(true)}>Open Overleaf sync</button>}
-    {overleafOpen && document && <OverleafPanel document={document} onClose={() => setOverleafOpen(false)} onApplied={next => {
+    {overleafOpen && document && <OverleafPanel document={document} onClose={() => setOverleafOpen(false)} onApplied={(next, keepWatching = false) => {
       if (next.vault_id !== expectedVaultId || next.path !== document.path) { setError('Synced source belongs to another file. Reload before continuing.'); return }
-      setDocument(next); setDraft(next.content); setCompileConfirmed(false); setOverleafOpen(false); setStatus('Synced source saved.'); void Promise.resolve().then(() => onSaved?.(next.path)).catch(() => setStatus('Synced source saved. Reopen the file list to refresh.'))
+      setDocument(next); setDraft(next.content); setCompileConfirmed(false)
+      if (!keepWatching) setOverleafOpen(false)
+      setStatus(keepWatching ? 'Auto-sync imported an Overleaf co-author update.' : 'Synced source saved.')
+      void Promise.resolve().then(() => onSaved?.(next.path)).catch(() => setStatus('Synced source saved. Reopen the file list to refresh.'))
     }} />}
     {pending && <div ref={decisionRef} className="source-file-decision" role="alertdialog" aria-modal="true" aria-label="Unsaved source changes" onKeyDown={event => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); void finishPending('cancel') }
