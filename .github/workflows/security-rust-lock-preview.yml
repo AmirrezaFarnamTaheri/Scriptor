@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/security-rust-lock-preview.yml'
       - 'crates/**/Cargo.toml'
+      - 'crates/embeddings/src/inspector.rs'
+      - 'Cargo.lock'
 
 permissions:
   contents: read
@@ -37,5 +39,5 @@ jobs:
           echo SCRIPTOR_RUSTSEC_CARGO_LOCK_DIFF_END
           cargo tree -i libsqlite3-sys --locked
           cargo tree -i ammonia --locked
-      - name: Check indexer and patched sanitizer
-        run: cargo check --locked -p scriptor-indexer -p scriptor-capture -p scriptor-daemon
+      - name: Check indexer, semantic embeddings and patched sanitizer
+        run: cargo check --locked -p scriptor-indexer -p scriptor-capture -p scriptor-embeddings -p scriptor-daemon
