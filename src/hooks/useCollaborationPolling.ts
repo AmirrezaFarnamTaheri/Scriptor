@@ -84,8 +84,9 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
   useEffect(() => { autoEnabledRef.current = autoStart }, [autoStart])
   useEffect(() => {
     if (!autoStart || !folderId || !vaultId || !path || document.hidden) return
-    const kickoff = setTimeout(() => { void start() }, 0)
-    return () => clearTimeout(kickoff)
+    let live = true
+    void Promise.resolve().then(() => { if (live) void start() })
+    return () => { live = false }
   }, [autoStart, folderId, vaultId, path, transport, start])
   return { active, starting, status, error, start, stop }
 }
