@@ -52,6 +52,21 @@ test('default-on automatic checks stop immediately when the user turns them off'
   await expect(auto).not.toBeChecked()
 })
 
+test('Explicit Google Drive Auto-sync Off survives a panel reload', async ({ page }) => {
+  const panel = await open(page)
+  const toggle = panel.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })
+  await expect(toggle).toBeChecked()
+  await toggle.uncheck()
+  const before = (await calls(page, 'collaboration_poll_start')).length
+  await page.reload()
+  await openCommandPalette(page)
+  await runCommand(page, 'Drive collaboration')
+  const reopened = page.getByRole('region', { name: 'Drive collaboration', exact: true })
+  await expect(reopened.getByLabel('Shared folder ID', { exact: true })).toHaveValue('shared-folder')
+  await expect(reopened.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })).not.toBeChecked()
+  expect((await calls(page, 'collaboration_poll_start')).length).toBe(before)
+})
+
 test('auto-sync is scoped to the selected folder; switching safely stops the previous lease', async ({ page }) => {
   await page.clock.install()
   const panel = await open(page)
