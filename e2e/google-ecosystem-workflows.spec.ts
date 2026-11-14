@@ -252,6 +252,7 @@ test('Calendar sign-in is immediately available even when sync was switched off'
   await expect(group.getByRole('button', { name: /^(Connect Google|Reconnect) · Google Calendar & Tasks$/ })).toBeVisible()
   await group.getByRole('button', { name: /^(Connect Google|Reconnect) · Google Calendar & Tasks$/ }).click()
   await expect(enabled).toBeChecked()
+  await expect(group.locator('.google-calendar-last-sync')).toContainText('Last successful Calendar & Tasks refresh:')
   expect((await calls(page)).filter(call => call.cmd === 'google_calendar_start_auth')).toHaveLength(1)
 })
 
