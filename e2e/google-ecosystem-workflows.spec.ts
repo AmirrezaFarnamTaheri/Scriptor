@@ -270,7 +270,7 @@ test('Calendar and task-list discovery persists selections without authorizing o
   expect((save.payload.config as { calendar_sync: unknown }).calendar_sync).toEqual(expect.objectContaining({ google_calendar_id: 'reader@example.com', google_task_list_id: 'research-tasks' }))
   const calendarGroup = google.getByRole('group', { name: 'Google Calendar & Tasks', exact: true })
   await page.evaluate(() => sessionStorage.setItem('e2e:google-cancel-operation', 'google_calendar_auth'))
-  await calendarGroup.getByRole('button', { name: 'Reconnect · Google Calendar & Tasks', exact: true }).click()
+  await calendarGroup.getByRole('button', { name: 'Switch Google account · Google Calendar & Tasks', exact: true }).click()
   await expect(calendarGroup.getByRole('alert')).toContainText('cancelled')
   await attachVisualState(page, testInfo, 'calendar-reconnect-cancelled', google, calendarGroup.getByRole('alert'))
   const history = await calls(page)
