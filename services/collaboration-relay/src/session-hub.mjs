@@ -59,14 +59,17 @@ export class RelaySessionHub {
   #store
   #broker
   #maxSessions
+  #handshakeTimeoutMs
   #closed = false
 
-  constructor({ store, maxSessions = 256, broker } = {}) {
+  constructor({ store, maxSessions = 256, handshakeTimeoutMs = 30_000, broker } = {}) {
     if (!store || typeof store.append !== 'function' || typeof store.read !== 'function' ||
         typeof store.getRegisteredKey !== 'function' || !Number.isSafeInteger(maxSessions) ||
-        maxSessions < 1 || maxSessions > 4096) throw new Error('Invalid relay hub configuration')
+        maxSessions < 1 || maxSessions > 4096 || !Number.isSafeInteger(handshakeTimeoutMs) ||
+        handshakeTimeoutMs < 1 || handshakeTimeoutMs > 60_000) throw new Error('Invalid relay hub configuration')
     this.#store = store
     this.#maxSessions = maxSessions
+    this.#handshakeTimeoutMs = handshakeTimeoutMs
     this.#broker = broker ?? new PeerChallengeBroker({ lookupRegisteredKey: identity =>
       store.getRegisteredKey(identity) })
   }
@@ -78,10 +81,15 @@ export class RelaySessionHub {
     }
     const session = {
       socket, phase: 'new', scope: null, challengeId: null,
-      key: null, closed: false,
+      key: null, closed: false, handshakeTimer: null,
     }
     this.#connections.add(session)
+    session.handshakeTimer = setTimeout(() => {
+      if (session.phase !== 'ready') this.#reject(session, 1008)
+    }, this.#handshakeTimeoutMs)
+    session.handshakeTimer.unref?.()
     const cleanup = () => {
+      clearTimeout(session.handshakeTimer)
       session.closed = true
       this.#connections.delete(session)
     }
@@ -110,6 +118,7 @@ export class RelaySessionHub {
   #reject(session, code = 1008) {
     if (session.closed) return
     session.closed = true
+    clearTimeout(session.handshakeTimer)
     this.#connections.delete(session)
     try { session.socket.close(code, code === 1009 ? 'Message too large' : code === 1000 ? 'Normal closure' : 'Policy violation') }
     catch { try { session.socket.terminate?.() } catch { /* Socket is already unusable. */ } }
@@ -165,6 +174,7 @@ export class RelaySessionHub {
       session.key = key
       session.challengeId = null
       session.phase = 'ready'
+      clearTimeout(session.handshakeTimer)
       this.#send(session, { type: 'ready', role, scope: session.scope })
       return
     }

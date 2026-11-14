@@ -109,3 +109,17 @@ test('invalid frames, revoked and unknown users, binary payloads and oversized J
   c.emit('message','x'.repeat(600_000),false)
   assert.equal(c.closed?.code,1009)
 }))
+
+test('unproven connections expire and release their bounded session slot', async () => {
+  const untrustedStore = { append() {}, read() {}, getRegisteredKey() { return null } }
+  const hub = new RelaySessionHub({ store: untrustedStore, maxSessions: 1, handshakeTimeoutMs: 30 })
+  const stalled = new FakeSocket()
+  try {
+    hub.accept(stalled)
+    await new Promise(resolve => setTimeout(resolve, 80))
+    assert.equal(stalled.closed?.code, 1008)
+    const next = new FakeSocket()
+    hub.accept(next)
+    assert.equal(next.closed, null, 'a timed-out handshake must free the session budget')
+  } finally { hub.close() }
+})
