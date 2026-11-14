@@ -7,7 +7,7 @@ use std::sync::{
 };
 
 use base64::Engine as _;
-use scriptor_vault::{RelativeVaultPath, SaveNoteOptions, SaveNoteOutput, content_hash, read_note, save_note_with_options};
+use scriptor_vault::{RelativeVaultPath, SaveNoteOptions, SaveNoteOutput, VaultUpdateLock, content_hash, read_note, save_note_with_options, try_lock_vault_update};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -22,6 +22,9 @@ const MAX_BASE64_UPDATE_LENGTH: usize = (256 * 1024 / 3 + 1) * 4 + 4;
 pub(crate) struct LiveSessionLease {
     pub(crate) scope: JournalScope,
     pub(crate) journal: Arc<Mutex<LocalJournal>>,
+    /// Lifetime-held OS lock prevents a second installed Scriptor from claiming
+    /// this note's canonical file projection; released only with final lease.
+    pub(crate) _projection_owner: Arc<VaultUpdateLock>,
     pub(crate) relay_generation: Arc<AtomicU64>,
     pub(crate) relay_active: Arc<AtomicBool>,
 }
@@ -153,6 +156,12 @@ pub fn collaboration_live_start(
     )?;
     let mut journal = LocalJournal::open(session.root.root())?;
     let begin = journal.begin(&scope, &document.metadata.content_hash)?;
+    let ownership_key = scriptor_vault::hash::path_hash(&scope.note_path);
+    let ownership_target = session.root.root().join(".scriptor")
+        .join("collaboration").join(format!("live-owner-{ownership_key}"));
+    let file_owner = try_lock_vault_update(&ownership_target)
+        .map_err(|error| error.to_string())?
+        .ok_or("Another Scriptor process already owns this live note's file projection")?;
     let session_id = Uuid::new_v4().to_string();
     let mut leases = lock_recover(&state.live_collaboration_sessions, "collaboration leases");
     if leases.len() >= MAX_LOCAL_SESSIONS {
@@ -168,6 +177,7 @@ pub fn collaboration_live_start(
         LiveSessionLease {
             scope,
             journal: Arc::new(Mutex::new(journal)),
+            _projection_owner: Arc::new(file_owner),
             relay_generation: Arc::new(AtomicU64::new(0)),
             relay_active: Arc::new(AtomicBool::new(false)),
         },
