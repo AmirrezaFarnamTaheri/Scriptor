@@ -1,0 +1,8 @@
+{
+  "name": "@scriptor/collaboration-relay",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.16.0" },
+  "scripts": { "test": "node --experimental-sqlite --experimental-strip-types --test test/*.test.mjs" }
+}
