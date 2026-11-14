@@ -7,6 +7,7 @@
  * SQLite WAL with synchronous=FULL commits before durable receipts are returned.
  */
 import { DatabaseSync } from 'node:sqlite'
+import { createPublicKey } from 'node:crypto'
 import { chmodSync, existsSync, lstatSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -38,6 +39,18 @@ function roomIdentity(value) {
 
 function expectAuthenticatedPeer(id) {
   return identifier(id, 'authenticated peer identity')
+}
+
+/** Store canonical public SPKI only; never accept private key material or EC/RSA keys. */
+function normalizePublicKey(value) {
+  if (value === undefined) return null
+  if (typeof value !== 'string' || value.length > 1024 || value.length < 60 ||
+      !value.startsWith('-----BEGIN PUBLIC KEY-----')) throw new Error('Invalid Ed25519 public key')
+  try {
+    const parsed = createPublicKey(value)
+    if (parsed.asymmetricKeyType !== 'ed25519') throw new Error('Wrong public key algorithm')
+    return parsed.export({ format: 'pem', type: 'spki' }).toString()
+  } catch { throw new Error('Invalid Ed25519 public key') }
 }
 
 /** The creator must supply the exact local CRDT update to seed the new room. */
@@ -97,6 +110,16 @@ export class RelayRoomStore {
           PRIMARY KEY(room_id, document_id, epoch, peer_id),
           FOREIGN KEY(room_id, document_id, epoch)
             REFERENCES rooms(room_id, document_id, epoch)
+        );
+        CREATE TABLE IF NOT EXISTS member_keys (
+          room_id TEXT NOT NULL,
+          document_id TEXT NOT NULL,
+          epoch INTEGER NOT NULL,
+          peer_id TEXT NOT NULL,
+          public_key TEXT NOT NULL,
+          PRIMARY KEY(room_id, document_id, epoch, peer_id),
+          FOREIGN KEY(room_id, document_id, epoch, peer_id)
+            REFERENCES members(room_id, document_id, epoch, peer_id)
         );
         CREATE TABLE IF NOT EXISTS updates (
           cursor INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -184,9 +207,10 @@ export class RelayRoomStore {
     return { cursor: Number(inserted.lastInsertRowid), durable: true, duplicate: false }
   }
 
-  createRoom({ ownerPeerId, initialUpdate, ...scopeValue }) {
+  createRoom({ ownerPeerId, ownerPublicKey, initialUpdate, ...scopeValue }) {
     const scope = roomIdentity(scopeValue)
     const owner = expectAuthenticatedPeer(ownerPeerId)
+    const key = normalizePublicKey(ownerPublicKey)
     const update = parseScopedUpdate(initialUpdate, scope, owner)
     if (update.kind !== 'LOCAL_UPDATE') throw new Error('Room bootstrap requires a local CRDT update')
     return this.#transaction(() => {
@@ -197,6 +221,9 @@ export class RelayRoomStore {
       const current = this.#room(scope)
       if (current) {
         if (current.owner_peer_id !== owner) throw new Error('Existing room has another owner')
+        if (key && this.getRegisteredKey({ ...scope, peerId: owner }) !== key) {
+          throw new Error('Existing owner key cannot change during room bootstrap')
+        }
         const duplicate = this.#appendDuplicateOnly(scope, owner, update)
         if (!duplicate) throw new Error('Existing room bootstrap does not match saved history')
         return duplicate
@@ -205,6 +232,8 @@ export class RelayRoomStore {
         .run(scope.roomId, scope.documentId, scope.epoch, owner)
       this.#db.prepare('INSERT INTO members VALUES (?,?,?,?,?)')
         .run(scope.roomId, scope.documentId, scope.epoch, owner, 'owner')
+      if (key) this.#db.prepare('INSERT INTO member_keys VALUES (?,?,?,?,?)')
+        .run(scope.roomId, scope.documentId, scope.epoch, owner, key)
       return this.#append(scope, owner, update)
     })
   }
@@ -217,11 +246,13 @@ export class RelayRoomStore {
     return { cursor: saved.cursor, durable: true, duplicate: true }
   }
 
-  grant({ actorPeerId, targetPeerId, role, ...scopeValue }) {
+  grant({ actorPeerId, targetPeerId, role, publicKey, ...scopeValue }) {
     const scope = roomIdentity(scopeValue)
     const actor = expectAuthenticatedPeer(actorPeerId)
     const target = expectAuthenticatedPeer(targetPeerId)
     if (!['viewer', 'editor', 'revoked'].includes(role)) throw new Error('Invalid grant role')
+    if (role === 'revoked' && publicKey !== undefined) throw new Error('A revoked peer cannot register a new public key')
+    const key = normalizePublicKey(publicKey)
     return this.#transaction(() => {
       const current = this.#room(scope)
       if (!current || current.owner_peer_id !== actor) throw new Error('Only the room owner can change grants')
@@ -229,8 +260,35 @@ export class RelayRoomStore {
       this.#db.prepare(`INSERT INTO members(room_id,document_id,epoch,peer_id,role) VALUES(?,?,?,?,?)
         ON CONFLICT(room_id,document_id,epoch,peer_id) DO UPDATE SET role=excluded.role`)
         .run(scope.roomId, scope.documentId, scope.epoch, target, role)
+      if (key) this.#db.prepare(`INSERT INTO member_keys(room_id,document_id,epoch,peer_id,public_key) VALUES(?,?,?,?,?)
+        ON CONFLICT(room_id,document_id,epoch,peer_id) DO UPDATE SET public_key=excluded.public_key`)
+        .run(scope.roomId, scope.documentId, scope.epoch, target, key)
       return { peerId: target, role, durable: true }
     })
+  }
+
+  /** Current ACL is read from SQLite for every caller (including active sockets). */
+  getRole({ peerId, ...scopeValue }) {
+    const scope = roomIdentity(scopeValue)
+    const peer = expectAuthenticatedPeer(peerId)
+    this.#ensureOpen()
+    const row = this.#db.prepare(`SELECT role FROM members
+      WHERE room_id=? AND document_id=? AND epoch=? AND peer_id=?`)
+      .get(scope.roomId, scope.documentId, scope.epoch, peer)
+    return row && row.role !== 'revoked' ? row.role : null
+  }
+
+  /** Only the trusted relay authentication layer calls this lookup. */
+  getRegisteredKey({ peerId, ...scopeValue }) {
+    const scope = roomIdentity(scopeValue)
+    const peer = expectAuthenticatedPeer(peerId)
+    this.#ensureOpen()
+    const row = this.#db.prepare(`SELECT m.role,k.public_key FROM members m
+      LEFT JOIN member_keys k ON k.room_id=m.room_id AND k.document_id=m.document_id
+        AND k.epoch=m.epoch AND k.peer_id=m.peer_id
+      WHERE m.room_id=? AND m.document_id=? AND m.epoch=? AND m.peer_id=?`)
+      .get(scope.roomId, scope.documentId, scope.epoch, peer)
+    return row && row.role !== 'revoked' ? row.public_key ?? null : null
   }
 
   append({ authenticatedPeerId, update: value, ...scopeValue }) {
