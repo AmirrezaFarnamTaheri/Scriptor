@@ -851,6 +851,7 @@
       "showEvents": "Kalendertermine in Aufgaben anzeigen",
       "mirrorTasks": "Vault → Google Tasks-Spiegelung aktivieren (Änderungen werden erst nach Ihrer Bestätigung übertragen)",
       "connect": "Mit Google verbinden",
+      "switchAccount": "Google-Konto wechseln",
       "syncNow": "Jetzt synchronisieren",
       "disconnect": "Trennen",
       "status": {
