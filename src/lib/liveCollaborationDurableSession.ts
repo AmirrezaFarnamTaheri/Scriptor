@@ -181,15 +181,15 @@ export class DurableCollaborationSession {
     let rows = 0
     try {
       for (;;) {
-        if (this.phase === 'stopped') throw new Error('Collaboration session stopped during recovery')
+        if (this.isStopped()) throw new Error('Collaboration session stopped during recovery')
         const page = await this.journal.pending(this.scope, this.leaseId, cursor)
-        if (this.phase === 'stopped') throw new Error('Collaboration session stopped during recovery')
+        if (this.isStopped()) throw new Error('Collaboration session stopped during recovery')
         if (!Array.isArray(page) || page.length > MAX_RECOVERY_PAGE) {
           throw new Error('Invalid native journal recovery page')
         }
         if (!page.length) break
         for (const record of page) {
-          if (this.phase === 'stopped') throw new Error('Collaboration session stopped during recovery')
+          if (this.isStopped()) throw new Error('Collaboration session stopped during recovery')
           if (!record || !Number.isSafeInteger(record.clientSeq) ||
             record.clientSeq <= cursor || record.clientSeq < 1 || ++rows > MAX_RECOVERY_ROWS) {
             throw new Error('Invalid native journal recovery sequence')
@@ -215,11 +215,15 @@ export class DurableCollaborationSession {
         }
         if (page.length < MAX_RECOVERY_PAGE) break
       }
-      if (this.phase !== 'stopped') this.phase = 'ready'
+      if (!this.isStopped()) this.phase = 'ready'
     } catch (error) {
       if (this.phase !== 'stopped') this.phase = 'blocked'
       throw error
     }
+  }
+
+  private isStopped(): boolean {
+    return this.phase === 'stopped'
   }
 
   private ensureReady(): void {
@@ -232,7 +236,7 @@ export class DurableCollaborationSession {
     this.inFlight = true
     try {
       const receipt = await this.journal.append(this.scope, this.leaseId, stage.message)
-      if (!this.ready || this.phase === 'stopped') {
+      if (!this.ready || this.isStopped()) {
         throw new Error('Collaboration session stopped before the durable reply')
       }
       if (!receipt || receipt.locallyDurable !== true ||
@@ -306,7 +310,7 @@ export class DurableCollaborationSession {
 
   /** Immediately stop local work (native vault switching also clears leases). */
   stop(): void {
-    if (this.phase === 'stopped') return
+    if (this.isStopped()) return
     this.phase = 'stopped'
     this.staged = null
     this.subscribers.clear()
