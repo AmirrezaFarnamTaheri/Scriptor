@@ -21,3 +21,13 @@ export function mergeGoogleClientId<T extends { calendar_sync?: object }>(curren
     calendar_sync: NonNullable<T['calendar_sync']> & { google_client_id: string | null }
   }
 }
+
+/** Describe the next account operation without treating a stale email as active authorization. */
+export function googleConnectionAction(
+  status: string,
+  verifiedEmail: string | null,
+): 'connect' | 'reconnect' | 'switch' {
+  if (status === 'reconnect-required' || (status === 'error' && verifiedEmail)) return 'reconnect'
+  if ((status === 'connected' || status === 'synced') && verifiedEmail) return 'switch'
+  return 'connect'
+}
