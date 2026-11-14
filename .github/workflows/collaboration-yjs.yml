@@ -6,6 +6,7 @@ on:
       - feat/collaboration-yjs-convergence-2026-11-14
     paths:
       - 'src/lib/liveCollaborationYjs*'
+      - 'src/lib/liveCollaborationDurableSession*'
       - 'services/collaboration-relay/test/yjs-wss.test.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -45,7 +46,7 @@ jobs:
       - name: Install frozen dependency graph
         run: pnpm install --frozen-lockfile
       - name: Validate Yjs convergence contracts
-        run: node --experimental-strip-types --test src/lib/liveCollaborationYjs.test.ts
+        run: node --experimental-strip-types --test src/lib/liveCollaborationYjs.test.ts src/lib/liveCollaborationDurableSession.test.ts
       - name: Verify actual WSS and SQLite replay with three Yjs authors
         run: |
           openssl version
