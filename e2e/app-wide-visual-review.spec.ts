@@ -134,6 +134,11 @@ test('dense Knowledge Graph focused and all-link modes are captured at phone wid
   await expect(graph.locator('.graph-stage')).toBeInViewport({ ratio: 0.98 })
   await expect(graph.locator('.graph-header')).toBeInViewport({ ratio: 0.95 })
   await expect(graph.locator('.graph-header')).toHaveCSS('position', 'sticky')
+  // Scrolling the dense stage used to leave "Find a note" visible through the
+  // translucent sticky title bar. Its backdrop must match the opaque dialog.
+  const headerBackground = await graph.locator('.graph-header').evaluate(node => getComputedStyle(node).backgroundColor)
+  const dialogBackground = await graph.evaluate(node => getComputedStyle(node).backgroundColor)
+  expect(headerBackground).toBe(dialogBackground)
   await page.screenshot({ path: testInfo.outputPath('visual-app-graph-dense-all-links-390.png'), animations: 'disabled', caret: 'hide' })
 })
 
@@ -222,6 +227,12 @@ test('populated weekly planner and RTL time blocks have full-app mobile evidence
   await expect.poll(() => rtlPlanner.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1)
   await rtlBlock.scrollIntoViewIfNeeded()
   await expect(rtlBlock).toBeInViewport({ ratio: 0.95 })
+  // Real Persian locale must localize day labels and isolate time ranges, not
+  // merely mirror an English calendar in an RTL shell.
+  const rtlDay = rtlPlanner.getByRole('listitem', { name: '2026-10-01', exact: true })
+  await expect(rtlDay.locator('h4 time')).toContainText(/[\u0600-\u06ff]/)
+  await expect(rtlBlock.locator('time')).toHaveAttribute('dir', 'ltr')
+  await expect(rtlBlock.locator('time')).toContainText(/[\u06f0-\u06f9]/)
   await page.screenshot({ path: testInfo.outputPath('visual-app-planner-populated-rtl-390.png'), animations: 'disabled', caret: 'hide' })
 })
 

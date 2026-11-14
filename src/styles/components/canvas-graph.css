@@ -579,5 +579,8 @@
     position: sticky;
     top: 0;
     z-index: 3;
+    /* --surface is translucent in theme variants: scrolled search and link
+       controls must not show through the header or obscure its close action. */
+    background: var(--dialog-bg, var(--bg-elevated));
   }
 }
