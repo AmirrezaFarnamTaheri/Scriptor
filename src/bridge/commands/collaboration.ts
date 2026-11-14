@@ -99,7 +99,7 @@ export async function collaborationPollStart(folderId: string, expectedVaultId: 
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('google_drive_read', transport === 'google_docs' ? `drive:docs-records:poll:${folderId}` : `drive:poll:${folderId}`)
   const session = await invoke<CollaborationPollSession>('collaboration_poll_start', { folderId, expectedVaultId, authorizationToken, transport })
-  if (!session || !/^[A-Za-z0-9_-]{1,200}$/.test(session.lease_id) || !Number.isFinite(Date.parse(session.expires_at)) || session.remaining_requests !== 30) throw new Error('Invalid polling session')
+  if (!session || !/^[A-Za-z0-9_-]{1,200}$/.test(session.lease_id) || !Number.isFinite(Date.parse(session.expires_at)) || session.remaining_requests !== 90) throw new Error('Invalid polling session')
   return session
 }
 export async function collaborationPollRead(leaseId: string, expectedVaultId: string) {

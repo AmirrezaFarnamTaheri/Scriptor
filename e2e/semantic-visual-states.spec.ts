@@ -41,6 +41,23 @@ test('populated semantic projection rotates in 3D, filters similarity results an
   const projection = panel.locator('.semantic-projection')
   await expect(projection.locator('g[role="button"]')).toHaveCount(3)
   await expect(projection.locator('circle.stale')).toHaveCount(1)
+  await expect(projection.locator('.semantic-projection-axis')).toHaveText(['PCA 1', 'PCA 2'])
+  await expect(projection.locator('.semantic-projection-point-label')).toHaveText(['Research Plan.md', 'Field Notes.md', 'Methodology.md'])
+  // The imported stylesheet must style note labels, not just the axis labels.
+  // Matching the already legible axis color guards against dark-on-dark text
+  // caused by an unimported duplicate semantic-inspector stylesheet.
+  await expect.poll(() => projection.evaluate((element) => {
+    const point = element.querySelector<SVGTextElement>('.semantic-projection-point-label')
+    const axis = element.querySelector<SVGTextElement>('.semantic-projection-axis')
+    if (!point || !axis) return false
+    const style = getComputedStyle(point)
+    return style.fill === getComputedStyle(axis).fill &&
+      Number.parseFloat(style.fontSize) >= 13 &&
+      style.pointerEvents === 'none'
+  })).toBe(true)
+  const legend = panel.getByRole('group', { name: 'Projection key' })
+  await expect(legend).toContainText('Current vector')
+  await expect(legend).toContainText('Stale vector')
   await expect(panel.getByRole('button', { name: 'Reindex changed notes', exact: true })).toBeEnabled()
   await attachVisualState(page, testInfo, 'semantic-dark-populated-2d', panel, projection)
 
@@ -66,12 +83,14 @@ test('populated semantic projection rotates in 3D, filters similarity results an
   await threshold.focus()
   await threshold.press('End')
   await expect(search.getByText('No results meet this threshold.', { exact: true })).toBeVisible()
+  await expect(search.getByText('No results meet this threshold.', { exact: true })).toHaveAttribute('dir', 'auto')
   await attachVisualState(page, testInfo, 'semantic-filtered-empty-results', search, search.getByText('No results meet this threshold.', { exact: true }))
 
   await page.setViewportSize({ width: 375, height: 844 })
   await page.locator('html').evaluate(element => { element.dir = 'rtl' })
   await panel.getByRole('button', { name: 'Reindex changed notes', exact: true }).click()
   await expect(panel.getByRole('alert')).toContainText('Existing vectors were retained')
+  await expect(panel.getByRole('alert')).toHaveAttribute('dir', 'auto')
   await expect(projection.locator('g[role="button"]')).toHaveCount(3)
   await expect(panel.getByRole('button', { name: 'Reindex changed notes', exact: true })).toBeEnabled()
   await expect.poll(() => panel.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)

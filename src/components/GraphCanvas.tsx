@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n } from '../lib/i18n'
+import { graphNodeAppearance, graphCanvasDensityMetrics } from '../lib/graphNodeAppearance'
+import { projectFocusedGraph } from '../lib/graphFocusLayout'
+import { placeGraphLabels } from '../lib/graphLabelPlacement'
 
 const FOLDER_COLORS = ['#6366f1', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#a855f7', '#22c55e']
 
@@ -50,6 +53,9 @@ interface GraphCanvasProps {
   width: number
   height: number
   onSelectNode: (path: string) => void
+  highlightedNeighborIds?: string[]
+  /** De-emphasize the unrelated web of links in a large vault graph. */
+  focusNeighborhoodOnly?: boolean
 }
 
 function directedPairKey(source: string, target: string): string {
@@ -88,6 +94,7 @@ function reciprocalOffsetFor(
   source: { x: number; y: number },
   target: { x: number; y: number },
   reciprocal: boolean,
+  offsetScale = 1,
 ): { ox: number; oy: number } {
   if (!reciprocal) return { ox: 0, oy: 0 }
   const sourceFirst = sourceId < targetId
@@ -96,12 +103,12 @@ function reciprocalOffsetFor(
   const distance = Math.hypot(cdx, cdy) || 1
   const sign = sourceFirst ? 1 : -1
   return {
-    ox: (-cdy / distance) * RECIPROCAL_EDGE_OFFSET * sign,
-    oy: (cdx / distance) * RECIPROCAL_EDGE_OFFSET * sign,
+    ox: (-cdy / distance) * RECIPROCAL_EDGE_OFFSET * sign * offsetScale,
+    oy: (cdx / distance) * RECIPROCAL_EDGE_OFFSET * sign * offsetScale,
   }
 }
 
-export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNode }: GraphCanvasProps) {
+export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNode, highlightedNeighborIds = [], focusNeighborhoodOnly = false }: GraphCanvasProps) {
   const { t } = useI18n()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const hoveredIdRef = useRef<string | null>(null)
@@ -114,18 +121,46 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
   const [keyboardFocused, setKeyboardFocused] = useState(false)
   const [keyboardAnnouncement, setKeyboardAnnouncement] = useState('')
 
-  useEffect(() => {
-    const map = new Map<string, CanvasNode>()
-    for (const node of nodes) map.set(node.id, node)
-    nodeMap.current = map
-  }, [nodes])
-
-  const activeKeyboardNodeIndex = Math.min(keyboardNodeIndex, Math.max(nodes.length - 1, 0))
-
   const primaryColor = useSemanticColor('--primary', '#6366f1')
   const mutedColor = useSemanticColor('--muted', '#64748b')
   const inkColor = useSemanticColor('--ink', '#1e293b')
   const surfaceColor = useSemanticColor('--surface', '#ffffff')
+
+  const focusedNodeId = useMemo(
+    () => nodes.find(node => node.path === focusPath)?.id ?? null,
+    [nodes, focusPath],
+  )
+  const focusedNeighborhood = useMemo(() => {
+    const related = new Set<string>()
+    if (!focusedNodeId) return related
+    related.add(focusedNodeId)
+    for (const edge of edges) {
+      if (edge.source === focusedNodeId) related.add(edge.target)
+      if (edge.target === focusedNodeId) related.add(edge.source)
+    }
+    return related
+  }, [edges, focusedNodeId])
+
+  // The initial 120-note view is a deliberate neighborhood lens: only direct
+  // relationships remain in the drawing and the focus is centered. The full
+  // vault stays reachable with the existing Show all links action.
+  const renderNodes = useMemo(() =>
+    focusNeighborhoodOnly && focusedNodeId
+      ? projectFocusedGraph(nodes, edges, focusedNodeId, width, height)
+      : nodes,
+    [nodes, edges, focusedNodeId, focusNeighborhoodOnly, width, height],
+  )
+  const renderEdges = useMemo(() => {
+    if (!focusNeighborhoodOnly || !focusedNodeId) return edges
+    const visible = new Set(renderNodes.map((node) => node.id))
+    return edges.filter((edge) => visible.has(edge.source) && visible.has(edge.target))
+  }, [renderNodes, edges, focusNeighborhoodOnly, focusedNodeId])
+  const { radiusScale, hitRadius, edgeOffsetScale, arrowScale } = graphCanvasDensityMetrics(renderNodes.length, width, focusNeighborhoodOnly)
+
+  useEffect(() => {
+    nodeMap.current = new Map(renderNodes.map((node) => [node.id, node]))
+  }, [renderNodes])
+  const activeKeyboardNodeIndex = Math.min(keyboardNodeIndex, Math.max(renderNodes.length - 1, 0))
 
   const reciprocalPairs = useMemo(() => {
     const directions = new Map<string, Set<string>>()
@@ -155,7 +190,10 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
 
     const { x: tx, y: ty, scale } = transformRef.current
     const hoveredId = hoveredIdRef.current
-    const keyboardNode = keyboardFocused ? nodes[activeKeyboardNodeIndex] : undefined
+    const keyboardNode = keyboardFocused ? renderNodes[activeKeyboardNodeIndex] : undefined
+    // Hovering a background dot must not bring the entire 120-node web to the
+    // foreground. Only that note escapes the focused-neighborhood treatment.
+    const reduceClutter = focusNeighborhoodOnly && Boolean(focusedNodeId)
     ctx.clearRect(0, 0, width, height)
     ctx.fillStyle = surfaceColor
     ctx.fillRect(0, 0, width, height)
@@ -163,7 +201,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     ctx.translate(tx, ty)
     ctx.scale(scale, scale)
 
-    for (const edge of edges) {
+    for (const edge of renderEdges) {
       const src = nodeMap.current.get(edge.source)
       const tgt = nodeMap.current.get(edge.target)
       if (!src || !tgt) continue
@@ -175,26 +213,26 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       const uy = dy / distance
       const directions = reciprocalPairs.get(directedPairKey(edge.source, edge.target))
       const reciprocal = (directions?.size ?? 0) > 1
-      const { ox, oy } = reciprocalOffsetFor(edge.source, edge.target, src, tgt, reciprocal)
+      const { ox, oy } = reciprocalOffsetFor(edge.source, edge.target, src, tgt, reciprocal, edgeOffsetScale)
       const startX = src.x + ox
       const startY = src.y + oy
-      const targetRadius = tgt.path === focusPath ? 22 : 17
+      const targetRadius = (tgt.path === focusPath ? 22 : 17) * radiusScale
       const endX = tgt.x + ox - ux * targetRadius
       const endY = tgt.y + oy - uy * targetRadius
       const faded = Boolean(hoveredId && hoveredId !== edge.source && hoveredId !== edge.target)
       const edgeColor = edge.kind === 'wikilink' ? primaryColor : mutedColor
 
       ctx.save()
-      ctx.globalAlpha = faded ? 0.2 : edge.kind === 'wikilink' ? 0.45 : 0.32
+      ctx.globalAlpha = faded ? 0.2 : reduceClutter ? 0.85 : edge.kind === 'wikilink' ? 0.65 : 0.50
       ctx.strokeStyle = edgeColor
       ctx.fillStyle = edgeColor
-      ctx.lineWidth = 1.25
+      ctx.lineWidth = reduceClutter ? 1.8 : 1.25
       ctx.beginPath()
       ctx.moveTo(startX, startY)
       ctx.lineTo(endX, endY)
       ctx.stroke()
 
-      const arrowSize = ARROW_SIZE
+      const arrowSize = ARROW_SIZE * arrowScale
       // The arrowhead spans the edge's own perpendicular, which is unrelated to
       // the reciprocal offset above.
       const perpX = -uy
@@ -208,21 +246,51 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       ctx.restore()
     }
 
-    for (const node of nodes) {
+    // The focused note, hovered point and direct neighbors take precedence.
+    // Opaque label plates must not overlap when a 120-node view is clustered.
+    ctx.font = '11px sans-serif'
+    ctx.textAlign = 'center'
+    const visibleLabels = renderNodes.filter(node => renderNodes.length < 60 || highlightedNeighborIds.includes(node.id) ||
+      node.path === focusPath || hoveredId === node.id || keyboardNode?.id === node.id)
+    const labelText = new Map(visibleLabels.map(node => [node.id, node.label.length > 18 ? node.label.slice(0, 17) + '…' : node.label]))
+    const placedLabels = placeGraphLabels(visibleLabels.map(node => ({
+      id: node.id, x: node.x, y: node.y,
+      width: ctx.measureText(labelText.get(node.id) ?? '').width + LABEL_PLATE_PAD_X * 2,
+      height: LABEL_PLATE_HEIGHT,
+      priority: hoveredId === node.id || keyboardNode?.id === node.id ? 0 : node.path === focusPath ? 1 : 2,
+    })), width, height)
+    for (const label of placedLabels) {
+      ctx.fillStyle = surfaceColor
+      ctx.beginPath()
+      ctx.roundRect(label.left, label.top, label.right - label.left, label.bottom - label.top, 3)
+      ctx.fill()
+      ctx.fillStyle = inkColor
+      ctx.fillText(labelText.get(label.id) ?? '', (label.left + label.right) / 2, label.bottom - 4)
+    }
+
+    for (const node of renderNodes) {
       const isFocus = node.path === focusPath
       const isHovered = hoveredId === node.id
       const isKeyboardFocus = keyboardNode?.id === node.id
-      const radius = isFocus || isHovered ? 18 : 14
+      const appearance = graphNodeAppearance({
+        focusMode: reduceClutter,
+        isFocus,
+        isNeighbor: focusedNeighborhood.has(node.id),
+        isHovered,
+        isKeyboardFocus,
+      })
       const fill = node.color ?? folderColor(node.path)
 
+      ctx.save()
+      ctx.globalAlpha = appearance.alpha
       ctx.beginPath()
-      ctx.arc(node.x, node.y, radius, 0, Math.PI * 2)
+      ctx.arc(node.x, node.y, appearance.radius * radiusScale, 0, Math.PI * 2)
       ctx.fillStyle = node.unresolved ? mutedColor : fill
       ctx.fill()
 
       if (isFocus) {
         ctx.beginPath()
-        ctx.arc(node.x, node.y, 22, 0, Math.PI * 2)
+        ctx.arc(node.x, node.y, 22 * radiusScale, 0, Math.PI * 2)
         ctx.strokeStyle = primaryColor
         ctx.lineWidth = 2
         ctx.stroke()
@@ -230,38 +298,18 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
 
       if (isKeyboardFocus) {
         ctx.beginPath()
-        ctx.arc(node.x, node.y, isFocus ? 26 : 22, 0, Math.PI * 2)
+        ctx.arc(node.x, node.y, (isFocus ? 26 : 22) * radiusScale, 0, Math.PI * 2)
         ctx.strokeStyle = inkColor
         ctx.lineWidth = 2
         ctx.stroke()
       }
-
-    }
-
-    // Paint labels after every node so later nodes cannot obscure earlier
-    // glyphs. The plate starts below even the 26px keyboard focus ring.
-    for (const node of nodes) {
-      const showLabel = nodes.length < 60 || node.path === focusPath || hoveredId === node.id || keyboardNode?.id === node.id
-      if (showLabel) {
-        const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
-        ctx.font = '11px sans-serif'
-        ctx.textAlign = 'center'
-        const metrics = ctx.measureText(label)
-        const labelY = node.y + 44
-        ctx.fillStyle = surfaceColor
-        ctx.beginPath()
-        ctx.roundRect(node.x - metrics.width / 2 - LABEL_PLATE_PAD_X, labelY - LABEL_PLATE_HEIGHT + 2,
-          metrics.width + LABEL_PLATE_PAD_X * 2, LABEL_PLATE_HEIGHT, 3)
-        ctx.fill()
-        ctx.fillStyle = inkColor
-        ctx.fillText(label, node.x, labelY)
-      }
+      ctx.restore()
     }
 
     ctx.restore()
   }, [
-    nodes,
-    edges,
+    renderNodes,
+    renderEdges,
     focusPath,
     width,
     height,
@@ -272,7 +320,20 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     reciprocalPairs,
     keyboardFocused,
     activeKeyboardNodeIndex,
+    highlightedNeighborIds,
+    focusNeighborhoodOnly,
+    focusedNodeId,
+    focusedNeighborhood,
+    radiusScale,
+    edgeOffsetScale,
+    arrowScale,
   ])
+
+  useEffect(() => {
+    // A view change must not reuse the pan/zoom from a different projection.
+    transformRef.current = { x: 0, y: 0, scale: 1 }
+    hoveredIdRef.current = null
+  }, [focusNeighborhoodOnly, focusedNodeId, width, height])
 
   useEffect(() => {
     draw()
@@ -290,14 +351,14 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
   }, [])
 
   const findNodeAt = useCallback((cx: number, cy: number): CanvasNode | null => {
-    for (let i = nodes.length - 1; i >= 0; i -= 1) {
-      const node = nodes[i]
+    for (let i = renderNodes.length - 1; i >= 0; i -= 1) {
+      const node = renderNodes[i]
       const dx = node.x - cx
       const dy = node.y - cy
-      if (dx * dx + dy * dy <= 20 * 20) return node
+      if (dx * dx + dy * dy <= hitRadius * hitRadius) return node
     }
     return null
-  }, [nodes])
+  }, [renderNodes, hitRadius])
 
   const scheduleDraw = useCallback(() => {
     if (frameRef.current) cancelAnimationFrame(frameRef.current)
@@ -383,32 +444,32 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
   }, [handleWheel])
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLCanvasElement>) => {
-    if (nodes.length === 0) return
+    if (renderNodes.length === 0) return
     let nextIndex: number
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
       event.preventDefault()
-      nextIndex = (activeKeyboardNodeIndex + 1) % nodes.length
+      nextIndex = (activeKeyboardNodeIndex + 1) % renderNodes.length
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
       event.preventDefault()
-      nextIndex = (activeKeyboardNodeIndex - 1 + nodes.length) % nodes.length
+      nextIndex = (activeKeyboardNodeIndex - 1 + renderNodes.length) % renderNodes.length
     } else if (event.key === 'Home') {
       event.preventDefault()
       nextIndex = 0
     } else if (event.key === 'End') {
       event.preventDefault()
-      nextIndex = nodes.length - 1
+      nextIndex = renderNodes.length - 1
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
-      const node = nodes[activeKeyboardNodeIndex]
+      const node = renderNodes[activeKeyboardNodeIndex]
       if (node?.path) onSelectNode(node.path)
       return
     } else {
       return
     }
     setKeyboardNodeIndex(nextIndex)
-    const node = nodes[nextIndex]
-    if (node) setKeyboardAnnouncement(t('graph.canvasNodeAnnouncement', { name: node.label, index: nextIndex + 1, total: nodes.length }))
-  }, [activeKeyboardNodeIndex, nodes, onSelectNode, t])
+    const node = renderNodes[nextIndex]
+    if (node) setKeyboardAnnouncement(t('graph.canvasNodeAnnouncement', { name: node.label, index: nextIndex + 1, total: renderNodes.length }))
+  }, [activeKeyboardNodeIndex, renderNodes, onSelectNode, t])
 
   return (
     <div className="graph-canvas-accessible-shell">
@@ -418,7 +479,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
         style={{ cursor: 'grab' }}
         role="application"
         tabIndex={0}
-        aria-label={t('graph.canvasAria', { nodes: nodes.length, edges: edges.length })}
+        aria-label={t('graph.canvasAria', { nodes: nodes.length, edges: edges.length }) + (focusNeighborhoodOnly && focusedNodeId ? ' · ' + t('graph.nearbyNotes') + ': ' + (renderNodes.length - 1) : '')}
         onFocus={() => setKeyboardFocused(true)}
         onBlur={() => setKeyboardFocused(false)}
         onKeyDown={handleKeyDown}

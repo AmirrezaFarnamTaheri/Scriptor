@@ -3,17 +3,24 @@
 .app-shell {
   min-height: var(--app-viewport-height, 100dvh);
   height: var(--app-viewport-height, 100dvh);
-  overflow: hidden;
+  /* This is a fixed viewport grid; individual editor/rail panels own scrolling.
+     `hidden` still creates a programmatically scrollable container, so focusing
+     tablet Inspector tabs could scroll the whole workspace under the chrome.
+     `clip` forbids that hidden shell scroll while preserving paint containment. */
+  overflow: clip;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   background: transparent;
   color: var(--ink);
 }
 
+/* The app shell is already a bounded, non-scrolling grid. Making its first
+ * row sticky creates an overlapping paint layer at tablet rail widths when
+ * the Inspector content switches modes; keep the chrome in ordinary grid
+ * flow so the workspace starts after its actual measured block height. */
 .app-chrome {
   display: grid;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: var(--comp-shell-sticky-z);
 }
 

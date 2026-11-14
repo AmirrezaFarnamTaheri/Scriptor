@@ -97,13 +97,15 @@ test('graph node labels are masked so edge lines do not cross the glyphs', () =>
   // it has to measure the text to size the plate. The plate pass is separate from
   // the node pass on purpose: drawn inline, its top edge reaches y+18 and paints
   // over the bottom of the r=22 keyboard focus ring.
-  assert.match(graphCanvas, /ctx\.measureText\(label\)/)
+  assert.match(graphCanvas, /ctx\.measureText\(labelText\.get\(node\.id\) \?\? ''\)/)
+  assert.match(graphCanvas, /placeGraphLabels\(/, 'dense canvas labels must use collision-safe placement')
   assert.match(graphCanvas, /fillStyle = surfaceColor[\s\S]{0,900}?roundRect/)
-  const platePass = graphCanvas.indexOf('fillStyle = surfaceColor')
-  const nodePass = graphCanvas.indexOf('ctx.arc(node.x, node.y, radius')
+  const platePass = graphCanvas.indexOf('ctx.roundRect(')
+  const nodePass = graphCanvas.indexOf('ctx.arc(node.x, node.y, appearance.radius')
+  assert.ok(platePass >= 0 && nodePass >= 0, 'both paint passes must exist')
   assert.ok(platePass < nodePass, 'label plates must be painted before the node circles and focus rings')
-  const focusRing = graphCanvas.indexOf('ctx.arc(node.x, node.y, isFocus ? 26 : 22')
-  assert.ok(focusRing > platePass, 'label plates must be painted before the keyboard focus ring')
+  const focusRing = graphCanvas.indexOf('ctx.arc(node.x, node.y, (isFocus ? 26 : 22) * radiusScale')
+  assert.ok(focusRing > platePass, 'label plates must be painted before the density-scaled keyboard focus ring')
 })
 
 test('export profiles do not print their format twice', () => {
@@ -122,7 +124,7 @@ test('export profiles do not print their format twice', () => {
 
   // Whatever it decides, the markup has to go through the helper rather than read
   // the format directly.
-  assert.match(publishCenter, /\{formatBadge \? <span className="publish-format-chip">/)
+  assert.match(publishCenter, /\{profile\.label\}\{formatBadgeFor\(profile\) \?/)
   assert.doesNotMatch(
     publishCenter,
     /<span className="publish-format-chip">\{profile\.format\.toUpperCase\(\)\}<\/span>/,

@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test'
-import { launchApp, openCommandPalette, runCommand } from './helpers'
+import { expandInspector, launchApp, openCommandPalette, runCommand } from './helpers'
 
 const surfaces = [
   { command: 'Asset deck', name: 'Asset deck', grid: '.asset-deck-split.has-reader', breakpoint: 800 },
@@ -28,6 +28,9 @@ for (const surface of surfaces) {
       sessionStorage.setItem('e2e:asset-media', '1')
     })
     await launchApp(page)
+    // Reserve a real inspector rail to exercise the narrow *container* at
+    // a wide physical viewport; a collapsed rail legitimately makes it wide.
+    await expandInspector(page)
     await openCommandPalette(page)
     await runCommand(page, surface.command)
     const panel = surface.name === 'Asset deck'
@@ -45,7 +48,13 @@ for (const surface of surfaces) {
     }
     const grid = panel.locator(surface.grid)
     await expect(grid).toBeVisible()
-    await expect(page.locator('.editor-panel[data-help-topic="editor"]')).toBeVisible()
+    // Focused workspaces can intentionally replace the writing editor. Verify
+    // the requested tool is visible instead of requiring a hidden editor pane.
+    if (surface.name === 'Capture reviewer') {
+      await expect(page.locator('.editor-panel[data-help-topic="editor"]')).toBeHidden()
+    } else {
+      await expect(page.locator('.editor-panel[data-help-topic="editor"]')).toBeVisible()
+    }
     // Both window sizes exceed the old viewport breakpoint. Only the actual
     // pane width should decide whether these two bodies stack.
     for (const width of [1440, 2800]) {

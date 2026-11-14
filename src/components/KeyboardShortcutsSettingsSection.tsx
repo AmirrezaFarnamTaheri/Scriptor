@@ -92,11 +92,11 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
         />
       </label>
 
-      <div className="shortcut-table" role="table" aria-label="Keyboard shortcuts">
+      <div className={`shortcut-table${hasAnyOverride ? '' : ' shortcut-table--no-actions'}`} role="table" aria-label="Keyboard shortcuts">
         <div className="shortcut-table-header" role="row">
           <span role="columnheader">Command</span>
           <span role="columnheader">Shortcut</span>
-          <span role="columnheader">Actions</span>
+          {hasAnyOverride ? <span role="columnheader">Actions</span> : null}
         </div>
         {visibleEntries.map((entry) => {
           const value = effectiveValue(entry.id, entry.defaultShortcut)
@@ -144,7 +144,7 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
                   <small className="shortcut-effective-label">Displays as {effectiveDisplay}</small>
                 ) : null}
               </div>
-              <div role="cell" className="shortcut-row-actions">
+              {hasAnyOverride ? <div role="cell" className="shortcut-row-actions">
                 {hasOverride ? (
                   <button
                     type="button"
@@ -161,7 +161,7 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
                     Reset
                   </button>
                 ) : null}
-              </div>
+              </div> : null}
             </div>
           )
         })}

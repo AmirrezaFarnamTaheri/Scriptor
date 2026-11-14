@@ -1,4 +1,5 @@
 .mobile-workspace-chrome {
+  position: relative;
   display: none;
 }
 
@@ -37,7 +38,7 @@
   position: sticky;
   bottom: 0;
   z-index: 40;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0));
   border-top: 1px solid var(--glass-border);
@@ -317,8 +318,13 @@
 }
 
 .frontmatter-inspector {
+  box-sizing: border-box;
   width: min(720px, calc(var(--app-viewport-width, 100vw) - 32px));
   max-width: 720px;
+  max-height: calc(var(--app-viewport-height, 100dvh) - 24px);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
   background: var(--dialog-bg, var(--bg-elevated));
 }
 
@@ -1139,7 +1145,9 @@
 
 .workspace-mode.active {
   background: var(--accent-soft);
-  color: var(--accent);
+  /* Small selected-mode labels must remain readable when the user's accent
+     stays dark across a dark appearance. The accent still marks selection. */
+  color: var(--ink-strong);
   font-weight: 600;
 }
 
@@ -1553,3 +1561,52 @@
 .quick-todo-compose > textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .quick-todo-compose > .toolbar-button { min-height: 44px; white-space: nowrap; }
 @container (max-width: 270px) { .quick-todo-compose { grid-template-columns: minmax(0, 1fr); } }
+
+/* Phone navigation: keep writing and notes prominent, group other destinations. */
+.mobile-more-menu {
+  position: absolute;
+  inset-inline-end: 12px;
+  bottom: calc(100% + 8px);
+  z-index: 50;
+  display: grid;
+  gap: 4px;
+  width: min(260px, calc(100vw - 24px));
+  padding: 8px;
+  background: var(--bg-elevated);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+}
+.mobile-more-menu > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: start;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.mobile-more-menu > button:hover,
+.mobile-more-menu > button:focus-visible {
+  background: var(--primary-soft);
+  outline-offset: -2px;
+}
+
+/* Frontmatter is one revision-checked document edit, never independent cell writes. */
+.frontmatter-inspector .frontmatter-fields li { grid-template-columns: minmax(0, 1fr); }
+.frontmatter-inspector .frontmatter-fields label { display: grid; gap: 4px; }
+.frontmatter-inspector .frontmatter-fields input { min-height: 40px; width: 100%; }
+.frontmatter-inspector .frontmatter-fields li[data-dirty="true"] { border-inline-start: 2px solid var(--primary); padding-inline-start: 8px; }
+.frontmatter-dirty-marker { font-size: var(--text-xs, 12px); color: var(--primary); font-weight: 500; }
+.frontmatter-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 18px; position: sticky; bottom: 0; padding-block: 8px; background: var(--dialog-bg, var(--bg-elevated)); }
+.frontmatter-actions > span { margin-inline-end: auto; color: var(--muted); }
+.frontmatter-actions button { min-height: 40px; }
+.frontmatter-discard { margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+.frontmatter-discard p { margin-block: 0 8px; }
+.frontmatter-discard button { margin-inline-end: 8px; min-height: 40px; }
+@media (max-width: 450px) { .frontmatter-actions button { flex: 1 1 auto; min-height: 44px; } }

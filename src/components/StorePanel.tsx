@@ -35,9 +35,9 @@ import type { McpToolDescriptor } from '@scriptor/core/contracts/mcp'
 import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
 import { contributionLabels, summarizePluginContributions } from '../lib/pluginContributions'
 import { summarizeLintIssues } from '../lib/vaultLintSummary'
-import { LAYOUT_PRESETS } from '../lib/workspace/layoutPresets'
 import type { LayoutPreset } from '../lib/workspace/layoutPresets'
 import type { VaultHealthDiagnostics } from '../types/vault'
+import { LayoutPresetGallery } from './LayoutPresetGallery'
 import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { useI18n } from '../lib/i18n'
 import { useTablistKeys } from '../hooks/useTablistKeys'
@@ -327,41 +327,7 @@ function LayoutsTab({
   activeLayoutPresetId,
   onApplyLayoutPreset,
 }: Pick<StorePanelProps, 'activeLayoutPresetId' | 'onApplyLayoutPreset'>) {
-  const { t } = useI18n()
-  return (
-    <div className="store-stack-sm">
-      <p className="store-hint-spaced">
-        {t('store.layoutHint')}
-      </p>
-      {LAYOUT_PRESETS.map((preset) => {
-        const active = preset.id === activeLayoutPresetId
-        return (
-          <div
-            key={preset.id}
-            className={`store-preset-row${active ? ' active' : ''}`}
-          >
-            <LayoutTemplate size={16} className="store-icon-70" />
-            <div className="store-fill-row">
-              <div className="store-item-title">{preset.name}</div>
-              <div className="store-item-sub">
-                {preset.description}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => onApplyLayoutPreset?.(preset)}
-              disabled={!onApplyLayoutPreset || active}
-              aria-label={t('store.applyLayoutAria', { name: preset.name })}
-              aria-current={active ? 'true' : undefined}
-              className={`store-btn-apply${active ? ' active' : ''}`}
-            >
-              {active ? t('store.active') : t('store.apply')}
-            </button>
-          </div>
-        )
-      })}
-    </div>
-  )
+  return <LayoutPresetGallery activeId={activeLayoutPresetId} onApply={onApplyLayoutPreset} />
 }
 
 // ---------------------------------------------------------------------------
@@ -434,6 +400,7 @@ function PluginsTab({
     !query || `${plugin.name} ${plugin.description ?? ''} ${plugin.id}`.toLowerCase().includes(query)
   const installedMatches = plugins.filter(plugin => matchesPlugin(plugin.manifest))
   const availableMatches = marketplaceCatalog.filter(catalog => !installedIds.has(catalog.id) && matchesPlugin(catalog))
+  const alreadyInstalledMatches = query ? installedMatches : []
   const availableCount = marketplaceCatalog.filter(catalog => !installedIds.has(catalog.id)).length
   const onPluginTabsKeyDown = useTablistKeys(PLUGIN_SUBTABS, pluginView === 'installed' ? PLUGIN_SUBTABS[0] : PLUGIN_SUBTABS[1],
     (id) => setPluginView(id === PLUGIN_SUBTABS[1] ? 'marketplace' : 'installed'))
@@ -479,7 +446,7 @@ function PluginsTab({
           ? <ShieldAlert size={16} color="var(--danger)" />
           : <ShieldCheck size={16} color="var(--success)" />}
         <span className="store-banner-label">
-          {safeMode ? t('store.safeModeDisabled') : t('store.runtimeReady')}
+          {safeMode ? t('store.safeModeDisabled') : t('store.activePluginCount', { count: plugins.filter(plugin => plugin.enabled).length, total: plugins.length })}
         </span>
         <button
           type="button"
@@ -529,16 +496,12 @@ function PluginsTab({
                         </div>
                       )}
                       {labels.length > 0 && (
-                        <div className="store-chip-row">
-                          {labels.map((label) => (
-                            <span
-                              key={label}
-                              className="store-chip"
-                            >
-                              {label}
-                            </span>
-                          ))}
-                        </div>
+                        <details className="store-plugin-capabilities">
+                          <summary>{t('store.pluginCapabilities')}</summary>
+                          <div className="store-chip-row">
+                            {labels.map((label) => <span key={label} className="store-chip">{label}</span>)}
+                          </div>
+                        </details>
                       )}
                     </div>
                     <div className="store-inline-actions">
@@ -602,18 +565,17 @@ function PluginsTab({
                       </span>
                     </div>
                     {plugin.manifest.permissions.length > 0 ? (
-                      <ul className="store-perm-list">
-                        {plugin.manifest.permissions.map((entry) => (
-                          <li
-                            key={entry.permission}
-                            title={entry.reason}
-                            className="store-chip"
-                          >
-                            {entry.permission}
-                            {entry.optional ? t('store.optionalPermission') : t('store.requiredPermission')}
-                          </li>
-                        ))}
-                      </ul>
+                      <details className="store-permission-details">
+                        <summary>{t('store.permissionDetails')}</summary>
+                        <ul className="store-perm-list">
+                          {plugin.manifest.permissions.map((entry) => (
+                            <li key={entry.permission} title={entry.reason} className="store-chip">
+                              {entry.permission}
+                              {entry.optional ? t('store.optionalPermission') : t('store.requiredPermission')}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
                     ) : null}
                     <div className="store-actions-row">
                       {consented ? null : (
@@ -717,7 +679,17 @@ function PluginsTab({
                   </button>
                 </div>
               ))}
-            {availableMatches.length === 0 ? (
+            {alreadyInstalledMatches.map((plugin) => (
+              <div key={plugin.manifest.id} className="store-card-row">
+                <Package size={16} className="store-icon-dim" aria-hidden="true" />
+                <div className="store-flex1">
+                  <div className="store-item-title">{plugin.manifest.name}</div>
+                  <div className="store-desc-dim">Already installed · {plugin.enabled ? 'Enabled' : 'Review permissions and enable in Installed'}</div>
+                </div>
+                <button type="button" className="store-btn-outline" onClick={() => setPluginView('installed')}>Manage installed</button>
+              </div>
+            ))}
+            {availableMatches.length === 0 && alreadyInstalledMatches.length === 0 ? (
               <p className="store-plugin-empty" role="status">{t(query ? 'store.noPluginMatches' : availableCount === 0 && marketplaceCatalog.length > 0 ? 'store.allPluginsInstalled' : 'store.noPluginsAvailable')}</p>
             ) : null}
           </div>

@@ -5,9 +5,15 @@ export function assetMediaHarness(cmd: string, payload: unknown): { handled: boo
   if (sessionStorage.getItem('e2e:asset-media') !== '1') return { handled: false }
   if (cmd === 'indexer_asset_usage') return { handled: true, value: {
     source: 'derived-link-index', truncated: false,
-    assets: ['assets/pixel.png', 'assets/tone.wav', 'assets/invalid.png', 'assets/active.svg'].map(path => ({
-      path, bytes: path === 'assets/pixel.png' ? VISUAL_MEDIA_ASSET.byteLength : path === 'assets/tone.wav' ? 844 : path === 'assets/invalid.png' ? 20 : 128, used_by: [],
-    })),
+    assets: sessionStorage.getItem('e2e:asset-media-many') === '1'
+      ? Array.from({ length: 500 }, (_, index) => ({
+          path: `assets/item-${String(index).padStart(3, '0')}-long-research-filename.png`,
+          bytes: 1024 + index,
+          used_by: [],
+        }))
+      : ['assets/pixel.png', 'assets/tone.wav', 'assets/invalid.png', 'assets/active.svg'].map(path => ({
+          path, bytes: path === 'assets/pixel.png' ? VISUAL_MEDIA_ASSET.byteLength : path === 'assets/tone.wav' ? 844 : path === 'assets/invalid.png' ? 20 : 128, used_by: [],
+        })),
   } }
   if (cmd !== 'reader_read_document') return { handled: false }
   const args = payload as { relPath: string; expectedVaultId?: string }

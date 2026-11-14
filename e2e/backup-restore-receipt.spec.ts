@@ -451,3 +451,42 @@ test('MAT-002: lost retention-delete reply disables blind pruning after a later 
   await backup.getByRole('button', { name: 'Back up now' }).click()
   await expect.poll(counts).toEqual({ created: 2, deleted: 1 })
 })
+
+test('a native rollback receipt never hides a separate editor-persistence resume failure', async ({ page }) => {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await page.evaluate(() => {
+    const bridge = (window as Window & { __TAURI_INTERNALS__?: NativeBridge }).__TAURI_INTERNALS__
+    if (!bridge?.invoke) throw new Error('Native fixture unavailable')
+    const original = bridge.invoke.bind(bridge)
+    bridge.invoke = (command, args) => {
+      if (command === 'vault_list_backups') return Promise.resolve([{
+        name: 'resume-failure-verified',
+        path: 'resume-failure-verified',
+        created_at: '2026-10-27T00:00:00Z',
+        size_bytes: 512,
+        storage_kind: 'external_backup',
+        verified: true,
+      }])
+      if (command === 'vault_restore_backup') return Promise.resolve({
+        status: 'rolled-back',
+        message: 'The native service rolled back safely.',
+      })
+      return original(command, args)
+    }
+    window.addEventListener('scriptor:vault-restore-aborted', event => {
+      const detail = (event as CustomEvent<{ waitUntil: (pending: Promise<unknown>) => void }>).detail
+      detail.waitUntil(Promise.reject(new Error('Fixture editor resume interrupted')))
+    }, { once: true })
+  })
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  const backup = settings.locator('[data-help-topic="backups"]')
+  const options = settings.locator('details.backup-options')
+  if (await options.getAttribute('open') === null) await options.locator('summary').click()
+  await settings.getByRole('textbox', { name: /Backup folder outside this vault/ }).fill('C:/ResumeFixture')
+  await backup.getByRole('button', { name: 'Restore backup resume-failure-verified' }).click()
+  await backup.getByRole('button', { name: 'Restore backup', exact: true }).click()
+  await expect(backup.getByRole('region', { name: 'Last restore attempt (this session)' })).toContainText('Restore rolled back')
+  await expect(backup.getByRole('alert').filter({ hasText: 'editor persistence could not resume' })).toBeVisible()
+})

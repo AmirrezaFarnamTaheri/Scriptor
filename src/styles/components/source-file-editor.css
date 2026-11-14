@@ -1,6 +1,10 @@
 .source-file-editor { display:flex; flex-direction:column; gap:var(--space-3,12px); min-width:0; padding:var(--space-4,16px); }
 .source-file-editor header,.source-file-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
-.source-file-editor header>div,.source-file-toolbar>label { flex:1 1 180px; min-width:0; }
+.source-file-editor header>div { flex:1 1 180px; min-width:0; }
+.source-file-toolbar { display:grid; grid-template-columns:minmax(0,1fr); }
+.source-file-toolbar>label { display:block; min-width:0; }
+.source-file-toolbar-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.source-file-toolbar-actions>button { flex:1 1 120px; }
 .source-file-editor h2,.source-file-editor p { margin:0; }
 .source-file-toolbar input { display:block; width:100%; box-sizing:border-box; min-height:36px; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--ink); }
 .source-file-toolbar input { direction:ltr; text-align:start; }
@@ -9,12 +13,122 @@
 .source-file-editor :is(button,input):focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .source-file-status { overflow-wrap:anywhere; }
 .source-file-content { display:flex; flex-direction:column; gap:8px; }
-.source-file-content textarea { width:100%; min-height:40vh; box-sizing:border-box; resize:vertical; font-family:var(--font-mono,monospace); font-size:14px; line-height:1.6; tab-size:4; white-space:pre; overflow:auto; }
+.source-file-content textarea { width:100%; min-height:clamp(160px, 26vh, 400px); box-sizing:border-box; resize:vertical; font-family:var(--font-mono,monospace); font-size:14px; line-height:1.6; tab-size:4; white-space:pre; overflow:auto; }
 .source-file-content textarea { padding:12px; color:var(--ink); background:var(--bg); border:1px solid var(--border); border-radius:6px; }
 .source-file-editor pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:180px; overflow:auto; }
+.source-file-content:has(textarea:placeholder-shown) textarea { min-height:160px; }
 .source-file-editor fieldset { display:flex; flex-wrap:wrap; align-items:center; gap:12px; min-width:0; }
 .source-file-editor fieldset label:has(input[type='checkbox']) { display:flex; align-items:center; gap:8px; min-block-size:44px; cursor:pointer; }
 .source-file-editor fieldset input[type='checkbox'] { flex:0 0 20px; inline-size:20px; block-size:20px; padding:0; margin:0; accent-color:var(--primary); }
 .source-file-decision { border:2px solid var(--accent); padding:16px; display:flex; flex-wrap:wrap; gap:8px; }
 .source-file-decision p { flex-basis:100%; }
 @media(max-width:600px) { .source-file-toolbar>label { flex-basis:100%; min-width:0; } .source-file-editor button,.source-file-toolbar input { min-height:44px; } .source-file-content textarea { min-height:35vh; } }
+
+/* Source editor: full working area, dedicated view switch, Monaco loaded locally. */
+.source-file-mode-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.source-file-mode-toolbar > span { font-weight: 600; }
+.source-file-mode { display: inline-flex; gap: 2px; padding: 3px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-muted); }
+.source-file-mode > button { min-height: 36px; padding: 7px 12px; border-radius: 6px; border: 0; color: var(--ink); background: transparent; }
+.source-file-mode > button[aria-pressed="true"] { font-weight: 600; background: var(--surface-raised); box-shadow: 0 1px 3px color-mix(in srgb, black 12%, transparent); }
+.source-file-mode > button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.source-file-monaco {
+  height: clamp(240px, 52vh, 860px);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.source-file-content .monaco-editor .margin { border-inline-end: 1px solid var(--border); }
+@media (max-width: 600px) {
+  .source-file-monaco { height: max(240px, 42vh); }
+  .source-file-mode > button { min-height: 44px; }
+}
+
+
+/* Source path and editing surface precede redundant chrome at mobile zoom. */
+@media (max-width:600px) {
+  .source-file-editor { padding:8px; gap:8px; }
+  .source-file-editor > header p { display:none; }
+  .source-file-editor > header h2 { font-size:1rem; line-height:1.25; }
+  .source-file-toolbar { gap:8px; }
+  .source-file-toolbar-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+  .source-file-toolbar-actions > button { min-width:0; height:auto; white-space:normal; line-height:1.3; padding:7px; }
+  .source-file-toolbar-actions > button:last-child { grid-column:1 / -1; }
+  .source-file-content { scroll-padding-block-end:64px; }
+}
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .source-file-editor > header { display:none; }
+
+/* The workspace leaf owns its title: do not repeat the Source files header
+   ahead of the path and edit controls at mobile high zoom. Zoom can reflow
+   before the viewport classifier sets data-ui-reflow. */
+html[data-ui-zoom='high'] .source-file-editor > header[data-workspace-header-only='true'] {
+  display:none;
+}
+html[data-ui-zoom='high'] .source-file-editor .source-file-content {
+  scroll-margin-block-end:calc(64px + env(safe-area-inset-bottom,0px));
+}
+
+
+/* In a 160-200 CSS-pixel working width (physical 320px at 200% app zoom),
+ * do not repeat the parent workspace title or stack the third file action
+ * on an entire extra row. Keep all three commands touch-size and discoverable
+ * before the editable code area. */
+@media (max-width: 400px) {
+  .source-file-editor > header[data-workspace-header-only='true'] {
+    display: none;
+  }
+  .source-file-editor { padding: 6px; gap: 6px; }
+  .source-file-toolbar { gap: 6px; }
+  .source-file-toolbar-actions { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; }
+  .source-file-toolbar-actions > button,
+  .source-file-toolbar-actions > button:last-child {
+    grid-column: auto;
+    min-height: 44px;
+    padding: 5px 3px;
+    font-size: 12px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .source-file-mode-toolbar { gap: 4px; }
+  .source-file-mode > button { padding: 5px 6px; font-size: 12px; }
+  .source-file-status { font-size: 12px; line-height: 1.35; }
+}
+
+/* Extreme effective widths occur at 320px physical / 200% application zoom.
+ * Keep editing immediately usable: retain the file identity and Save/dirty
+ * status, but put secondary language/size metadata in the accessibility tree
+ * without letting it consume an extra visual line. The editor-mode radio-like
+ * buttons have their own accessible group label, so the duplicate visible
+ * "File content" heading can be visually hidden in this one narrow band. */
+.source-file-editor { container: source-file / inline-size; }
+@container source-file (max-width: 220px) {
+  .source-file-status-detail,
+  .source-file-mode-toolbar > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .source-file-status { min-width: 0; }
+  .source-file-mode-toolbar { min-width: 0; }
+  .source-file-mode {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex: 1 1 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .source-file-mode > button {
+    min-width: 0;
+    padding-inline: 3px;
+  }
+}
+
+/* Unsaved source conflicts require an alert separate from routine status. */
+.source-file-alert { display:grid; gap:8px; padding:12px; border:1px solid var(--danger); border-inline-start:4px solid var(--danger); border-radius:8px; background:var(--surface-muted); color:var(--ink); min-width:0; }
+.source-file-alert strong { color:var(--ink-strong); }
+.source-file-alert p { margin:0; overflow-wrap:anywhere; }
+.source-file-alert > button { justify-self:start; min-height:44px; white-space:normal; }

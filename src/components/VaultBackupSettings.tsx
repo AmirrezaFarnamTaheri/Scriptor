@@ -226,16 +226,24 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
         </p>
       ) : null}
       {recoveryRequired ? <p className="settings-status warn" role="alert">This vault needs recovery before backup operations can continue. Backup, restore and delete are paused. Restart Scriptor and reopen the vault before editing or retrying.</p> : null}
-      {lastMessage ? <p className="settings-status ok">{lastMessage}</p> : null}
-      {lastError ? <p className="settings-status warn" role="alert">{lastError}</p> : null}
+      {lastMessage && !receiptView ? <p className="settings-status ok">{lastMessage}</p> : null}
+      {lastError && (!receiptView || /editor persistence could not resume|workspace resynchronization failed|result could not be confirmed|editing remains paused/i.test(lastError))
+        ? <p className="settings-status warn" role="alert">{lastError}</p> : null}
       {backupListError ? <p className="settings-status warn" role="alert">{backupListError}</p> : null}
       {receiptView ? (
-        <section aria-labelledby="backup-last-restore-title">
+        <section aria-labelledby="backup-last-restore-title" className={`backup-restore-outcome ${receiptView.tone}`}>
           <h4 id="backup-last-restore-title" className="settings-subheading">Last restore attempt (this session)</h4>
-          <p className="backup-name">Backup: {lastRestoreReceipt?.target}</p>
-          <p role="status" className={['settings-status', receiptView.tone === 'success' ? 'ok' : receiptView.tone === 'warning' ? 'warn' : ''].join(' ')}>
-            <strong>{receiptView.heading}.</strong> {receiptView.explanation}
-          </p>
+          <div role="status" className="backup-restore-outcome__status">
+            <strong>{receiptView.heading}{lastRestoreReceipt?.nativeStatus === 'rolled-back' ? ' — Restore not applied' : ''}</strong>
+            <p>{receiptView.explanation}</p>
+            <p>Backup: <bdi>{lastRestoreReceipt?.target}</bdi></p>
+            {lastRestoreReceipt?.observedAt && <p>Observed <time dateTime={lastRestoreReceipt.observedAt}>{new Date(lastRestoreReceipt.observedAt).toLocaleString()}</time></p>}
+          </div>
+          {(lastError || lastMessage) && <details className="backup-restore-outcome__details">
+            <summary>Native restore details</summary>
+            <p>{lastError || lastMessage}</p>
+          </details>}
+          <button type="button" className="toolbar-button" onClick={() => document.getElementById('vault-backup-list')?.scrollIntoView({ block: 'nearest' })}>Review backups</button>
         </section>
       ) : null}
 

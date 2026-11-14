@@ -2,6 +2,7 @@ import type { ExportProfileContribution } from '@scriptor/core/contracts/plugin'
 import type { ExportProfile } from '@scriptor/core/contracts/export'
 import type { SnippetCatalogEntry } from '@scriptor/editor'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { filterVaultSections } from '../lib/filterVaultSections.ts'
 
 import {
   indexerListNoteSummaries,
@@ -162,6 +163,9 @@ export function useVaultWorkspace(options?: {
   const vaultOpenRequestIdRef = useRef(0)
   const getVaultGeneration = useCallback(() => vaultOpenRequestIdRef.current, [])
   const configRefreshSequence = useRef(0)
+  const summaryRefreshSequence = useRef(0)
+  const snippetsRefreshSequence = useRef(0)
+  const entriesRefreshSequence = useRef(0)
   const logActivity = useCallback((kind: ActivityEntry['kind'], message: string, detail?: string) => {
     const entry = createActivityEntry(kind, message, detail)
     setActivityLog((entries) => [entry, ...entries].slice(0, 100))
@@ -180,6 +184,7 @@ export function useVaultWorkspace(options?: {
     searchQuery,
     searchResults,
     isSearching,
+    searchError,
     runSearch,
     setVaultSearchQuery,
     clearSearch,
@@ -216,37 +221,46 @@ export function useVaultWorkspace(options?: {
   })
 
   const refreshNoteSummaries = useCallback(async (targetVault = vault) => {
+    const sequence = ++summaryRefreshSequence.current
+    const generation = vaultOpenRequestIdRef.current
     if (!targetVault || !isNativeBridgeAvailable()) {
       setNoteSummaries([])
       return
     }
     try {
       const summaries = await indexerListNoteSummaries()
+      if (sequence !== summaryRefreshSequence.current || generation !== vaultOpenRequestIdRef.current) return
       setNoteSummaries(summaries)
     } catch {
-      setNoteSummaries([])
+      if (sequence === summaryRefreshSequence.current && generation === vaultOpenRequestIdRef.current) setNoteSummaries([])
     }
   }, [vault])
 
   const refreshVaultSnippets = useCallback(async (targetVault = vault) => {
+    const sequence = ++snippetsRefreshSequence.current
+    const generation = vaultOpenRequestIdRef.current
     if (!targetVault) {
       setSnippetCatalog([])
       return
     }
     try {
       const snippets = await vaultLoadSnippets()
+      if (sequence !== snippetsRefreshSequence.current || generation !== vaultOpenRequestIdRef.current) return
       setSnippetCatalog(snippets.map((snippet) => ({
         name: snippet.name,
         content: snippet.content,
         description: snippet.description ?? undefined,
       })))
     } catch {
-      setSnippetCatalog([])
+      if (sequence === snippetsRefreshSequence.current && generation === vaultOpenRequestIdRef.current) setSnippetCatalog([])
     }
   }, [vault])
 
   const refreshVaultEntries = useCallback(async () => {
+    const sequence = ++entriesRefreshSequence.current
+    const generation = vaultOpenRequestIdRef.current
     const scanned = await vaultScan()
+    if (sequence !== entriesRefreshSequence.current || generation !== vaultOpenRequestIdRef.current) return
     setEntries(scanned)
     setSections(buildVaultSections(scanned))
   }, [])
@@ -511,6 +525,9 @@ export function useVaultWorkspace(options?: {
         ])
         if (!isCurrent()) return cancelled
 
+        entriesRefreshSequence.current += 1
+        summaryRefreshSequence.current += 1
+        snippetsRefreshSequence.current += 1
         setEntries(scanned)
         setSections(buildVaultSections(scanned))
         setRebuild(summary)
@@ -647,17 +664,10 @@ export function useVaultWorkspace(options?: {
     return Math.min(100, Math.round((indexed / noteCount) * 100))
   }, [noteCount, rebuild])
 
-  const visibleSections = useMemo(() => {
-    if (!searchQuery.trim() || searchResults.length === 0) return sections
-    const paths = new Set(searchResults.map((hit) => hit.path))
-    return sections
-      .map((section) => ({
-        ...section,
-        notes: section.notes.filter((note) => paths.has(note)),
-        count: section.notes.filter((note) => paths.has(note)).length,
-      }))
-      .filter((section) => section.count > 0)
-  }, [searchQuery, searchResults, sections])
+  const visibleSections = useMemo(
+    () => filterVaultSections(sections, searchQuery, searchResults),
+    [searchQuery, searchResults, sections],
+  )
 
   const problemCount = useMemo(() => {
     const vaultIssues = healthDiagnostics?.issues.length ?? 0
@@ -705,6 +715,8 @@ export function useVaultWorkspace(options?: {
     searchQuery,
     searchResults,
     isSearching,
+    searchError,
+    runSearch,
     activityLog,
     logActivity,
     openVaultAt,

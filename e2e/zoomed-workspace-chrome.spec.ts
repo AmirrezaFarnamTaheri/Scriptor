@@ -29,6 +29,14 @@ for (const direction of ['ltr', 'rtl']) for (const width of [320, 375]) for (con
     }))
     expect(layout.documentOverflow).toBeLessThanOrEqual(1)
     expect(layout.topOverflow).toBeLessThanOrEqual(1)
+    // Partial icon controls are not discoverable at 320px. At extreme zoom
+    // secondary actions belong to the accessible bottom Command destination.
+    const topActions = page.locator('header.topbar .top-actions > button:visible')
+    await expect(topActions).toHaveCount(1)
+    await expect(page.locator('header.topbar .topbar-settings-toggle')).toBeVisible()
+    const actionBounds = (await topActions.first().boundingBox())!
+    expect(actionBounds.x).toBeGreaterThanOrEqual(0)
+    expect(actionBounds.x + actionBounds.width).toBeLessThanOrEqual(width + 1)
     const actions = page.locator('.workspace-leaf-compact-actions summary[aria-label="Actions for Asset deck"]')
     await actions.click()
     await expect(page.locator('.workspace-leaf-compact-actions[open]').getByRole('button', { name: 'Move tab to main workspace', exact: true })).toBeVisible()
@@ -55,6 +63,25 @@ for (const direction of ['ltr', 'rtl']) for (const width of [320, 375]) for (con
     await filter.scrollIntoViewIfNeeded()
     await filter.fill('pixel')
     await expect(filter).toHaveValue('pixel')
+    if (direction === 'rtl') {
+      const path = panel.locator('.research-asset-list > li bdi[dir="ltr"]').first()
+      await expect(path).toContainText('assets/pixel.png')
+      expect(await path.evaluate(node => getComputedStyle(node).direction)).toBe('ltr')
+    }
+    // A nested fixed-height list can scroll beneath the persistent mobile bar.
+    // High zoom uses the one bounded panel scrollport instead.
+    await expect.poll(() => panel.locator('.research-asset-list').evaluate(
+      element => getComputedStyle(element).overflowY,
+    )).toBe('visible')
+    const asset = panel.locator('.research-asset-list li').last()
+    await expect(asset).toBeVisible()
+    await asset.scrollIntoViewIfNeeded()
+    const assetBounds = (await asset.boundingBox())!
+    const navBounds = (await page.getByRole('navigation', { name: 'Mobile workspace navigation' }).boundingBox())!
+    expect(assetBounds.y + assetBounds.height).toBeLessThanOrEqual(navBounds.y + 1)
+    // Asset scrolling intentionally displaces earlier controls; verify that
+    // the filter can be brought back inside the bounded panel scrollport.
+    await filter.scrollIntoViewIfNeeded()
     const field = (await filter.boundingBox())!
     const visibleBody = (await body.boundingBox())!
     expect(field.y).toBeGreaterThanOrEqual(visibleBody.y)
@@ -74,6 +101,13 @@ for (const direction of ['ltr', 'rtl']) for (const width of [320, 375]) for (con
     const navigation = page.getByRole('navigation', { name: 'Mobile workspace navigation', exact: true })
     const buttons = await navigation.getByRole('button').all()
     const boxes = await Promise.all(buttons.map(button => button.boundingBox()))
+    // Vault, Write, Command and More must remain on one row even at zoom.
+    expect(boxes).toHaveLength(4)
+    for (const name of ['Vault', 'Write', 'Command', 'More']) {
+      await expect(navigation.getByRole('button', { name, exact: true })).toBeVisible()
+    }
+    const rowTops = boxes.map(box => box!.y)
+    expect(Math.max(...rowTops) - Math.min(...rowTops)).toBeLessThanOrEqual(2)
     for (const [index, box] of boxes.entries()) {
       expect(box).not.toBeNull()
       expect(box!.x).toBeGreaterThanOrEqual(0)

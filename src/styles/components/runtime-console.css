@@ -8,3 +8,19 @@
 .runtime-console label:has(input[type='checkbox']) { display:flex; align-items:center; gap:8px; min-block-size:44px; cursor:pointer; }
 .runtime-console input[type='checkbox'] { flex:0 0 20px; inline-size:20px; block-size:20px; padding:0; margin:0; accent-color:var(--primary); }
 .runtime-console textarea.runtime-environment { min-height:0; }
+
+/* The code editor owns the width of a narrow companion pane; actions and
+ * results remain legible and keyboard reachable at mobile and high app zoom. */
+.runtime-console { container: runtime-console / inline-size; min-width:0; }
+.runtime-console > label { display:grid; gap:7px; min-width:0; }
+.runtime-console textarea { min-width:0; max-width:100%; resize:vertical; line-height:1.5; }
+.runtime-console > button { width:fit-content; max-width:100%; min-height:44px; padding:8px 12px; line-height:1.4; white-space:normal; overflow-wrap:anywhere; }
+.runtime-console > section { min-width:0; max-width:100%; }
+.runtime-console :is(pre,table) { max-width:100%; }
+.runtime-console table th, .runtime-console table td { padding:8px; border-block-end:1px solid var(--border); overflow-wrap:anywhere; }
+@container runtime-console (max-width:560px) {
+  .runtime-console { gap:10px; }
+  .runtime-console > button { width:100%; }
+  .runtime-console textarea:not(.runtime-environment) { min-height:160px; }
+  .runtime-console > section { overflow-x:auto; }
+}

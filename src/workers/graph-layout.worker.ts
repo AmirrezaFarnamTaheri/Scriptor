@@ -1,5 +1,5 @@
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation } from 'd3-force'
-import { fitGraphLayoutToViewport, seedGraphLayout, separateGraphLayout } from '../lib/graphLayout'
+import { fitGraphLayoutToViewport, seedGraphLayout, separateGraphLayout, widenDenseGraphLayout } from '../lib/graphLayout'
 
 interface WorkerNode {
   id: string
@@ -61,7 +61,7 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
     // layout to the viewport edge; this prevents the rectangular perimeter
     // crowding that made 100+ node screenshots unreadable.
     const fitPadding = dense ? Math.max(56, Math.min(width, height) * 0.07) : 44
-    const maxFitScale = dense ? 1 : 1.25
+    const maxFitScale = dense ? 1.45 : 1.25
     const fitted = fitGraphLayoutToViewport(
       simNodes.map((node) => ({
         id: node.id,
@@ -81,7 +81,9 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
       ? separateGraphLayout(fitted, width, height, fitPadding, 34, 14)
       : fitted
 
-    self.postMessage({ type: 'done', nodes: result })
+    const overview = dense ? widenDenseGraphLayout(result, width, height, fitPadding) : result
+
+    self.postMessage({ type: 'done', nodes: overview })
   } catch (error) {
     self.postMessage({ type: 'error', message: error instanceof Error ? error.message : String(error) })
   }

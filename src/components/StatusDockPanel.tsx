@@ -18,6 +18,8 @@ interface StatusDockPanelProps {
   searchResults: SearchHit[]
   searchQuery: string
   isSearching: boolean
+  searchError: string | null
+  onRetrySearch: () => void
   exportResult: ExportJobOutput | null
   exportHistory: ExportJobRecord[]
   isExporting: boolean
@@ -39,6 +41,8 @@ function StatusDockPanelImpl({
   searchResults,
   searchQuery,
   isSearching,
+  searchError,
+  onRetrySearch,
   exportResult,
   exportHistory,
   isExporting,
@@ -161,9 +165,11 @@ function StatusDockPanelImpl({
             {searchQuery ? <span>for “{searchQuery}”</span> : null}
           </header>
           {isSearching ? <p className="empty-state">{t('statusDock.searching')}</p> : null}
-          {!isSearching && searchResults.length === 0 ? (
+          {!isSearching && searchError ? (
+            <div role="alert" className="empty-state">Search failed: {searchError} <button type="button" onClick={onRetrySearch}>Retry search</button></div>
+          ) : !isSearching && searchResults.length === 0 ? (
             <p className="empty-state">{t('statusDock.noSearchResults')}</p>
-          ) : (
+          ) : !isSearching ? (
             <ul className="dock-list">
               {searchResults.map((hit) => (
                 <li key={`${hit.path}:${hit.note_id}`}>
@@ -178,7 +184,7 @@ function StatusDockPanelImpl({
                 </li>
               ))}
             </ul>
-          )}
+          ) : null}
         </section>
       ) : null}
 

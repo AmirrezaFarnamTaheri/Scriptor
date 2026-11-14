@@ -56,6 +56,9 @@ test.describe('Workspace dock, tab and live-preview regressions', () => {
     await expect(properties).toBeVisible()
     await expect(live.locator('.cm-content')).not.toContainText('project: Scriptor research')
 
+    // The active CodeMirror line shows the authored Markdown. Put the caret
+    // on another line before asserting an inactive-line task widget.
+    await live.locator('.cm-line', { hasText: 'Outline' }).first().click()
     const task = live.locator('.cm-wysiwyg-task-toggle').first()
     await expect(task).toBeVisible()
     await expect(task).toHaveAttribute('aria-checked', 'false')

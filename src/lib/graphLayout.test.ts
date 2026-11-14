@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { fitGraphLayoutToViewport, seedGraphLayout, separateGraphLayout } from './graphLayout.ts'
+import { fitGraphLayoutToViewport, seedGraphLayout, separateGraphLayout, widenDenseGraphLayout } from './graphLayout.ts'
 
 test('force layouts are fitted without collapsing distinct nodes onto viewport borders', () => {
   const fitted = fitGraphLayoutToViewport([
@@ -97,4 +97,21 @@ test('post-fit dense layout restores screen-space collision gaps deterministical
     }
   }
   assert.ok(closest >= 30, `closest node centers were only ${closest.toFixed(2)}px apart`)
+})
+
+test('wide 120-note all-links view spreads nodes across the available canvas without clipping', () => {
+  const seeds = seedGraphLayout(Array.from({ length: 120 }, (_, index) => ({ id: `note-${index}` })), 1380, 470)
+  const originalXs = seeds.map((node) => node.x)
+  const originalSpan = Math.max(...originalXs) - Math.min(...originalXs)
+  const expanded = widenDenseGraphLayout(seeds, 1380, 470, 56)
+  const expandedXs = expanded.map((node) => node.x)
+  const expandedSpan = Math.max(...expandedXs) - Math.min(...expandedXs)
+
+  assert.equal(expanded.length, 120)
+  assert.ok(expandedSpan >= originalSpan * 1.8, `dense overview grew only ${(expandedSpan / originalSpan).toFixed(2)}x`)
+  assert.ok(expandedSpan > 650, `dense overview still spans only ${expandedSpan.toFixed(1)}px`)
+  assert.ok(expanded.every((node) => node.x >= 56 && node.x <= 1324 && node.y >= 56 && node.y <= 414))
+  assert.deepEqual(widenDenseGraphLayout(seeds, 1380, 470, 56), expanded)
+  assert.deepEqual(widenDenseGraphLayout(seeds, 390, 720, 40), seeds, 'portrait layout must not stretch')
+  assert.deepEqual(widenDenseGraphLayout(seeds.slice(0, 4), 1380, 470, 56), seeds.slice(0, 4), 'small graphs must retain their layout')
 })

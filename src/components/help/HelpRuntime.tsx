@@ -43,7 +43,7 @@ export function HelpRuntime() {
   const close = useCallback(() => setSession(null), [])
 
   const maybeOffer = useCallback((node: Node | null): boolean => {
-    if (!node || session || invitation) return false
+    if (!node || session) return false
     try {
       if (window.localStorage.getItem('scriptor:onboarding-complete') !== 'true') return false
     } catch {
@@ -54,14 +54,19 @@ export function HelpRuntime() {
       if (node.matches('[data-help-topic]')) elements.push(node)
       elements.push(...Array.from(node.querySelectorAll('[data-help-topic]')))
     }
+    // Only first-open guides belonging to the visible topmost dialog may replace
+    // a pending invitation from a background workspace.
+    const activeModal = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"]'))
+      .filter(element => element.getAttribute('role') === 'dialog' && isVisibleHelpTarget(element)).at(-1)
     for (const element of elements) {
-      if (!isVisibleHelpTarget(element)) continue
+      if (!isVisibleHelpTarget(element) || (activeModal && !activeModal.contains(element))) continue
       const id = (element as HTMLElement).dataset.helpTopic
       if (!id) continue
       const guide = HELP_BY_ID.get(id)
       if (!guide || guide.policy !== 'first-open') continue
       const progress = getProgress(store.getSnapshot().preferences, guide.id)
-      if (progress.introduced || progress.completed) continue
+      if (progress.introduced || progress.completed || invitation?.id === guide.id) continue
+      if (invitation && !activeModal) return false
       setInvitation(guide)
       return true
     }
@@ -70,7 +75,7 @@ export function HelpRuntime() {
 
   useEffect(() => {
     const observer = new MutationObserver((records) => {
-      if (session || invitation) return
+      if (session) return
       for (const record of records) {
         for (const node of record.addedNodes) {
           if (maybeOffer(node)) return

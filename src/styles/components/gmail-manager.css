@@ -405,3 +405,18 @@
     font-size: 0.8rem;
   }
 }
+
+/* Disconnected Gmail introduces a clear setup path without burying the
+ * connection action or masquerading as an active account. */
+.gmail-manager-setup-hint { max-width: 56ch; margin-inline: auto; color: var(--muted); line-height: 1.55; }
+.gmail-manager-account-help { min-height: 44px; white-space: normal; text-align: center; }
+
+/* VIS-024/035/036: a single important operation result; passive limitations as disclosure. */
+.gmail-manager-limits { display: grid; gap: 6px; justify-items: start; }
+.gmail-manager-limits-toggle { border: 0; background: transparent; color: var(--ink-muted, var(--muted)); padding: 4px 0; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 0.82rem; }
+.gmail-manager-limits-toggle:focus-visible { outline: var(--focus-outline, 2px solid var(--primary)); outline-offset: 2px; }
+.gmail-manager-send-review { display: grid; align-items: start; gap: 6px; }
+.gmail-manager-send-review p { margin: 0; line-height: 1.45; }
+.gmail-manager-send-review details summary { cursor: pointer; font-size: 0.78rem; }
+.gmail-manager-send-review details > span { overflow-wrap: anywhere; }
+.gmail-manager-message-safety { margin: 0; padding: 8px 12px; font-size: 0.79rem; line-height: 1.45; color: var(--ink-muted, var(--muted)); background: var(--surface-raised); border-block-end: 1px solid var(--border); }

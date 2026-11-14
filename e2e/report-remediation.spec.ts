@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { appendEditorLine, launchApp, openCommandPalette, runCommand, WORKSPACE_CHROME_PREFS } from './helpers'
+import { appendEditorLine, expandInspector, launchApp, openCommandPalette, runCommand, WORKSPACE_CHROME_PREFS } from './helpers'
 
 const reportStyles = ['workspace.css', 'foundation.css', 'features.css'].map(path => readFileSync(new URL(`../src/styles/app/${path}`, import.meta.url), 'utf8')).join('\n')
 
@@ -94,6 +94,7 @@ test('theme builder exposes the complete border value at desktop and narrow widt
 
 test('rendered output formats resolved citations and preserves their source', async ({ page }) => {
   await launchApp(page)
+  await expandInspector(page)
   await page.getByRole('tab', { name: 'Rendered output', exact: true }).click()
   const preview = page.locator('.inspector-panel').getByRole('article', { name: 'Markdown preview' })
   await expect(preview).toContainText('Research Plan')
@@ -106,6 +107,7 @@ test('rendered output formats resolved citations and preserves their source', as
 test('missing citations remain explicit and code examples retain literal syntax', async ({ page }) => {
   await launchApp(page)
   await appendEditorLine(page, 'Missing [@unknownReviewKey]; code example `[@smith2024]`.')
+  await expandInspector(page)
   await page.getByRole('tab', { name: 'Rendered output', exact: true }).click()
   const preview = page.locator('.inspector-panel').getByRole('article', { name: 'Markdown preview' })
   const missing = preview.locator('.preview-citation[data-resolved="false"]')

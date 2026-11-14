@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspace } from './helpers'
+import { expandInspector, launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspace } from './helpers'
 
 const OPEN_GIT = 'Open Git panel'
 const OPEN_MCP = 'Open MCP panel'
@@ -31,6 +31,7 @@ test.describe('adaptive panel presentation', () => {
     await useDockedPanels(page)
     await launchApp(page)
     await waitForWorkspace(page)
+    await expandInspector(page)
     await settleLayout(page)
 
     const editor = page.locator('.editor-panel[data-help-topic="editor"]')
@@ -82,6 +83,7 @@ test.describe('adaptive panel presentation', () => {
     await useDockedPanels(page)
     await launchApp(page)
     await waitForWorkspace(page)
+    await expandInspector(page)
     await settleLayout(page)
 
     const editor = page.locator('.editor-panel[data-help-topic="editor"]')

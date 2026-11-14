@@ -13,6 +13,7 @@ function harness() {
   let cursor = 0
   let timer
   const pending = []
+  const pendingRejects = []
   let semanticCalls = 0
   class SemanticUnavailableError extends Error {}
   const react = {
@@ -26,13 +27,14 @@ function harness() {
     exports: module.exports, module, performance,
     window: { setTimeout: (fn) => { timer = fn; return 1 }, clearTimeout: () => { timer = null } },
     require: (id) => id === 'react' ? react : id.endsWith('/commands')
-      ? { indexerSearch: () => new Promise((resolve) => pending.push(resolve)) }
+      ? { indexerSearch: () => new Promise((resolve, reject) => { pending.push(resolve); pendingRejects.push(reject) }) }
       : id.endsWith('semantic.ts') ? { SemanticUnavailableError, semanticSearch: async () => { semanticCalls++; throw new SemanticUnavailableError() } }
         : { fuseKeywordAndSemantic: (hits) => hits },
   })
   return {
     render: () => { cursor = 0; return module.exports.useSearchStore() },
     pending,
+    rejectSearch: (error) => pendingRejects.shift()?.(error),
     fireTimer: () => timer?.(),
     semanticCalls: () => semanticCalls,
   }
@@ -57,4 +59,14 @@ test('clearing search rearms the semantic capability for the next vault query', 
   h.pending.shift()([])
   await second
   assert.equal(h.semanticCalls(), 2)
+})
+
+test('a failed keyword request is explicitly reported and a new query clears its error', async () => {
+  const h = harness()
+  const failed = h.render().runSearch('unavailable')
+  h.rejectSearch(new Error('Indexer unavailable'))
+  await failed
+  assert.match(h.render().searchError ?? '', /Indexer unavailable/)
+  h.render().setVaultSearchQuery('try again')
+  assert.equal(h.render().searchError, null)
 })

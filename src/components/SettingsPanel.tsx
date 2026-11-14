@@ -315,17 +315,23 @@ function SettingsPanelImpl({
             }}
             className="settings-unsaved-confirmation"
           />
-        ) : ((activeTab === 'general' || activeTab === 'integrations' || configDirty) && vaultOpen && nativeReady && configReady ? (
-          <div className="settings-footer-actions">
-            {configDirty || status ? (
-              <span className="settings-status" role="status">
-                {configDirty ? t('settings.unsavedConfig') : status}
-              </span>
-            ) : null}
-            <button type="button" className="primary-button" onClick={() => void saveConfig()} disabled={!configDirty}>
+        ) : (configReady && vaultOpen && nativeReady && configDirty ? (
+          <div className="settings-footer-actions" role="group" aria-label={t('settingsPanel.vaultSaveStatusAria')}>
+            <div className="settings-save-scope">
+              <strong>{t('settingsPanel.vaultManualSave')}</strong>
+              <span className="settings-status" role="status">{t('settings.unsavedConfig')}</span>
+              {status && status !== t('settingsPanel.configLoaded') && status !== t('settingsPanel.configSaved') ? (
+                <span className="settings-save-outcome" role={status === t('settingsPanel.saving') ? 'status' : 'alert'}>
+                  {status}
+                </span>
+              ) : null}
+            </div>
+            <button type="button" className="primary-button" onClick={() => void saveConfig()}>
               {t('settingsPanel.saveVaultConfig')}
             </button>
           </div>
+        ) : configReady && status === t('settingsPanel.configSaved') ? (
+          <p className="settings-save-confirmation" role="status">{status}</p>
         ) : null)
       }
     >
@@ -335,8 +341,9 @@ function SettingsPanelImpl({
         style={activeTab !== 'general' ? { display: 'none' } : undefined}
       >
         <p className="settings-persistence-note" role="note">
-            {t('settingsPanel.persistence')}
-          </p>
+          <strong>{t('settingsPanel.autoSavePreferences')}</strong>{' '}
+          {t('settingsPanel.persistence')}
+        </p>
 
           {vaultOpen && nativeReady ? (
             visibleConfigLoadError ? (

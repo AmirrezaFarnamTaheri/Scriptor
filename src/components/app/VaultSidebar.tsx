@@ -286,7 +286,6 @@ function VaultSidebarImpl({
             {!vault ? (
               <>
                 <p className="empty-state">{t('vaultSidebar.openVaultToBrowse')}</p>
-                <button type="button" className="primary-button" onClick={onChooseVault}>{t('vaultSidebar.openVaultFolder')}</button>
               </>
             ) : vaultStatus === 'error' ? (
               <>

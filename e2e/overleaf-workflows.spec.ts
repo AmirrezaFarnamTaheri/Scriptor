@@ -20,7 +20,17 @@ async function open(page: Page) {
       }
       if (command === 'overleaf_read') {
         if (sessionStorage.getItem('e2e:overleaf-delay') === '1') await new Promise(resolve => setTimeout(resolve, 5000))
-        return { head: 'c'.repeat(40), content: '\\section{Remote}\r\n', content_hash: 'd'.repeat(64) }
+        const remoteSource = sessionStorage.getItem('e2e:overleaf-live-update') === '2'
+          ? '\\section{Another co-author update}\r\n'
+          : sessionStorage.getItem('e2e:overleaf-live-update') === '1'
+          ? '\\section{Remote updated by co-author}\r\n'
+          : sessionStorage.getItem('e2e:overleaf-matching') === '1' ? content
+            : sessionStorage.getItem('e2e:overleaf-insert') === '1'
+              ? content + '% newly inserted remote line\r\n'
+              : sessionStorage.getItem('e2e:overleaf-lf') === '1'
+                ? content.replaceAll('\r\n', '\n')
+                : '\\section{Remote}\r\n'
+        return { head: 'c'.repeat(40), content: remoteSource, content_hash: 'd'.repeat(64) }
       }
       if (command === 'overleaf_push') {
         if (sessionStorage.getItem('e2e:overleaf-stale') === '1') throw new Error('Overleaf changed since review. Fetch a new preview before sharing; no files were pushed.')
@@ -31,6 +41,7 @@ async function open(page: Page) {
   })
   await openCommandPalette(page); await runCommand(page, 'Source file editor')
   const editor = page.getByRole('region', { name: 'Source file editor', exact: true })
+  await editor.getByRole('button', { name: 'Plain text', exact: true }).click()
   await editor.getByLabel('File path', { exact: true }).fill('main.tex')
   await editor.getByRole('button', { name: 'Open file', exact: true }).click()
   await editor.getByRole('button', { name: 'Open Overleaf sync', exact: true }).click()
@@ -88,4 +99,67 @@ test('Overleaf rejects stale sharing, contains nested dialog focus and blocks pe
   await expect(dialog.getByRole('alert')).toContainText('Overleaf changed since review')
   await expect(dialog.getByRole('button', { name: 'Close Overleaf sync', exact: true })).toBeInViewport({ ratio: 1 })
   await attachVisualState(page, testInfo, 'overleaf-narrow-rtl-stale-share', dialog, dialog.getByRole('alert'))
+})
+
+test('Overleaf insertion aligns surviving lines without suggesting unrelated edits or any write', async ({ page }) => {
+  const { dialog } = await open(page)
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-insert', '1'))
+  await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
+  await expect(dialog.locator('.overleaf-diff-legend')).toContainText('1 added · 0 removed · 0 changed')
+  await expect(dialog.locator('[aria-label="Saved local source"] .overleaf-diff-line.is-placeholder')).toHaveCount(1)
+  await expect(dialog.locator('[aria-label="Reviewed remote source"] .overleaf-diff-line.is-changed')).toHaveCount(1)
+  const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command: string}>)
+  expect(calls.filter(call => call.command === 'overleaf_push' || call.command === 'source_file_save')).toHaveLength(0)
+})
+
+test('Overleaf warns when the same visible lines use different line endings', async ({ page }) => {
+  const { dialog } = await open(page)
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-lf', '1'))
+  await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
+  await expect(dialog.locator('.overleaf-diff-legend').first()).toContainText('0 added · 0 removed · 0 changed')
+  await expect(dialog.getByRole('note')).toContainText('saved source uses CRLF, remote source uses LF')
+  const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command: string}>)
+  expect(calls.filter(call => call.command === 'overleaf_push' || call.command === 'source_file_save')).toHaveLength(0)
+})
+
+test('Overleaf auto-sync defaults on and fast-forwards a clean remote co-author update', async ({ page }) => {
+  await page.clock.install()
+  const { editor, dialog } = await open(page)
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-matching', '1'))
+  const auto = dialog.getByRole('checkbox', { name: 'Auto-sync this Overleaf source (on by default)' })
+  await expect(auto).toBeChecked()
+  await page.clock.fastForward(1_100)
+  await expect(dialog.locator('.overleaf-current-status')).toContainText('Auto-sync')
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-live-update', '1'))
+  await page.clock.fastForward(31_000)
+  await expect(dialog).toBeVisible()
+  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('\\section{Remote updated by co-author}\r\n')
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-live-update', '2'))
+  await page.clock.fastForward(31_000)
+  await expect(dialog).toBeVisible()
+  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('\\section{Another co-author update}\r\n')
+  const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command: string}>)
+  expect(calls.filter(call => call.command === 'source_file_save')).toHaveLength(2)
+  expect(calls.filter(call => call.command === 'overleaf_push')).toHaveLength(0)
+})
+test('Turning Overleaf auto-sync off prevents all automatic provider requests', async ({ page }) => {
+  await page.clock.install()
+  const { dialog } = await open(page)
+  const auto = dialog.getByRole('checkbox', { name: 'Auto-sync this Overleaf source (on by default)' })
+  await auto.uncheck()
+  await page.clock.fastForward(61_000)
+  const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command: string}>)
+  expect(calls.filter(call => call.command === 'overleaf_read' || call.command === 'overleaf_push' || call.command === 'source_file_save')).toHaveLength(0)
+})
+
+test('Overleaf remembers a confirmed project link and explicitly forgets it', async ({ page }) => {
+  const { editor, dialog } = await open(page)
+  await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Close Overleaf sync', exact: true }).click()
+  await editor.getByRole('button', { name: 'Open Overleaf sync', exact: true }).click()
+  const linked = page.getByRole('dialog', { name: 'Overleaf source sync', exact: true })
+  await expect(linked.getByLabel('Overleaf project ID or official URL', { exact: true })).toHaveValue('abcdef123456')
+  await expect(linked.getByRole('checkbox', { name: 'Auto-sync this Overleaf source (on by default)' })).toBeChecked()
+  await linked.getByRole('button', { name: 'Forget saved Overleaf link', exact: true }).click()
+  await expect(linked.getByLabel('Overleaf project ID or official URL', { exact: true })).toHaveValue('')
 })

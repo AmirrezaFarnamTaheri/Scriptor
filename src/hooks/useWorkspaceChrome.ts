@@ -55,7 +55,7 @@ export interface WorkspaceChromePrefs {
 
 export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
   vaultSidebarCollapsed: false,
-  inspectorCollapsed: false,
+  inspectorCollapsed: true,
   showTopBar: true,
   showModeStrip: true,
   showQuickActions: true,
@@ -71,7 +71,7 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
   showFormatToolbar: true,
   showEditorAssist: true,
   showEditorStatus: true,
-  showInspectorHealth: true,
+  showInspectorHealth: false,
   showWorkspaceFooter: true,
   showStatusBar: true,
   showLineNumbers: true,

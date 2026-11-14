@@ -162,6 +162,8 @@ export const GraphPanel = memo(function GraphPanel({
   const { enablePlugin, isPluginEnabled, persistenceError } = usePluginState()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
+  const [graphSearch, setGraphSearch] = useState('')
+  const [highlightConnectedOnly, setHighlightConnectedOnly] = useState(true)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
   const dialogRef = useRef<HTMLDivElement>(null)
   const graphStageRef = useRef<HTMLDivElement>(null)
@@ -199,6 +201,15 @@ export const GraphPanel = memo(function GraphPanel({
   }, [vaultId, vaultOpen])
 
   const useCanvas = (graph?.nodes.length ?? 0) >= USE_CANVAS_THRESHOLD
+
+  // The graph stage intentionally keeps enough height to inspect 120 nodes.
+  // On phones the surrounding navigation makes that stage start below the
+  // available viewport. After opting into all links, reveal the whole stage
+  // rather than presenting only the top half of the node cluster.
+  useEffect(() => {
+    if (!useCanvas || highlightConnectedOnly || !window.matchMedia('(max-width: 720px)').matches) return
+    graphStageRef.current?.scrollIntoView({ block: 'end', behavior: 'auto' })
+  }, [highlightConnectedOnly, useCanvas])
 
   useEffect(() => {
     const stage = graphStageRef.current
@@ -274,6 +285,39 @@ export const GraphPanel = memo(function GraphPanel({
     }
     return map
   }, [graph, layout])
+
+  const nearbyFocusNodes = useMemo(() => {
+    if (!useCanvas || !focusPath) return [] as CanvasNode[]
+    const focusNode = layout.find((node) => node.path === focusPath)
+    if (!focusNode) return []
+    return [...new Set(adjacency.get(focusNode.id) ?? [])]
+      .map((id) => nodeById.get(id))
+      .filter((node): node is CanvasNode => Boolean(node?.path))
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .slice(0, 4)
+  }, [useCanvas, focusPath, layout, adjacency, nodeById])
+
+  // Preserve every authored direction as a named, keyboard-readable row.
+  // The canvas may render more than 100 nodes, but a user can inspect the
+  // selected note's inbound and outbound relationships without pixel hunting.
+  const focusRelationships = useMemo(() => {
+    if (!graph || !focusPath) return []
+    const focusNode = layout.find((node) => node.path === focusPath)
+    if (!focusNode) return []
+    return graph.edges.flatMap((edge) => {
+      if (edge.source !== focusNode.id && edge.target !== focusNode.id) return []
+      const source = nodeById.get(edge.source)
+      const target = nodeById.get(edge.target)
+      if (!source?.path || !target?.path) return []
+      return [{ id: edge.id, source, target, kind: edge.kind }]
+    })
+  }, [graph, focusPath, layout, nodeById])
+
+  const graphMatches = useMemo(() => {
+    const query = graphSearch.trim().toLocaleLowerCase()
+    if (!query) return [] as CanvasNode[]
+    return layout.filter(node => node.label.toLocaleLowerCase().includes(query) || node.path.toLocaleLowerCase().includes(query)).slice(0, 6)
+  }, [layout, graphSearch])
 
   const reciprocalPairs = useMemo(() => {
     const directions = new Map<string, Set<string>>()
@@ -421,7 +465,7 @@ export const GraphPanel = memo(function GraphPanel({
   }
 
   return (
-    <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')} data-help-topic="graph">
+    <div ref={dialogRef} className="graph-overlay graph-overlay-interactive" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')} data-help-topic="graph">
       <header className="graph-header">
         <div>
           <h2>{t('graph.title')}</h2>
@@ -450,7 +494,9 @@ export const GraphPanel = memo(function GraphPanel({
               {presets.map((preset) => (
                 <option key={preset.id} value={preset.id}>
                   {preset.id === 'local'
-                    ? t('graph.neighborhood', { depth: preset.depth })
+                    ? useCanvas && focusPath && highlightConnectedOnly
+                      ? t('graph.nearbyNotes')
+                      : t('graph.neighborhood', { depth: preset.depth })
                     : preset.id === 'vault'
                       ? t('graph.fullVault')
                       : preset.label}
@@ -513,6 +559,61 @@ export const GraphPanel = memo(function GraphPanel({
         ))}
       </div>
 
+      <div className="graph-navigation" role="region" aria-label={t("graph.navigationAria")}>
+      <div className="graph-note-search" role="search">
+        <label>
+          {t('graph.findNotes')}
+          <input type="search" value={graphSearch} onChange={event => setGraphSearch(event.target.value)} placeholder={t('graph.findNotes')} />
+        </label>
+        {useCanvas && focusPath ? (
+          <button type="button" className="toolbar-button graph-focus-toggle"
+            aria-pressed={highlightConnectedOnly}
+            onClick={() => setHighlightConnectedOnly(current => !current)}>
+            {highlightConnectedOnly ? t('graph.showAllLinks') : t('graph.highlightConnectedLinks')}
+          </button>
+        ) : null}
+        {useCanvas && focusPath && highlightConnectedOnly ? (
+          <span className="graph-focus-hint" role="status">{t('graph.focusedViewHint')}</span>
+        ) : null}
+        {graphSearch.trim() ? (
+          <div className="graph-note-search-results" role="group" aria-label={t('graph.matchingNotes')}>
+            {graphMatches.length ? graphMatches.map(node => (
+              <button type="button" key={node.id} onClick={() => { setGraphSearch(''); onSelectNode(node.path) }}>{node.label}</button>
+            )) : <span role="status">{t('graph.noMatchingNotes')}</span>}
+          </div>
+        ) : null}
+      </div>
+      {nearbyFocusNodes.length > 0 ? (
+        <div className="graph-neighbor-shortcuts" role="group" aria-label={t('graph.nearbyNotes')}>
+          <strong>{t('graph.nearbyNotes')}</strong>
+          <div>{nearbyFocusNodes.map((node) => (
+            <button type="button" key={node.id} onClick={() => onSelectNode(node.path)}>{node.label}</button>
+          ))}</div>
+        </div>
+      ) : null}
+      {useCanvas && focusRelationships.length > 0 ? (
+        <details className="graph-directed-relationships">
+          <summary>{t('graph.directedLink')} · {t('graph.edgeCount', { count: focusRelationships.length })}</summary>
+          <ul>
+            {focusRelationships.map((relation, index) => {
+              const destination = relation.source.path === focusPath ? relation.target : relation.source
+              return (
+                <li key={`${relation.id}-${index}`}>
+                  <button type="button" onClick={() => onSelectNode(destination.path)}>
+                    <span className="graph-relationship-direction" dir="ltr">
+                      <bdi dir="auto">{relation.source.label}</bdi>
+                      <span aria-hidden="true"> → </span>
+                      <bdi dir="auto">{relation.target.label}</bdi>
+                    </span>
+                    <small>{relation.kind}</small>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </details>
+      ) : null}
+      </div>
       <div ref={liveRegionRef} aria-live="polite" className="sr-only" />
 
       <div ref={graphStageRef} className="graph-stage">
@@ -529,6 +630,8 @@ export const GraphPanel = memo(function GraphPanel({
               width={viewport.width}
               height={viewport.height}
               onSelectNode={onSelectNode}
+              highlightedNeighborIds={[...nearbyFocusNodes.map((node) => node.id), ...graphMatches.map((node) => node.id)]}
+              focusNeighborhoodOnly={highlightConnectedOnly && Boolean(focusPath)}
             />
           )
         ) : (

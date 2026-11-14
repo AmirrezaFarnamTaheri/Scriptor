@@ -148,6 +148,15 @@ for (const theme of ['light', 'dark'] as const) {
   })
 }
 
+test('disconnected Gmail explains setup while retaining one-click authorization', async ({ page }) => {
+  const panel = await openGmail(page, false)
+  await expect(panel.locator('.gmail-manager-setup-hint')).toContainText('Settings')
+  await panel.getByRole('button', { name: 'Review account setup', exact: true }).click()
+  await expect(panel.getByRole('tab', { name: 'Account', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(panel.getByRole('button', { name: 'Connect with Google', exact: true })).toBeVisible()
+  await expect(panel.getByLabel('Google OAuth client ID')).toHaveCount(0)
+})
+
 test('Gmail first-use sign-in is one click from the inbox with no developer ID prompt', async ({ page }) => {
   const panel = await openGmail(page, false)
   await expect(panel.getByRole('button', { name: 'Connect with Google', exact: true })).toBeVisible()

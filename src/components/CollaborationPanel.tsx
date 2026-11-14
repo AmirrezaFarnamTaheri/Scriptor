@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { collaborationAppend, collaborationConnect, collaborationDisconnect, collaborationList, collaborationRead, vaultReadNote, vaultSaveNote } from '../bridge/commands'
-import { hasUnresolvedSharedConflict, mergeSharedRevision, sharedRevisionBase, parseCollaborationMapping, preparePendingSharedRevision, pendingSharedRevisionKey, type SharedRevision } from '../lib/collaboration'
+import { hasUnresolvedSharedConflict, hasPossibleMergeMarkers, mergeSharedRevision, sharedRevisionBase, parseCollaborationMapping, preparePendingSharedRevision, pendingSharedRevisionKey, type SharedRevision } from '../lib/collaboration'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { collaborationReadDocs, collaborationCreateDocs, collaborationGenerateRevisionId } from '../bridge/commands/collaboration'
 import type { CollaborationTransport } from '../bridge/commands/collaboration'
@@ -9,6 +9,8 @@ import { useCollaborationPolling } from '../hooks/useCollaborationPolling'
 import { collaborationCreateFolder, collaborationGetAccount, collaborationListDocs, collaborationListFolders } from '../bridge/commands/collaboration'
 import { acceptGoogleResourcePage, appendGoogleResources, GOOGLE_COLLABORATION_COPY, googleCollaborationMappingKey, parseGoogleCollaborationSetup, type GoogleResource } from '../lib/googleCollaborationSetup'
 import { useI18n } from '../lib/i18n'
+import { alignReviewedSource } from '../lib/reviewDiff'
+import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled, safeIncomingDecision } from '../lib/autoSyncPreference'
 import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import { getGoogleOAuthClientId, hasPackagedGoogleOAuthClient } from '../lib/googleOAuthClient'
@@ -38,14 +40,14 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   const [account, setAccount] = useState('')
   const [rows, setRows] = useState<Array<{ id: string; name: string }>>([])
   const [pageToken, setPageToken] = useState<string>()
-  const [preview, setPreview] = useState<{ record: SharedRevision; markdown: string; hash: string; conflict: boolean } | null>(null)
+  const [preview, setPreview] = useState<{ record: SharedRevision; markdown: string; hash: string; conflict: boolean; lineChanges: { added: number; removed: number; changed: number } } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(initial.error)
   const [message, setMessage] = useState('')
-  const [pollConsent, setPollConsent] = useState(false)
+  const [autoChoice, setAutoChoice] = useState<{ key: string; enabled: boolean } | null>(null)
   const [docsId, setDocsId] = useState('')
   const [docsConsent, setDocsConsent] = useState(false)
-  const [docsPreview, setDocsPreview] = useState<{ markdown: string; hash: string; warnings: string[]; title: string } | null>(null)
+  const [docsPreview, setDocsPreview] = useState<{ markdown: string; hash: string; warnings: string[]; title: string; lineChanges: { added: number; removed: number; changed: number } } | null>(null)
   const [transport, setTransport] = useState<CollaborationTransport>(initial.transport)
   const [folders, setFolders] = useState<GoogleResource[] | null>(null)
   const [folderPage, setFolderPage] = useState<string>()
@@ -55,10 +57,72 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   const folderTokens = useRef(new Set<string>())
   const documentTokens = useRef(new Set<string>())
   const revisionTokens = useRef(new Set<string>())
+  const autoSeenRevisions = useRef(new Set<string>())
+  const autoListingInitialized = useRef(false)
+  const autoUploadPaused = useRef(false)
+  const autoKey = (() => {
+    try { return account && vaultId && folderId && path ? autoSyncPreferenceKey('google_drive', vaultId, account, folderId, path) : null }
+    catch { return null }
+  })()
+  const autoEnabled = autoKey !== null && (autoChoice?.key === autoKey ? autoChoice.enabled : readAutoSyncEnabled(localStorage, autoKey))
+  const autoEnabledRef = useRef(autoEnabled)
+  useEffect(() => { autoEnabledRef.current = autoEnabled }, [autoEnabled])
   const polling = useCollaborationPolling(folderId, vaultId, path, transport, result => {
     revisionTokens.current.clear(); revisionTokens.current.add('')
     setRows(appendGoogleResources([], result.files)); setPageToken(result.nextPageToken)
-  })
+    if (!autoEnabled || !account || !vaultId || !path || !folderId || result.nextPageToken) return
+    const fresh = result.files.filter(item => !autoSeenRevisions.current.has(item.id))
+    if (!autoListingInitialized.current) {
+      for (const item of result.files) autoSeenRevisions.current.add(item.id)
+      autoListingInitialized.current = true
+      return
+    }
+    // Only newly discovered revisions are candidates. Historic folder content
+    // must never be silently imported on the first connection.
+    if (occupied.current) return
+    if (!fresh.length) {
+      if (transport === 'drive_json' && !autoUploadPaused.current && base.current?.path === path) {
+        const current = epoch.current
+        void vaultReadNote(path).then(note => {
+          if (current !== epoch.current || !autoEnabledRef.current || occupied.current || autoUploadPaused.current) return
+          if (note.markdown !== base.current?.markdown && !hasPossibleMergeMarkers(note.markdown))
+            void run(async generation => { await autoPublishSaved(generation) })
+        }).catch(() => { /* Local changes will be inspected during the next bounded check. */ })
+      }
+      return
+    }
+    const batch = fresh.slice(0, 5)
+    for (const item of batch) autoSeenRevisions.current.add(item.id)
+    void run(async current => {
+      for (const row of batch) {
+        const record = await collaborationRead(vaultId, folderId, row.id, transport)
+        if (current !== epoch.current || !autoEnabledRef.current) return
+        if (record.document !== path || record.peer_id === peer.current) continue
+        const local = await vaultReadNote(path)
+        if (current !== epoch.current || !autoEnabledRef.current) return
+        if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
+        const trustedBase = base.current?.path === path ? base.current.markdown : null
+        const decision = safeIncomingDecision(trustedBase, record.base_markdown, local.markdown, record.markdown)
+        if (decision === 'equal') { remember(local.markdown); continue }
+        const merged = mergeSharedRevision(record.base_markdown, local.markdown, record.markdown)
+        if (decision === 'pull' && !hasPossibleMergeMarkers(record.markdown)) {
+          if (!autoEnabledRef.current) return
+          const saved = await runSourceNoteMutation(path, async () => {
+            if (!autoEnabledRef.current || current !== epoch.current) return
+            await vaultSaveNote(path, record.markdown, local.metadata.content_hash, false, vaultId)
+          })
+          if (current !== epoch.current || !autoEnabledRef.current) return
+          if (!saved) throw new Error('An unsaved editor draft prevented automatic import. Save it and review the incoming revision.')
+          setMessage(`Incoming shared revision automatically applied from ${record.peer_id}.${remember(record.markdown)}`)
+          await onApplied()
+        } else {
+          setPreview({ record, ...merged, hash: local.metadata.content_hash, lineChanges: alignReviewedSource(local.markdown, record.markdown).summary })
+          setMessage('Concurrent shared changes need a manual merge. Nothing was overwritten.')
+          return
+        }
+      }
+    })
+  }, autoEnabled)
   const epoch = useRef(0)
   const base = useRef<{ path: string; markdown: string } | null>(null)
   const peer = useRef<string>(crypto.randomUUID())
@@ -102,8 +166,9 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       stopPolling()
       setAccount(''); setRows([]); setPreview(null); setDocsPreview(null); setBusy(false)
       setFolders(null); setFolderPage(undefined); setDocuments(null); setDocumentPage(undefined)
-      setPageToken(undefined); setDocsId(''); setPollConsent(false); setDocsConsent(false)
+      setPageToken(undefined); setDocsId(''); setDocsConsent(false)
       folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
+      autoSeenRevisions.current.clear(); autoListingInitialized.current = false; autoUploadPaused.current = false
       base.current = null; peer.current = crypto.randomUUID()
       setMessage(copy.accountChanged)
       loadAccount()
@@ -118,7 +183,8 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     epoch.current++
     operation.current++; occupied.current = false; setBusy(false)
     setRows([]); setPageToken(undefined); setPreview(null); setDocsPreview(null)
-    setDocuments(null); setDocumentPage(undefined); setDocsId(''); setDocsConsent(false); setPollConsent(false)
+    autoSeenRevisions.current.clear(); autoListingInitialized.current = false; autoUploadPaused.current = false
+    setDocuments(null); setDocumentPage(undefined); setDocsId(''); setDocsConsent(false); 
     documentTokens.current.clear(); revisionTokens.current.clear()
     base.current = null
     peer.current = crypto.randomUUID()
@@ -163,6 +229,43 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     catch (reason) { if (epoch.current === current) setError(reason instanceof Error ? reason.message : String(reason)) }
     finally { if (serial === operation.current) { occupied.current = false; if (epoch.current === current) setBusy(false) } }
   }
+  /** An immutable new revision is safe to append only after an owned base exists.
+   * An uncertain prior attempt keeps its original ID; no remote document is overwritten. */
+  async function autoPublishSaved(current: number) {
+    if (!autoEnabledRef.current || autoUploadPaused.current || transport !== 'drive_json'
+      || !account || !vaultId || !folderId || !path || base.current?.path !== path) return
+    const note = await vaultReadNote(path)
+    if (current !== epoch.current || !autoEnabledRef.current) return
+    if (note.metadata.vault_id !== vaultId) throw new Error('Vault changed; cancel auto-sync.')
+    if (note.markdown === base.current?.markdown || hasPossibleMergeMarkers(note.markdown)) return
+    const pendingKey = pendingSharedRevisionKey(account, vaultId, folderId, path, transport)
+    try {
+      const existing = localStorage.getItem(pendingKey)
+      const allocated = existing === null ? await collaborationGenerateRevisionId(vaultId, folderId) : crypto.randomUUID()
+      if (current !== epoch.current || !autoEnabledRef.current) return
+      const candidate: SharedRevision = {
+        schema: 'scriptor.collaboration.v1', id: allocated, document: path, peer_id: peer.current,
+        base_markdown: sharedRevisionBase(base.current, path), markdown: note.markdown, created_at: new Date().toISOString(),
+      }
+      const record = preparePendingSharedRevision(localStorage, pendingKey, candidate)
+      peer.current = record.peer_id
+      if (current !== epoch.current || !autoEnabledRef.current) return
+      await collaborationAppend(vaultId, folderId, record, transport)
+      localStorage.removeItem(pendingKey)
+      if (current !== epoch.current) return
+      const latest = await vaultReadNote(path)
+      if (current !== epoch.current || !autoEnabledRef.current) return
+      if (latest.metadata.content_hash !== note.metadata.content_hash) {
+        setMessage('A previous saved revision was shared. New local edits will sync on the next check.')
+      } else {
+        setMessage(`Automatically shared saved local revision.${remember(note.markdown)}`)
+      }
+    } catch (caught) {
+      autoUploadPaused.current = true
+      throw new Error(`Automatic sharing paused. Review this attempt before retrying: ${caught instanceof Error ? caught.message : String(caught)}`, { cause: caught })
+    }
+  }
+
   async function list(current: number, next?: string) {
     if (!next) revisionTokens.current.clear()
     const result = await collaborationList(vaultId!, folderId, next, transport)
@@ -177,7 +280,8 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     epoch.current++; operation.current++; occupied.current = false; setBusy(false)
     polling.stop()
     setFolderId(id); setPreview(null); setRows([]); setPageToken(undefined)
-    setPollConsent(false); setDocsConsent(false); setDocsPreview(null); setDocsId('')
+    autoSeenRevisions.current.clear(); autoListingInitialized.current = false
+    setDocsConsent(false); setDocsPreview(null); setDocsId('')
     setDocuments(null); setDocumentPage(undefined); documentTokens.current.clear()
   }
   async function browseResources(current: number, kind: 'folders' | 'docs', next: boolean) {
@@ -201,14 +305,14 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   }
   return <UnifiedPanelShell title="Drive collaboration" ariaLabel="Drive collaboration" helpTopic="integrations" onClose={onClose} wide>
     <div className="collaboration-panel">
-      <p>Compare and share Markdown revisions through the selected Drive folder. Remote changes never overwrite local notes without review.</p>
+      <p>Connected shared Markdown revisions sync automatically when both copies have a trusted common base. Concurrent edits and unknown histories require review; turning auto-sync off stops new automatic transfers.</p>
       <details className="collaboration-guidance">
         <summary>How sharing works and where data is stored</summary>
         <p>The Google sign-in requests Drive access. Scriptor confines these transfers to the folder you enter. Your credentials stay in the operating-system keychain.</p>
         <p>The last shared ancestor and this note’s peer identity are cached on this device, scoped to the confirmed Google account, vault and Drive folder. This cache includes note text; it is separate from your Markdown files and credentials.</p>
         <p>Revisions preserve local, base and remote text so overlapping changes can be resolved before applying them.</p>
       </details>
-      <label>{t('collaborationUi.format')}<select aria-label={t('collaborationUi.format')} value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); setTransport(event.target.value as CollaborationTransport); setPollConsent(false); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">{t('collaborationUi.driveFiles')}</option><option value="google_docs">{t('collaborationUi.legacyDocs')}</option></select></label>
+      <label>{t('collaborationUi.format')}<select aria-label={t('collaborationUi.format')} value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); setTransport(event.target.value as CollaborationTransport); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">{t('collaborationUi.driveFiles')}</option><option value="google_docs">{t('collaborationUi.legacyDocs')}</option></select></label>
       {!hasPackagedGoogleOAuthClient() && import.meta.env.DEV && <details className="google-developer-setup">
         <summary>{t('integrations.google.developerSetup')}</summary>
         <label>Google OAuth desktop client ID<input value={clientIdOverride ?? googleConfig?.google_client_id ?? ''} onChange={event => setClientIdOverride(event.target.value)} disabled={busy} autoComplete="off" /></label>
@@ -228,13 +332,13 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           setAccount(value)
           setRows([]); setPageToken(undefined); setPreview(null); setDocsPreview(null)
           setFolders(null); setFolderPage(undefined); setDocuments(null); setDocumentPage(undefined); setDocsId('')
-          setPollConsent(false); setDocsConsent(false)
+          setDocsConsent(false)
           folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
           base.current = null; peer.current = crypto.randomUUID()
           await persistSetup()
           if (current === epoch.current) { setMessage(copy.saved); await onApplied() }
           })
-        }}>Connect Google Drive</button>
+        }}>{account ? copy.switchDrive : copy.connectDrive}</button>
         {account ? <button disabled={busy || polling.starting} onClick={() => void run(async current => {
           polling.stop(); await collaborationDisconnect()
           accountReadGeneration.current++
@@ -242,13 +346,18 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           if (current !== epoch.current) return
           setAccount(''); setRows([]); setPreview(null); setDocsPreview(null); setFolders(null); setDocuments(null)
           setFolderPage(undefined); setDocumentPage(undefined); setPageToken(undefined); setDocsId('')
-          setPollConsent(false); setDocsConsent(false); folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
+          setDocsConsent(false); folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
           base.current = null; peer.current = crypto.randomUUID()
           setMessage(copy.removed)
         })}>{t('collaborationUi.disconnect')}</button> : null}
       </div>
       {account && <p role="status">{t('collaborationUi.connected', { account })}</p>}
-      <CollaborationResources kind="folders" resources={folders} selectedId={folderId} busy={busy || !vaultId} canAccess={Boolean(account)} hasMore={Boolean(folderPage)} onSelect={selectFolder}
+      {/* Keep setup and all review actions available, but stop presenting dozens
+          of disabled controls before OAuth. Re-keying on account change opens
+          the workflow automatically after a successful connection. */}
+      <details className="collaboration-workflow-details" key={account ? 'connected' : 'disconnected'} open={Boolean(account)}>
+        <summary>{account ? copy.setupReady : copy.setupNext}</summary>
+        <CollaborationResources kind="folders" resources={folders} selectedId={folderId} busy={busy || !vaultId} canAccess={Boolean(account)} hasMore={Boolean(folderPage)} onSelect={selectFolder}
         onBrowse={next => void run(current => browseResources(current, 'folders', next))} newFolderName={newFolderName} onNameChange={setNewFolderName}
         onCreate={() => void run(async current => {
           const folder = await collaborationCreateFolder(vaultId!, newFolderName.trim())
@@ -257,7 +366,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           selectFolder(folder.id); setMessage(copy.folderCreated)
         })}
         onSave={() => void run(async current => { await persistSetup(); if (current === epoch.current) { setMessage(copy.bindingSaved); await onApplied() } })} />
-      <p>{t('collaborationUi.localNote')}: <bdi>{path ?? 'Select a note'}</bdi></p>
+      <p className="collaboration-local-note"><span dir="auto">{t('collaborationUi.localNote')}:</span> <bdi dir="auto">{path ?? 'Select a note'}</bdi></p>
       {transport === 'google_docs' && <p role="note">{t('collaborationAtomic.legacyDocsReadOnly')}</p>}
       <div className="collaboration-actions">
         <button disabled={busy || !folderId || !path || !vaultId || !account || transport === 'google_docs'} onClick={() => void run(async current => {
@@ -290,26 +399,40 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
         if (current !== epoch.current) return
         const merged = mergeSharedRevision(record.base_markdown, local.markdown, record.markdown)
-        setPreview({ record, ...merged, hash: local.metadata.content_hash })
+        setPreview({ record, ...merged, hash: local.metadata.content_hash, lineChanges: alignReviewedSource(local.markdown, record.markdown).summary })
       })}><bdi>{row.name}</bdi></button></li>)}</ul>
       {rows.length >= 1000 && pageToken && <p>Listing reached 1,000 revisions. Use a smaller shared folder.</p>}
       <section className="collaboration-auto-checks" aria-label={t('collaborationUi.autoTitle')}>
         <h3>{t('collaborationUi.autoTitle')}</h3>
-        <p>{t('collaborationUi.autoExplain')}</p>
-        <label><input type="checkbox" checked={pollConsent} disabled={polling.active || polling.starting} onChange={event => setPollConsent(event.target.checked)} />{t('collaborationUi.autoConsent')}</label>
-        <button disabled={busy || polling.active || polling.starting || !pollConsent || !folderId || !vaultId || !account} onClick={() => void polling.start()}>Start automatic checks</button>
-        {(polling.active || polling.starting) && <button onClick={polling.stop}>Stop automatic checks</button>}
+        <p>{copy.autoSyncHelp}</p>
+        <label><input type="checkbox" checked={autoEnabled} disabled={!autoKey} onChange={event => {
+          if (!autoKey) return
+          try {
+            const enabled = event.target.checked
+            writeAutoSyncEnabled(localStorage, autoKey, enabled)
+            autoEnabledRef.current = enabled
+            if (enabled) autoUploadPaused.current = false
+            setAutoChoice({ key: autoKey, enabled })
+            if (!enabled) polling.stop()
+          } catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)) }
+        }} />{copy.autoSyncLabel}</label>
         {polling.status && <p role="status">{polling.status}</p>}{polling.error && <p role="alert">{polling.error}</p>}
         <details className="collaboration-guidance"><summary>{t('collaborationUi.autoLimits')}</summary><p>{t('collaborationUi.autoLimitsText')}</p></details>
       </section>
       {preview && <>
         <h3>{t('collaborationUi.reviewHeading')}</h3>
-        <p>{t(preview.conflict ? 'collaborationUi.conflict' : 'collaborationUi.ready')}</p>
+        <p className="collaboration-revision-provenance" role="note">Incoming revision by peer <bdi>{preview.record.peer_id}</bdi> · <time dateTime={preview.record.created_at}>{new Date(preview.record.created_at).toLocaleString(locale === 'de' ? 'de-DE' : locale === 'fa' ? 'fa-IR-u-ca-gregory' : 'en-US')}</time>. Changes are applied only after your review; this is not simultaneous co-editing.</p>
+        <p className="collaboration-revision-diff-summary" role="note">Your saved note compared with this revision: {preview.lineChanges.added} added, {preview.lineChanges.removed} removed, {preview.lineChanges.changed} changed. You can review and edit the proposed merge before saving.</p>
+        <p>{t(preview.conflict || hasPossibleMergeMarkers(preview.markdown) ? 'collaborationUi.conflict' : 'collaborationUi.ready')}</p>
+        {hasPossibleMergeMarkers(preview.markdown) && <div className="collaboration-conflict-warning" role="alert">
+          <strong>Unresolved revision markers need review</strong>
+          <p>Resolve all Local, Shared base and Shared revision sections before saving. Your vault note stays unchanged until you confirm the reviewed merge.</p>
+        </div>}
         <details className="collaboration-guidance"><summary>{t('collaborationUi.versionDetails')}</summary>
           <p>{t('collaborationUi.versionShared', { date: preview.record.created_at })} · <bdi>{preview.record.peer_id}</bdi></p>
         </details>
         <label>{t('collaborationUi.reviewLabel')}<textarea rows={16} value={preview.markdown} disabled={busy} onChange={event => setPreview({ ...preview, markdown: event.target.value })} /></label>
-        <button disabled={busy || !vaultId || hasUnresolvedSharedConflict(preview.markdown)} onClick={() => void run(async current => {
+        <button disabled={busy || !vaultId || hasUnresolvedSharedConflict(preview.markdown) || hasPossibleMergeMarkers(preview.markdown)} onClick={() => void run(async current => {
           if (preview.record.document !== path) throw new Error('Selected note changed; review again.')
           const applied = await runSourceNoteMutation(path!, async () => {
             await vaultSaveNote(path!, preview.markdown, preview.hash, false, vaultId!)
@@ -323,7 +446,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       </>}
       <details><summary>{t('collaborationUi.docsTitle')}</summary>
         {folderId && <CollaborationResources kind="docs" resources={documents} selectedId={docsId} busy={busy || !vaultId} canAccess={Boolean(account)} hasMore={Boolean(documentPage)} onSelect={id => { setDocsId(id); setDocsPreview(null); setDocsConsent(false) }} onBrowse={next => void run(current => browseResources(current, 'docs', next))} />}
-        <p>Import a reviewed text copy from a Google document in this folder, or create a new plain-text Google document from the saved Markdown. This preserves text, not rich document fidelity. Comments, suggestions, history, layout, embedded media and access permissions do not transfer. Markdown syntax remains literal in exported plain-text copies. Existing Google documents are never overwritten.</p>
+        <p>Live simultaneous editing remains in Google Docs itself. Scriptor can import reviewed text or create a plain-text copy, but cannot live-round-trip formatting or suggestions. This preserves text, not rich document fidelity. Comments, suggestions, history, layout, embedded media and access permissions do not transfer. Markdown syntax remains literal in exported plain-text copies. Existing Google documents are never overwritten.</p>
         <label>Google document ID<input value={docsId} disabled={busy} onChange={event => { setDocsId(event.target.value.trim()); setDocsPreview(null); setDocsConsent(false) }} autoComplete="off" /></label>
         <button disabled={busy || !folderId || !docsId || !path || !vaultId || !account} onClick={() => void run(async current => {
           const translated = translateGoogleDoc(await collaborationReadDocs(vaultId!, folderId, docsId))
@@ -331,11 +454,16 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
           if (current !== epoch.current) return
           const merged = mergeSharedRevision(sharedRevisionBase(base.current, path!), local.markdown, translated.markdown)
-          setDocsConsent(false); setDocsPreview({ ...translated, markdown: merged.markdown, hash: local.metadata.content_hash })
+          setDocsConsent(false); setDocsPreview({ ...translated, markdown: merged.markdown, hash: local.metadata.content_hash, lineChanges: alignReviewedSource(local.markdown, translated.markdown).summary })
         })}>{t('collaborationUi.docsPreview')}</button>
-        {docsPreview && <><h3><bdi>{docsPreview.title}</bdi></h3><ul>{docsPreview.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><label>{t('collaborationUi.docsReview')}<textarea rows={12} value={docsPreview.markdown} disabled={busy} onChange={event => setDocsPreview({ ...docsPreview, markdown: event.target.value })} /></label></>}
+        {docsPreview && <><h3><bdi>{docsPreview.title}</bdi></h3><p className="collaboration-import-summary" role="note">Google Docs text comparison: {docsPreview.lineChanges.added} added, {docsPreview.lineChanges.removed} removed, {docsPreview.lineChanges.changed} changed. This compares text only; formatting and comments do not transfer.</p><ul>{docsPreview.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
+          {hasPossibleMergeMarkers(docsPreview.markdown) && <div className="collaboration-conflict-warning" role="alert">
+            <strong>Possible unresolved merge markers</strong>
+            <p>This text still contains conflict separators. Compare local, shared-base and remote sections, remove the markers, and review the resolved text before saving.</p>
+          </div>}
+          <label>{t('collaborationUi.docsReview')}<textarea rows={12} value={docsPreview.markdown} disabled={busy} onChange={event => setDocsPreview({ ...docsPreview, markdown: event.target.value })} /></label></>}
         <label><input type="checkbox" checked={docsConsent} disabled={busy} onChange={event => setDocsConsent(event.target.checked)} />{t('collaborationUi.docsConsent')}</label>
-        {docsPreview && <button disabled={busy || !docsConsent || !path || !vaultId || hasUnresolvedSharedConflict(docsPreview.markdown)} onClick={() => void run(async current => {
+        {docsPreview && <button disabled={busy || !docsConsent || !path || !vaultId || hasUnresolvedSharedConflict(docsPreview.markdown) || hasPossibleMergeMarkers(docsPreview.markdown)} onClick={() => void run(async current => {
           const applied = await runSourceNoteMutation(path!, () => vaultSaveNote(path!, docsPreview.markdown, docsPreview.hash, false, vaultId!).then(() => undefined))
           if (!applied) throw new Error('Save the editor draft and preview this translation again.')
           if (current === epoch.current) { setMessage(`Reviewed Google Docs translation saved.${remember(docsPreview.markdown)}`); setDocsPreview(null); setDocsConsent(false); await onApplied() }
@@ -347,6 +475,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           const result = await collaborationCreateDocs(vaultId!, folderId, `${path} — text copy`, docsPlainTextExport(local.markdown))
           if (current === epoch.current) { setDocsConsent(false); setMessage(`Created new Google document “${result.name}”. Existing documents and local note were unchanged.`) }
         })}>{t('collaborationUi.docsCreate')}</button>
+      </details>
       </details>
       {busy && <p role="status">Working…</p>}
       {message && <p role="status">{message}</p>}

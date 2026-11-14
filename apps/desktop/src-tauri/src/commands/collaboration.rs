@@ -1079,14 +1079,14 @@ pub fn collaboration_poll_start(
             folder_id,
             deadline: now + Duration::from_secs(900),
             next_request: now,
-            remaining: 30,
+            remaining: 90,
             transport: transport.unwrap_or_default(),
         },
     );
     Ok(PollSession {
         lease_id,
         expires_at: (chrono::Utc::now() + chrono::Duration::minutes(15)).to_rfc3339(),
-        remaining_requests: 30,
+        remaining_requests: 90,
     })
 }
 
@@ -1102,10 +1102,10 @@ fn take_poll_request(
         return Err("Polling session ended. Start a new session explicitly.".into());
     }
     if lease.next_request > now {
-        return Err("Polling requests must be at least 30 seconds apart".into());
+        return Err("Polling requests must be at least 10 seconds apart".into());
     }
     lease.remaining -= 1;
-    lease.next_request = now + Duration::from_secs(30);
+    lease.next_request = now + Duration::from_secs(10);
     Ok(lease.folder_id.clone())
 }
 
@@ -1350,8 +1350,8 @@ mod tests {
             take_poll_request(&mut lease, "vault-a", now).unwrap(),
             "folder"
         );
-        assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(29)).is_err());
-        assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(30)).is_ok());
+        assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(9)).is_err());
+        assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(10)).is_ok());
         assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(60)).is_err());
         lease.remaining = 1;
         assert!(take_poll_request(&mut lease, "vault-a", now + Duration::from_secs(900)).is_err());

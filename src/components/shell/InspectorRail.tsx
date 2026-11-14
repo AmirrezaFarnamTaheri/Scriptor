@@ -1,6 +1,6 @@
 import type { RefObject } from 'react'
-import { lazy, memo, Suspense, useMemo } from 'react'
-import { Archive, BookOpen, FileText, Hash, Link2, Pencil, Quote, Tags } from 'lucide-react'
+import { lazy, memo, Suspense, useMemo, useState } from 'react'
+import { Archive, BookOpen, ChevronRight, FileText, Hash, Link2, Pencil, Quote, Tags } from 'lucide-react'
 
 import { MarkdownPreview, type MarkdownPreviewHandle, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
 import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
@@ -70,6 +70,7 @@ interface InspectorRailProps {
   inspectorPreset: InspectorPreset
   onInspectorPresetChange: (preset: InspectorPreset) => void
   showInspectorHealth?: boolean
+  vaultOpen?: boolean
   onOpenKnowledgeWorkbench: () => void
   onOpenPublishCenter: () => void
   onOpenGraph: () => void
@@ -145,6 +146,7 @@ function InspectorRailImpl({
   inspectorPreset,
   onInspectorPresetChange,
   showInspectorHealth = true,
+  vaultOpen = true,
   onOpenKnowledgeWorkbench,
   onOpenPublishCenter,
   onOpenGraph,
@@ -161,6 +163,8 @@ function InspectorRailImpl({
     [citationRows, bibliographyKeys],
   )
   const vaultChecksClear = isVaultHealthClear(health)
+  const [previewProfileId, setPreviewProfileId] = useState('html-standalone')
+  const selectedPreviewProfile = exportProfiles.find((profile) => profile.id === previewProfileId) ?? exportProfiles[0]
   const handleInspectorTabKeys = useTablistKeys(INSPECTOR_TABS, activeMode, (id) => onModeChange(id as 'inspector' | 'preview' | 'plugins'))
   const presetIds = useMemo(
     () => INSPECTOR_PRESETS.map((entry) => `inspector-preset-${entry.id}`),
@@ -184,6 +188,7 @@ function InspectorRailImpl({
   return (
     <aside className="inspector-panel" aria-label={t('inspector.ariaLabel')} ref={railRef} data-help-topic="inspector">
       {/* ── Tab bar ─────────────────────────────────────────────────────────── */}
+      <div className="inspector-tabs-shell">
       <div className="inspector-tabs" role="tablist" aria-label={t('inspector.modeAria')} onKeyDown={handleInspectorTabKeys}>
         {(['inspector', 'preview', 'plugins'] as const).map((mode) => (
           <button
@@ -194,6 +199,7 @@ function InspectorRailImpl({
             tabIndex={activeMode === mode ? 0 : -1}
             aria-selected={activeMode === mode}
             aria-controls={`inspector-panel-${mode}`}
+            title={t(`inspector.tabs.${mode}`)}
             data-help-topic={INSPECTOR_HELP_TOPICS[mode]}
             className={activeMode === mode ? 'active' : ''}
             onClick={() => onModeChange(mode)}
@@ -202,9 +208,14 @@ function InspectorRailImpl({
           </button>
         ))}
       </div>
+      <button type="button" className="inspector-tabs-reveal" aria-label={t('inspector.moreTabs')}
+        onClick={() => document.getElementById('inspector-tab-plugins')?.scrollIntoView({ block: 'nearest', inline: 'end', behavior: 'smooth' })}>
+        <ChevronRight aria-hidden="true" size={16} />
+      </button>
+      </div>
 
       {/* ── Preset row ──────────────────────────────────────────────────────── */}
-      {activeMode === 'inspector' ? (
+      {activeMode === 'inspector' && vaultOpen ? (
         <div className="inspector-preset-control">
           <div className="inspector-preset-row" role="radiogroup" aria-label={t('inspector.presetAria')} onKeyDown={handlePresetKeys}>
             {INSPECTOR_PRESETS.map((entry) => (
@@ -343,7 +354,7 @@ function InspectorRailImpl({
         hidden={activeMode !== 'inspector'}
       >
         {activeMode === 'inspector' ? (
-          <>
+          vaultOpen ? <>
             {presetConfig.showOutline ? (
               <WidgetCard title={t('inspector.outline')}>
                 <div className="compact-list">
@@ -522,6 +533,7 @@ function InspectorRailImpl({
                       key={profile.id}
                       disabled={!activePath || isExporting}
                       onClick={() => {
+                        setPreviewProfileId(profile.id)
                         setStatusDockToJobs()
                         void exportWithProfile(profile.id)
                       }}
@@ -531,13 +543,20 @@ function InspectorRailImpl({
                     </button>
                   ))}
                 </div>
+                <label className="export-preview-selection">
+                  Preview format
+                  <select value={selectedPreviewProfile?.id ?? ''} disabled={isExporting || !selectedPreviewProfile} onChange={(event) => setPreviewProfileId(event.target.value)}>
+                    {exportProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
+                  </select>
+                </label>
                 <button
                   type="button"
                   className="primary-button"
-                  disabled={!activePath || isExporting}
+                  disabled={!activePath || isExporting || !selectedPreviewProfile}
                   onClick={() => {
                     setStatusDockToJobs()
-                    void exportWithProfile('html-standalone', true)
+                    if (!selectedPreviewProfile) return
+                    void exportWithProfile(selectedPreviewProfile.id, true)
                   }}
                 >
                   {isExporting ? t('inspector.exporting') : t('inspector.previewExportCommand')}
@@ -556,7 +575,7 @@ function InspectorRailImpl({
                 ) : null}
               </WidgetCard>
             )}
-          </>
+          </> : <EmptyState icon={<BookOpen />} title={t('inspector.noVaultTitle')} description={t('inspector.noVaultHint')} />
         ) : null}
       </div>
 

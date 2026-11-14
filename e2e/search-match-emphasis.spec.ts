@@ -18,4 +18,14 @@ test('search results visibly emphasize a literal match and preserve inert surrou
   await expect(results.locator('small')).toContainText('Surrounding context')
   await expect(results.locator('small')).toContainText('<script>literal()</script>')
   await expect(results.locator('small script')).toHaveCount(0)
+  const cards = results.locator('.dock-list > li')
+  await expect(cards).toHaveCount(1)
+  const geometry = await cards.first().evaluate(node => {
+    const bounds = node.getBoundingClientRect()
+    const snippet = node.querySelector('small')!
+    return { width: bounds.width, fontSize: Number.parseFloat(getComputedStyle(snippet).fontSize), lineHeight: Number.parseFloat(getComputedStyle(snippet).lineHeight) }
+  })
+  expect(geometry.width).toBeGreaterThan(230)
+  expect(geometry.fontSize).toBeGreaterThanOrEqual(13)
+  expect(geometry.lineHeight).toBeGreaterThanOrEqual(19)
 })

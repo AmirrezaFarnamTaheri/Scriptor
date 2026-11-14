@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { launchApp, settleLayout, waitForWorkspace } from './helpers'
+import { expandInspector, launchApp, settleLayout, waitForWorkspace } from './helpers'
 
 // Mermaid and Markdown math must use a patched KaTeX copy. Exercise Mermaid's
 // real math consumers after the dependency override, rather than mocking KaTeX.
@@ -19,6 +19,7 @@ for (const diagram of [
       editor.getModel().setValue(value)
     }, markdown)
     await page.locator('.editor-toolbar').getByRole('button', { name: 'Preview', exact: true }).click()
+    await expandInspector(page)
     await page.getByRole('tab', { name: 'Rendered output', exact: true }).click()
     const inspector = page.locator('.inspector-panel').getByRole('article', { name: 'Markdown preview' })
     await expect(inspector.getByRole('heading', { name: 'Math compatibility', exact: true })).toBeVisible()

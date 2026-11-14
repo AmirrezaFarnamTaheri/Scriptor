@@ -12,7 +12,10 @@
 }
 
 .onboarding-tour.unified-panel-shell .unified-panel-header {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   margin: 0;
   padding: 24px 24px 0;
   border-bottom: 0;
@@ -20,7 +23,8 @@
 }
 
 .onboarding-tour.unified-panel-shell .unified-panel-header > div:first-child {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .onboarding-progress-meta {
@@ -83,7 +87,7 @@
 
 .onboarding-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -91,7 +95,7 @@
 
 .onboarding-next-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
@@ -121,6 +125,11 @@
 
   .onboarding-actions {
     align-items: stretch;
+    gap: 8px;
+  }
+  .onboarding-actions .toolbar-button,
+  .onboarding-actions .primary-button {
+    min-width: 0;
   }
 
   .onboarding-next-actions {
@@ -131,3 +140,6 @@
     flex: 1 1 auto;
   }
 }
+
+.onboarding-tour.unified-panel-shell .unified-panel-header-actions { flex: 0 0 auto; align-self: flex-start; }
+.onboarding-tour.unified-panel-shell .unified-panel-header-actions button { min-width: 44px; min-height: 44px; }

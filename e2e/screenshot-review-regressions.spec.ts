@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { launchApp, openCommandPalette, runCommand, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers'
+import { expandInspector, launchApp, openCommandPalette, runCommand, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers'
 
 test('slow worker replaces provisional preview instead of leaving it stuck', async ({ page }) => {
   await page.addInitScript((prefs) => {
@@ -25,6 +25,7 @@ test('slow worker replaces provisional preview instead of leaving it stuck', asy
   }, WORKSPACE_CHROME_PREFS)
   await page.goto('/')
   await waitForWorkspace(page)
+  await expandInspector(page)
   await page.getByRole('tab', { name: 'Rendered output', exact: true }).click()
   const preview = page.locator('.inspector-panel').getByRole('article', { name: 'Markdown preview' })
   await expect(preview.getByRole('heading', { name: 'Delayed worker result' })).toBeVisible()
@@ -52,6 +53,7 @@ test('command palette surface is opaque', async ({ page }) => {
 
 test('task list items render checkboxes without double bullet discs', async ({ page }) => {
   await launchApp(page)
+  await expandInspector(page)
   await page.getByRole('tab', { name: 'Rendered output', exact: true }).click()
   const preview = page.locator('.inspector-panel').getByRole('article', { name: 'Markdown preview' })
   await expect(preview.getByRole('heading', { name: 'Research Plan' })).toBeVisible()

@@ -10,7 +10,7 @@ path = "src/lib.rs"
 [dependencies]
 scriptor-export-runner = { path = "../export-runner" }
 scriptor-vault = { path = "../vault" }
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.41.1", default-features = false, features = ["bundled", "cache"] }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 reqwest = { version = "0.13", features = ["json", "blocking"] }

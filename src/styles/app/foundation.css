@@ -613,6 +613,13 @@ html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
   pointer-events: none;
 }
 
+/* The inspector track is zero-width when collapsed. Removing its inline padding
+ * prevents an invisible 24px box from extending past the viewport. */
+.workspace-grid[data-inspector-collapsed='true'] > .inspector-panel {
+  padding-inline: 0;
+  visibility: hidden;
+}
+
 /* Zero-width rails with opacity:0 can still leave their descendants in the
    tab order. Hide the desktop vault rail from keyboard/accessibility navigation,
    while keeping the independently selected mobile Vault pane available. */

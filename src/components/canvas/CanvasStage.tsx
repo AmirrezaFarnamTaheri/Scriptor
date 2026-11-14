@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
-import type { CanvasBlock, CanvasPoint, CanvasRect } from '@scriptor/core/contracts/canvas'
+import { useMemo, useRef, useState } from 'react'
+import type { CanvasBlock, CanvasPoint, CanvasRect, CanvasRelation } from '@scriptor/core/contracts/canvas'
+import { visibleCanvasRelationEdges } from '../../lib/canvasRelationGeometry'
 
 import { canvasHitTest, canvasQueryBlocks } from '../../bridge/canvas'
 import { isNativeBridgeAvailable } from '../../bridge/platform'
@@ -9,6 +10,7 @@ import { useCanvasViewport } from './useCanvasViewport'
 interface CanvasStageProps {
   sceneJson: string
   blocks: CanvasBlock[]
+  relations: CanvasRelation[]
   sceneBounds: CanvasRect
   selectedBlockIds: string[]
   activeTool: string
@@ -94,6 +96,7 @@ function localBlocksInRect(blocks: CanvasBlock[], rect: CanvasRect): string[] {
 export function CanvasStage({
   sceneJson,
   blocks,
+  relations,
   sceneBounds,
   selectedBlockIds,
   activeTool,
@@ -107,6 +110,7 @@ export function CanvasStage({
   const marqueeRef = useRef<{ start: CanvasPoint; current: CanvasPoint } | null>(null)
   const [marquee, setMarquee] = useState<CanvasRect | null>(null)
   const [draftStroke, setDraftStroke] = useState<CanvasPoint[]>([])
+  const visibleRelations = useMemo(() => visibleCanvasRelationEdges(blocks, relations), [blocks, relations])
   const {
     viewBox,
     viewport,
@@ -322,6 +326,11 @@ export function CanvasStage({
           Reset view
         </button>
       </div>
+      {visibleRelations.length > 0 ? (
+        <ul className="sr-only" aria-label="Visible note relations">
+          {visibleRelations.map((edge) => <li key={edge.id}>{edge.sourceNotePath} {edge.label} {edge.targetNotePath}</li>)}
+        </ul>
+      ) : null}
       <svg
         ref={svgRef}
         className="canvas-svg"
@@ -345,6 +354,26 @@ export function CanvasStage({
           void handleStagePointerUp(event)
         }}
       >
+        <defs>
+          <marker id="canvas-note-relation-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+            <path d="M 0 0 L 10 5 L 0 10 Z" fill="var(--primary)" />
+          </marker>
+        </defs>
+        {/* Explicit authored note relations are separate from ordinary cards.
+            Render behind cards so relationship strokes never obscure titles. */}
+        <g className="canvas-relation-lines" aria-hidden="true" pointerEvents="none">
+          {visibleRelations.map((edge) => (
+            <g key={edge.id} className="canvas-note-relation" data-relation-id={edge.id}>
+              <line x1={edge.x1} y1={edge.y1} x2={edge.x2} y2={edge.y2}
+                stroke="var(--primary)" strokeWidth={2.25} markerEnd="url(#canvas-note-relation-arrow)" />
+              <text x={(edge.x1 + edge.x2) / 2} y={(edge.y1 + edge.y2) / 2 - 7}
+                textAnchor="middle" fontSize={12} fill="var(--ink)"
+                paintOrder="stroke" stroke="var(--dialog-bg, #fff)" strokeWidth={5} strokeLinejoin="round">
+                {edge.label.length > 18 ? `${edge.label.slice(0, 17)}…` : edge.label}
+              </text>
+            </g>
+          ))}
+        </g>
         {blocks.map((block) => {
           const fill = block.style?.fill ?? 'var(--surface)'
           const stroke = block.style?.stroke ?? 'var(--border-strong)'

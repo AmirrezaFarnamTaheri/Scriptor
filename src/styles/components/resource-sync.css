@@ -371,3 +371,18 @@
   .resource-table td::before { content: attr(data-label); font-weight: 700; color: var(--ink); font-size: 0.7rem; }
   .resource-table td:last-child { justify-items: start; }
 }
+
+/* VIS-026: partial application is a warning, not a completed sync. */
+.resource-sync-message.partial { border-color: var(--amber); border-inline-start: 4px solid var(--amber); background: color-mix(in srgb, var(--amber) 10%, var(--surface)); color: var(--ink); }
+.resource-sync-message.failed { border-inline-start: 4px solid var(--danger); background: color-mix(in srgb, var(--danger) 9%, var(--surface)); }
+.resource-sync-message.partial > svg, .resource-sync-message.failed > svg { flex: none; color: var(--amber); }
+.resource-sync-message.failed > svg { color: var(--danger); }
+.resource-sync-message .resource-sync-failure { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.resource-sync-message > div { min-width: 0; flex: 1; }
+.resource-sync-message .toolbar-button { justify-self: start; margin-block-start: 5px; min-height: 40px; }
+
+/* Distinguish the confirmed subset from the steps needing review. */
+.resource-sync-confirmed-ops { display: grid; gap: 5px; padding: 8px 0; border-block: 1px solid var(--border); }
+.resource-sync-confirmed-ops ul { margin: 0; padding-inline-start: 18px; display: grid; gap: 3px; }
+.resource-sync-confirmed-ops li { line-height: 1.4; overflow-wrap: anywhere; }
+.resource-sync-confirmed-ops details summary { cursor: pointer; }

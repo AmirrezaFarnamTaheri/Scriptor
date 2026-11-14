@@ -302,3 +302,17 @@
 .note-history-advanced-stats { min-width: 0; }
 .note-history-advanced-stats > summary { cursor: pointer; min-height: 40px; padding-block: 9px; font-weight: 600; }
 .note-history-advanced-stats[open] > .vocabulary-evolution { margin-block: 12px; }
+
+/* Revision comparisons are read line-by-line, not a 12px status log. */
+.note-history-timeline button { min-height:48px; line-height:1.45; }
+.note-history-timeline button strong { font-size:13px; }
+.note-history-preview-header strong, .note-history-compare h3 { font-size:13px; }
+.note-history-diff, .note-history-markdown { font-size:13px; line-height:1.55; }
+.note-history-diff-line { padding-block:3px; }
+.note-history-compare :is(pre, .note-history-diff) { overscroll-behavior-inline: contain; }
+@container unified-panel (max-width:560px) {
+  .note-history-compare { grid-template-columns:minmax(0,1fr); gap:8px; }
+  .note-history-preview-header { flex-wrap:wrap; gap:8px; }
+  .note-history-compare > section { min-width:0; }
+  .note-history-markdown { max-height:260px; overflow:auto; }
+}

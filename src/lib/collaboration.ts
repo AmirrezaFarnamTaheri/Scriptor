@@ -95,3 +95,10 @@ export function mergeSharedRevision(base: string, local: string, remote: string)
 export function hasUnresolvedSharedConflict(markdown: string): boolean {
   return /^(?:<<<<<<< Local|\|\|\|\|\|\|\| Shared base|>>>>>>> Shared revision)$/m.test(markdown)
 }
+
+/** Detect genuine merge-boundary lines without treating Markdown setext
+ * heading underlines (=======) as an unresolved conflict. A separator alone
+ * is ambiguous; a Local/Shared-base/Remote boundary is the safe signal. */
+export function hasPossibleMergeMarkers(text: string): boolean {
+  return /^(?:<<<<<<<(?:[ \t]|$)|\|{7}(?:[ \t]|$)|>>>>>>>(?:[ \t]|$))/m.test(text)
+}

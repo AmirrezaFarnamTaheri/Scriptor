@@ -46,3 +46,18 @@
 .planner-review button:hover:not(:disabled) { background: var(--surface-muted); border-color: var(--border-strong); }
 .planner-review button:disabled { opacity: .55; }
 @media(max-width:768px) { .planner-week {grid-template-columns:1fr;} .planner-day {min-height:100px;} .planner-day__hours {display:none;} .planner-day__entries {padding:6px;} .planner-day__timeline {height:auto;display:flex;flex-direction:column;gap:4px;} .planner-day__timeline .planner-block {position:static;width:100%!important;height:auto!important;min-height:44px;} }
+
+/* VIS-025/032: concise human-facing review and source-bound receipt. */
+.planner-review__summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 8px; margin: 10px 0; }
+.planner-review__summary > div { min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-raised); }
+.planner-review__summary dt { font-size: 0.72rem; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.planner-review__summary dd { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.planner-review__constraint { margin: 8px 0; border-inline-start: 3px solid var(--amber); padding: 8px 10px; background: color-mix(in srgb, var(--amber) 11%, var(--surface)); line-height: 1.5; }
+.planner-review__technical { margin: 6px 0 12px; }
+.planner-review__technical summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; color: var(--ink-muted, var(--muted)); }
+.planner-apply-receipt { border: 1px solid var(--success); border-inline-start: 4px solid var(--success); background: color-mix(in srgb, var(--success) 9%, var(--surface)); padding: 10px; border-radius: 7px; overflow-wrap: anywhere; line-height: 1.5; }
+
+/* Distinct change cards prevent the preceding row's actions from looking like a duplicate. */
+.planner-review__row { padding: 12px; margin: 10px 0; border: 1px solid var(--border-strong, var(--border)); border-radius: 10px; background: var(--surface); }
+.planner-review__row-index { margin: 0 0 7px; font-size: 0.8rem; color: var(--ink-muted, var(--muted)); font-weight: 700; }
+.planner-review__actions { margin-top: 10px; }
