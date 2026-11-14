@@ -168,6 +168,16 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     <p>Saved local source: <bdi>{document.path}</bdi></p>
     <label>Overleaf project ID or official URL<input value={project} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setProject(event.target.value) }}/></label>
     <label>Remote project source path<input value={remotePath} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setRemotePath(event.target.value) }}/></label>
+    {autoTarget && <label className="overleaf-auto-sync-toggle"><input type="checkbox" checked={autoEnabled} onChange={event => {
+      try {
+        const enabled = event.target.checked
+        writeAutoSyncEnabled(localStorage, autoTarget.key, enabled)
+        autoEnabledRef.current = enabled
+        setAutoChoice({ key: autoTarget.key, enabled })
+        if (!enabled) setStatus('Overleaf auto-sync is off for this project file. Manual review and sharing remain available.')
+      } catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)) }
+    }} />Auto-sync this Overleaf source (on by default)</label>}
+    {autoTarget && <p className="health-subtitle">Checks this source while this panel is open. Only changes with a known, unchanged shared base sync automatically; concurrent edits require review. Turning Off is remembered for this project.</p>}
     <button type="button" disabled={busy || !project.trim() || !remotePath.trim()} onClick={fetchRemote}>Fetch remote source preview</button>
     {!error && <p role="status" className="overleaf-current-status">{status}</p>}
     {error && <div className="overleaf-operation-error" role="alert">
@@ -186,7 +196,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
         <section aria-label="Saved local source"><h3>Saved local source</h3><pre>{comparison?.rows.map((row, index) => <span key={index} className={`overleaf-diff-line${row.kind === 'equal' ? '' : ' is-changed'}${row.local === null ? ' is-placeholder' : ''}`}>{row.local ?? '\u00a0'}</span>)}</pre></section>
         <section aria-label="Reviewed remote source"><h3>Remote source</h3><pre>{snapshot.content === null ? 'File absent from remote project.' : comparison?.rows.map((row, index) => <span key={index} className={`overleaf-diff-line${row.kind === 'equal' ? '' : ' is-changed'}${row.remote === null ? ' is-placeholder' : ''}`}>{row.remote ?? '\u00a0'}</span>)}</pre></section>
       </div>
-      <label>Reviewed source to apply locally or share<textarea aria-label="Reviewed source to apply locally or share" value={reviewed} disabled={busy} spellCheck={false} onChange={event => { setReviewed(event.target.value); setAccepted(false) }}/></label>
+      <label>Reviewed source to apply locally or share<textarea aria-label="Reviewed source to apply locally or share" value={reviewed} disabled={busy} spellCheck={false} onChange={event => { reviewEdited.current = true; setReviewed(event.target.value); setAccepted(false) }}/></label>
       <div className="overleaf-action-footer">
       <label className="overleaf-consent"><input type="checkbox" checked={accepted} disabled={busy} onChange={event => setAccepted(event.target.checked)}/><span>I compared both copies and reviewed this source for the selected action</span></label>
       <div className="overleaf-review-actions">
@@ -198,6 +208,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
       <button type="button" disabled={busy || !accepted} onClick={() => void run(async () => {
         const current = generation.current; await guard(); const result = await overleafPush(document.vault_id, project, remotePath, reviewed, snapshot)
         if (current !== generation.current) return
+        baseline.current = autoTarget && result.content === document.content ? { key: autoTarget.key, content: document.content } : null
         setSnapshot(result); setAccepted(false); setPreviousShare(new Date().toLocaleString()); setStatus('Reviewed source shared with Overleaf. Local source remains unchanged.')
       }, 'share')} aria-label="Share reviewed source with Overleaf"><span className="overleaf-action-full">Share reviewed source with Overleaf</span><span className="overleaf-action-compact" aria-hidden="true">Share with Overleaf</span></button>
       </div>
