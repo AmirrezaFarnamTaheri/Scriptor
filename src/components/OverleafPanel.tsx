@@ -6,12 +6,19 @@ import { sourceFileRead, sourceFileSave } from '../bridge/commands/source_files'
 import { type SourceDocument } from '../lib/sourceFile'
 import { type OverleafSnapshot, overleafProjectId, overleafFilePath } from '../lib/overleaf'
 import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled, decideAutoSync } from '../lib/autoSyncPreference'
+import { overleafBindingKey, readOverleafBinding, saveOverleafBinding, forgetOverleafBinding } from '../lib/overleafBinding'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import '../styles/components/overleaf.css'
 export interface OverleafPanelProps { document: SourceDocument; onClose: () => void; onApplied: (document: SourceDocument) => void }
 export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelProps) {
-  const [project, setProject] = useState(''); const [remotePath, setRemotePath] = useState(document.path)
+  const bindingKey = useMemo(() => {
+    try { return overleafBindingKey(document.vault_id, document.path) }
+    catch { return null }
+  }, [document.vault_id, document.path])
+  const [linked] = useState(() => bindingKey ? readOverleafBinding(localStorage, bindingKey) : null)
+  const [project, setProject] = useState(linked?.projectId ?? '')
+  const [remotePath, setRemotePath] = useState(linked?.remotePath ?? document.path)
   const [snapshot, setSnapshot] = useState<OverleafSnapshot | null>(null); const [reviewed, setReviewed] = useState('')
   const [busy, setBusy] = useState(false); const [accepted, setAccepted] = useState(false)
   const [status, setStatus] = useState('Fetch a remote preview to compare it with the saved local source.'); const [error, setError] = useState<string | null>(null)
@@ -75,6 +82,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     const result = await overleafRead(document.vault_id, project, remotePath)
     if (current !== generation.current) return
     setSnapshot(result)
+    if (bindingKey && autoTarget) { try { saveOverleafBinding(localStorage, bindingKey, autoTarget.projectId, remotePath) } catch { /* Keep a working session even when preference storage is full. */ } }
     baseline.current = autoTarget && result.content === local.content ? { key: autoTarget.key, content: local.content } : null
     reviewEdited.current = false
     setReviewed(result.content ?? document.content)
@@ -97,6 +105,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
         if (!current()) return
         const remote = await overleafRead(document.vault_id, project, remotePath)
         if (!current()) return
+        if (bindingKey) { try { saveOverleafBinding(localStorage, bindingKey, autoTarget.projectId, remotePath) } catch { /* Sync remains available even when optional link storage fails. */ } }
         const common = baseline.current?.key === autoTarget.key ? baseline.current.content : null
         const direction = decideAutoSync(common, local.content, remote.content)
         if (reviewEdited.current) {
@@ -151,7 +160,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
       if (timer) clearTimeout(timer)
       window.document.removeEventListener('visibilitychange', resumed)
     }
-  }, [autoEnabled, autoTarget, document.vault_id, document.path, project, remotePath, onApplied])
+  }, [autoEnabled, autoTarget, bindingKey, document.vault_id, document.path, project, remotePath, onApplied])
   const comparison = snapshot ? alignReviewedSource(document.content, snapshot.content ?? '') : null
   const localEndings = sourceLineEndingStyle(document.content)
   const remoteEndings = snapshot?.content === null || !snapshot ? null : sourceLineEndingStyle(snapshot.content)
@@ -168,6 +177,11 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     <p>Saved local source: <bdi>{document.path}</bdi></p>
     <label>Overleaf project ID or official URL<input value={project} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setProject(event.target.value) }}/></label>
     <label>Remote project source path<input value={remotePath} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setRemotePath(event.target.value) }}/></label>
+    {bindingKey && project && <button type="button" className="toolbar-button" disabled={busy} onClick={() => {
+      try { forgetOverleafBinding(localStorage, bindingKey) } catch { /* Re-entering a project is still possible. */ }
+      changeTarget(); setProject(''); setRemotePath(document.path)
+      setStatus('Saved Overleaf project link cleared. Select a project to connect again.')
+    }}>Forget saved Overleaf link</button>}
     {autoTarget && <label className="overleaf-auto-sync-toggle"><input type="checkbox" checked={autoEnabled} onChange={event => {
       try {
         const enabled = event.target.checked
