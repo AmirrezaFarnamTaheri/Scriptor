@@ -10,6 +10,7 @@ import { collaborationCreateFolder, collaborationGetAccount, collaborationListDo
 import { acceptGoogleResourcePage, appendGoogleResources, GOOGLE_COLLABORATION_COPY, googleCollaborationMappingKey, parseGoogleCollaborationSetup, type GoogleResource } from '../lib/googleCollaborationSetup'
 import { useI18n } from '../lib/i18n'
 import { alignReviewedSource } from '../lib/reviewDiff'
+import { AutoRevisionInbox } from '../lib/autoRevisionInbox'
 import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled, safeIncomingDecision } from '../lib/autoSyncPreference'
 import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
@@ -57,8 +58,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   const folderTokens = useRef(new Set<string>())
   const documentTokens = useRef(new Set<string>())
   const revisionTokens = useRef(new Set<string>())
-  const autoSeenRevisions = useRef(new Set<string>())
-  const autoListingInitialized = useRef(false)
+  const autoInbox = useRef(new AutoRevisionInbox())
   const autoUploadPaused = useRef(false)
   const autoKey = (() => {
     try { return account && vaultId && folderId && path ? autoSyncPreferenceKey('google_drive', vaultId, account, folderId, path) : null }
@@ -71,17 +71,12 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     revisionTokens.current.clear(); revisionTokens.current.add('')
     setRows(appendGoogleResources([], result.files)); setPageToken(result.nextPageToken)
     if (!autoEnabled || !account || !vaultId || !path || !folderId || result.nextPageToken) return
-    const fresh = result.files.filter(item => !autoSeenRevisions.current.has(item.id))
-    if (!autoListingInitialized.current) {
-      for (const item of result.files) autoSeenRevisions.current.add(item.id)
-      autoListingInitialized.current = true
-      return
-    }
-    // Only newly discovered revisions are candidates. Historic folder content
-    // must never be silently imported on the first connection.
-    if (occupied.current) return
+    // The first page is historical context, never permission to import it.
+    // Only mark a later candidate handled after a successful read/decision.
+    const fresh = autoInbox.current.observe(result.files.map(item => item.id))
+    if (occupied.current || !autoInbox.current.canPublish) return
     if (!fresh.length) {
-      if (transport === 'drive_json' && !autoUploadPaused.current && base.current?.path === path) {
+      if (transport === 'drive_json' && !autoUploadPaused.current && autoInbox.current.canPublish && base.current?.path === path) {
         const current = epoch.current
         void vaultReadNote(path).then(note => {
           if (current !== epoch.current || !autoEnabledRef.current || occupied.current || autoUploadPaused.current) return
@@ -91,19 +86,19 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       }
       return
     }
-    const batch = fresh.slice(0, 5)
-    for (const item of batch) autoSeenRevisions.current.add(item.id)
+    const candidates = new Set(fresh)
+    const batch = result.files.filter(item => candidates.has(item.id))
     void run(async current => {
       for (const row of batch) {
         const record = await collaborationRead(vaultId, folderId, row.id, transport)
         if (current !== epoch.current || !autoEnabledRef.current) return
-        if (record.document !== path || record.peer_id === peer.current) continue
+        if (record.document !== path || record.peer_id === peer.current) { autoInbox.current.markHandled(row.id); continue }
         const local = await vaultReadNote(path)
         if (current !== epoch.current || !autoEnabledRef.current) return
         if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
         const trustedBase = base.current?.path === path ? base.current.markdown : null
         const decision = safeIncomingDecision(trustedBase, record.base_markdown, local.markdown, record.markdown)
-        if (decision === 'equal') { remember(local.markdown); continue }
+        if (decision === 'equal') { remember(local.markdown); autoInbox.current.markHandled(row.id); continue }
         const merged = mergeSharedRevision(record.base_markdown, local.markdown, record.markdown)
         if (decision === 'pull' && !hasPossibleMergeMarkers(record.markdown)) {
           if (!autoEnabledRef.current) return
@@ -113,15 +108,18 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           })
           if (current !== epoch.current || !autoEnabledRef.current) return
           if (!saved) throw new Error('An unsaved editor draft prevented automatic import. Save it and review the incoming revision.')
+          autoInbox.current.markHandled(row.id)
           setMessage(`Incoming shared revision automatically applied from ${record.peer_id}.${remember(record.markdown)}`)
           await onApplied()
         } else {
+          autoInbox.current.markHandled(row.id)
+          autoInbox.current.blockForReview()
           setPreview({ record, ...merged, hash: local.metadata.content_hash, lineChanges: alignReviewedSource(local.markdown, record.markdown).summary })
           setMessage('Concurrent shared changes need a manual merge. Nothing was overwritten.')
           return
         }
       }
-    })
+    }).catch(() => { autoInbox.current.blockForReview() })
   }, autoEnabled)
   const epoch = useRef(0)
   const base = useRef<{ path: string; markdown: string } | null>(null)
@@ -168,7 +166,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       setFolders(null); setFolderPage(undefined); setDocuments(null); setDocumentPage(undefined)
       setPageToken(undefined); setDocsId(''); setDocsConsent(false)
       folderTokens.current.clear(); documentTokens.current.clear(); revisionTokens.current.clear()
-      autoSeenRevisions.current.clear(); autoListingInitialized.current = false; autoUploadPaused.current = false
+      autoInbox.current.reset(); autoUploadPaused.current = false
       base.current = null; peer.current = crypto.randomUUID()
       setMessage(copy.accountChanged)
       loadAccount()
@@ -183,7 +181,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     epoch.current++
     operation.current++; occupied.current = false; setBusy(false)
     setRows([]); setPageToken(undefined); setPreview(null); setDocsPreview(null)
-    autoSeenRevisions.current.clear(); autoListingInitialized.current = false; autoUploadPaused.current = false
+    autoInbox.current.reset(); autoUploadPaused.current = false
     setDocuments(null); setDocumentPage(undefined); setDocsId(''); setDocsConsent(false); 
     documentTokens.current.clear(); revisionTokens.current.clear()
     base.current = null
@@ -280,7 +278,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     epoch.current++; operation.current++; occupied.current = false; setBusy(false)
     polling.stop()
     setFolderId(id); setPreview(null); setRows([]); setPageToken(undefined)
-    autoSeenRevisions.current.clear(); autoListingInitialized.current = false
+    autoInbox.current.reset()
     setDocsConsent(false); setDocsPreview(null); setDocsId('')
     setDocuments(null); setDocumentPage(undefined); documentTokens.current.clear()
   }
@@ -312,7 +310,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         <p>The last shared ancestor and this note’s peer identity are cached on this device, scoped to the confirmed Google account, vault and Drive folder. This cache includes note text; it is separate from your Markdown files and credentials.</p>
         <p>Revisions preserve local, base and remote text so overlapping changes can be resolved before applying them.</p>
       </details>
-      <label>{t('collaborationUi.format')}<select aria-label={t('collaborationUi.format')} value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); setTransport(event.target.value as CollaborationTransport); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">{t('collaborationUi.driveFiles')}</option><option value="google_docs">{t('collaborationUi.legacyDocs')}</option></select></label>
+      <label>{t('collaborationUi.format')}<select aria-label={t('collaborationUi.format')} value={transport} disabled={busy || polling.starting} onChange={event => { polling.stop(); autoInbox.current.reset(); setTransport(event.target.value as CollaborationTransport); setRows([]); setPageToken(undefined); setPreview(null) }}><option value="drive_json">{t('collaborationUi.driveFiles')}</option><option value="google_docs">{t('collaborationUi.legacyDocs')}</option></select></label>
       {!hasPackagedGoogleOAuthClient() && import.meta.env.DEV && <details className="google-developer-setup">
         <summary>{t('integrations.google.developerSetup')}</summary>
         <label>Google OAuth desktop client ID<input value={clientIdOverride ?? googleConfig?.google_client_id ?? ''} onChange={event => setClientIdOverride(event.target.value)} disabled={busy} autoComplete="off" /></label>
@@ -440,6 +438,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
           if (!applied) throw new Error('The editor could not save its draft. Save it and review the incoming revision again.')
           if (current === epoch.current) {
             const warning = remember(preview.markdown)
+            autoInbox.current.releaseReview()
             setPreview(null); setMessage(`Reviewed merge saved.${warning}`); await onApplied()
           }
         })}>{t('collaborationUi.saveReviewed')}</button>
