@@ -851,6 +851,7 @@
       "showEvents": "Show Calendar events in Tasks",
       "mirrorTasks": "Enable vault → Google Tasks mirroring (changes are sent only after your approval)",
       "connect": "Connect Google",
+      "switchAccount": "Switch Google account",
       "syncNow": "Sync now",
       "disconnect": "Disconnect",
       "status": {
