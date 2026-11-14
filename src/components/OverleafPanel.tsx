@@ -81,6 +81,77 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     setAccepted(false)
     setStatus(result.content === null ? 'Remote file does not exist. Sharing creates it; applying a remote copy is unavailable.' : 'Remote preview loaded. Compare both copies and explicitly review the merged source.')
   })
+  useEffect(() => {
+    if (!autoEnabled || !autoTarget) return
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const epoch = generation.current
+    const current = () => !stopped && autoEnabledRef.current && epoch === generation.current
+    const schedule = (delay: number) => { if (current()) timer = setTimeout(() => { void tick() }, delay) }
+    const tick = async () => {
+      if (!current()) return
+      if (window.document.hidden || pending.current) { schedule(30_000); return }
+      pending.current = true
+      try {
+        const local = await sourceFileRead(document.vault_id, document.path)
+        if (!current()) return
+        const remote = await overleafRead(document.vault_id, project, remotePath)
+        if (!current()) return
+        const common = baseline.current?.key === autoTarget.key ? baseline.current.content : null
+        const direction = decideAutoSync(common, local.content, remote.content)
+        if (reviewEdited.current) {
+          setSnapshot(remote); setAccepted(false)
+          setStatus('Auto-sync detected the latest remote state while you were editing a review. Check both copies before applying.')
+          return
+        }
+        if (direction === 'equal') {
+          baseline.current = { key: autoTarget.key, content: local.content }
+          setSnapshot(remote); setReviewed(local.content); setAccepted(false)
+          setStatus('Auto-sync active: the saved local and Overleaf copies match.')
+        } else if (direction === 'pull' && remote.content !== null) {
+          if (!current()) return
+          const updated = await sourceFileSave(local, remote.content)
+          if (!current()) return
+          baseline.current = { key: autoTarget.key, content: remote.content }
+          setStatus('Auto-sync imported an unchanged-base update from Overleaf.')
+          onApplied(updated)
+        } else if (direction === 'push' && remote.content !== null) {
+          if (!current()) return
+          const result = await overleafPush(document.vault_id, project, remotePath, local.content, remote)
+          if (!current()) return
+          baseline.current = { key: autoTarget.key, content: local.content }
+          setSnapshot(result); setReviewed(local.content); setAccepted(false)
+          setStatus('Auto-sync shared saved local changes with Overleaf.')
+        } else {
+          setSnapshot(remote); setReviewed(remote.content ?? local.content); setAccepted(false)
+          setStatus('Auto-sync found different local and remote content. Review before applying or sharing; neither copy was overwritten.')
+        }
+      } catch (caught) {
+        if (current()) {
+          const detail = caught instanceof Error ? caught.message : String(caught)
+          setError(`Auto-sync paused: ${detail}`)
+          setStatus('Auto-sync paused after a provider or authorization error. Refresh manually or turn auto-sync off and on to retry.')
+          stopped = true
+        }
+      } finally {
+        pending.current = false
+        if (current()) schedule(30_000)
+      }
+    }
+    const resumed = () => {
+      if (!window.document.hidden && current()) {
+        if (timer) clearTimeout(timer)
+        schedule(1_000)
+      }
+    }
+    window.document.addEventListener('visibilitychange', resumed)
+    schedule(1_000)
+    return () => {
+      stopped = true
+      if (timer) clearTimeout(timer)
+      window.document.removeEventListener('visibilitychange', resumed)
+    }
+  }, [autoEnabled, autoTarget, document.vault_id, document.path, project, remotePath, onApplied])
   const comparison = snapshot ? alignReviewedSource(document.content, snapshot.content ?? '') : null
   const localEndings = sourceLineEndingStyle(document.content)
   const remoteEndings = snapshot?.content === null || !snapshot ? null : sourceLineEndingStyle(snapshot.content)
