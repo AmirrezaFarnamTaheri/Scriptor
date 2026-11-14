@@ -44,7 +44,7 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
     return () => { release(); document.removeEventListener('visibilitychange', hidden) }
   }, [folderId, vaultId, path, transport, accountScope, stop, release])
   const start = useCallback(async () => {
-    if (!folderId || !vaultId || pending.current || lease.current) return
+    if (!accountScope.trim() || !folderId || !vaultId || pending.current || lease.current) return
     pending.current = true
     const current = ++generation.current
     setStarting(true); setError('')
@@ -97,7 +97,7 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
   useEffect(() => { startRef.current = start }, [start])
   useEffect(() => { autoEnabledRef.current = autoStart }, [autoStart])
   useEffect(() => {
-    if (!autoStart || !folderId || !vaultId || !path || document.hidden) return
+    if (!autoStart || !accountScope.trim() || !folderId || !vaultId || !path || document.hidden) return
     let live = true
     void Promise.resolve().then(() => { if (live) void start() })
     return () => { live = false }
