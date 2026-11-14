@@ -73,6 +73,20 @@ test('Drive keeps important account and cache privacy details available without 
   await expect.poll(async () => (await calls(page)).filter(call => call.cmd === 'collaboration_poll_read').length).toBeGreaterThan(0)
 })
 
+test('Drive switches accounts while auto-sync is on without reusing the old account lease', async ({ page }) => {
+  await launchGoogle(page)
+  const panel = await openDrive(page)
+  await expect.poll(async () => (await calls(page)).filter(call => call.cmd === 'collaboration_poll_read').length).toBeGreaterThan(0)
+  const switchAccount = panel.getByRole('button', { name: 'Switch Google account', exact: true })
+  await expect(switchAccount).toBeEnabled()
+  await page.evaluate(() => sessionStorage.setItem('e2e:google-return-other-account', '1'))
+  await switchAccount.click()
+  await expect(panel.getByText('switched@example.com', { exact: false })).toBeVisible()
+  await expect.poll(async () => (await calls(page)).filter(call => call.cmd === 'collaboration_poll_stop').length).toBeGreaterThanOrEqual(1)
+  await expect.poll(async () => (await calls(page)).filter(call => call.cmd === 'collaboration_poll_start').length).toBeGreaterThanOrEqual(2)
+  await expect(panel.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })).toBeChecked()
+})
+
 test('Drive discovers and deduplicates folders, authorizes creation, and persists its transport after reopening', async ({ page }, testInfo) => {
   await launchGoogle(page)
   const panel = await openDrive(page)
