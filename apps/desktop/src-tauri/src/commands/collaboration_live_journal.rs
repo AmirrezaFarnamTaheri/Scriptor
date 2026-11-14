@@ -362,6 +362,24 @@ impl LocalJournal {
         })
     }
 
+    pub(crate) fn projected_baseline(&self, scope: &JournalScope) -> Result<String, String> {
+        scope.validate()?;
+        self.connection
+            .query_row(
+                "SELECT base_hash FROM documents WHERE vault_id=?1 AND room_id=?2
+                 AND document_id=?3 AND epoch=?4 AND note_path=?5",
+                params![
+                    scope.vault_id,
+                    scope.room_id,
+                    scope.document_id,
+                    scope.epoch as i64,
+                    scope.note_path
+                ],
+                |row| row.get(0),
+            )
+            .map_err(|_| "Collaboration projection has no approved baseline".to_string())
+    }
+
     /**
      * Move the materialized file baseline forward only after a vault-CAS write
      * succeeded. The FULL/WAL journal and its unsent CRDT updates are retained.
