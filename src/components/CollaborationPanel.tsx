@@ -310,6 +310,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       </section>
       {preview && <>
         <h3>{t('collaborationUi.reviewHeading')}</h3>
+        <p className="collaboration-revision-provenance" role="note">Incoming revision by peer <bdi>{preview.record.peer_id}</bdi> · <time dateTime={preview.record.created_at}>{new Date(preview.record.created_at).toLocaleString()}</time>. Changes are applied only after your review; this is not simultaneous co-editing.</p>
         <p>{t(preview.conflict || hasPossibleMergeMarkers(preview.markdown) ? 'collaborationUi.conflict' : 'collaborationUi.ready')}</p>
         {hasPossibleMergeMarkers(preview.markdown) && <div className="collaboration-conflict-warning" role="alert">
           <strong>Unresolved revision markers need review</strong>
