@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
-import { alignReviewedSource } from '../lib/reviewDiff'
+import { alignReviewedSource, sourceLineEndingStyle } from '../lib/reviewDiff'
 import { overleafRead, overleafPush } from '../bridge/commands/overleaf'
 import { sourceFileRead, sourceFileSave } from '../bridge/commands/source_files'
 import { type SourceDocument } from '../lib/sourceFile'
@@ -66,6 +66,8 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     setStatus(result.content === null ? 'Remote file does not exist. Sharing creates it; applying a remote copy is unavailable.' : 'Remote preview loaded. Compare both copies and explicitly review the merged source.')
   })
   const comparison = snapshot ? alignReviewedSource(document.content, snapshot.content ?? '') : null
+  const localEndings = sourceLineEndingStyle(document.content)
+  const remoteEndings = snapshot?.content === null || !snapshot ? null : sourceLineEndingStyle(snapshot.content)
   return <div className="modal-backdrop"><section className="modal-card overleaf-panel" ref={dialog} role="dialog" aria-modal="true" aria-label="Overleaf source sync" data-help-topic="git">
     <header><h2>Overleaf source sync</h2><button type="button" aria-label="Close Overleaf sync" title="Close" onClick={onClose}><X aria-hidden="true" size={18} /></button></header>
     <div className="overleaf-panel-body" dir="auto">
@@ -92,6 +94,7 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     {snapshot && <>
       <h3 className="overleaf-step-heading">2. Compare and review changes</h3>
       <p className="overleaf-diff-legend">Aligned line review · {comparison?.summary.added ?? 0} added · {comparison?.summary.removed ?? 0} removed · {comparison?.summary.changed ?? 0} changed. Local content check <code>{document.content_hash.slice(0, 10)}</code> · Remote revision <code>{snapshot.head.slice(0, 10)}</code>. {comparison?.simplified ? 'Large comparison: simplified alignment; review both full copies before sharing.' : null}</p>
+      {remoteEndings && localEndings !== 'none' && remoteEndings !== 'none' && localEndings !== remoteEndings ? <p className="overleaf-diff-legend" role="note">Line-ending formats differ: saved source uses {localEndings}, remote source uses {remoteEndings}. Line counts describe visible text; preserving the chosen source formatting requires checking the exact source.</p> : null}
       <div className="overleaf-comparison">
         <section aria-label="Saved local source"><h3>Saved local source</h3><pre>{comparison?.rows.map((row, index) => <span key={index} className={`overleaf-diff-line${row.kind === 'equal' ? '' : ' is-changed'}${row.local === null ? ' is-placeholder' : ''}`}>{row.local ?? '\u00a0'}</span>)}</pre></section>
         <section aria-label="Reviewed remote source"><h3>Remote source</h3><pre>{snapshot.content === null ? 'File absent from remote project.' : comparison?.rows.map((row, index) => <span key={index} className={`overleaf-diff-line${row.kind === 'equal' ? '' : ' is-changed'}${row.remote === null ? ' is-placeholder' : ''}`}>{row.remote ?? '\u00a0'}</span>)}</pre></section>
