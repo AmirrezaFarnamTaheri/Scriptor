@@ -309,12 +309,16 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       </section>
       {preview && <>
         <h3>{t('collaborationUi.reviewHeading')}</h3>
-        <p>{t(preview.conflict ? 'collaborationUi.conflict' : 'collaborationUi.ready')}</p>
+        <p>{t(preview.conflict || hasPossibleMergeMarkers(preview.markdown) ? 'collaborationUi.conflict' : 'collaborationUi.ready')}</p>
+        {hasPossibleMergeMarkers(preview.markdown) && <div className="collaboration-conflict-warning" role="alert">
+          <strong>Unresolved revision markers need review</strong>
+          <p>Resolve all Local, Shared base and Shared revision sections before saving. Your vault note stays unchanged until you confirm the reviewed merge.</p>
+        </div>}
         <details className="collaboration-guidance"><summary>{t('collaborationUi.versionDetails')}</summary>
           <p>{t('collaborationUi.versionShared', { date: preview.record.created_at })} · <bdi>{preview.record.peer_id}</bdi></p>
         </details>
         <label>{t('collaborationUi.reviewLabel')}<textarea rows={16} value={preview.markdown} disabled={busy} onChange={event => setPreview({ ...preview, markdown: event.target.value })} /></label>
-        <button disabled={busy || !vaultId || hasUnresolvedSharedConflict(preview.markdown)} onClick={() => void run(async current => {
+        <button disabled={busy || !vaultId || hasUnresolvedSharedConflict(preview.markdown) || hasPossibleMergeMarkers(preview.markdown)} onClick={() => void run(async current => {
           if (preview.record.document !== path) throw new Error('Selected note changed; review again.')
           const applied = await runSourceNoteMutation(path!, async () => {
             await vaultSaveNote(path!, preview.markdown, preview.hash, false, vaultId!)
