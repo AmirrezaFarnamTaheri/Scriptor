@@ -17,6 +17,8 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
   const receive = useRef(onListing)
   const startRef = useRef<(() => Promise<void>) | null>(null)
   const autoEnabledRef = useRef(autoStart)
+  const mounted = useRef(false)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   useEffect(() => { receive.current = onListing }, [onListing])
   const release = useCallback(() => {
     const current = ++generation.current
@@ -78,7 +80,19 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
       }
       void tick()
     } catch (reason) { if (current === generation.current) { setError(String(reason)); setStarting(false) } }
-    finally { pending.current = false; setStarting(false) }
+    finally {
+      pending.current = false
+      if (mounted.current) setStarting(false)
+      // A cancelled, in-flight authorization may have prevented the new
+      // folder's start attempt. Re-arm only the latest context, never a
+      // retired lease and never after unmount or explicit Off.
+      if (current !== generation.current && mounted.current && autoEnabledRef.current && !document.hidden) {
+        void Promise.resolve().then(() => {
+          if (mounted.current && autoEnabledRef.current && !pending.current && !lease.current)
+            void startRef.current?.()
+        })
+      }
+    }
   }, [folderId, vaultId, transport, stop, release])
   useEffect(() => { startRef.current = start }, [start])
   useEffect(() => { autoEnabledRef.current = autoStart }, [autoStart])
