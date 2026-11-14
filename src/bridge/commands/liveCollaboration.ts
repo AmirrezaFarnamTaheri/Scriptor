@@ -170,3 +170,19 @@ export function nativeLiveCollaborationJournalPort(): DurableLocalJournalPort {
     },
   }
 }
+
+/** Returns only the public Ed25519 registration key for a currently approved
+ * native document lease. The private signing key never enters the JS runtime. */
+export async function collaborationLivePublicKey(
+  expectedVaultId: string,
+  sessionId: string,
+): Promise<string> {
+  requireNative()
+  const pem: unknown = await invoke('collaboration_live_public_key', {
+    expectedVaultId, sessionId,
+  })
+  if (typeof pem !== 'string' || !/^-----BEGIN PUBLIC KEY-----\n[A-Za-z0-9+/=\n]+\n-----END PUBLIC KEY-----\n$/.test(pem)) {
+    throw new Error('Native collaboration identity returned an invalid public key')
+  }
+  return pem
+}
