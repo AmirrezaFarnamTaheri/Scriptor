@@ -118,7 +118,9 @@ impl SensitiveOperation {
             Self::KeychainWrite => "Store an AI provider credential",
             Self::LatexCompilation => "Compile a LaTeX document with Tectonic",
             Self::LiveCollaborationStart => "Enable local collaborative editing for this note",
-            Self::LiveCollaborationConnect => "Connect this note to an authenticated collaboration relay",
+            Self::LiveCollaborationConnect => {
+                "Connect this note to an authenticated collaboration relay"
+            }
             Self::PdfTranslation => "Run the configured PDF translation tool",
             Self::PlantUmlExecution => "Run a local PlantUML renderer",
             Self::PublishSite => "Publish this vault as a site",
