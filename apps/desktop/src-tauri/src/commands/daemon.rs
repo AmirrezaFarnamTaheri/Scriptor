@@ -12,7 +12,7 @@ use tauri::path::BaseDirectory;
 
 use crate::AppState;
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
-use crate::state::{lock_recover, verify_daemon_vault};
+use crate::state::{active_session, lock_recover, verify_daemon_vault};
 
 static RPC_ID: AtomicU64 = AtomicU64::new(1);
 
