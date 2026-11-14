@@ -20,11 +20,14 @@ async function open(page: Page) {
       }
       if (command === 'overleaf_read') {
         if (sessionStorage.getItem('e2e:overleaf-delay') === '1') await new Promise(resolve => setTimeout(resolve, 5000))
-        const remoteSource = sessionStorage.getItem('e2e:overleaf-insert') === '1'
-          ? content + '% newly inserted remote line\r\n'
-          : sessionStorage.getItem('e2e:overleaf-lf') === '1'
-            ? content.replaceAll('\r\n', '\n')
-            : '\\section{Remote}\r\n'
+        const remoteSource = sessionStorage.getItem('e2e:overleaf-live-update') === '1'
+          ? '\\section{Remote updated by co-author}\r\n'
+          : sessionStorage.getItem('e2e:overleaf-matching') === '1' ? content
+            : sessionStorage.getItem('e2e:overleaf-insert') === '1'
+              ? content + '% newly inserted remote line\r\n'
+              : sessionStorage.getItem('e2e:overleaf-lf') === '1'
+                ? content.replaceAll('\r\n', '\n')
+                : '\\section{Remote}\r\n'
         return { head: 'c'.repeat(40), content: remoteSource, content_hash: 'd'.repeat(64) }
       }
       if (command === 'overleaf_push') {
@@ -115,4 +118,30 @@ test('Overleaf warns when the same visible lines use different line endings', as
   await expect(dialog.getByRole('note')).toContainText('saved source uses CRLF, remote source uses LF')
   const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command: string}>)
   expect(calls.filter(call => call.command === 'overleaf_push' || call.command === 'source_file_save')).toHaveLength(0)
+})
+
+test('Overleaf auto-sync defaults on and fast-forwards a clean remote co-author update', async ({ page }) => {
+  await page.clock.install()
+  const { editor, dialog } = await open(page)
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-matching', '1'))
+  const auto = dialog.getByRole('checkbox', { name: 'Auto-sync this Overleaf source (on by default)' })
+  await expect(auto).toBeChecked()
+  await page.clock.fastForward(1_100)
+  await expect(dialog.locator('.overleaf-current-status')).toContainText('Auto-sync')
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-live-update', '1'))
+  await page.clock.fastForward(31_000)
+  await expect(dialog).toHaveCount(0)
+  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('\\section{Remote updated by co-author}\r\n')
+  const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command: string}>)
+  expect(calls.filter(call => call.command === 'source_file_save')).toHaveLength(1)
+  expect(calls.filter(call => call.command === 'overleaf_push')).toHaveLength(0)
+})
+test('Turning Overleaf auto-sync off prevents all automatic provider requests', async ({ page }) => {
+  await page.clock.install()
+  const { dialog } = await open(page)
+  const auto = dialog.getByRole('checkbox', { name: 'Auto-sync this Overleaf source (on by default)' })
+  await auto.uncheck()
+  await page.clock.fastForward(61_000)
+  const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command: string}>)
+  expect(calls.filter(call => call.command === 'overleaf_read' || call.command === 'overleaf_push' || call.command === 'source_file_save')).toHaveLength(0)
 })
