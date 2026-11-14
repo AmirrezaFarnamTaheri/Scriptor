@@ -1,0 +1,54 @@
+name: Collaboration editor binding verification
+
+on:
+  push:
+    branches:
+      - feat/collaboration-editor-native-2026-11-15
+    paths:
+      - 'src/lib/liveCollaboration*'
+      - 'src/components/editor/MonacoMarkdownEditor.tsx'
+      - 'src/components/shell/EditorWorkspace.tsx'
+      - 'packages/editor/src/codemirror.tsx'
+      - 'packages/editor/src/collaboration-port.ts'
+      - 'packages/editor/package.json'
+      - '.github/workflows/collaboration-editor-binding.yml'
+  pull_request:
+    paths:
+      - 'src/lib/liveCollaboration*'
+      - 'src/components/editor/MonacoMarkdownEditor.tsx'
+      - 'src/components/shell/EditorWorkspace.tsx'
+      - 'packages/editor/src/codemirror.tsx'
+      - 'packages/editor/src/collaboration-port.ts'
+      - 'packages/editor/package.json'
+      - '.github/workflows/collaboration-editor-binding.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collaboration-editor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  types-and-behavior:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+      - name: Configure Node.js 22.16.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.16.0'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Compile source TypeScript
+        run: pnpm exec tsc -b --pretty false
+      - name: Verify CRDT coordinator and journal-gated editor boundary
+        run: node --experimental-strip-types --test src/lib/liveCollaborationYjs.test.ts src/lib/liveCollaborationDurableSession.test.ts src/lib/liveCollaborationEditorBinding.test.ts
