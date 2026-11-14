@@ -1,0 +1,41 @@
+name: Collaboration CRDT dependency lock preview
+
+on:
+  push:
+    branches:
+      - feat/collaboration-yjs-convergence-2026-11-14
+    paths:
+      - '.github/workflows/collaboration-yjs-lock-preview.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  generate-lock-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout this exact branch commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure pnpm 10.33.0
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+      - name: Configure Node.js 22.16.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.16.0'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Verify baseline is frozen
+        run: pnpm install --frozen-lockfile
+      - name: Produce dependency proposal without modifying the repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm add -w --save-exact --lockfile-only yjs@13.6.33 y-monaco@0.1.6
+          pnpm --filter @scriptor/editor add --save-exact --lockfile-only yjs@13.6.33 y-codemirror.next@0.3.6 y-protocols@1.0.6
+          echo 'SCRIPTOR_COLLAB_LOCK_DIFF_BEGIN'
+          git --no-pager diff --no-color -- package.json packages/editor/package.json pnpm-lock.yaml
+          echo 'SCRIPTOR_COLLAB_LOCK_DIFF_END'
+          git status --short
