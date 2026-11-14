@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { DurableLocalJournalPort } from '../../lib/liveCollaborationDurableSession.ts'
+import { listen } from '@tauri-apps/api/event'
+import type { DurableCollaborationSession, DurableLocalJournalPort } from '../../lib/liveCollaborationDurableSession.ts'
 import { requireNative } from '../native.ts'
 import { authorizeSensitiveOperation } from './authorization.ts'
 import {
@@ -185,4 +186,130 @@ export async function collaborationLivePublicKey(
     throw new Error('Native collaboration identity returned an invalid public key')
   }
   return pem
+}
+
+export interface NativeRelayConnectReceipt {
+  sessionId: string
+  role: 'owner' | 'editor' | 'viewer'
+}
+
+export interface AuthenticatedNativeRelayEvent {
+  sessionId: string
+  roomId: string
+  documentId: string
+  epoch: number
+  kind: 'connected' | 'remote_update' | 'ack' | 'error' | 'disconnected'
+  peerId?: string
+  messageId?: string
+  clientSeq?: number
+  cursor?: number
+  payload?: string
+  role?: 'owner' | 'editor' | 'viewer'
+}
+
+function validatedRelayEndpoint(endpoint: string): string {
+  if (typeof endpoint !== 'string' || endpoint.length > 2048) {
+    throw new Error('Invalid collaboration WSS endpoint')
+  }
+  let url: URL
+  try {
+    url = new URL(endpoint)
+  } catch {
+    throw new Error('Invalid collaboration WSS endpoint')
+  }
+  if (url.protocol !== 'wss:' || !url.hostname ||
+    url.username || url.password || url.search || url.hash ||
+    url.pathname !== '/v1/live') {
+    throw new Error('Collaboration relay must be a trusted wss:// endpoint')
+  }
+  return endpoint
+}
+
+export async function collaborationLiveConnect(
+  scope: NativeCollaborationDocument,
+  sessionId: string,
+  endpoint: string,
+): Promise<NativeRelayConnectReceipt> {
+  requireNative()
+  parseLiveCollaborationScope(scope)
+  const endpointUrl = validatedRelayEndpoint(endpoint)
+  const bound = ['live-remote', scope.roomId, scope.documentId, scope.epoch, scope.notePath, endpointUrl].join(':')
+  const authorizationToken = await authorizeSensitiveOperation('live_collaboration_connect', bound)
+  const receipt: unknown = await invoke('collaboration_live_connect', {
+    expectedVaultId: scope.vaultId, sessionId, endpointUrl, authorizationToken,
+  })
+  if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) {
+    throw new Error('Native relay did not confirm authenticated membership')
+  }
+  const value = receipt as Record<string, unknown>
+  if (value.sessionId !== sessionId ||
+      !['owner', 'editor', 'viewer'].includes(String(value.role))) {
+    throw new Error('Native relay returned an invalid authorization role')
+  }
+  return { sessionId, role: value.role as NativeRelayConnectReceipt['role'] }
+}
+
+export async function collaborationLiveDisconnect(
+  scope: NativeCollaborationDocument,
+  sessionId: string,
+): Promise<boolean> {
+  requireNative()
+  return invoke<boolean>('collaboration_live_disconnect', {
+    expectedVaultId: scope.vaultId, sessionId,
+  })
+}
+
+const NATIVE_RELAY_EVENT = 'scriptor:collaboration:relay'
+const CANONICAL_RELAY_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
+
+/**
+ * Consume only native transport events tied to the active approved local lease.
+ * The Rust worker has already verified TLS, challenge proof, role, and relay
+ * update metadata. Never deserialize untrusted peer messages directly into
+ * the coordinator without this native boundary.
+ */
+export async function listenToNativeCollaborationRelay(
+  scope: NativeCollaborationDocument,
+  sessionId: string,
+  session: DurableCollaborationSession,
+  onError: (error: Error) => void,
+): Promise<() => void> {
+  requireNative()
+  parseLiveCollaborationScope(scope)
+  return listen<AuthenticatedNativeRelayEvent>(NATIVE_RELAY_EVENT, event => {
+    const message = event.payload
+    if (!message || message.sessionId !== sessionId ||
+      message.roomId !== scope.roomId ||
+      message.documentId !== scope.documentId ||
+      message.epoch !== scope.epoch) return
+    if (message.kind === 'error') {
+      onError(new Error('Authenticated relay disconnected; unsent updates remain in native journal'))
+      return
+    }
+    if (message.kind !== 'remote_update') return
+    try {
+      const { peerId, messageId, clientSeq, payload } = message
+      if (typeof peerId !== 'string' || typeof messageId !== 'string' ||
+        !Number.isSafeInteger(clientSeq) || (clientSeq as number) <= 0 ||
+        typeof payload !== 'string' || payload.length > 350000 ||
+        !CANONICAL_RELAY_BASE64.test(payload)) {
+        throw new Error('Malformed native relay update event')
+      }
+      parseLiveCollaborationEnvelope({
+        version: 1, kind: 'LOCAL_UPDATE',
+        ...scope, peerId, messageId, clientSeq, payload,
+      }, { ...scope, peerId })
+      const binary = atob(payload)
+      if (!binary || binary.length > 256 * 1024) {
+        throw new Error('Invalid relay update size')
+      }
+      const decoded = Uint8Array.from(binary, ch => ch.charCodeAt(0))
+      session.receiveRemote(decoded, {
+        roomId: scope.roomId, documentId: scope.documentId,
+        epoch: scope.epoch, peerId,
+      })
+    } catch (error) {
+      onError(error instanceof Error ? error : new Error('Invalid authenticated relay update'))
+    }
+  })
 }
