@@ -69,7 +69,8 @@ test('Drive keeps important account and cache privacy details available without 
   await details.locator('summary').click()
   await expect(details).toHaveAttribute('open', '')
   await expect(panel.getByText('The last shared ancestor and this note’s peer identity', { exact: false })).toBeVisible()
-  await expect(panel.getByRole('button', { name: 'Start automatic checks', exact: true })).toBeVisible()
+  await expect(panel.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })).toBeChecked()
+  await expect.poll(async () => (await calls(page)).filter(call => call.cmd === 'collaboration_poll_read').length).toBeGreaterThan(0)
 })
 
 test('Drive discovers and deduplicates folders, authorizes creation, and persists its transport after reopening', async ({ page }, testInfo) => {
