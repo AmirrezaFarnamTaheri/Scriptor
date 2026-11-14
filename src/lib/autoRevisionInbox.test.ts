@@ -45,3 +45,11 @@ test('each incoming poll processes a bounded batch and leaves later revisions pe
   assert.equal(inbox.canPublish, false)
   assert.deepEqual(inbox.observe(ids), [])
 })
+
+test('duplicated provider IDs cannot enqueue the same incoming revision twice', () => {
+  const inbox = new AutoRevisionInbox()
+  inbox.observe([])
+  assert.deepEqual(inbox.observe(['peer-a','peer-a','peer-b','peer-b']), ['peer-a','peer-b'])
+  inbox.markHandled('peer-a')
+  assert.deepEqual(inbox.observe(['peer-a','peer-a','peer-b']), ['peer-b'])
+})
