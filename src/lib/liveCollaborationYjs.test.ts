@@ -142,3 +142,45 @@ test('editing is forbidden before authenticated seed hydration and after disposa
   assert.throws(() => owner.change(-1, 99, 'out of bounds'), /range|bounds|invalid/i)
   assert.equal(owner.value, 'test')
 })
+
+
+test('staging a text edit is invisible until committed and remains in per-author undo', () => {
+  const { owner, updates } = seed('original')
+  const bob = join('bob', updates)
+  const stage = owner.prepareChange(8, 8, ' saved')
+  assert.ok(stage)
+  assert.equal(owner.value, 'original')
+  assert.equal(bob.value, 'original')
+  owner.commitPrepared(stage)
+  bob.applyRemote(stage.update, sender('alice'))
+  assert.equal(owner.value, 'original saved')
+  assert.equal(bob.value, 'original saved')
+  assert.ok(owner.undo(), 'staged edit must be in the local author undo manager')
+  assert.equal(owner.value, 'original')
+  owner.close()
+  bob.close()
+})
+
+test('staged and remote updates merge without silently losing a new author edit', () => {
+  const { owner, updates } = seed('baseline')
+  const bob = join('bob', updates)
+  const stage = owner.prepareChange(8, 8, ' Alice')
+  assert.ok(stage)
+  const remote = bob.change(8, 8, ' Bob')
+  owner.applyRemote(remote, sender('bob'))
+  owner.commitPrepared(stage)
+  bob.applyRemote(stage.update, sender('alice'))
+  assert.equal(owner.value, bob.value)
+  assert.ok(owner.value.includes(' Alice'))
+  assert.ok(owner.value.includes(' Bob'))
+  assert.throws(() => owner.commitPrepared(stage), /prepared|identity|payload/i)
+})
+
+test('forged or modified prepared payloads cannot be committed', () => {
+  const { owner } = seed('safe')
+  const stage = owner.prepareChange(4, 4, ' protected')
+  assert.ok(stage)
+  stage.update[0] ^= 0xff
+  assert.throws(() => owner.commitPrepared(stage), /prepared|identity|payload/i)
+  assert.equal(owner.value, 'safe')
+})

@@ -6,6 +6,10 @@ import {
   type LiveCollaborationScope,
 } from './liveCollaborationProtocol.ts'
 
+export interface PreparedCollaborationChange {
+  readonly update: Uint8Array
+}
+
 export interface RemoteCollaborationAuthor {
   roomId: string
   documentId: string
@@ -46,6 +50,7 @@ export class CollaborativeMarkdown {
   private doc: Y.Doc | null = null
   private undoManager: Y.UndoManager | null = null
   private disposed = false
+  private staged: { view: PreparedCollaborationChange; bytes: Uint8Array } | null = null
 
   constructor(scope: LiveCollaborationScope) {
     this.scope = parseLiveCollaborationScope(scope)
@@ -53,6 +58,11 @@ export class CollaborativeMarkdown {
 
   get ready(): boolean {
     return !this.disposed && this.doc !== null
+  }
+
+  /** Verify a locally approved model is bound to the same native vault lease. */
+  boundScope(): LiveCollaborationScope {
+    return { ...this.scope }
   }
 
   get value(): string {
@@ -160,9 +170,72 @@ export class CollaborativeMarkdown {
     return checkedUpdate(updates.length === 1 ? updates[0] : Y.mergeUpdates(updates))
   }
 
+  /**
+   * Produce a Yjs update against a temporary copy. The active editor text is
+   * untouched until the native FULL/WAL append confirms local durability.
+   * Only one stage is permitted; an ambiguous append must retry these bytes.
+   */
+  prepareChange(from: number, to: number, insert: string): PreparedCollaborationChange | null {
+    const doc = this.activeDoc()
+    if (this.staged) throw new Error('A collaboration update is pending durable retry')
+    const text = doc.getText('markdown')
+    if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) ||
+      from < 0 || from > to || to > text.length) {
+      throw new Error('Invalid CRDT edit range')
+    }
+    if (typeof insert !== 'string' || encoder.encode(insert).byteLength > MAX_INITIAL_CHUNK_BYTES) {
+      throw new Error('CRDT edit insertion exceeds the bounded transaction')
+    }
+    const before = text.toString()
+    const after = before.slice(0, from) + insert + before.slice(to)
+    checkedText(after)
+    if (after === before) return null
+
+    const replica = new Y.Doc()
+    try {
+      Y.applyUpdate(replica, Y.encodeStateAsUpdate(doc), originForRemote)
+      const candidate = replica.getText('markdown')
+      replica.transact(() => {
+        if (to > from) candidate.delete(from, to - from)
+        if (insert) candidate.insert(from, insert)
+      }, this.localOrigin)
+      checkedText(candidate.toString())
+      const update = checkedUpdate(Y.encodeStateAsUpdate(replica, Y.encodeStateVector(doc)))
+      const view: PreparedCollaborationChange = Object.freeze({ update: new Uint8Array(update) })
+      this.staged = { view, bytes: new Uint8Array(update) }
+      return view
+    } finally {
+      replica.destroy()
+    }
+  }
+
+  /** Apply only the exact update previously acknowledged by the native journal. */
+  commitPrepared(prepared: PreparedCollaborationChange): void {
+    const doc = this.activeDoc()
+    const stage = this.staged
+    if (!stage || stage.view !== prepared || !prepared.update ||
+      prepared.update.byteLength !== stage.bytes.byteLength ||
+      prepared.update.some((byte, index) => byte !== stage.bytes[index])) {
+      throw new Error('Prepared collaboration update identity or payload mismatch')
+    }
+    // Remote edits may have arrived during the native commit. Check the merged
+    // materialized size before applying the locally accepted staged update.
+    const probe = new Y.Doc()
+    try {
+      Y.applyUpdate(probe, Y.encodeStateAsUpdate(doc), originForRemote)
+      Y.applyUpdate(probe, stage.bytes, originForRemote)
+      checkedText(probe.getText('markdown').toString())
+    } finally {
+      probe.destroy()
+    }
+    Y.applyUpdate(doc, stage.bytes, this.localOrigin)
+    this.staged = null
+  }
+
   /** UTF-16 offsets match CodeMirror and Monaco model positions. */
   change(from: number, to: number, insert: string): Uint8Array {
     const doc = this.activeDoc()
+    if (this.staged) throw new Error('A collaboration update is pending durable retry')
     const text = doc.getText('markdown')
     if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to)
       || from < 0 || from > to || to > text.length) throw new Error('Invalid CRDT edit range')
@@ -233,6 +306,7 @@ export class CollaborativeMarkdown {
   close(): void {
     if (this.disposed) return
     this.disposed = true
+    this.staged = null
     this.undoManager?.destroy()
     this.doc?.destroy()
     this.undoManager = null
