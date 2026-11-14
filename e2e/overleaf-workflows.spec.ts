@@ -22,7 +22,9 @@ async function open(page: Page) {
         if (sessionStorage.getItem('e2e:overleaf-delay') === '1') await new Promise(resolve => setTimeout(resolve, 5000))
         const remoteSource = sessionStorage.getItem('e2e:overleaf-insert') === '1'
           ? content + '% newly inserted remote line\r\n'
-          : '\\section{Remote}\r\n'
+          : sessionStorage.getItem('e2e:overleaf-lf') === '1'
+            ? content.replaceAll('\r\n', '\n')
+            : '\\section{Remote}\r\n'
         return { head: 'c'.repeat(40), content: remoteSource, content_hash: 'd'.repeat(64) }
       }
       if (command === 'overleaf_push') {
@@ -101,6 +103,16 @@ test('Overleaf insertion aligns surviving lines without suggesting unrelated edi
   await expect(dialog.locator('.overleaf-diff-legend')).toContainText('1 added · 0 removed · 0 changed')
   await expect(dialog.locator('[aria-label="Saved local source"] .overleaf-diff-line.is-placeholder')).toHaveCount(1)
   await expect(dialog.locator('[aria-label="Reviewed remote source"] .overleaf-diff-line.is-changed')).toHaveCount(1)
+  const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command: string}>)
+  expect(calls.filter(call => call.command === 'overleaf_push' || call.command === 'source_file_save')).toHaveLength(0)
+})
+
+test('Overleaf warns when the same visible lines use different line endings', async ({ page }) => {
+  const { dialog } = await open(page)
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-lf', '1'))
+  await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
+  await expect(dialog.locator('.overleaf-diff-legend').first()).toContainText('0 added · 0 removed · 0 changed')
+  await expect(dialog.getByRole('note')).toContainText('saved source uses CRLF, remote source uses LF')
   const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command: string}>)
   expect(calls.filter(call => call.command === 'overleaf_push' || call.command === 'source_file_save')).toHaveLength(0)
 })
