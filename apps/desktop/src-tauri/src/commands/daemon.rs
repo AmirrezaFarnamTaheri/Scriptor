@@ -420,6 +420,8 @@ pub fn daemon_save_note(
     expected_content_hash: Option<String>,
     dry_run: Option<bool>,
 ) -> Result<String, String> {
+    let session = active_session(&state)?;
+    super::collaboration_live::reject_if_live_owned(&state, &session.descriptor.id, &path)?;
     bridge_save_note(&state, path, markdown, expected_content_hash, dry_run)
 }
 #[tauri::command]
