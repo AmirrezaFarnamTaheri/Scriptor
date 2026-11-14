@@ -1,0 +1,48 @@
+name: Collaboration relay integration
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'services/collaboration-relay/**'
+      - 'src/lib/liveCollaboration*.ts'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/collaboration-relay.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collaboration-relay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  relay-transport:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Configure pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+      - name: Configure pinned Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.16.0'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Require WebSocket library and OpenSSL
+        run: |
+          pnpm --dir services/collaboration-relay exec node -e "require.resolve('ws')"
+          openssl version
+      - name: Relay protocol and real WSS tests
+        run: |
+          pnpm --dir services/collaboration-relay test
+          node --experimental-strip-types --test src/lib/liveCollaborationProtocol.test.ts src/lib/liveCollaborationQueue.test.ts
