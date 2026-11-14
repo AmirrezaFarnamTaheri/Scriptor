@@ -89,7 +89,7 @@ export class CollaborationEditorController {
       await this.session.retry()
       this.failed = false
       this.reconcile(this.session.value)
-      this.surface.setReadOnly(false)
+      if (!this.disposed && this.session.ready) this.surface.setReadOnly(false)
     } finally {
       this.busy = false
     }
