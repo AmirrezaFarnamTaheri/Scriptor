@@ -208,6 +208,24 @@ test('A saved local edit reaches Overleaf automatically when the remote baseline
   expect(history.filter(call => call.command === 'source_file_save')).toHaveLength(1)
 })
 
+test('An author can switch linked-file auto-sync off while keeping an unsaved draft', async ({ page }) => {
+  await page.clock.install()
+  const { editor, dialog } = await open(page)
+  await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Close Overleaf sync', exact: true }).click()
+  await editor.getByLabel('Source file content', { exact: true }).fill('\\section{Draft kept}\n')
+  const toggle = editor.getByRole('checkbox', { name: 'Auto-sync linked Overleaf file', exact: true })
+  await expect(toggle).toBeChecked()
+  await toggle.uncheck()
+  await expect(toggle).not.toBeChecked()
+  const readsBefore = await page.evaluate(() => (JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command:string}>).filter(call => call.command === 'overleaf_read').length)
+  await page.clock.fastForward(61_000)
+  const history = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command:string}>)
+  expect(history.filter(call => call.command === 'overleaf_read')).toHaveLength(readsBefore)
+  expect(history.filter(call => call.command === 'source_file_save' || call.command === 'overleaf_push')).toHaveLength(0)
+  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('\\section{Draft kept}\n')
+})
+
 test('Off suppresses background Overleaf reads after closing the dialog', async ({ page }) => {
   await page.clock.install()
   const { dialog } = await open(page)
