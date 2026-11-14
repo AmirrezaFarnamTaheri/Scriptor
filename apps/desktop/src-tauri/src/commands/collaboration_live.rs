@@ -56,6 +56,29 @@ pub struct LivePendingUpdate {
     payload: String,
 }
 
+fn scope_owns_note(scope: &JournalScope, vault_id: &str, note_path: &str) -> bool {
+    scope.vault_id == vault_id && scope.note_path == note_path
+}
+
+/// Prevent normal autosave/daemon writes from racing a native collaborative
+/// source owner. This is a fail-closed safeguard, not yet a CAS projector.
+pub(crate) fn reject_if_live_owned(
+    state: &AppState,
+    vault_id: &str,
+    note_path: &str,
+) -> Result<(), String> {
+    let leases = lock_recover(&state.live_collaboration_sessions, "collaboration leases");
+    if leases
+        .values()
+        .any(|lease| scope_owns_note(&lease.scope, vault_id, note_path))
+    {
+        return Err(
+            "Live collaboration owns this Markdown note; ordinary save is disabled".into(),
+        );
+    }
+    Ok(())
+}
+
 fn approval_scope(scope: &JournalScope) -> String {
     format!(
         "live:{}:{}:{}:{}",
@@ -129,6 +152,11 @@ pub fn collaboration_live_start(
     let mut leases = lock_recover(&state.live_collaboration_sessions, "collaboration leases");
     if leases.len() >= MAX_LOCAL_SESSIONS {
         return Err("Local collaboration session limit reached".into());
+    }
+    if leases.values().any(|existing| {
+        scope_owns_note(&existing.scope, &scope.vault_id, &scope.note_path)
+    }) {
+        return Err("Live collaboration already has an owner for this note".into());
     }
     leases.insert(
         session_id.clone(),
@@ -240,6 +268,21 @@ pub fn collaboration_live_stop(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn local_file_can_have_only_one_collaboration_owner() {
+        let owned = JournalScope {
+            vault_id: "vault_A".into(),
+            room_id: "room_one".into(),
+            document_id: "doc_one".into(),
+            epoch: 2,
+            peer_id: "peer_one".into(),
+            note_path: "notes/owner.md".into(),
+        };
+        assert!(scope_owns_note(&owned, "vault_A", "notes/owner.md"));
+        assert!(!scope_owns_note(&owned, "vault_B", "notes/owner.md"));
+        assert!(!scope_owns_note(&owned, "vault_A", "notes/other.md"));
+    }
 
     #[test]
     fn approval_scope_binds_the_selected_room_document_epoch_and_path() {
