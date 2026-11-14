@@ -134,12 +134,23 @@ test('dense Knowledge Graph focused and all-link modes are captured at phone wid
   await expect(graph.locator('.graph-stage')).toBeInViewport({ ratio: 0.98 })
   await expect(graph.locator('.graph-header')).toBeInViewport({ ratio: 0.95 })
   await expect(graph.locator('.graph-header')).toHaveCSS('position', 'sticky')
-  // Scrolling the dense stage used to leave "Find a note" visible through the
-  // translucent sticky title bar. Its backdrop must match the opaque dialog.
-  const headerBackground = await graph.locator('.graph-header').evaluate(node => getComputedStyle(node).backgroundColor)
-  const dialogBackground = await graph.evaluate(node => getComputedStyle(node).backgroundColor)
-  expect(headerBackground).toBe(dialogBackground)
+  // Capture the expanded view before style assertions so a failure still
+  // leaves inspectable evidence of the actual scrolled pixels.
   await page.screenshot({ path: testInfo.outputPath('visual-app-graph-dense-all-links-390.png'), animations: 'disabled', caret: 'hide' })
+  // The modal's computed background can be transparent because of the shell
+  // cascade. Verify the sticky header against the actual opaque theme token,
+  // not against the modal element's computed background.
+  const headerBackground = await graph.locator('.graph-header').evaluate(node => getComputedStyle(node).backgroundColor)
+  const themeDialogBackground = await graph.evaluate(node => {
+    const probe = document.createElement('span')
+    probe.style.backgroundColor = 'var(--dialog-bg, var(--bg-elevated))'
+    node.appendChild(probe)
+    const color = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return color
+  })
+  expect(headerBackground).toBe(themeDialogBackground)
+  expect(headerBackground).not.toBe('rgba(0, 0, 0, 0)')
 })
 
 test('Explore Notes Repair and Collections are visibly navigable at 320px', async ({ page }, testInfo) => {
