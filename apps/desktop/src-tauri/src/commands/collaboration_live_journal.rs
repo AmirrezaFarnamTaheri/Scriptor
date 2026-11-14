@@ -238,8 +238,11 @@ impl LocalJournal {
                 "SELECT COUNT(*) FROM pending_updates WHERE vault_id=?1 AND
                     room_id=?2 AND document_id=?3 AND epoch=?4 AND peer_id=?5",
                 params![
-                    scope.vault_id, scope.room_id, scope.document_id,
-                    scope.epoch as i64, scope.peer_id
+                    scope.vault_id,
+                    scope.room_id,
+                    scope.document_id,
+                    scope.epoch as i64,
+                    scope.peer_id
                 ],
                 |row| row.get(0),
             )
@@ -261,9 +264,12 @@ impl LocalJournal {
         payload: &[u8],
     ) -> Result<JournalAppend, String> {
         scope.validate()?;
-        if !valid_hash(current_content_hash) || !valid_id(message_id)
-            || client_seq == 0 || client_seq > i64::MAX as u64
-            || payload.is_empty() || payload.len() > MAX_UPDATE_BYTES
+        if !valid_hash(current_content_hash)
+            || !valid_id(message_id)
+            || client_seq == 0
+            || client_seq > i64::MAX as u64
+            || payload.is_empty()
+            || payload.len() > MAX_UPDATE_BYTES
         {
             return Err("Invalid local collaboration update".into());
         }
@@ -275,7 +281,12 @@ impl LocalJournal {
             .query_row(
                 "SELECT note_path,base_hash FROM documents WHERE vault_id=?1 AND
                     room_id=?2 AND document_id=?3 AND epoch=?4",
-                params![scope.vault_id, scope.room_id, scope.document_id, scope.epoch as i64],
+                params![
+                    scope.vault_id,
+                    scope.room_id,
+                    scope.document_id,
+                    scope.epoch as i64
+                ],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()
@@ -291,8 +302,12 @@ impl LocalJournal {
                 "SELECT client_seq,payload FROM pending_updates WHERE vault_id=?1 AND
                     room_id=?2 AND document_id=?3 AND epoch=?4 AND peer_id=?5 AND message_id=?6",
                 params![
-                    scope.vault_id, scope.room_id, scope.document_id, scope.epoch as i64,
-                    scope.peer_id, message_id
+                    scope.vault_id,
+                    scope.room_id,
+                    scope.document_id,
+                    scope.epoch as i64,
+                    scope.peer_id,
+                    message_id
                 ],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
@@ -312,18 +327,31 @@ impl LocalJournal {
             .query_row(
                 "SELECT COALESCE(SUM(LENGTH(payload)),0) FROM pending_updates WHERE
                     vault_id=?1 AND room_id=?2 AND document_id=?3 AND epoch=?4",
-                params![scope.vault_id, scope.room_id, scope.document_id, scope.epoch as i64],
+                params![
+                    scope.vault_id,
+                    scope.room_id,
+                    scope.document_id,
+                    scope.epoch as i64
+                ],
                 |row| row.get(0),
             )
             .map_err(|error| error.to_string())?;
         if pending_bytes > MAX_PENDING_BYTES - payload.len() as i64 {
-            return Err("Collaboration journal capacity reached; local updates were preserved".into());
+            return Err(
+                "Collaboration journal capacity reached; local updates were preserved".into(),
+            );
         }
         tx.execute(
             "INSERT INTO pending_updates VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
             params![
-                scope.vault_id, scope.room_id, scope.document_id, scope.epoch as i64,
-                scope.peer_id, message_id, client_seq as i64, payload
+                scope.vault_id,
+                scope.room_id,
+                scope.document_id,
+                scope.epoch as i64,
+                scope.peer_id,
+                message_id,
+                client_seq as i64,
+                payload
             ],
         )
         .map_err(|error| format!("Duplicate collaboration sequence or database error: {error}"))?;
@@ -354,8 +382,12 @@ impl LocalJournal {
         let rows = statement
             .query_map(
                 params![
-                    scope.vault_id, scope.room_id, scope.document_id,
-                    scope.epoch as i64, scope.peer_id, after_sequence as i64
+                    scope.vault_id,
+                    scope.room_id,
+                    scope.document_id,
+                    scope.epoch as i64,
+                    scope.peer_id,
+                    after_sequence as i64
                 ],
                 |row| {
                     Ok(PendingOperation {
@@ -423,7 +455,10 @@ mod tests {
         assert_eq!(journal.begin(&s, hash()).unwrap().pending_count, 0);
         assert_eq!(
             journal.append(&s, hash(), "msg_1", 1, &[1, 2, 3]).unwrap(),
-            JournalAppend { duplicate: false, locally_durable: true }
+            JournalAppend {
+                duplicate: false,
+                locally_durable: true
+            }
         );
         drop(journal);
         let mut restored = LocalJournal::open(temporary.path()).unwrap();
@@ -431,7 +466,9 @@ mod tests {
         assert_eq!(
             restored.pending(&s, 0).unwrap(),
             vec![PendingOperation {
-                message_id: "msg_1".into(), client_seq: 1, payload: vec![1, 2, 3]
+                message_id: "msg_1".into(),
+                client_seq: 1,
+                payload: vec![1, 2, 3]
             }]
         );
         let mut different = s.clone();
@@ -449,7 +486,12 @@ mod tests {
         let mut journal = LocalJournal::open(temporary.path()).unwrap();
         journal.begin(&s, hash()).unwrap();
         journal.append(&s, hash(), "first", 1, &[1]).unwrap();
-        assert!(journal.append(&s, hash(), "first", 1, &[1]).unwrap().duplicate);
+        assert!(
+            journal
+                .append(&s, hash(), "first", 1, &[1])
+                .unwrap()
+                .duplicate
+        );
         assert!(journal.append(&s, hash(), "first", 1, &[2]).is_err());
         assert!(journal.append(&s, hash(), "second", 1, &[1]).is_err());
         assert_eq!(journal.pending(&s, 0).unwrap().len(), 1);
@@ -498,7 +540,11 @@ mod tests {
         journal.begin(&s, hash()).unwrap();
         journal.append(&s, hash(), "first", 1, &[1]).unwrap();
         assert!(journal.append(&s, hash(), "bad", 2, &[]).is_err());
-        assert!(journal.append(&s, hash(), "big", 2, &vec![7; MAX_UPDATE_BYTES + 1]).is_err());
+        assert!(
+            journal
+                .append(&s, hash(), "big", 2, &vec![7; MAX_UPDATE_BYTES + 1])
+                .is_err()
+        );
         assert!(journal.append(&s, hash(), "../bad", 2, &[1]).is_err());
         assert_eq!(journal.pending(&s, 0).unwrap().len(), 1);
     }
@@ -510,7 +556,9 @@ mod tests {
         let mut journal = LocalJournal::open(temporary.path()).unwrap();
         journal.begin(&s, hash()).unwrap();
         for index in 1..=70 {
-            journal.append(&s, hash(), &format!("msg_{index}"), index, &[7]).unwrap();
+            journal
+                .append(&s, hash(), &format!("msg_{index}"), index, &[7])
+                .unwrap();
         }
         assert_eq!(journal.pending(&s, 0).unwrap().len(), MAX_PAGE_ROWS);
         assert_eq!(journal.pending(&s, 64).unwrap().len(), 6);

@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use base64::Engine as _;
-use serde::{Deserialize, Serialize};
 use scriptor_vault::{RelativeVaultPath, read_note};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::collaboration_live_journal::{JournalScope, LocalJournal};
@@ -113,10 +113,9 @@ pub fn collaboration_live_start(
             return Err("Local collaboration session limit reached".into());
         }
     }
-    let relative = RelativeVaultPath::parse(&scope.note_path)
-        .map_err(|error| error.to_string())?;
-    let document = read_note(&scope.vault_id, &session.root, &relative)
-        .map_err(|error| error.to_string())?;
+    let relative = RelativeVaultPath::parse(&scope.note_path).map_err(|error| error.to_string())?;
+    let document =
+        read_note(&scope.vault_id, &session.root, &relative).map_err(|error| error.to_string())?;
     require_sensitive_operation(
         &state,
         &authorization_token,
@@ -175,8 +174,8 @@ pub fn collaboration_live_append(
     {
         return Err("Invalid collaboration update payload".into());
     }
-    let relative = RelativeVaultPath::parse(&lease.scope.note_path)
-        .map_err(|error| error.to_string())?;
+    let relative =
+        RelativeVaultPath::parse(&lease.scope.note_path).map_err(|error| error.to_string())?;
     let document = read_note(&lease.scope.vault_id, &session.root, &relative)
         .map_err(|error| error.to_string())?;
     let mut journal = lock_recover(&lease.journal, "collaboration local journal");
