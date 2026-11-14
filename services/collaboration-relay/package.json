@@ -8,8 +8,8 @@
   },
   "scripts": {
     "test": "node --experimental-sqlite --experimental-strip-types --test test/*.test.mjs",
-    "serve": "node --experimental-sqlite src/cli.mjs serve",
-    "bootstrap": "node --experimental-sqlite src/cli.mjs bootstrap"
+    "serve": "node --experimental-sqlite --experimental-strip-types src/cli.mjs serve",
+    "bootstrap": "node --experimental-sqlite --experimental-strip-types src/cli.mjs bootstrap"
   },
   "dependencies": {
     "ws": "8.22.0"

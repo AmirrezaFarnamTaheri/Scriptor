@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { generateKeyPairSync } from 'node:crypto'
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -36,3 +36,11 @@ test('insecure bootstrap and server startup missing TLS fail closed',async()=>{
     if(process.platform !== 'win32') await assert.rejects(executeRelayCommand('bootstrap',env),/private|permission/i)
     await assert.rejects(executeRelayCommand('serve',env),/TLS|certificate|key/i)
   }finally{rmSync(dir,{recursive:true,force:true})}
+
+test('operator CLI scripts enable TypeScript stripping for the shared protocol parser', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  for (const name of ['serve', 'bootstrap']) {
+    assert.match(manifest.scripts[name], /--experimental-strip-types/)
+    assert.match(manifest.scripts[name], /--experimental-sqlite/)
+  }
+})
