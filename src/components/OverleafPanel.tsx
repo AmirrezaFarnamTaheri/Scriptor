@@ -38,7 +38,9 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
   const autoEnabledRef = useRef(autoEnabled)
   useEffect(() => { autoEnabledRef.current = autoEnabled }, [autoEnabled])
   useFocusTrap(dialog, { active: true }); useEscapeToClose(true, onClose)
-  useEffect(() => { const epoch = generation; epoch.current++; return () => { epoch.current++ } }, [document.vault_id, document.path, document.content_hash])
+  // Updating the hash after an approved auto-import must not cancel this watch.
+  // The same-file CAS still detects unexpected local changes on each transfer.
+  useEffect(() => { const epoch = generation; epoch.current++; return () => { epoch.current++ } }, [document.vault_id, document.path])
   useEffect(() => {
     const preventPendingSwitch = (event: Event) => {
       if (pending.current) (event as CustomEvent<{ waitUntil: (decision: Promise<boolean>) => void }>).detail?.waitUntil(Promise.resolve(false))
