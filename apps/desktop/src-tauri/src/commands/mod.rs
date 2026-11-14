@@ -7,6 +7,7 @@ pub mod collaboration;
 pub mod collaboration_live;
 pub(crate) mod collaboration_live_journal;
 pub(crate) mod collaboration_live_identity;
+pub(crate) mod collaboration_live_relay;
 pub mod daemon;
 pub mod export;
 pub mod export_pdf;
