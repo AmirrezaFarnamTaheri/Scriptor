@@ -27,8 +27,8 @@ use commands::collaboration::{
     collaboration_write,
 };
 use commands::collaboration_live::{
-    collaboration_live_append, collaboration_live_pending, collaboration_live_start,
-    collaboration_live_stop,
+    collaboration_live_append, collaboration_live_pending, collaboration_live_project,
+    collaboration_live_start, collaboration_live_stop,
 };
 use commands::daemon::{
     daemon_backlinks, daemon_endpoint, daemon_export_cancel, daemon_export_job_status,
@@ -235,6 +235,7 @@ pub fn run() {
             collaboration_live_start,
             collaboration_live_append,
             collaboration_live_pending,
+            collaboration_live_project,
             collaboration_live_stop,
             collaboration_poll_start,
             collaboration_poll_read,
