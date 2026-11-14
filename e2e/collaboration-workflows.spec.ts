@@ -62,7 +62,8 @@ test('Explicit Google Drive Auto-sync Off survives a panel reload', async ({ pag
   await openCommandPalette(page)
   await runCommand(page, 'Drive collaboration')
   const reopened = page.getByRole('region', { name: 'Drive collaboration', exact: true })
-  await expect(reopened.getByLabel('Shared folder ID', { exact: true })).toHaveValue('shared-folder')
+  // This fixture does not persist vault config; reselect the same folder.
+  await reopened.getByLabel('Shared folder ID', { exact: true }).fill('shared-folder')
   await expect(reopened.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })).not.toBeChecked()
   expect((await calls(page, 'collaboration_poll_start')).length).toBe(before)
 })
