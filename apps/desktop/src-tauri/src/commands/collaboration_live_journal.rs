@@ -362,6 +362,46 @@ impl LocalJournal {
         })
     }
 
+    /**
+     * Move the materialized file baseline forward only after a vault-CAS write
+     * succeeded. The FULL/WAL journal and its unsent CRDT updates are retained.
+     *
+     * A rejected stale hash is an external-content conflict; never reset the
+     * history or treat it as a successful file projection.
+     */
+    pub(crate) fn advance_projected_baseline(
+        &mut self,
+        scope: &JournalScope,
+        expected_hash: &str,
+        new_hash: &str,
+    ) -> Result<bool, String> {
+        scope.validate()?;
+        if !valid_hash(expected_hash) || !valid_hash(new_hash) {
+            return Err("Invalid collaborative projection hash".into());
+        }
+        let tx = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|error| error.to_string())?;
+        let affected = tx
+            .execute(
+                "UPDATE documents SET base_hash=?1 WHERE vault_id=?2 AND room_id=?3
+                 AND document_id=?4 AND epoch=?5 AND note_path=?6 AND base_hash=?7",
+                params![
+                    new_hash,
+                    scope.vault_id,
+                    scope.room_id,
+                    scope.document_id,
+                    scope.epoch as i64,
+                    scope.note_path,
+                    expected_hash,
+                ],
+            )
+            .map_err(|error| error.to_string())?;
+        tx.commit().map_err(|error| error.to_string())?;
+        Ok(affected == 1)
+    }
+
     pub(crate) fn pending(
         &self,
         scope: &JournalScope,
