@@ -24,6 +24,7 @@ async function open(page: Page) {
           ? '\\section{Another co-author update}\r\n'
           : sessionStorage.getItem('e2e:overleaf-live-update') === '1'
           ? '\\section{Remote updated by co-author}\r\n'
+          : sessionStorage.getItem('e2e:overleaf-remote-unchanged') === '1' ? '\\section{Local}\r\n'
           : sessionStorage.getItem('e2e:overleaf-matching') === '1' ? content
             : sessionStorage.getItem('e2e:overleaf-insert') === '1'
               ? content + '% newly inserted remote line\r\n'
@@ -170,6 +171,41 @@ test('A linked Overleaf source keeps watching after the sync dialog closes', asy
   const history = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command:string; args: {content?: string}}>)
   expect(history.filter(call => call.command === 'source_file_save').map(call => call.args.content)).toEqual(['\\section{Remote updated by co-author}\r\n'])
   expect(history.filter(call => call.command === 'overleaf_push')).toHaveLength(0)
+})
+
+test('An unsaved source draft blocks background auto-sync without losing edits', async ({ page }) => {
+  await page.clock.install()
+  const { editor, dialog } = await open(page)
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-matching', '1'))
+  await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Close Overleaf sync', exact: true }).click()
+  await editor.getByLabel('Source file content', { exact: true }).fill('\\section{Unsaved draft}\n')
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-live-update', '1'))
+  const before = await page.evaluate(() => (JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command:string}>).filter(call => call.command === 'overleaf_read').length)
+  await page.clock.fastForward(31_000)
+  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('\\section{Unsaved draft}\n')
+  const history = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command:string}>)
+  expect(history.filter(call => call.command === 'overleaf_read')).toHaveLength(before)
+  expect(history.filter(call => call.command === 'source_file_save' || call.command === 'overleaf_push')).toHaveLength(0)
+})
+
+test('A saved local edit reaches Overleaf automatically when the remote baseline is unchanged', async ({ page }) => {
+  await page.clock.install()
+  const { editor, dialog } = await open(page)
+  await page.evaluate(() => sessionStorage.setItem('e2e:overleaf-remote-unchanged', '1'))
+  await dialog.getByRole('button', { name: 'Fetch remote source preview', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Close Overleaf sync', exact: true }).click()
+  await page.clock.fastForward(1_100)
+  await editor.getByLabel('Source file content', { exact: true }).fill('\\section{Saved edit}\n')
+  await editor.getByRole('button', { name: 'Save file', exact: true }).click()
+  await expect(editor.getByText('Saved. The previous version has a recovery copy.')).toBeVisible()
+  await page.clock.fastForward(31_000)
+  const history = await page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e:overleaf-calls') ?? '[]') as Array<{command:string;args:Record<string,unknown>}>)
+  const pushes = history.filter(call => call.command === 'overleaf_push')
+  expect(pushes).toHaveLength(1)
+  expect(pushes[0].args.content).toBe('\\section{Saved edit}\r\n')
+  expect(pushes[0].args.expectedHead).toBe('c'.repeat(40))
+  expect(history.filter(call => call.command === 'source_file_save')).toHaveLength(1)
 })
 
 test('Off suppresses background Overleaf reads after closing the dialog', async ({ page }) => {
