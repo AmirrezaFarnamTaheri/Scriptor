@@ -415,6 +415,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
         if (local.metadata.vault_id !== vaultId) throw new Error('Vault changed; reopen collaboration.')
         if (current !== epoch.current) return
         const merged = mergeSharedRevision(record.base_markdown, local.markdown, record.markdown)
+        autoInbox.current.markHandled(row.id)
         autoInbox.current.blockForReview()
         setPreview({ record, ...merged, hash: local.metadata.content_hash, lineChanges: alignReviewedSource(local.markdown, record.markdown).summary })
       })}><bdi>{row.name}</bdi></button></li>)}</ul>
