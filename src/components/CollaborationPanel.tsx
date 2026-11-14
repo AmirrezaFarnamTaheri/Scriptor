@@ -69,13 +69,18 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
     setRows(appendGoogleResources([], result.files)); setPageToken(result.nextPageToken)
     if (!autoEnabled || !account || !vaultId || !path || !folderId || result.nextPageToken) return
     const fresh = result.files.filter(item => !autoSeenRevisions.current.has(item.id))
-    for (const item of result.files) autoSeenRevisions.current.add(item.id)
-    if (!autoListingInitialized.current) { autoListingInitialized.current = true; return }
+    if (!autoListingInitialized.current) {
+      for (const item of result.files) autoSeenRevisions.current.add(item.id)
+      autoListingInitialized.current = true
+      return
+    }
     // Only newly discovered revisions are candidates. Historic folder content
     // must never be silently imported on the first connection.
     if (occupied.current || !fresh.length) return
+    const batch = fresh.slice(0, 5)
+    for (const item of batch) autoSeenRevisions.current.add(item.id)
     void run(async current => {
-      for (const row of fresh.slice(0, 5)) {
+      for (const row of batch) {
         const record = await collaborationRead(vaultId, folderId, row.id, transport)
         if (current !== epoch.current) return
         if (record.document !== path || record.peer_id === peer.current) continue
