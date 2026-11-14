@@ -6,6 +6,7 @@ import { overleafBindingKey, readOverleafBinding } from '../lib/overleafBinding'
 import type { SourceDocument } from '../lib/sourceFile'
 
 interface Props {
+  enabled: boolean
   document: SourceDocument
   canTransfer: () => boolean
   onApplied: (document: SourceDocument) => void
@@ -15,7 +16,7 @@ interface Props {
 /** File-scoped background watch while the Source editor is open.
  * This is bounded Git snapshot synchronization, not character-level editing.
  * Never apply an unknown or concurrent history without an explicit review. */
-export function OverleafBackgroundSync({ document, canTransfer, onApplied, onStatus }: Props) {
+export function OverleafBackgroundSync({ enabled, document, canTransfer, onApplied, onStatus }: Props) {
   const callbacks = useRef({ canTransfer, onApplied, onStatus })
   useLayoutEffect(() => { callbacks.current = { canTransfer, onApplied, onStatus } }, [canTransfer, onApplied, onStatus])
   const baseline = useRef<{ key: string; text: string } | null>(null)
@@ -34,7 +35,7 @@ export function OverleafBackgroundSync({ document, canTransfer, onApplied, onSta
   }, [document.vault_id, document.path])
 
   useEffect(() => {
-    if (!scope || !readAutoSyncEnabled(localStorage, scope.key)) return
+    if (!enabled || !scope || !readAutoSyncEnabled(localStorage, scope.key)) return
     let live = true
     let timer: ReturnType<typeof setTimeout> | null = null
     const allowed = () => live && callbacks.current.canTransfer()
@@ -102,6 +103,6 @@ export function OverleafBackgroundSync({ document, canTransfer, onApplied, onSta
       if (timer) clearTimeout(timer)
       window.document.removeEventListener('visibilitychange', resumed)
     }
-  }, [scope, document.vault_id, document.path])
+  }, [enabled, scope, document.vault_id, document.path])
   return null
 }
