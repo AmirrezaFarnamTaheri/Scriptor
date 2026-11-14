@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { alignReviewedSource, sourceLineEndingStyle } from '../lib/reviewDiff'
 import { overleafRead, overleafPush } from '../bridge/commands/overleaf'
 import { sourceFileRead, sourceFileSave } from '../bridge/commands/source_files'
 import { type SourceDocument } from '../lib/sourceFile'
-import { type OverleafSnapshot } from '../lib/overleaf'
+import { type OverleafSnapshot, overleafProjectId, overleafFilePath } from '../lib/overleaf'
+import { autoSyncPreferenceKey, readAutoSyncEnabled, writeAutoSyncEnabled, decideAutoSync } from '../lib/autoSyncPreference'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import '../styles/components/overleaf.css'
@@ -16,6 +17,19 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
   const [status, setStatus] = useState('Fetch a remote preview to compare it with the saved local source.'); const [error, setError] = useState<string | null>(null)
   const [previousShare, setPreviousShare] = useState<string | null>(null)
   const dialog = useRef<HTMLDivElement>(null); const generation = useRef(0); const pending = useRef(false)
+  const baseline = useRef<{ key: string; content: string } | null>(null)
+  const reviewEdited = useRef(false)
+  const [autoChoice, setAutoChoice] = useState<{ key: string; enabled: boolean } | null>(null)
+  const autoTarget = useMemo(() => {
+    try {
+      const projectId = overleafProjectId(project)
+      overleafFilePath(remotePath)
+      return { projectId, key: autoSyncPreferenceKey('overleaf', document.vault_id, projectId, remotePath) }
+    } catch { return null }
+  }, [project, remotePath, document.vault_id])
+  const autoEnabled = Boolean(autoTarget && (autoChoice?.key === autoTarget.key ? autoChoice.enabled : readAutoSyncEnabled(localStorage, autoTarget.key)))
+  const autoEnabledRef = useRef(autoEnabled)
+  useEffect(() => { autoEnabledRef.current = autoEnabled }, [autoEnabled])
   useFocusTrap(dialog, { active: true }); useEscapeToClose(true, onClose)
   useEffect(() => { const epoch = generation; epoch.current++; return () => { epoch.current++ } }, [document.vault_id, document.path, document.content_hash])
   useEffect(() => {
@@ -54,13 +68,15 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     if (current.content_hash !== document.content_hash) throw new Error('Local source changed since this panel opened. Close and reopen to review the saved version.')
     return current
   }
-  const changeTarget = () => { generation.current++; setSnapshot(null); setAccepted(false); setReviewed(''); setError(null); setPreviousShare(null) }
+  const changeTarget = () => { generation.current++; baseline.current = null; reviewEdited.current = false; setSnapshot(null); setAccepted(false); setReviewed(''); setError(null); setPreviousShare(null) }
   const fetchRemote = () => void run(async () => {
     const current = generation.current
-    await guard()
+    const local = await guard()
     const result = await overleafRead(document.vault_id, project, remotePath)
     if (current !== generation.current) return
     setSnapshot(result)
+    baseline.current = autoTarget && result.content === local.content ? { key: autoTarget.key, content: local.content } : null
+    reviewEdited.current = false
     setReviewed(result.content ?? document.content)
     setAccepted(false)
     setStatus(result.content === null ? 'Remote file does not exist. Sharing creates it; applying a remote copy is unavailable.' : 'Remote preview loaded. Compare both copies and explicitly review the merged source.')
