@@ -8,6 +8,7 @@ on:
       - 'src/lib/liveCollaboration*'
       - 'src/hooks/useWorkspaceEditor.ts'
       - 'scripts/validation/note-persistence-race.test.mjs'
+      - 'scripts/validation/collaboration-editor-history.test.mjs'
       - 'src/components/editor/MonacoMarkdownEditor.tsx'
       - 'src/components/shell/EditorWorkspace.tsx'
       - 'packages/editor/src/codemirror.tsx'
@@ -19,6 +20,7 @@ on:
       - 'src/lib/liveCollaboration*'
       - 'src/hooks/useWorkspaceEditor.ts'
       - 'scripts/validation/note-persistence-race.test.mjs'
+      - 'scripts/validation/collaboration-editor-history.test.mjs'
       - 'src/components/editor/MonacoMarkdownEditor.tsx'
       - 'src/components/shell/EditorWorkspace.tsx'
       - 'packages/editor/src/codemirror.tsx'
@@ -54,6 +56,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Compile source TypeScript
         run: pnpm exec tsc -b --pretty false
+      - name: Verify CodeMirror and Monaco undo/selection lifecycle invariants
+        run: node --test scripts/validation/collaboration-editor-history.test.mjs
       - name: Verify live ownership against real editor autosave hook
         run: node --test scripts/validation/note-persistence-race.test.mjs
       - name: Verify CRDT coordinator and journal-gated editor boundary
