@@ -10,9 +10,9 @@ use futures_util::{SinkExt, TryStreamExt};
 use reqwest::Url;
 use reqwest_websocket::{Message, Upgrade, WebSocket};
 use serde::Serialize;
-use uuid::Uuid;
 use serde_json::{Value, json};
 use tauri::{AppHandle, Emitter};
+use uuid::Uuid;
 
 use super::collaboration_live::{LiveSessionLease, lease_for};
 use super::collaboration_live_identity::sign_relay_challenge;
@@ -72,15 +72,23 @@ pub(crate) struct VerifiedRemoteInbox {
 }
 
 impl VerifiedRemoteInbox {
-    fn record(&mut self, ticket: String, generation: u64, update: RelayEvent) -> Result<(), String> {
+    fn record(
+        &mut self,
+        ticket: String,
+        generation: u64,
+        update: RelayEvent,
+    ) -> Result<(), String> {
         if update.kind != "remote_update" || update.payload.is_none() {
             return Err("Only authenticated remote updates may enter the native inbox".into());
         }
         let size = update.payload.as_deref().map(str::len).unwrap_or(0);
         if self.entries.len() >= MAX_VERIFIED_INBOX_ITEMS
             || self.bytes.saturating_add(size) > MAX_VERIFIED_INBOX_BYTES
-            || self.entries.contains_key(&ticket) {
-            return Err("Authenticated remote inbox is full or duplicate; replay after reconnect".into());
+            || self.entries.contains_key(&ticket)
+        {
+            return Err(
+                "Authenticated remote inbox is full or duplicate; replay after reconnect".into(),
+            );
         }
         self.entries.insert(ticket, (generation, update));
         self.bytes += size;
@@ -88,12 +96,21 @@ impl VerifiedRemoteInbox {
     }
 
     fn take(&mut self, ticket: &str, generation: u64) -> Result<RelayEvent, String> {
-        if self.entries.get(ticket).map(|(stored_generation, _)| *stored_generation) != Some(generation) {
+        if self
+            .entries
+            .get(ticket)
+            .map(|(stored_generation, _)| *stored_generation)
+            != Some(generation)
+        {
             return Err("Unknown or stale authenticated remote update receipt".into());
         }
-        let (_, update) = self.entries.remove(ticket)
+        let (_, update) = self
+            .entries
+            .remove(ticket)
             .ok_or("Authenticated remote update already consumed")?;
-        self.bytes = self.bytes.saturating_sub(update.payload.as_deref().map(str::len).unwrap_or(0));
+        self.bytes = self
+            .bytes
+            .saturating_sub(update.payload.as_deref().map(str::len).unwrap_or(0));
         Ok(update)
     }
 
@@ -589,7 +606,11 @@ pub async fn collaboration_live_connect(
             background_lease
                 .relay_active
                 .store(false, Ordering::Release);
-            lock_recover(&background_lease.relay_inbox, "collaboration verified inbox").clear();
+            lock_recover(
+                &background_lease.relay_inbox,
+                "collaboration verified inbox",
+            )
+            .clear();
             let kind = if result.is_ok() {
                 "disconnected"
             } else {
@@ -686,11 +707,17 @@ mod tests {
         trusted.payload = Some("AQID".into());
         inbox.record("ticket_1".into(), 7, trusted).unwrap();
         assert!(inbox.take("guessed_ticket", 7).is_err());
-        assert!(inbox.take("ticket_1", 8).is_err(), "stale generations must fail");
+        assert!(
+            inbox.take("ticket_1", 8).is_err(),
+            "stale generations must fail"
+        );
         let received = inbox.take("ticket_1", 7).unwrap();
         assert_eq!(received.peer_id.as_deref(), Some("bob"));
         assert_eq!(received.payload.as_deref(), Some("AQID"));
-        assert!(inbox.take("ticket_1", 7).is_err(), "a renderer cannot replay one ticket");
+        assert!(
+            inbox.take("ticket_1", 7).is_err(),
+            "a renderer cannot replay one ticket"
+        );
     }
 
     #[test]
@@ -700,11 +727,16 @@ mod tests {
         let mut update = event("native-session", &bound, "remote_update");
         update.payload = Some("AAAA".repeat(100));
         for id in 0..MAX_VERIFIED_INBOX_ITEMS {
-            inbox.record(format!("trusted_{id}"), 1, update.clone()).unwrap();
+            inbox
+                .record(format!("trusted_{id}"), 1, update.clone())
+                .unwrap();
         }
         assert!(inbox.record("overflow".into(), 1, update).is_err());
         inbox.clear();
-        assert!(inbox.take("trusted_1", 1).is_err(), "disconnect revokes queued tickets");
+        assert!(
+            inbox.take("trusted_1", 1).is_err(),
+            "disconnect revokes queued tickets"
+        );
     }
 
     #[test]
