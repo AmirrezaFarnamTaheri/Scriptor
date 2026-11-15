@@ -245,7 +245,7 @@ class CodeMirrorAdapter implements EditorAdapter {
 
   private reconfigureReadOnly(): void {
     if (this.destroyed) return
-    const next = this.externalReadOnly || this.collaborationReadOnly
+    const next = (this.collaborationConnection ? false : this.externalReadOnly) || this.collaborationReadOnly
     if (next === this.effectiveReadOnly) return
     this.effectiveReadOnly = next
     this.view.dispatch({
@@ -280,6 +280,7 @@ class CodeMirrorAdapter implements EditorAdapter {
       },
     })
     this.collaborationConnection = connection
+    this.reconfigureReadOnly()
     return () => {
       if (this.collaborationConnection === connection) {
         this.collaborationConnection = null
