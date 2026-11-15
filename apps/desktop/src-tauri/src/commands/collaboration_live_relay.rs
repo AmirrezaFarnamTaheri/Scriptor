@@ -575,6 +575,39 @@ mod tests {
     }
 
     #[test]
+    fn native_remote_inbox_rejects_forged_guesses_and_one_time_replays() {
+        let bound = scope();
+        let mut inbox = VerifiedRemoteInbox::default();
+        let mut trusted = event("native-session", &bound, "remote_update");
+        trusted.peer_id = Some("bob".into());
+        trusted.message_id = Some("update_1".into());
+        trusted.client_seq = Some(3);
+        trusted.cursor = Some(5);
+        trusted.payload = Some("AQID".into());
+        inbox.record("ticket_1".into(), 7, trusted).unwrap();
+        assert!(inbox.take("guessed_ticket", 7).is_err());
+        assert!(inbox.take("ticket_1", 8).is_err(), "stale generations must fail");
+        let received = inbox.take("ticket_1", 7).unwrap();
+        assert_eq!(received.peer_id.as_deref(), Some("bob"));
+        assert_eq!(received.payload.as_deref(), Some("AQID"));
+        assert!(inbox.take("ticket_1", 7).is_err(), "a renderer cannot replay one ticket");
+    }
+
+    #[test]
+    fn native_remote_inbox_refuses_unbounded_buffering_instead_of_dropping_edits() {
+        let bound = scope();
+        let mut inbox = VerifiedRemoteInbox::default();
+        let mut update = event("native-session", &bound, "remote_update");
+        update.payload = Some("AAAA".repeat(100));
+        for id in 0..MAX_VERIFIED_INBOX_ITEMS {
+            inbox.record(format!("trusted_{id}"), 1, update.clone()).unwrap();
+        }
+        assert!(inbox.record("overflow".into(), 1, update).is_err());
+        inbox.clear();
+        assert!(inbox.take("trusted_1", 1).is_err(), "disconnect revokes queued tickets");
+    }
+
+    #[test]
     fn durable_acks_must_match_exact_native_outbox_messages() {
         let mut in_flight = BTreeMap::from([(7, "msg_007".into())]);
         assert!(
