@@ -45,7 +45,7 @@ base64 = "0.23"
 ring = "0.17.14"
 reqwest-websocket = "0.6.0"
 futures-util = "0.3"
-tokio = { version = "1", features = ["time", "sync"] }
+tokio = { version = "1", features = ["time", "sync", "macros"] }
 
 [package.metadata.tauri]
 # Root package metadata for the desktop app.
