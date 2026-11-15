@@ -50,5 +50,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Compile source TypeScript
         run: pnpm exec tsc -b --pretty false
+      - name: Verify live ownership against real editor autosave hook
+        run: node --test scripts/validation/note-persistence-race.test.mjs
       - name: Verify CRDT coordinator and journal-gated editor boundary
         run: node --experimental-strip-types --test src/lib/liveCollaborationYjs.test.ts src/lib/liveCollaborationDurableSession.test.ts src/lib/liveCollaborationEditorBinding.test.ts
