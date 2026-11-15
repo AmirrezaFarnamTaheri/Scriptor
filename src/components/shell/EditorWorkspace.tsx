@@ -261,7 +261,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
     onEditorSurfaceModeChange,
   } = props
   const { t } = useI18n()
-  const sourceReadOnly = liveNoteSaveLocked && !collaboration
+  const sourceReadOnly = Boolean(liveNoteSaveLocked)
   const lastActiveSplitSurfaceRef = useRef<'source' | 'preview'>('source')
 
   useEffect(() => {
