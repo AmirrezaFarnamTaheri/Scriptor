@@ -303,6 +303,54 @@ fn still_live(lease: &LiveSessionLease, generation: u64) -> bool {
         && lease.relay_generation.load(Ordering::Acquire) == generation
 }
 
+/// Publish only a one-use opaque receipt on the renderer-visible event bus.
+/// Text bytes remain inside Rust until an active lease explicitly takes them.
+fn publish_authenticated_update(
+    app: &AppHandle,
+    lease: &LiveSessionLease,
+    session_id: &str,
+    generation: u64,
+    update: RelayEvent,
+) -> Result<(), String> {
+    if !still_live(lease, generation) {
+        return Err("Collaboration relay generation was invalidated".into());
+    }
+    let ticket = Uuid::new_v4().to_string();
+    {
+        let mut inbox = lock_recover(&lease.relay_inbox, "collaboration verified inbox");
+        inbox.record(ticket.clone(), generation, update)?;
+    }
+    let mut notification = event(session_id, &lease.scope, "remote_available");
+    notification.ticket = Some(ticket);
+    app.emit(WIRE_EVENT, notification)
+        .map_err(|_| "Unable to deliver authenticated relay receipt".to_string())
+}
+
+/// Renderer-callable read must never trust a UI-emitted event's text bytes:
+/// only an unguessable native ticket may consume exact authenticated data.
+#[tauri::command]
+pub fn collaboration_live_take_remote(
+    state: tauri::State<AppState>,
+    expected_vault_id: String,
+    session_id: String,
+    ticket: String,
+) -> Result<RelayEvent, String> {
+    if Uuid::parse_str(&ticket).is_err() || ticket.len() != 36 {
+        return Err("Invalid authenticated remote update ticket".into());
+    }
+    let session = active_session(&state)?;
+    super::vault::validate_expected_vault(&session.descriptor.id, Some(&expected_vault_id))?;
+    let lease = {
+        let leases = lock_recover(&state.live_collaboration_sessions, "collaboration leases");
+        lease_for(&leases, &session_id, &expected_vault_id)?
+    };
+    let generation = lease.relay_generation.load(Ordering::Acquire);
+    if !still_live(&lease, generation) {
+        return Err("Native collaboration relay is not currently authenticated".into());
+    }
+    lock_recover(&lease.relay_inbox, "collaboration verified inbox").take(&ticket, generation)
+}
+
 async fn relay_background(
     mut socket: WebSocket,
     app: AppHandle,
@@ -367,7 +415,7 @@ async fn relay_background(
                 match frame.get("type").and_then(Value::as_str) {
                     Some("update") => {
                         let verified = take_authenticated_update(&frame, &lease.scope, &session_id)?;
-                        let _ = app.emit(WIRE_EVENT, verified);
+                        publish_authenticated_update(&app, &lease, &session_id, generation, verified)?;
                     }
                     Some("updates") => {
                         let list = frame.get("updates").and_then(Value::as_array)
@@ -383,7 +431,7 @@ async fn relay_background(
                                 return Err("Relay returned an out-of-order synchronization cursor".into());
                             }
                             page_end = next;
-                            let _ = app.emit(WIRE_EVENT, verified);
+                            publish_authenticated_update(&app, &lease, &session_id, generation, verified)?;
                         }
                         let next_cursor = frame.get("nextCursor").and_then(Value::as_u64)
                             .ok_or("Relay synchronization page omitted its cursor")?;
@@ -453,6 +501,7 @@ pub async fn collaboration_live_connect(
         return Err("Native collaboration relay is already active for this note".into());
     }
     let generation = lease.relay_generation.fetch_add(1, Ordering::AcqRel) + 1;
+    lock_recover(&lease.relay_inbox, "collaboration verified inbox").clear();
     let authentication = async {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(15))
@@ -540,6 +589,7 @@ pub async fn collaboration_live_connect(
             background_lease
                 .relay_active
                 .store(false, Ordering::Release);
+            lock_recover(&background_lease.relay_inbox, "collaboration verified inbox").clear();
             let kind = if result.is_ok() {
                 "disconnected"
             } else {
@@ -570,6 +620,7 @@ pub fn collaboration_live_disconnect(
     };
     let was_active = lease.relay_active.swap(false, Ordering::AcqRel);
     lease.relay_generation.fetch_add(1, Ordering::AcqRel);
+    lock_recover(&lease.relay_inbox, "collaboration verified inbox").clear();
     Ok(was_active)
 }
 
