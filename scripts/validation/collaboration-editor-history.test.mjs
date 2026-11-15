@@ -10,7 +10,7 @@ test('CodeMirror read-only transitions reconfigure its live view instead of dest
     'adapter must expose an in-place readOnly update')
   const mount = codeMirror.slice(
     codeMirror.indexOf('const adapter = new CodeMirrorAdapter('),
-    codeMirror.indexOf('if (!collaboration || !adapterRef.current)', codeMirror.indexOf('const adapter = new CodeMirrorAdapter(')),
+    codeMirror.indexOf('adapterRef.current?.setReadOnly(Boolean(readOnly))', codeMirror.indexOf('const adapter = new CodeMirrorAdapter(')),
   )
   assert.match(mount, /\}, \[\]\)/, 'the editor mount effect must not depend on readOnly')
   assert.doesNotMatch(mount, /\}, \[readOnly\]\)/, 'a readOnly change must not recreate the editor')
