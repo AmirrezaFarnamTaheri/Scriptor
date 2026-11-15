@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::collaboration_live_journal::{JournalScope, LocalJournal};
+use super::collaboration_live_relay::VerifiedRemoteInbox;
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::state::{AppState, active_session, lock_recover};
 
@@ -30,6 +31,7 @@ pub(crate) struct LiveSessionLease {
     pub(crate) _projection_owner: Arc<VaultUpdateLock>,
     pub(crate) relay_generation: Arc<AtomicU64>,
     pub(crate) relay_active: Arc<AtomicBool>,
+    pub(crate) relay_inbox: Arc<Mutex<VerifiedRemoteInbox>>,
 }
 
 #[derive(Deserialize)]
@@ -186,6 +188,7 @@ pub fn collaboration_live_start(
             _projection_owner: Arc::new(file_owner),
             relay_generation: Arc::new(AtomicU64::new(0)),
             relay_active: Arc::new(AtomicBool::new(false)),
+            relay_inbox: Arc::new(Mutex::new(VerifiedRemoteInbox::default())),
         },
     );
     Ok(LiveStartReceipt {
@@ -370,6 +373,7 @@ pub fn collaboration_live_stop(
     if let Some(lease) = leases.remove(&session_id) {
         lease.relay_generation.fetch_add(1, Ordering::AcqRel);
         lease.relay_active.store(false, Ordering::Release);
+        lock_recover(&lease.relay_inbox, "collaboration verified inbox").clear();
         Ok(true)
     } else {
         Ok(false)
