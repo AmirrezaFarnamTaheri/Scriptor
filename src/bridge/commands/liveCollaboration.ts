@@ -198,13 +198,14 @@ export interface AuthenticatedNativeRelayEvent {
   roomId: string
   documentId: string
   epoch: number
-  kind: 'connected' | 'remote_update' | 'ack' | 'error' | 'disconnected'
+  kind: 'connected' | 'remote_available' | 'remote_update' | 'ack' | 'error' | 'disconnected'
   peerId?: string
   messageId?: string
   clientSeq?: number
   cursor?: number
   payload?: string
   role?: 'owner' | 'editor' | 'viewer'
+  ticket?: string
 }
 
 function validatedRelayEndpoint(endpoint: string): string {
@@ -276,24 +277,48 @@ export async function listenToNativeCollaborationRelay(
 ): Promise<() => void> {
   requireNative()
   parseLiveCollaborationScope(scope)
-  return listen<AuthenticatedNativeRelayEvent>(NATIVE_RELAY_EVENT, event => {
-    const message = event.payload
-    if (!message || message.sessionId !== sessionId ||
-      message.roomId !== scope.roomId ||
-      message.documentId !== scope.documentId ||
-      message.epoch !== scope.epoch) return
-    if (message.kind === 'error') {
+  let disposed = false
+  const stopListening = await listen<AuthenticatedNativeRelayEvent>(NATIVE_RELAY_EVENT, event => {
+    const notice = event.payload
+    if (disposed || !notice || notice.sessionId !== sessionId ||
+      notice.roomId !== scope.roomId ||
+      notice.documentId !== scope.documentId ||
+      notice.epoch !== scope.epoch) return
+    if (notice.kind === 'error') {
       onError(new Error('Authenticated relay disconnected; unsent updates remain in native journal'))
       return
     }
-    if (message.kind !== 'remote_update') return
-    try {
+    // Never accept note bytes from a renderer-visible event: Tauri events can
+    // also be emitted by UI code. Only the native WSS worker may create a
+    // one-time ticket for content it has actually authenticated.
+    if (notice.kind !== 'remote_available') return
+    void (async () => {
+      if (typeof notice.ticket !== 'string' || !/^[0-9a-f-]{36}$/i.test(notice.ticket)) {
+        throw new Error('Missing authenticated native relay ticket')
+      }
+      const raw: unknown = await invoke('collaboration_live_take_remote', {
+        expectedVaultId: scope.vaultId,
+        sessionId,
+        ticket: notice.ticket,
+      })
+      if (disposed) return
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        throw new Error('Native relay did not return a validated remote update')
+      }
+      const message = raw as AuthenticatedNativeRelayEvent
+      if (message.kind !== 'remote_update' ||
+        message.sessionId !== sessionId ||
+        message.roomId !== scope.roomId ||
+        message.documentId !== scope.documentId ||
+        message.epoch !== scope.epoch) {
+        throw new Error('Native relay update crossed the approved room or document')
+      }
       const { peerId, messageId, clientSeq, payload } = message
       if (typeof peerId !== 'string' || typeof messageId !== 'string' ||
         !Number.isSafeInteger(clientSeq) || (clientSeq as number) <= 0 ||
         typeof payload !== 'string' || payload.length > 350000 ||
         !CANONICAL_RELAY_BASE64.test(payload)) {
-        throw new Error('Malformed native relay update event')
+        throw new Error('Malformed native relay update response')
       }
       parseLiveCollaborationEnvelope({
         version: 1, kind: 'LOCAL_UPDATE',
@@ -301,15 +326,19 @@ export async function listenToNativeCollaborationRelay(
       }, { ...scope, peerId })
       const binary = atob(payload)
       if (!binary || binary.length > 256 * 1024) {
-        throw new Error('Invalid relay update size')
+        throw new Error('Invalid authenticated relay update size')
       }
-      const decoded = Uint8Array.from(binary, ch => ch.charCodeAt(0))
+      const decoded = Uint8Array.from(binary, character => character.charCodeAt(0))
       session.receiveRemote(decoded, {
         roomId: scope.roomId, documentId: scope.documentId,
         epoch: scope.epoch, peerId,
       })
-    } catch (error) {
-      onError(error instanceof Error ? error : new Error('Invalid authenticated relay update'))
-    }
+    })().catch(error => {
+      if (!disposed) onError(error instanceof Error ? error : new Error('Native relay verification failed'))
+    })
   })
+  return () => {
+    disposed = true
+    stopListening()
+  }
 }
