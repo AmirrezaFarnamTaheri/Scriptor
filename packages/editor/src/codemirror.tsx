@@ -85,6 +85,9 @@ class CodeMirrorAdapter implements EditorAdapter {
   private collaborationError: ((error: unknown) => void) | null = null
   private applyingRemote = false
   private destroyed = false
+  private externalReadOnly = false
+  private collaborationReadOnly = false
+  private effectiveReadOnly = false
   private onVisibleLineChange?: (line: number) => void
   private scrollListener?: () => void
   private snippetContext: SnippetVariableContext
@@ -92,6 +95,8 @@ class CodeMirrorAdapter implements EditorAdapter {
 
   constructor(host: HTMLElement, options: EditorAdapterOptions) {
     this.onVisibleLineChange = options.onVisibleLineChange
+    this.externalReadOnly = Boolean(options.readOnly)
+    this.effectiveReadOnly = this.externalReadOnly
     this.snippetContext = options.snippetContext ?? {}
     this.visualBlockRenderer = options.visualBlockRenderer ?? null
     setPasteImageHandler(options.saveImageFromClipboard ?? null)
@@ -231,6 +236,23 @@ class CodeMirrorAdapter implements EditorAdapter {
     dispatchSnippetContext(this.view, this.snippetContext)
   }
 
+  /** Reconfigure only the read-only facet; the CodeMirror view, selections,
+   * history and other extension compartments remain mounted. */
+  setReadOnly(value: boolean): void {
+    this.externalReadOnly = value
+    this.reconfigureReadOnly()
+  }
+
+  private reconfigureReadOnly(): void {
+    if (this.destroyed) return
+    const next = this.externalReadOnly || this.collaborationReadOnly
+    if (next === this.effectiveReadOnly) return
+    this.effectiveReadOnly = next
+    this.view.dispatch({
+      effects: collaborationReadOnlyCompartment.reconfigure(EditorState.readOnly.of(next)),
+    })
+  }
+
   attachCollaboration(binding: CollaborativeEditorBinding): () => void {
     if (this.collaborationConnection) throw new Error('Collaboration editor already attached')
     this.collaborationError = binding.onError
@@ -240,9 +262,8 @@ class CodeMirrorAdapter implements EditorAdapter {
         // A CodeMirror view must not dispatch during its own update listener.
         queueMicrotask(() => {
           if (!this.destroyed && this.collaborationConnection === connection) {
-            this.view.dispatch({
-              effects: collaborationReadOnlyCompartment.reconfigure(EditorState.readOnly.of(value)),
-            })
+            this.collaborationReadOnly = value
+            this.reconfigureReadOnly()
           }
         })
       },
@@ -264,6 +285,8 @@ class CodeMirrorAdapter implements EditorAdapter {
         this.collaborationConnection = null
         this.collaborationError = null
         connection.dispose()
+        this.collaborationReadOnly = false
+        this.reconfigureReadOnly()
       }
     }
   }
@@ -600,7 +623,12 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       adapter.destroy()
       adapterRef.current = null
     }
+    // Keyed note changes remount this view. Changing readOnly must not.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    adapterRef.current?.setReadOnly(Boolean(readOnly))
   }, [readOnly])
 
   useEffect(() => {
