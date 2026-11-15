@@ -2,8 +2,7 @@
 //! its Ed25519 PKCS#8 secret stays in the OS keychain. This transport never
 //! deletes the local journal on ACK: reconnect replays by message identity.
 use std::collections::BTreeMap;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
