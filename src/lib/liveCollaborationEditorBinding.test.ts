@@ -41,7 +41,7 @@ function surface(initial: string) {
 }
 
 test('minimal UTF-16 text splice retains unchanged prefix/suffix, RTL and emoji', () => {
-  assert.deepEqual(singleTextEdit('ab🙂سلامz', 'ab🙂درودz'), { from: 4, to: 8, insert: 'درود' })
+  assert.deepEqual(singleTextEdit('ab\u{1F642}سلامz', 'ab\u{1F642}درودz'), { from: 4, to: 8, insert: 'درود' })
   assert.equal(singleTextEdit('same', 'same'), null)
 })
 
@@ -73,9 +73,9 @@ test('remote updates are incremental, cannot become local outbox messages, and p
   editor.data.history.push('local-undo-record')
   editor.data.selection = 3
   const controller = new CollaborationEditorController(session, editor)
-  const update = bob.change(0, 0, '🙂')
+  const update = bob.change(0, 0, '\u{1F642}')
   session.receiveRemote(update, { roomId: 'room_alpha', documentId: 'doc_beta', epoch: 1, peerId: 'bob' })
-  assert.equal(editor.data.text, '🙂abc')
+  assert.equal(editor.data.text, '\u{1F642}abc')
   assert.equal(editor.data.selection, 5)
   assert.deepEqual(editor.data.history, ['local-undo-record'])
   assert.equal(persisted.length, 0)
