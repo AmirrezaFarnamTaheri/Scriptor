@@ -1,0 +1,32 @@
+name: Temporary collaboration advisory lock resolution
+on:
+  push:
+    branches:
+      - feat/collaboration-editor-native-2026-11-15
+    paths:
+      - '.github/workflows/collaboration-advisory-lock-evidence.yml'
+permissions:
+  contents: read
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout current branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure pinned Rust
+        run: rustup toolchain install 1.96.0 --profile minimal
+      - name: Update only security-vulnerable patch releases
+        run: |
+          cargo +1.96.0 update -p ammonia --precise 4.2.5
+          cargo +1.96.0 update -p tokio --precise 1.53.3
+          cargo +1.96.0 fetch --locked
+      - name: Emit exact resolved Cargo lock
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          print('SCRIPTOR_ADVISORY_LOCK_BEGIN')
+          for line in Path('Cargo.lock').read_text().splitlines():
+              print('SCRIPTOR_ADVISORY_LOCK_LINE:' + line)
+          print('SCRIPTOR_ADVISORY_LOCK_END')
+          PY
