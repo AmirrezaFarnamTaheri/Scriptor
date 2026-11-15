@@ -6,6 +6,8 @@ on:
       - feat/collaboration-editor-native-2026-11-15
     paths:
       - 'src/lib/liveCollaboration*'
+      - 'src/hooks/useWorkspaceEditor.ts'
+      - 'scripts/validation/note-persistence-race.test.mjs'
       - 'src/components/editor/MonacoMarkdownEditor.tsx'
       - 'src/components/shell/EditorWorkspace.tsx'
       - 'packages/editor/src/codemirror.tsx'
@@ -15,6 +17,8 @@ on:
   pull_request:
     paths:
       - 'src/lib/liveCollaboration*'
+      - 'src/hooks/useWorkspaceEditor.ts'
+      - 'scripts/validation/note-persistence-race.test.mjs'
       - 'src/components/editor/MonacoMarkdownEditor.tsx'
       - 'src/components/shell/EditorWorkspace.tsx'
       - 'packages/editor/src/codemirror.tsx'
