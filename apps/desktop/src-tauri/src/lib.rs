@@ -31,7 +31,7 @@ use commands::collaboration_live::{
     collaboration_live_public_key, collaboration_live_start, collaboration_live_stop,
 };
 use commands::collaboration_live_relay::{
-    collaboration_live_connect, collaboration_live_disconnect,
+    collaboration_live_connect, collaboration_live_disconnect, collaboration_live_take_remote,
 };
 use commands::daemon::{
     daemon_backlinks, daemon_endpoint, daemon_export_cancel, daemon_export_job_status,
@@ -242,6 +242,7 @@ pub fn run() {
             collaboration_live_public_key,
             collaboration_live_connect,
             collaboration_live_disconnect,
+            collaboration_live_take_remote,
             collaboration_live_stop,
             collaboration_poll_start,
             collaboration_poll_read,
