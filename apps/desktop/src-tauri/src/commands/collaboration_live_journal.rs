@@ -86,6 +86,8 @@ pub(crate) struct LocalJournal {
 }
 
 fn create_private_directory(path: &Path, private: bool) -> Result<(), String> {
+    #[cfg(not(unix))]
+    let _ = private;
     match fs::symlink_metadata(path) {
         Ok(metadata) => {
             if !metadata.is_dir() || metadata.file_type().is_symlink() {
@@ -97,7 +99,10 @@ fn create_private_directory(path: &Path, private: bool) -> Result<(), String> {
             }
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            #[cfg(unix)]
             let mut builder = fs::DirBuilder::new();
+            #[cfg(not(unix))]
+            let builder = fs::DirBuilder::new();
             #[cfg(unix)]
             builder.mode(0o700);
             builder.create(path).map_err(|error| error.to_string())?;
