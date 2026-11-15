@@ -1448,7 +1448,6 @@ function App() {
           onPointerCancel={vaultResizer.onHandlePointerCancel}
           onDoubleClick={vaultResizer.onHandleDoubleClick}
         />
-
         <WorkspaceLeafDock composition={composition} workspace={workspace} plugins={plugins} onOpenAsset={handleOpenReaderDocument} {...pluginWorkspaceHandlers}>
         <EditorWorkspace
           activePath={workspace.activePath}
