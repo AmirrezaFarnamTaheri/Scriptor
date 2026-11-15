@@ -1,7 +1,7 @@
 //! Authenticated, opt-in WSS relay transport. The only signer is native and
 //! its Ed25519 PKCS#8 secret stays in the OS keychain. This transport never
 //! deletes the local journal on ACK: reconnect replays by message identity.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -10,6 +10,7 @@ use futures_util::{SinkExt, TryStreamExt};
 use reqwest::Url;
 use reqwest_websocket::{Message, Upgrade, WebSocket};
 use serde::Serialize;
+use uuid::Uuid;
 use serde_json::{Value, json};
 use tauri::{AppHandle, Emitter};
 
@@ -25,6 +26,8 @@ const MAX_RELAY_FRAME_BYTES: usize = 512 * 1024;
 const MAX_UPDATE_BYTES: usize = 256 * 1024;
 const MAX_IN_FLIGHT: usize = 16;
 const RELAY_PAGE_LIMIT: usize = 64;
+const MAX_VERIFIED_INBOX_ITEMS: usize = 64;
+const MAX_VERIFIED_INBOX_BYTES: usize = 4 * 1024 * 1024;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,7 +38,7 @@ pub struct RelayConnectReceipt {
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct RelayEvent {
+pub struct RelayEvent {
     session_id: String,
     room_id: String,
     document_id: String,
@@ -53,6 +56,51 @@ struct RelayEvent {
     payload: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     role: Option<String>,
+    /// This opaque receipt is the only content placed on the untrusted Tauri
+    /// event bus; the canonical update remains inside the native inbox.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ticket: Option<String>,
+}
+
+/// In-process-only, bounded inbox of updates validated on the authenticated
+/// WSS socket. Renderer event payloads cannot insert records. A take is
+/// one-time, tied to the current connection generation.
+#[derive(Default)]
+pub(crate) struct VerifiedRemoteInbox {
+    entries: HashMap<String, (u64, RelayEvent)>,
+    bytes: usize,
+}
+
+impl VerifiedRemoteInbox {
+    fn record(&mut self, ticket: String, generation: u64, update: RelayEvent) -> Result<(), String> {
+        if update.kind != "remote_update" || update.payload.is_none() {
+            return Err("Only authenticated remote updates may enter the native inbox".into());
+        }
+        let size = update.payload.as_deref().map(str::len).unwrap_or(0);
+        if self.entries.len() >= MAX_VERIFIED_INBOX_ITEMS
+            || self.bytes.saturating_add(size) > MAX_VERIFIED_INBOX_BYTES
+            || self.entries.contains_key(&ticket) {
+            return Err("Authenticated remote inbox is full or duplicate; replay after reconnect".into());
+        }
+        self.entries.insert(ticket, (generation, update));
+        self.bytes += size;
+        Ok(())
+    }
+
+    fn take(&mut self, ticket: &str, generation: u64) -> Result<RelayEvent, String> {
+        if self.entries.get(ticket).map(|(stored_generation, _)| *stored_generation) != Some(generation) {
+            return Err("Unknown or stale authenticated remote update receipt".into());
+        }
+        let (_, update) = self.entries.remove(ticket)
+            .ok_or("Authenticated remote update already consumed")?;
+        self.bytes = self.bytes.saturating_sub(update.payload.as_deref().map(str::len).unwrap_or(0));
+        Ok(update)
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.entries.clear();
+        self.bytes = 0;
+    }
 }
 
 fn event(session_id: &str, scope: &JournalScope, kind: &str) -> RelayEvent {
@@ -68,6 +116,7 @@ fn event(session_id: &str, scope: &JournalScope, kind: &str) -> RelayEvent {
         cursor: None,
         payload: None,
         role: None,
+        ticket: None,
     }
 }
 
