@@ -247,6 +247,139 @@ export function useWorkspaceEditor({
     [activeNoteRef, activePathRef, draftMarkdownRef],
   )
 
+  /**
+   * Atomically transfer an already-clean note away from the ordinary autosave
+   * coordinator. Ownership is reserved *before* the asynchronous disk read;
+   * competing navigation, mutations, saves, and native close then fail closed.
+   * No hidden draft flush or overwrite is allowed during this handoff.
+   */
+  const claimLiveNoteSaveOwnership = useCallback(async (): Promise<LiveNoteSaveLease> => {
+    if (liveNoteOwnerRef.current || persistenceSuspendedRef.current) {
+      throw new Error('Another writer or suspended restore already owns note persistence')
+    }
+    const note = activeNoteRef.current
+    const path = activePathRef.current
+    if (!note || !path || note.metadata.path !== path || !note.metadata.vault_id) {
+      throw new Error('Select a saved Markdown note before enabling live collaboration')
+    }
+    const vaultId = note.metadata.vault_id
+    if (isSavingRef.current || hasPendingSave(path, vaultId) || saveOverwriteRef.current || externalChangeConflict) {
+      throw new Error('Save and resolve all pending drafts and external conflicts before collaboration')
+    }
+    const owner: LiveNoteSaveOwnership = {
+      vaultId,
+      path,
+      baselineHash: note.metadata.content_hash,
+      markdown: note.markdown,
+      phase: 'claiming',
+    }
+    const generation = navigationGenerationRef.current
+    const revision = draftRevisionRef.current
+    liveNoteOwnerRef.current = owner
+    setLiveNoteSaveLocked(true)
+
+    const ensureOwner = () => {
+      if (liveNoteOwnerRef.current !== owner ||
+        activePathRef.current !== path ||
+        activeNoteRef.current?.metadata.vault_id !== vaultId) {
+        throw new Error('Live collaboration note ownership was revoked or switched')
+      }
+    }
+    const verifyDisk = async (expectedMarkdown: string) => {
+      ensureOwner()
+      const disk = await vaultReadNote(path, vaultId)
+      ensureOwner()
+      if (disk.metadata.vault_id !== vaultId ||
+        disk.metadata.path !== path ||
+        disk.markdown !== expectedMarkdown) {
+        throw new Error('Live collaboration projection does not match the exact disk note; draft retained')
+      }
+      return disk
+    }
+    const finish = (disk: NoteDocument) => {
+      ensureOwner()
+      // No old autosave request is allowed to reassert a stale hash after this
+      // transition; the journal projector was the file's sole writing owner.
+      savedHashesRef.current.set(path, disk.metadata.content_hash)
+      docVaultsRef.current.set(path, vaultId)
+      activeNoteRef.current = disk
+      draftMarkdownRef.current = disk.markdown
+      setActiveNote(disk)
+      setDraftMarkdown(disk.markdown)
+      setOpenTabs(tabs => tabs.map(tab => tab.path === path
+        ? { ...tab, title: disk.metadata.title, contentHash: disk.metadata.content_hash }
+        : tab))
+      setExternalChangeConflict(null)
+      liveNoteOwnerRef.current = null
+      setLiveNoteSaveLocked(false)
+    }
+
+    try {
+      const disk = await verifyDisk(owner.markdown)
+      if (disk.metadata.content_hash !== owner.baselineHash ||
+        navigationGenerationRef.current !== generation ||
+        draftRevisionRef.current !== revision ||
+        activeNoteRef.current?.metadata.content_hash !== owner.baselineHash ||
+        draftMarkdownRef.current !== owner.markdown) {
+        throw new Error('Live collaboration source revision changed during save ownership handoff')
+      }
+    } catch (error) {
+      if (liveNoteOwnerRef.current === owner) {
+        liveNoteOwnerRef.current = null
+        setLiveNoteSaveLocked(false)
+      }
+      throw error
+    }
+
+    return {
+      path,
+      vaultId,
+      baselineHash: owner.baselineHash,
+      markdown: owner.markdown,
+      markNativeStarted: () => {
+        ensureOwner()
+        if (owner.phase !== 'claiming') {
+          throw new Error('Native collaboration session already started')
+        }
+        owner.phase = 'native-started'
+      },
+      receiveCanonicalText: (markdown: string) => {
+        ensureOwner()
+        if (owner.phase !== 'native-started' || typeof markdown !== 'string') {
+          throw new Error('Cannot accept unconfirmed collaboration text')
+        }
+        if (markdown === draftMarkdownRef.current) return
+        draftRevisionRef.current += 1
+        draftRevisionsByDocRef.current.set(`${vaultId}:${path}`, draftRevisionRef.current)
+        draftMarkdownRef.current = markdown
+        setDraftMarkdown(markdown)
+      },
+      abortBeforeNativeStart: async () => {
+        ensureOwner()
+        if (owner.phase !== 'claiming') {
+          throw new Error('Active native collaboration must stop and project before release')
+        }
+        const disk = await verifyDisk(owner.markdown)
+        if (disk.metadata.content_hash !== owner.baselineHash) {
+          throw new Error('Cannot abandon live handoff after disk revision changed')
+        }
+        finish(disk)
+      },
+      releaseAfterNativeStop: async (stopNative: () => Promise<void>) => {
+        ensureOwner()
+        if (owner.phase !== 'native-started' || typeof stopNative !== 'function') {
+          throw new Error('Native collaboration must have started and be stopped explicitly')
+        }
+        await stopNative()
+        // A native stop never implies that pending local or remote CRDT
+        // updates have actually reached the Markdown file. Do not unlock
+        // ordinary autosave until exact bytes are proven on disk.
+        const disk = await verifyDisk(draftMarkdownRef.current)
+        finish(disk)
+      },
+    }
+  }, [activeNoteRef, activePathRef, draftMarkdownRef, externalChangeConflict, hasPendingSave, isSavingRef])
+
   const loadNote = useCallback(
     async (path: string, isCurrent: () => boolean = () => true) => {
       if (!isCurrent() || persistenceSuspendedRef.current || liveNoteOwnerRef.current) return false
@@ -1206,6 +1339,7 @@ export function useWorkspaceEditor({
     togglePinTab,
     closedTabs,
     updateDraft,
+    claimLiveNoteSaveOwnership,
     saveVaultImage,
     importDroppedFiles,
     generateLinkReferences,
