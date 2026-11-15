@@ -85,6 +85,8 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
     const monacoRef = useRef<typeof import('monaco-editor') | null>(null)
     const completionDisposableRef = useRef<{ dispose: () => void } | null>(null)
     const latest = useRef(value)
+    const readOnlyRef = useRef(Boolean(readOnly))
+    readOnlyRef.current = Boolean(readOnly)
     const collaborationConnectionRef = useRef<CollaborativeEditorConnection | null>(null)
     const applyingRemoteRef = useRef(false)
     const collaborationRef = useRef(collaboration)
@@ -199,6 +201,8 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
         },
       })
       collaborationConnectionRef.current = connection
+      // Only the verified binding can unlock the native handoff freeze.
+      editor.updateOptions({ readOnly: false })
     }, [])
 
     useEffect(() => {
@@ -206,6 +210,7 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       return () => {
         collaborationConnectionRef.current?.dispose()
         collaborationConnectionRef.current = null
+        editorRef.current?.updateOptions({ readOnly: readOnlyRef.current })
       }
     }, [collaboration, attachCollaboration])
 
