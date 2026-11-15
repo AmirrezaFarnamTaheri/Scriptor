@@ -23,3 +23,12 @@ test('remote CodeMirror transactions and Monaco updates do not reset document hi
   assert.match(monaco, /model\.applyEdits\(\[/)
   assert.match(monaco, /if \(applyingRemoteRef\.current\) return/)
 })
+
+const editorWorkspace = readFileSync(new URL('../../src/components/shell/EditorWorkspace.tsx', import.meta.url), 'utf8')
+
+test('live ownership locks an editor until collaboration attaches successfully', () => {
+  assert.match(editorWorkspace, /const sourceReadOnly = Boolean\(liveNoteSaveLocked\)/)
+  assert.match(codeMirror, /this\.collaborationConnection \? false : this\.externalReadOnly/)
+  assert.match(codeMirror, /this\.collaborationConnection = connection\s+this\.reconfigureReadOnly\(\)/)
+  assert.match(monaco, /editor\.updateOptions\(\{ readOnly: false \}\)/)
+})
