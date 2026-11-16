@@ -246,6 +246,13 @@ fn take_authenticated_update(
     Ok(out)
 }
 
+fn checked_outbox_sequence(client_seq: i64) -> Result<u64, String> {
+    u64::try_from(client_seq)
+        .ok()
+        .filter(|sequence| *sequence > 0)
+        .ok_or_else(|| "Native collaboration journal returned an invalid author sequence".into())
+}
+
 fn acknowledge(
     value: &Value,
     in_flight: &mut BTreeMap<u64, String>,
@@ -409,18 +416,19 @@ async fn relay_background(
                         if !still_live(&lease, generation) || in_flight.len() >= MAX_IN_FLIGHT {
                             break;
                         }
+                        let client_seq = checked_outbox_sequence(record.client_seq)?;
                         let update = json!({
                             "version":1, "kind":"LOCAL_UPDATE",
                             "vaultId":"remote_scoped", "roomId":lease.scope.room_id,
                             "documentId":lease.scope.document_id, "epoch":lease.scope.epoch,
                             "peerId":lease.scope.peer_id,
                             "messageId":record.message_id,
-                            "clientSeq":record.client_seq,
+                            "clientSeq":client_seq,
                             "payload":STANDARD.encode(&record.payload)
                         });
                         send_json(&mut socket, json!({"type":"update","update":update})).await?;
-                        sent_through = record.client_seq;
-                        in_flight.insert(record.client_seq, record.message_id);
+                        sent_through = client_seq;
+                        in_flight.insert(client_seq, record.message_id);
                     }
                 }
             }
@@ -737,6 +745,17 @@ mod tests {
             inbox.take("trusted_1", 1).is_err(),
             "disconnect revokes queued tickets"
         );
+    }
+
+    #[test]
+    fn sqlite_outbox_sequences_must_not_wrap_or_be_nonpositive_on_the_wire() {
+        assert_eq!(checked_outbox_sequence(1).unwrap(), 1);
+        assert_eq!(
+            checked_outbox_sequence(i64::MAX).unwrap(),
+            i64::MAX as u64
+        );
+        assert!(checked_outbox_sequence(0).is_err());
+        assert!(checked_outbox_sequence(-1).is_err());
     }
 
     #[test]

@@ -6,7 +6,7 @@ const codeMirror = readFileSync(new URL('../../packages/editor/src/codemirror.ts
 const monaco = readFileSync(new URL('../../src/components/editor/MonacoMarkdownEditor.tsx', import.meta.url), 'utf8')
 
 test('CodeMirror read-only transitions reconfigure its live view instead of destroying undo and selection', () => {
-  assert.match(codeMirror, /^  setReadOnly\(value: boolean\): void \{/m,
+  assert.match(codeMirror, /^ {2}setReadOnly\(value: boolean\): void \{/m,
     'adapter must expose an in-place readOnly update')
   const mount = codeMirror.slice(
     codeMirror.indexOf('const adapter = new CodeMirrorAdapter('),

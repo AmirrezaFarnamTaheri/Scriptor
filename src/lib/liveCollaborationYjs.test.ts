@@ -115,7 +115,7 @@ test('foreign room, document and epoch updates are rejected without changing thi
 })
 
 test('malformed, empty and overbudget remote updates cannot corrupt accepted content', () => {
-  const { owner, updates } = seed('safe')
+  const { updates } = seed('safe')
   const bob = join('bob', updates)
   for (const bad of [new Uint8Array(0), new Uint8Array([255, 255]), new Uint8Array(256 * 1024 + 1)]) {
     assert.throws(() => bob.applyRemote(bad, sender('alice')))
@@ -125,7 +125,7 @@ test('malformed, empty and overbudget remote updates cannot corrupt accepted con
 
 test('initial Markdown up to 2 MiB is emitted as bounded CRDT updates, never one oversized frame', () => {
   const original = 'a'.repeat(700_000)
-  const { owner, updates } = seed(original)
+  const { updates } = seed(original)
   assert.ok(updates.length > 1)
   assert.ok(updates.every(update => update.byteLength <= 256 * 1024))
   assert.equal(join('bob', updates).value, original)

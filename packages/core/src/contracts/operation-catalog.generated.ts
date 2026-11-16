@@ -383,6 +383,72 @@ export const OPERATION_CATALOG = {
       ]
     },
     {
+      "name": "collaboration_live_project",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "vault-bound-ephemeral-collaboration-lease",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_live_public_key",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "vault-bound-ephemeral-collaboration-lease",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_live_connect",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live_relay.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "vault-note-approved-wss-relay",
+      "authorizationVariant": "LiveCollaborationConnect",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_live_disconnect",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live_relay.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": "vault-bound-ephemeral-collaboration-lease",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
+      "name": "collaboration_live_take_remote",
+      "owner": "apps/desktop/src-tauri/src/commands/collaboration_live_relay.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": "vault-bound-ephemeral-collaboration-lease",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "failed"
+      ]
+    },
+    {
       "name": "collaboration_live_stop",
       "surface": "tauri",
       "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
