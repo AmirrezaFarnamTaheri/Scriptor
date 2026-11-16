@@ -60,5 +60,5 @@ jobs:
         run: node --test scripts/validation/collaboration-editor-history.test.mjs
       - name: Verify live ownership against real editor autosave hook
         run: node --test scripts/validation/note-persistence-race.test.mjs
-      - name: Verify CRDT coordinator and journal-gated editor boundary
-        run: node --experimental-strip-types --test src/lib/liveCollaborationYjs.test.ts src/lib/liveCollaborationDurableSession.test.ts src/lib/liveCollaborationEditorBinding.test.ts
+      - name: Verify CRDT coordinator, journal-gated editor boundary, and recoverable projection
+        run: node --experimental-strip-types --test src/lib/liveCollaborationYjs.test.ts src/lib/liveCollaborationDurableSession.test.ts src/lib/liveCollaborationEditorBinding.test.ts src/lib/liveCollaborationProjection.test.ts

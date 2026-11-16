@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import type { DurableCollaborationSession, DurableLocalJournalPort } from '../../lib/liveCollaborationDurableSession.ts'
+import { RecoverableCanonicalProjection } from '../../lib/liveCollaborationProjection.ts'
+import type { LiveNoteSaveLease } from '../../hooks/useWorkspaceEditor.ts'
 import { requireNative } from '../native.ts'
 import { authorizeSensitiveOperation } from './authorization.ts'
 import {
@@ -144,6 +146,39 @@ export async function collaborationLiveProject(
     markdown,
     expectedContentHash,
   })
+}
+
+/**
+ * Opt-in automatic canonical file projection. The caller MUST first obtain
+ * LiveNoteSaveLease from the real workspace save controller, start the native
+ * lease, mark native ownership, hydrate the CRDT from authenticated relay
+ * history, and restore the local WAL journal. No default app activation is
+ * performed here; failed projection leaves that native lease and draft locked.
+ */
+export function attachNativeCanonicalProjection(
+  scope: NativeCollaborationDocument,
+  nativeLease: NativeCollaborationLease,
+  owner: LiveNoteSaveLease,
+  session: DurableCollaborationSession,
+  onError: (error: Error) => void,
+): RecoverableCanonicalProjection {
+  requireNative()
+  if (!session.ready || nativeLease.fileDiverged ||
+    nativeLease.baselineHash !== owner.baselineHash ||
+    owner.vaultId !== scope.vaultId || owner.path !== scope.notePath ||
+    !/^[0-9a-f-]{36}$/i.test(nativeLease.sessionId)) {
+    throw new Error('Native projection requires the same verified, recovered note and save owner')
+  }
+  const controller = new RecoverableCanonicalProjection({
+    source: session,
+    scope: { vaultId: scope.vaultId, notePath: scope.notePath },
+    baseline: { markdown: owner.markdown, contentHash: nativeLease.baselineHash },
+    project: (markdown, hash) => collaborationLiveProject(scope, nativeLease.sessionId, markdown, hash),
+    updateDraft: markdown => { owner.receiveCanonicalText(markdown) },
+    onError,
+  })
+  controller.start()
+  return controller
 }
 
 /** Closes the ephemeral permission lease. Persisted updates are not deleted. */
