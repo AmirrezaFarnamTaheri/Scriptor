@@ -63,7 +63,11 @@ for (const viewport of viewports) {
   test(`top bar customization stays bounded and restores focus at restored 200 percent zoom at ${dimensions}`, async ({ page }, testInfo) => {
     await prepare(page, viewport)
     const trigger = page.getByRole('button', { name: 'Customize top bar actions', exact: true })
-    await trigger.click()
+    const triggerVisible = await trigger.isVisible()
+    // At 200% zoom the compact bar deliberately hides secondary actions;
+    // the context menu is the supported customization entry.
+    if (triggerVisible) await trigger.click()
+    else await page.locator('header.topbar').click({ button: 'right' })
     const dialog = page.getByRole('dialog', { name: 'Customize top bar actions', exact: true })
     await settleLayout(page)
     await expectFullBounds(dialog)
@@ -73,7 +77,8 @@ for (const viewport of viewports) {
     await captureDialog(page, testInfo)
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
-    await expect(trigger).toBeFocused()
+    if (triggerVisible) await expect(trigger).toBeFocused()
+    else await expect(page.locator('.topbar-settings-toggle')).toBeFocused()
     await page.locator('header.topbar').click({ button: 'right' })
     await expectFullBounds(dialog)
     await page.keyboard.press('Escape')
@@ -95,9 +100,11 @@ for (const viewport of viewports) {
       await expect(tour.getByRole('progressbar')).toHaveAttribute('value', String(step + 1))
       await expectFullBounds(tour)
     }
-    for (const action of ['Skip tour', 'Back', 'Help & guides', 'Open cheatsheet', 'Finish']) {
+    for (const action of ['Skip tour', 'Back', 'Finish']) {
       await expectReachable(tour.getByRole('button', { name: action, exact: true }))
     }
+    await expect(tour.getByRole('button', { name: 'Help & guides' })).toHaveCount(0)
+    await expect(tour.getByRole('button', { name: 'Open cheatsheet' })).toHaveCount(0)
     await expect.poll(() => tour.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
     await captureDialog(page, testInfo)
     await tour.getByRole('button', { name: 'Finish', exact: true }).click()
@@ -298,7 +305,7 @@ for (const viewport of viewports) {
       if (surface === 'Frontmatter') {
         await expect(dialog.getByLabel('project', { exact: true })).toHaveValue('Scriptor research')
         await expectReachable(dialog.getByLabel('project', { exact: true }))
-        await expectReachable(dialog.getByRole('button', { name: 'Save', exact: true }).last())
+        await expectReachable(dialog.getByRole('button', { name: 'Save changes', exact: true }))
       } else {
         await expectReachable(dialog.locator('.writing-history li').last())
         await expectReachable(dialog.getByRole('spinbutton', { name: 'Daily word target', exact: true }))

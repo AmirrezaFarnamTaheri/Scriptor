@@ -67,7 +67,7 @@ export function useWorkspaceSession(
       writesEnabledRef.current = true
     }
     timerRef.current = window.setTimeout(() => {
-      void persist().catch(() => {})
+      void persist().catch((error) => console.error('Workspace layout could not be saved:', error))
     }, 400)
     return () => {
       if (timerRef.current) {
@@ -91,7 +91,9 @@ export function useWorkspaceSession(
         collapsedFolders: session.collapsed_folders ?? {},
         sidebarView: session.sidebar_view === 'inbox' ? 'inbox' : 'vault',
       }
-    } catch {
+    } catch (error) {
+      hydratedVaultRef.current = null
+      console.error('Saved workspace layout could not be restored:', error)
       return null
     }
   }, [vaultId])

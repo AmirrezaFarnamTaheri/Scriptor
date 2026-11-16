@@ -465,3 +465,122 @@
     flex: none;
   }
 }
+
+
+/* Named keyboard-accessible shortcuts supplement the dense graph canvas. */
+.graph-neighbor-shortcuts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; padding:8px 14px; border-block-end:1px solid var(--border); }
+.graph-neighbor-shortcuts > strong { font-size:.85rem; }
+.graph-neighbor-shortcuts > div { display:flex; flex-wrap:wrap; gap:6px; min-width:0; }
+.graph-neighbor-shortcuts button { min-height:36px; max-width:min(220px,100%); padding:6px 10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:1px solid var(--border); border-radius:var(--radius-sm,6px); background:var(--surface-raised); color:var(--ink); cursor:pointer; }
+.graph-neighbor-shortcuts button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+@media(max-width:600px) { .graph-neighbor-shortcuts { align-items:flex-start; flex-direction:column; padding:8px; } .graph-neighbor-shortcuts button { min-height:44px; } }
+
+/* Search inside a dense graph without guessing which anonymous dot is which. */
+.graph-note-search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; padding: 8px 14px; border-block-end: 1px solid var(--border); }
+.graph-note-search > label { display: flex; align-items: center; gap: 8px; flex: 0 1 390px; min-width: min(100%, 220px); white-space: nowrap; }
+.graph-note-search input { width: 100%; min-width: 0; min-height: 40px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--ink); }
+.graph-note-search-results { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.graph-note-search-results button { max-width: 190px; min-height: 40px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-raised); color: var(--ink); }
+.graph-note-search :is(input,button):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media(max-width:600px) { .graph-note-search { padding: 8px; } .graph-note-search > label { flex: 1 1 100%; flex-wrap: wrap; white-space: normal; } .graph-note-search input { flex: 1 1 170px; } .graph-note-search-results button { min-height: 44px; } }
+
+/* Graph search and named-neighbor controls added rows to the overlay. Reserve
+ * the drawing area explicitly rather than letting an implicit grid row collapse
+ * the 120-note canvas to the remaining 84 pixels. Short windows scroll. */
+.graph-overlay.graph-overlay-interactive { display:flex; flex-direction:column; overflow-y:auto; min-height:0; }
+.graph-overlay-interactive > .graph-stage { height:auto; flex:1 0 400px; min-height:400px; }
+
+/* A dense vault graph opens with the selected note's connections emphasized.
+   This toggle keeps the original full graph one deliberate action away. */
+.graph-focus-hint {
+  flex: 1 1 190px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.graph-focus-toggle {
+  flex:0 1 auto;
+  max-width:100%;
+  min-width:0;
+  min-height:40px;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+@media (max-width:600px) {
+  .graph-focus-toggle { flex:1 1 100%; min-height:44px; }
+}
+
+/* VIS-005/018: an optional semantic alternative to a 120+ node bitmap.
+ * It is collapsed initially; expanding it scrolls within a bounded list
+ * rather than taking the drawing stage's minimum height away. */
+.graph-directed-relationships {
+  min-width: 0;
+  padding: 0 14px 8px;
+  border-block-end: 1px solid var(--border);
+}
+.graph-directed-relationships summary {
+  cursor: pointer;
+  display: list-item;
+  min-height: 40px;
+  align-content: center;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.graph-directed-relationships summary:focus-visible,
+.graph-directed-relationships button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.graph-directed-relationships ul {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 220px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 6px;
+}
+.graph-directed-relationships li { min-width: 0; }
+.graph-directed-relationships button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 10px;
+  text-align: start;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+.graph-relationship-direction {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+.graph-directed-relationships small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* VIS-GRAPH-MOBILE-OVERVIEW: after showing all 120 links, the graph scrolls
+   into view inside this short modal. Keep its close button and view selector
+   available instead of losing the header above the scrollport. */
+@media (max-width: 720px) {
+  .graph-overlay-interactive > .graph-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    /* --surface is translucent in theme variants: scrolled search and link
+       controls must not show through the header or obscure its close action. */
+    background: var(--dialog-bg, var(--bg-elevated));
+  }
+}

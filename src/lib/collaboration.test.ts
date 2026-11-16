@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mergeSharedRevision, parseSharedRevision, sharedRevisionBase, parseCollaborationMapping, collaborationMappingKey, preparePendingSharedRevision, pendingSharedRevisionKey } from './collaboration.ts'
+import { hasPossibleMergeMarkers, mergeSharedRevision, parseSharedRevision, sharedRevisionBase, parseCollaborationMapping, collaborationMappingKey, preparePendingSharedRevision, pendingSharedRevisionKey } from './collaboration.ts'
 
 test('first share preserves incoming content when no common ancestor is known', () => {
   const base = sharedRevisionBase(null, 'notes/a.md')
@@ -101,4 +101,16 @@ test('ambiguous collaboration retry uses the original remote identity and refuse
   assert.equal(preparePendingSharedRevision(storage, key, again).id, 'identity-one')
   assert.throws(() => preparePendingSharedRevision(storage, key, { ...again, markdown: 'second draft' }), /previous share/i)
   assert.notEqual(key, pendingSharedRevisionKey('other@example.org', 'vault-1', 'folder-1', 'a.md', 'drive_json'))
+})
+
+test('conflict warning distinguishes actual merge boundaries from legitimate Markdown headings', () => {
+  const setext = '# Notes\n\nReport\n=======\n\nKeep the title as authored.\n'
+  assert.equal(hasPossibleMergeMarkers(setext), false, 'setext Markdown heading must not block a reviewed import')
+  assert.equal(hasPossibleMergeMarkers('Plain = signs: =======\n'), false)
+  const conflict = mergeSharedRevision('base', 'local', 'remote')
+  assert.equal(conflict.conflict, true)
+  assert.equal(hasPossibleMergeMarkers(conflict.markdown), true, 'generated Local/Shared-base/Remote conflict remains blocked')
+  assert.equal(hasPossibleMergeMarkers('<<<<<<< Local\n'), true)
+  assert.equal(hasPossibleMergeMarkers('||||||| Shared base\n'), true)
+  assert.equal(hasPossibleMergeMarkers('>>>>>>> Shared revision\n'), true)
 })

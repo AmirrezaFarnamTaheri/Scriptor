@@ -168,6 +168,7 @@
 }
 
 .shortcut-table {
+  container:shortcut-table / inline-size;
   display: grid;
   margin-top: 12px;
   border: 1px solid var(--border);
@@ -470,3 +471,42 @@
 .vault-panel > .vault-sidebar-scroll { min-width: 0; }
 .vault-sidebar-footer { flex: none; position: relative; z-index: 1; background: var(--surface); border-top: 1px solid var(--border); }
 .vault-recent-notes button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Use both usable columns when no command has a Reset action. */
+.shortcut-table--no-actions > .shortcut-table-header,
+.shortcut-table--no-actions > .shortcut-table-row { grid-template-columns:minmax(180px,1.2fr) minmax(180px,1fr); }
+@media (max-width:720px) { .shortcut-table--no-actions > .shortcut-table-row { grid-template-columns:minmax(0,1fr); } }
+
+/* A compact toolbar scrolls horizontally; make the overflow discoverable.
+ * Preserve the single row and every original keyboard/touch target. */
+@media (max-width: 640px) {
+  .editor-toolbar-wrapper::after { content:''; position:absolute; pointer-events:none; top:0; bottom:0; inset-inline-end:0; width:14px; background:linear-gradient(to left, var(--bg), transparent); }
+  [dir='rtl'] .editor-toolbar-wrapper::after { background:linear-gradient(to right, var(--bg), transparent); }
+  .format-row.editor-toolbar { scrollbar-width:thin; scrollbar-color:var(--border-strong) transparent; }
+  .format-row.editor-toolbar::-webkit-scrollbar { display:block; height:4px; }
+  .format-row.editor-toolbar::-webkit-scrollbar-thumb { background:var(--border-strong); border-radius:6px; }
+}
+
+/* An app-zoomed Settings dialog can be narrow even at a desktop viewport. */
+@container shortcut-table (max-width:520px) {
+  .shortcut-table-header { display:none; }
+  .shortcut-table-row,
+  .shortcut-table--no-actions > .shortcut-table-row { grid-template-columns:minmax(0,1fr); gap:8px; }
+  .shortcut-row-actions { justify-content:flex-start; }
+}
+
+/* VIS-NEW-006: at phone/effective zoom widths, identify the overflow entry
+ * with words rather than a tiny sliders glyph. No extra toolbar row is added. */
+@container (max-width: 440px) {
+  .editor-primary-formatting .tools-trigger {
+    width: auto;
+    min-width: 72px;
+    padding-inline: 8px;
+    gap: 4px;
+  }
+  .editor-primary-formatting .tools-trigger .toolbar-menu-trigger-label {
+    display: inline;
+    font-size: 12px;
+    font-weight: 600;
+  }
+}

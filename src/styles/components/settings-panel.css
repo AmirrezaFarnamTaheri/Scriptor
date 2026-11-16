@@ -465,3 +465,89 @@
 .backup-options > summary:focus-visible { outline: 2px solid var(--primary-strong); outline-offset: 2px; }
 .backup-options-fields { display: grid; gap: 10px; padding-top: 12px; }
 .backup-options-fields .settings-field { min-width: 0; }
+
+
+/* Layout template tile, preview and status styles live exclusively in
+ * layout-preset-gallery.css, loaded by LayoutPresetGallery itself. Do not
+ * duplicate those rules here: this sheet may load after the gallery and
+ * silently override constrained-width text layout. */
+
+/* Separate automatic app preferences from explicit vault mutations. The footer
+ * is the vault's save contract, not an ambiguous universal settings save. */
+.settings-footer-actions { justify-content: space-between; flex-wrap: wrap; }
+.settings-save-scope { display: grid; flex: 1 1 200px; gap: 2px; min-width: 0; }
+.settings-save-scope strong { font-size: .85rem; line-height: 1.3; color: var(--ink); }
+.settings-save-scope .settings-status { font-size: .8rem; line-height: 1.4; }
+.settings-save-outcome {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: .85rem;
+  line-height: 1.45;
+  color: var(--danger);
+  font-weight: 600;
+}
+.settings-save-outcome[role='status'] { color: var(--ink); font-weight: 400; }
+/* A successful write needs acknowledgement, not a disabled save bar. */
+.settings-save-confirmation {
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--ink);
+  font-size: .85rem;
+  line-height: 1.4;
+  border-inline-start: 3px solid var(--primary);
+}
+.settings-footer-actions > .primary-button { flex: 0 0 auto; min-height: 44px; }
+.settings-persistence-note { padding: 10px 12px; border-inline-start: 3px solid var(--primary); background: var(--surface-raised); border-radius: 4px; }
+.settings-persistence-note strong { color: var(--ink); }
+@media (max-width: 520px) {
+  .settings-footer-actions { align-items: stretch; gap: 8px; }
+  .settings-footer-actions > .primary-button { width: 100%; }
+}
+
+/* VIS-012: everyday runtime state remains visible, while detailed performance,
+ * diagnostics and system inventory are explicit, keyboard-operable sections.
+ * Keep open content inside the original Settings scrolling surface. */
+.settings-advanced-disclosure {
+  min-width: 0;
+  margin-block: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface);
+}
+.settings-advanced-disclosure > summary {
+  cursor: pointer;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 11px 14px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.settings-advanced-disclosure > summary:focus-visible {
+  outline: var(--focus-outline, 2px solid var(--primary));
+  outline-offset: 2px;
+}
+.settings-advanced-disclosure > .settings-section {
+  min-width: 0;
+  padding: 10px 14px 14px;
+  border: 0;
+}
+
+/* VIS-030: keep rollback and successful restore distinguishable, with one receipt. */
+.backup-restore-outcome { display: grid; justify-items: start; gap: 8px; margin-block: 12px; padding: 12px; border: 1px solid var(--border); border-inline-start: 4px solid var(--primary); border-radius: var(--radius-md, 8px); background: var(--surface-raised); }
+.backup-restore-outcome.warning { border-color: var(--amber); border-inline-start-color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, var(--surface)); }
+.backup-restore-outcome.success { border-color: var(--success); border-inline-start-color: var(--success); }
+.backup-restore-outcome__status { display: grid; gap: 5px; overflow-wrap: anywhere; }
+.backup-restore-outcome__status strong { font-size: 1rem; }
+.backup-restore-outcome__status p { margin: 0; line-height: 1.5; }
+.backup-restore-outcome__details summary { cursor: pointer; min-height: 36px; }
+.backup-restore-outcome > button { min-height: 44px; }
+
+/* VIS-031: separate browser authorization from locally saved vault preferences. */
+.google-account-auth-explainer { display: grid; gap: 4px; padding: 11px 13px; margin: 10px 0; border: 1px solid var(--border-strong, var(--border)); border-inline-start: 4px solid var(--primary); border-radius: 8px; background: var(--surface-raised); }
+.google-account-auth-explainer p { margin: 0; line-height: 1.5; }
+.google-integration-settings > .google-integration-fields { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-block: 10px; background: var(--surface); }
+.google-integration-fields .google-account-state { padding: 5px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-raised); font-weight: 600; overflow-wrap: anywhere; }
+.google-integration-fields .google-connection-actions { align-items: center; flex-wrap: wrap; }

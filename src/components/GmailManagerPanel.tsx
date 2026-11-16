@@ -79,6 +79,7 @@ export function GmailManagerPanel({
   const [loadingContent, setLoadingContent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [statusText, setStatusText] = useState<string | null>(null)
+  const [showIntegrationLimits, setShowIntegrationLimits] = useState(false)
   const refreshSequence = useRef(0)
   const selectionSequence = useRef(0)
   const accountSequence = useRef(0)
@@ -459,9 +460,13 @@ export function GmailManagerPanel({
       presentation={presentation}
     >
       <div className="gmail-manager-content">
-        <div className="gmail-manager-maturity" role="note">
-          <strong>{t('integrations.google.experimental')}</strong>{' '}
-          {t('integrations.gmail.experimentalNote')}
+        <div className="gmail-manager-limits">
+          {activeTab !== 'account' && <button type="button" className="gmail-manager-limits-toggle" aria-expanded={showIntegrationLimits}
+            onClick={() => setShowIntegrationLimits((current) => !current)}>{t('integrations.gmail.integrationLimitations')}</button>}
+          {(showIntegrationLimits || activeTab === 'account') && <div className="gmail-manager-maturity" role="note">
+            <strong>{t('integrations.google.experimental')}</strong>{' '}
+            {t('integrations.gmail.experimentalNote')}
+          </div>}
         </div>
 
         {statusText ? (
@@ -472,9 +477,10 @@ export function GmailManagerPanel({
         ) : null}
 
         {sendReviewRequired ? (
-          <div className="gmail-manager-status gmail-manager-status--error" role="alert">
-            <strong>{t('integrations.gmail.reviewRequired')}</strong>
-            {error ? <span>{error}</span> : null}
+          <div className="gmail-manager-status gmail-manager-status--error gmail-manager-send-review" role="alert">
+            <strong>{t('integrations.gmail.deliveryUncertain')}</strong>
+            <p>{t('integrations.gmail.deliveryUncertainExplanation')}</p>
+            {error ? <details><summary>{t('integrations.gmail.technicalErrorDetails')}</summary><span>{error.includes('Gmail send failed') ? 'Gmail send failed' : error}</span></details> : null}
           </div>
         ) : error ? (
           <div className="gmail-manager-status gmail-manager-status--error" role="alert">
@@ -536,6 +542,10 @@ export function GmailManagerPanel({
                 <Key size={32} aria-hidden="true" />
                 <h3>{t('integrations.gmail.notConnected')}</h3>
                 <p>{t('integrations.gmail.connectPrompt')}</p>
+                <p className="gmail-manager-setup-hint">{t('integrations.gmail.setupGuidance')}</p>
+                <button type="button" className="toolbar-button gmail-manager-account-help" onClick={() => setActiveTab('account')}>
+                  {t('integrations.gmail.reviewAccountSetup')}
+                </button>
                 <button type="button" className="action-button"
                   disabled={loading || sending || checkingAuth || !nativeReady}
                   onClick={() => void handleStartAuth()}>
@@ -635,6 +645,7 @@ export function GmailManagerPanel({
                         <div><dt>{t('integrations.gmail.date')}</dt><dd dir="auto">{formatGmailDate(selectedMessage.date)}</dd></div>
                       </dl>
                     </header>
+                    <p className="gmail-manager-message-safety" role="note">{t('integrations.gmail.safePlainText')}</p>
                     <div className="gmail-manager-message-body" dir="auto">
                       {selectedMessage.plainText || selectedMessage.snippet}
                     </div>

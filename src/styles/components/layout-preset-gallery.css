@@ -1,0 +1,52 @@
+/* Shared by Settings and the inspector Store: the preview must remain
+   visible even when the Settings dialog's CSS has not been loaded. */
+.layout-preset-list { list-style:none; margin:8px 0 0; padding:0; }
+/* Choose once, preview, then apply: one primary action replaces eight equal
+ * Apply buttons and previews the effect before changing layout state. */
+.settings-layout-presets { min-width:0; container:layout-presets / inline-size; }
+.settings-layout-presets .layout-preset-list { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.settings-layout-presets .layout-preset-item { display:block; border:0; padding:0; min-width:0; }
+/* The current-state badge cannot steal the last characters of a translated
+ * preset name. A two-track grid aligns each radio with its label, then places
+ * the optional status on its own line. Word breaking remains at word boundaries
+ * instead of splitting short names ("Autho/r") in the 115px tiles. */
+.layout-preset-choice { display:grid; grid-template-columns:18px minmax(0,1fr); align-content:center; align-items:center; column-gap:6px; row-gap:2px; width:100%; height:100%; box-sizing:border-box; min-height:44px; padding:8px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--ink); cursor:pointer; }
+.layout-preset-choice[data-selected='true'] { border-color:var(--primary); background:var(--surface-raised); }
+.layout-preset-choice:focus-within { outline:2px solid var(--accent); outline-offset:2px; }
+.layout-preset-choice > input { grid-column:1; grid-row:1 / span 2; width:18px; height:18px; margin:0; flex:none; accent-color:var(--primary); }
+.layout-preset-choice > span { grid-column:2; min-width:0; overflow-wrap:break-word; word-break:normal; }
+.layout-preset-choice > small { grid-column:2; grid-row:2; margin:0; font-size:.7rem; color:var(--muted); }
+.layout-preset-detail { display:grid; grid-template-columns:minmax(160px,.8fr) minmax(0,1.2fr); gap:16px; padding:12px; border:1px solid var(--border); border-radius:10px; margin-block:12px; min-width:0; }
+.layout-preset-preview { display:flex; position:relative; gap:7px; padding:10px; min-height:138px; min-width:0; border:1px solid var(--border); border-radius:8px; background:var(--bg); }
+.layout-preset-preview-vault { flex:0 0 16%; border-radius:4px; background:var(--surface-muted); }
+.layout-preset-preview-editor { flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; padding:16px 8px; border-radius:4px; background:var(--surface-raised); }
+.layout-preset-preview-editor span { display:block; height:5px; width:90%; border-radius:2px; background:var(--border); }
+.layout-preset-preview-editor span:last-child { width:55%; }
+.layout-preset-preview-render { flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; padding:18px 6px; border:1px solid var(--border); border-radius:4px; }
+.layout-preset-preview-render span { height:6px; width:80%; background:var(--border); border-radius:3px; }
+.layout-preset-preview-sticky { position:absolute; inset-block-end:14px; inset-inline-end:12px; width:36px; height:36px; border:1px solid var(--primary); border-radius:4px; background:var(--primary-soft); }
+.layout-preset-preview.is-focused .layout-preset-preview-vault { display:none; }
+.layout-preset-detail-copy { display:flex; flex-direction:column; align-items:flex-start; gap:8px; min-width:0; }
+.layout-preset-detail-copy p { margin:0; overflow-wrap:anywhere; }
+.layout-preset-detail-copy > button { margin-block-start:auto; min-height:44px; white-space:normal; }
+@media(max-width:600px) { .layout-preset-detail { grid-template-columns:minmax(0,1fr); } .layout-preset-preview { min-height:110px; } }
+
+
+/* Store is an inspector rail, not a full-width Settings dialog. */
+.store-root .settings-layout-presets .layout-preset-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.store-root .layout-preset-detail { grid-template-columns:minmax(0,1fr); gap:10px; }
+.store-root .layout-preset-preview { min-height:108px; }
+.store-root .layout-preset-detail-copy > button { width:100%; }
+
+/* Eight templates form two balanced rows rather than seven plus an orphan. */
+@media (max-width: 900px) { .settings-layout-presets .layout-preset-list { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width: 360px) { .settings-layout-presets .layout-preset-list { grid-template-columns:minmax(0,1fr); } }
+
+/* Container width, unlike media width, also tracks 200% application zoom. */
+@container layout-presets (max-width:720px) {
+  .settings-layout-presets .layout-preset-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@container layout-presets (max-width:280px) {
+  .settings-layout-presets .layout-preset-list,
+  .store-root .settings-layout-presets .layout-preset-list { grid-template-columns:minmax(0,1fr); }
+}

@@ -65,6 +65,16 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
         <section>
           <div className="quick-capture-section-header">
             <h3>{t('quickCapture.scratchpad')}</h3>
+
+          </div>
+          <textarea
+            className="scratchpad-editor"
+            aria-label={t('quickCapture.scratchpadAria')}
+            rows={8}
+            value={scratchpad.body}
+            onChange={(event) => onScratchpadChange(event.target.value)}
+            placeholder={t('quickCapture.scratchpadPlaceholder')}
+          />
             <div className="quick-capture-actions">
               {onCreateInboxNoteFromScratchpad ? (
                 <button type="button" className="toolbar-button" disabled={!scratchpad.body.trim()} onClick={onCreateInboxNoteFromScratchpad}>
@@ -77,15 +87,6 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
                 </button>
               ) : null}
             </div>
-          </div>
-          <textarea
-            className="scratchpad-editor"
-            aria-label={t('quickCapture.scratchpadAria')}
-            rows={8}
-            value={scratchpad.body}
-            onChange={(event) => onScratchpadChange(event.target.value)}
-            placeholder={t('quickCapture.scratchpadPlaceholder')}
-          />
         </section>
 
         <section>

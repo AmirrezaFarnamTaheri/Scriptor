@@ -38,7 +38,12 @@ test.describe('workspace shell remediation contracts', () => {
     const settings = page.getByRole('dialog', { name: 'Settings' })
     const dailyDirectory = settings.getByLabel('Daily note directory')
     await expect(dailyDirectory).toBeVisible()
+    const saveScope = settings.getByRole('group', { name: 'Vault settings save status' })
+    // A clean vault no longer wastes phone/zoom height on an inert save bar.
+    // The same footer must reappear as soon as the configuration is dirty.
+    await expect(saveScope).toHaveCount(0)
     await dailyDirectory.fill('daily-draft')
+    await expect(saveScope).toContainText('Unsaved vault configuration changes')
 
     await settings.getByRole('button', { name: 'Close Settings' }).click()
     const confirmation = settings.getByRole('group', { name: 'Unsaved vault configuration changes' })

@@ -25,6 +25,20 @@ async function expectFullViewportBounds(target: Locator) {
   })).toBeLessThanOrEqual(1)
 }
 
+test('Database Studio exposes keyboard-scrollable results and compact controls at mobile width', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 900 })
+  await openResearch(page, 'Database studio')
+  const panel = page.getByRole('region', { name: 'Database Studio', exact: true })
+  await panel.getByRole('button', { name: 'Load notes', exact: true }).click()
+  const table = panel.getByRole('region', { name: 'Database table, scroll horizontally for more columns', exact: true })
+  await expect(table).toBeVisible()
+  await expect(table).toHaveAttribute('tabindex', '0')
+  await expect(table).toHaveCSS('overflow-x', 'auto')
+  await expect(panel.locator('.database-studio-actions').first()).toHaveCSS('display', 'grid')
+  const load = await panel.getByRole('button', { name: 'Load notes', exact: true }).boundingBox()
+  expect(load?.height ?? 0).toBeGreaterThanOrEqual(44)
+})
+
 test('database edit preserves the displayed revision after an external source change', async ({ page }) => {
   await openResearch(page, 'Database studio')
   const panel = page.getByRole('region', { name: 'Database Studio', exact: true })

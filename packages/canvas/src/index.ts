@@ -120,11 +120,18 @@ export function sceneBounds(document: CanvasDocument): CanvasRect {
     maxY = Math.max(maxY, block.bounds.y + block.bounds.height)
   }
 
+  // A tight viewBox clips the first and last cards directly against the SVG
+  // edges. Leave scene-space breathing room on every side; when a small board
+  // hits the minimum viewport size, keep the content centered rather than
+  // gathering the excess margin on its right/bottom.
+  const margin = 24
+  const width = Math.max(320, Math.ceil(maxX - minX + margin * 2))
+  const height = Math.max(240, Math.ceil(maxY - minY + margin * 2))
   return {
-    x: Math.floor(minX),
-    y: Math.floor(minY),
-    width: Math.max(320, Math.ceil(maxX - minX)),
-    height: Math.max(240, Math.ceil(maxY - minY)),
+    x: Math.floor((minX + maxX - width) / 2),
+    y: Math.floor((minY + maxY - height) / 2),
+    width,
+    height,
   }
 }
 

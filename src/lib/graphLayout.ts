@@ -171,3 +171,51 @@ export function separateGraphLayout<T extends GraphLayoutPoint>(
 
   return points.map(({ node, x, y }) => ({ ...node, x, y }))
 }
+
+
+/**
+ * Distribute a crowded all-links overview across a wide viewport. The force
+ * solver tends to form a compact disk even on a landscape canvas, leaving most
+ * horizontal space unused. Expand only the horizontal projection, preserving
+ * relative order, vertical geometry, node identities and source objects.
+ *
+ * Skip small graphs and portrait layouts, where stretching would be misleading
+ * or would reduce the useful touch/scroll area. Fitting and collision separation
+ * must happen before this projection, so the output stays inside the stage.
+ */
+export function widenDenseGraphLayout<T extends GraphLayoutPoint>(
+  nodes: readonly T[],
+  width: number,
+  height: number,
+  padding = 44,
+): Array<T & { x: number; y: number }> {
+  const copy = nodes.map((node) => ({
+    ...node,
+    x: finite(node.x, Math.max(width, 1) / 2),
+    y: finite(node.y, Math.max(height, 1) / 2),
+  }))
+  if (copy.length < 80 || !Number.isFinite(width) || !Number.isFinite(height) ||
+      width < height * 1.5 || width <= 0 || height <= 0) return copy
+
+  const safePadding = Math.max(0, Math.min(padding, width / 2, height / 2))
+  const leftBound = safePadding
+  const rightBound = width - safePadding
+  const xs = copy.map((node) => node.x)
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const span = maxX - minX
+  const available = rightBound - leftBound
+  if (span < 1 || available < 1) return copy
+
+  // Use 75% of the drawable width, rather than cramming 120 nodes into a
+  // narrow disk. Never shrink an already broad overview.
+  const targetSpan = Math.min(available, Math.max(span, available * 0.75))
+  if (targetSpan <= span) return copy
+  const scale = targetSpan / span
+  const center = (minX + maxX) / 2
+  const centerX = width / 2
+  return copy.map((node) => ({
+    ...node,
+    x: Math.max(leftBound, Math.min(rightBound, centerX + (node.x - center) * scale)),
+  }))
+}

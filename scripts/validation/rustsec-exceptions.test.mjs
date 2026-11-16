@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 
-import { validateRustSecExceptions } from './rustsec-exceptions.mjs'
+import { isVersionAtLeast, validateRustSecExceptions } from './rustsec-exceptions.mjs'
 
 const denySource = `[advisories]\nignore = ["RUSTSEC-2026-0001"]\n`
 const ledger = (reviewBy) => `| Advisory | Dependency family | Reachability | Owner | Upstream | Review by | Exit condition |\n|---|---|---|---|---|---|---|\n| RUSTSEC-2026-0001 | parser | document import | Security | https://rustsec.org/advisories/RUSTSEC-2026-0001.html | ${reviewBy} | upgrade parser |\n`
@@ -40,20 +40,12 @@ test('rejects malformed and rolled-over as-of dates', () => {
   }
 })
 
-function isSecurityPatchedAmmonia(version) {
-  const parts = version.split('.').map(Number)
-  if (parts.length !== 3 || parts.some(part => !Number.isSafeInteger(part) || part < 0)) return false
-  const [major, minor, patch] = parts
-  return major > 4 || (major === 4 && (minor > 2 || (minor === 2 && patch >= 4)))
-}
-
-test('the ammonia security floor accepts subsequent patch, minor and major versions', () => {
-  for (const [version, patched] of [
-    ['4.2.3', false], ['4.2.4', true], ['4.2.5', true],
-    ['4.3.0', true], ['5.0.0', true], ['3.99.99', false],
-    ['bad-version', false],
-  ]) {
-    assert.equal(isSecurityPatchedAmmonia(version), patched, version)
+test('RustSec sanitizer floor accepts patched same-minor updates and rejects vulnerable versions', () => {
+  for (const version of ['4.2.4', '4.2.5', '4.3.0', '4.10.0', '5.0.0']) {
+    assert.equal(isVersionAtLeast(version, '4.2.4'), true, `${version} should be accepted`)
+  }
+  for (const version of ['4.2.3', '4.1.99', '3.99.99', '4.2.4-rc1', 'unparseable']) {
+    assert.equal(isVersionAtLeast(version, '4.2.4'), false, `${version} should be rejected`)
   }
 })
 
@@ -64,7 +56,7 @@ test('the HTML sanitizer uses the fixed RustSec release and new maintenance noti
   const notes = readFileSync(new URL('docs/security/RUSTSEC-EXCEPTIONS.md', root), 'utf8')
   const ammonia = lock.match(/\[\[package\]\]\s*name = "ammonia"\s*version = "([0-9.]+)"/)
   assert.ok(ammonia, 'ammonia missing from Cargo.lock')
-  assert.ok(isSecurityPatchedAmmonia(ammonia[1]), 'ammonia must stay at or above security-patched 4.2.4')
+  assert.ok(isVersionAtLeast(ammonia[1], '4.2.4'), 'ammonia must stay at or above security-patched 4.2.4')
   assert.doesNotMatch(deny, /"RUSTSEC-2026-0373"/, 'security vulnerability may not be excepted')
   for (const advisory of ['RUSTSEC-2026-0370', 'RUSTSEC-2026-0371', 'RUSTSEC-2026-0372']) {
     assert.ok(deny.includes(`"${advisory}"`), `${advisory} must be enumerated`)

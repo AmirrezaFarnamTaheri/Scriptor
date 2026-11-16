@@ -1,6 +1,75 @@
 import { expect, test, type Page, type Locator, type TestInfo } from '@playwright/test'
 import { launchApp, openCommandPalette, runCommand } from './helpers'
 
+/** P1 VIS-031: a label's own geometry can pass while its parent scrollport
+ * clips the beginning or end after scrollIntoViewIfNeeded at high app zoom. */
+async function expectFullConsentInsidePanelBody(label:Locator, note:string) {
+  const geometry=await label.evaluate(element => {
+    // A consent may live in a modal's unified body OR an embedded source
+    // editor leaf. Locate the real clipping ancestor rather than assuming the
+    // modal class exists. Intersect it with the visible viewport/nav so a
+    // scrolled-off, covered or clipped consent still fails this acceptance.
+    let body: Element | null = element.closest('.unified-panel-body')
+    if (!body) {
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent)
+        if (/(auto|scroll|hidden|clip)/.test(style.overflowY) && parent.clientHeight > 0) {
+          body = parent
+          break
+        }
+      }
+    }
+    if (!body) body = element.closest('.source-file-editor')
+    if (!body) return null
+    const labelBox=element.getBoundingClientRect()
+    const bodyBox=body.getBoundingClientRect()
+    const bottomNav=document.querySelector<HTMLElement>('.mobile-workspace-nav')
+    const navBox=bottomNav?.getBoundingClientRect()
+    const top = Math.max(0, bodyBox.top)
+    const left = Math.max(0, bodyBox.left)
+    const right = Math.min(window.innerWidth, bodyBox.right)
+    const limit=navBox && navBox.height>0 ? Math.min(navBox.top,bodyBox.bottom,window.innerHeight) : Math.min(bodyBox.bottom,window.innerHeight)
+    return {
+      top:labelBox.top, bottom:labelBox.bottom,
+      left:labelBox.left, right:labelBox.right,
+      bodyTop:top, bodyBottom:limit,
+      bodyLeft:left, bodyRight:right,
+      bodyHeight:limit-top, labelHeight:labelBox.height,
+    }
+  })
+  expect(geometry,note+' must have an owning scrollport').not.toBeNull()
+  expect(geometry!.bodyHeight,note+' scrollport must fit its consent').toBeGreaterThanOrEqual(geometry!.labelHeight+8)
+  expect(geometry!.top,note+' label start must be readable').toBeGreaterThanOrEqual(geometry!.bodyTop-1)
+  expect(geometry!.bottom,note+' label end must be readable above mobile nav').toBeLessThanOrEqual(geometry!.bodyBottom+1)
+  expect(geometry!.left,note+' label left must remain in body').toBeGreaterThanOrEqual(geometry!.bodyLeft-1)
+  expect(geometry!.right,note+' label right must remain in body').toBeLessThanOrEqual(geometry!.bodyRight+1)
+  // Bounding rectangles alone do not detect a sticky header, footer, or
+  // floating panel painted above the consent. Probe the actual hit-test stack.
+  const unobstructed = await label.evaluate(element => {
+    const rect = element.getBoundingClientRect()
+    const points = [
+      [rect.left + rect.width / 2, rect.top + Math.min(12, rect.height / 3)],
+      [rect.left + rect.width / 2, rect.bottom - Math.min(12, rect.height / 3)],
+    ]
+    return points.every(([x, y]) => {
+      const over = document.elementFromPoint(x!, y!)
+      return over === element || (over !== null && element.contains(over))
+    })
+  })
+  expect(unobstructed, note+' consent must not be covered by sticky chrome').toBe(true)
+}
+
+async function expectConsentKeyboardActivation(checkbox: Locator, label: Locator, note: string) {
+  await checkbox.focus()
+  await expect(checkbox, note+' must accept focus').toBeFocused()
+  await expectFullConsentInsidePanelBody(label, note+' after keyboard focus')
+  const before = await checkbox.isChecked()
+  await checkbox.press('Space')
+  expect(await checkbox.isChecked(), note+' Space toggles consent').toBe(!before)
+  await checkbox.press('Space')
+  expect(await checkbox.isChecked(), note+' Space restores consent').toBe(before)
+}
+
 // Direct CSS stress zoom publishes the effective viewport dimensions used by
 // the app's CSS fallback. Actual shortcut-driven zoom is covered separately.
 test.beforeEach(async ({ page }) => {
@@ -51,6 +120,7 @@ for (const theme of ['light','dark']) for (const surface of [
     await testInfo.attach(`${direction}-${width}-${zoom}`,{body:JSON.stringify(geometry),contentType:'application/json'})
     if (width === 320 || width === 1440) {
       await label.scrollIntoViewIfNeeded()
+      if (width === 320 && zoom === 2) await expectConsentKeyboardActivation(checkbox,label,`${surface.command} ${theme} ${direction} 320px at 200% app zoom`)
       await label.screenshot({path:testInfo.outputPath(`${theme}-${direction}-${width}-${zoom}-toggle.png`)})
       await panel.screenshot({path:testInfo.outputPath(`${theme}-${direction}-${width}-${zoom}.png`)})
       if (width === 320 && zoom === 2) await page.screenshot({path:testInfo.outputPath(`${theme}-${direction}-320-zoom2-full.png`),fullPage:true})
@@ -90,7 +160,12 @@ for (const theme of ['light','dark']) test(`persistent Python ${theme} setup kee
     const code=await panel.getByRole('textbox',{name:'Code',exact:true}).boundingBox()
     expect(environment!.height).toBeLessThan(120*zoom)
     expect(code!.height).toBeGreaterThanOrEqual(180*zoom)
+    const startButton = await panel.getByRole('button', { name: 'Review permission and start kernel', exact: true }).boundingBox()
+    const paneBounds = await panel.boundingBox()
+    expect(startButton!.height).toBeGreaterThanOrEqual(44 * zoom - 1)
+    expect(startButton!.width).toBeLessThanOrEqual(paneBounds!.width + 1)
     await checkbox.locator('..').scrollIntoViewIfNeeded()
+    if (width === 320 && zoom === 2) await expectConsentKeyboardActivation(checkbox,checkbox.locator('..'),`Runtime ${theme} ${direction} 320px at 200% app zoom`)
     await checkbox.locator('..').screenshot({path:testInfo.outputPath(`runtime-toggle-${theme}-${direction}-${width}-${zoom}.png`)})
     await panel.screenshot({path:testInfo.outputPath(`runtime-setup-${theme}-${direction}-${width}-${zoom}.png`)})
     if (width === 320 && zoom === 2) await page.screenshot({path:testInfo.outputPath(`runtime-${theme}-${direction}-320-zoom2-full.png`),fullPage:true})
@@ -116,8 +191,53 @@ async function auditConsent(page:Page,panel:Locator,label:Locator,name:string,te
     expect(geometry.left).toBeGreaterThanOrEqual(0)
     expect(geometry.right).toBeLessThanOrEqual(width+1)
     await label.scrollIntoViewIfNeeded()
+    if (width === 320 && zoom === 2) {
+      const checkbox = label.locator('input[type="checkbox"]')
+      await expectConsentKeyboardActivation(checkbox, label, `${name} ${direction} 320px at 200% app zoom`)
+    }
     await label.screenshot({path:testInfo.outputPath(`${name}-${direction}-${width}-${zoom}-toggle.png`)})
     await panel.screenshot({path:testInfo.outputPath(`${name}-${direction}-${width}-${zoom}.png`)})
+    if (width === 320 && zoom === 2 && name.startsWith('overleaf-')) {
+      // A two-line consent must never crowd, truncate or overlay the two
+      // safety-critical review actions at 200% magnification.
+      const buttons = panel.locator('.overleaf-review-actions > button')
+      await expect(buttons).toHaveCount(2)
+      await expect(buttons.first()).toHaveAccessibleName('Apply reviewed source locally')
+      await expect(buttons.last()).toHaveAccessibleName('Share reviewed source with Overleaf')
+      // A scrollable CSS grid used to compress its consent row, even though
+      // the button rectangles themselves never intersected.
+      const consentBounds = await label.boundingBox()
+      const consentText = await label.locator('span').boundingBox()
+      const actionsBounds = await panel.locator('.overleaf-review-actions').boundingBox()
+      expect(consentText!.y + consentText!.height).toBeLessThanOrEqual(consentBounds!.y + consentBounds!.height + 1)
+      expect(consentBounds!.y + consentBounds!.height).toBeLessThanOrEqual(actionsBounds!.y + 1)
+      const rects = await buttons.evaluateAll(elements => elements.map(el => {
+        const rect = el.getBoundingClientRect()
+        const visibleLabel = Array.from(el.querySelectorAll('span')).find(span => getComputedStyle(span).display !== 'none')
+        const labelBounds = visibleLabel?.getBoundingClientRect()
+        return {
+          top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right,
+          clientHeight: el.clientHeight, scrollHeight: el.scrollHeight,
+          labelTop: labelBounds?.top ?? Number.NEGATIVE_INFINITY,
+          labelBottom: labelBounds?.bottom ?? Number.POSITIVE_INFINITY,
+          labelLeft: labelBounds?.left ?? Number.NEGATIVE_INFINITY,
+          labelRight: labelBounds?.right ?? Number.POSITIVE_INFINITY,
+        }
+      }))
+      expect(rects[0].bottom).toBeLessThanOrEqual(rects[1].top + 1)
+      for (const rect of rects) {
+        expect(rect.scrollHeight).toBeLessThanOrEqual(rect.clientHeight + 1)
+        expect(rect.labelTop).toBeGreaterThanOrEqual(rect.top - 1)
+        expect(rect.labelBottom).toBeLessThanOrEqual(rect.bottom + 1)
+        expect(rect.labelLeft).toBeGreaterThanOrEqual(rect.left - 1)
+        expect(rect.labelRight).toBeLessThanOrEqual(rect.right + 1)
+      }
+    }
+    if (width === 320 && zoom === 2 && name.startsWith('source-')) {
+      // At narrow widths the source editor starts with file actions rather
+      // than a large explanatory paragraph before the editing surface.
+      await expect(panel.locator(':scope > header p')).toBeHidden()
+    }
     if (width === 320 && zoom === 2) await page.screenshot({path:testInfo.outputPath(`${name}-${direction}-320-zoom2-full.png`),fullPage:true})
   }
 }
@@ -136,11 +256,55 @@ for (const theme of ['light','dark']) test(`saved LaTeX and Overleaf ${theme} co
   })
   await openCommandPalette(page); await runCommand(page,'Source file editor')
   const editor=page.getByRole('region',{name:'Source file editor',exact:true})
+  await editor.getByRole('button',{name:'Plain text',exact:true}).click()
   await editor.getByLabel('File path',{exact:true}).fill('main.tex')
   await editor.getByRole('button',{name:'Open file',exact:true}).click()
   const content = editor.getByRole('textbox',{name:'Source file content',exact:true})
   expect(await content.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(await editor.getByLabel('File path',{exact:true}).evaluate(element => getComputedStyle(element).backgroundColor))
   expect(await content.evaluate(element => Number.parseFloat(getComputedStyle(element).borderRadius))).toBeGreaterThanOrEqual(6)
+  // VIS-004: the first editable source region must begin above mobile navigation,
+  // without having to scroll past duplicate headings and a third action row.
+  for (const direction of ['ltr','rtl']) {
+    await page.setViewportSize({width:320,height:1100})
+    await page.locator('html').evaluate((element,value) => {
+      element.dir=value
+      element.style.zoom='2'
+      element.style.setProperty('--app-viewport-width','calc(100vw / 2)')
+      element.style.setProperty('--app-viewport-height','calc(100dvh / 2)')
+      document.body.style.setProperty('--app-viewport-width','calc(100vw / 2)')
+      document.body.style.setProperty('--app-viewport-height','calc(100dvh / 2)')
+    },direction)
+    const leafTab=page.locator('.workspace-leaf-bar [role="tab"]').first()
+    const leafMore=page.locator('.workspace-leaf-bar .workspace-leaf-compact-actions summary').first()
+    await expect(leafMore).toBeVisible()
+    const tabBounds=await leafTab.boundingBox()
+    const moreBounds=await leafMore.boundingBox()
+    expect(Math.abs(tabBounds!.y-moreBounds!.y), `Source leaf tab/action row ${theme} ${direction}`).toBeLessThanOrEqual(2)
+    const area=await editor.locator('.source-file-content').boundingBox()
+    const nav=await page.getByRole('navigation',{name:'Mobile workspace navigation',exact:true}).boundingBox()
+    expect(area, `Source content bounds ${theme} ${direction}`).not.toBeNull()
+    expect(nav).not.toBeNull()
+    expect(area!.y, `Source editing controls must start above navigation ${theme} ${direction}`).toBeLessThan(nav!.y-8)
+    // Starting the textarea just 8px above the fixed navigation is not a
+    // usable first viewport. Require several readable source lines at 200%.
+    const editable = await editor.getByRole('textbox', { name: 'Source file content', exact: true }).boundingBox()
+    expect(editable).not.toBeNull()
+    const visibleEditorHeight = Math.min(editable!.y + editable!.height, nav!.y) - Math.max(editable!.y, 0)
+    expect(visibleEditorHeight, `Source edit area at ${theme} ${direction} 320px / 200%`).toBeGreaterThanOrEqual(136)
+  }
+  await page.locator('html').evaluate(element => {
+    element.dir='ltr'; element.style.zoom='1'
+    element.style.removeProperty('--app-viewport-width')
+    element.style.removeProperty('--app-viewport-height')
+    document.body.style.removeProperty('--app-viewport-width')
+    document.body.style.removeProperty('--app-viewport-height')
+  })
+  await page.setViewportSize({width:1440,height:1100})
+  await page.locator('html').evaluate(element => { element.dir='rtl' })
+  const isolatedFilePath=editor.locator('.source-file-status bdi[dir="ltr"]').first()
+  await expect(isolatedFilePath).toContainText('main.tex')
+  expect(await isolatedFilePath.evaluate(element => getComputedStyle(element).direction)).toBe('ltr')
+  await page.locator('html').evaluate(element => { element.dir='ltr' })
   const compile=editor.getByRole('checkbox',{name:'I reviewed the saved source and want to compile it.',exact:true})
   await auditConsent(page,editor,compile.locator('..'),`source-${theme}`,testInfo)
   await page.locator('html').evaluate(element => {element.style.zoom='1'; element.style.removeProperty('--app-viewport-width'); element.style.removeProperty('--app-viewport-height'); document.body.style.removeProperty('--app-viewport-width'); document.body.style.removeProperty('--app-viewport-height');element.dir='ltr'})

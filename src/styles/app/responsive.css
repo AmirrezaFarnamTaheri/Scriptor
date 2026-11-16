@@ -664,7 +664,7 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
   .workspace-mode-select { display: block; width: 100%; min-height: 40px; }
 }
 @container mobile-chrome (max-width: 240px) {
-  .mobile-workspace-nav { grid-template-columns: repeat(2, minmax(44px, 1fr)); gap: 2px; padding: 4px; }
+  .mobile-workspace-nav { grid-template-columns: repeat(4, minmax(44px, 1fr)); gap: 2px; padding: 4px; }
   .mobile-nav-item { min-height: 44px; }
   .mobile-nav-item > span { display: none; }
 }
@@ -678,7 +678,7 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
    keeping the navigation chrome smaller than the document it serves. */
 html[data-ui-zoom='high'] [data-workspace-header-only='true'] { display:none; }
 html[data-ui-zoom='high'] .workspace-embedded-panel .unified-panel-body { padding:8px; }
-html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(5,minmax(32px,1fr)); gap:2px; padding:4px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(4,minmax(32px,1fr)); gap:2px; padding:4px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item { min-width:32px; min-height:32px; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item > span { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls button:disabled { display:none; }
@@ -687,10 +687,13 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header h2 { fo
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header h2 svg { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .unified-panel-header .health-subtitle { display:none; }
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .asset-deck-split:not(.has-reader) .embedded-panel-shell > header { display:none; }
-/* Five 32px grid targets plus gutters need at least 176 CSS pixels. Fall back
-   to two columns before high-zoom narrow screens overflow in LTR or RTL. */
+/* Vault, Write, Command and More are four one-row destinations. Effective
+   high-zoom widths use scaled 32px controls to retain a full one-row bar. */
 @container mobile-chrome (max-width: 200px) {
-  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav { grid-template-columns:repeat(2,minmax(32px,1fr)); }
+  .mobile-workspace-nav,
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav {
+    grid-template-columns: repeat(4,minmax(32px,1fr));
+  }
 }
 
 /* Three compact rows at magnification: identity/actions, vault, and mode.
@@ -725,4 +728,205 @@ html[data-ui-reflow='mobile'] .workspace-grid[data-mobile-pane='vault'][data-vau
   opacity: 1;
   pointer-events: auto;
   visibility: visible;
+}
+
+/* At mobile widths (or effective mobile app zoom) the selected pane owns the
+ * whole grid, irrespective of the desktop rail collapse preferences. */
+@media (max-width: 820px) {
+  .workspace-grid[data-vault-collapsed='true'][data-mobile-pane='vault'] > .vault-panel,
+  .workspace-grid[data-inspector-collapsed='true'][data-mobile-pane='inspector'] > .inspector-panel {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  .workspace-grid[data-inspector-collapsed='true'][data-mobile-pane='inspector'] > .inspector-panel {
+    padding-inline: 12px;
+  }
+}
+html[data-ui-reflow='mobile'] .workspace-grid[data-vault-collapsed='true'][data-mobile-pane='vault'] > .vault-panel,
+html[data-ui-reflow='mobile'] .workspace-grid[data-inspector-collapsed='true'][data-mobile-pane='inspector'] > .inspector-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+html[data-ui-reflow='mobile'] .workspace-grid[data-inspector-collapsed='true'][data-mobile-pane='inspector'] > .inspector-panel {
+  padding-inline: 12px;
+}
+
+
+/* At extreme magnification the bottom Command/More destinations supply all
+ * secondary actions. Keep one complete Settings button instead of clipping a
+ * horizontal strip at the physical viewport edge in LTR/RTL. */
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .top-actions > :not(.topbar-settings-toggle) { display:none; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .top-actions { display:flex; flex:0 0 auto; justify-content:flex-end; max-width:100%; overflow:visible; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .history-controls { display:none; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .workspace-mode-strip { grid-column:1 / -1; order:2; width:100%; min-width:0; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar { grid-template-columns:minmax(0,1fr) auto; }
+html[data-ui-reflow='mobile'] .workspace-embedded-panel .unified-panel-body { scroll-padding-block-end:calc(64px + env(safe-area-inset-bottom,0px)); }
+
+
+/* Actual available width is the authority at extreme CSS zoom, even when
+ * zoom was injected externally (browser/text-scaling stress tests) and the
+ * app's data-ui-zoom metadata has not yet updated. Keep the primary controls,
+ * and route secondary navigation through the bottom More/Command menus. */
+@container workspace-chrome (max-width: 200px) {
+  .topbar {
+    grid-template-columns: minmax(0,1fr) auto;
+    padding: 4px;
+    gap: 4px;
+    min-height: 0;
+  }
+  .topbar .history-controls { display: none; }
+  .topbar .top-actions { grid-column: 2; max-width: 100%; overflow: visible; padding: 2px; }
+  .topbar .top-actions > :not(.topbar-settings-toggle) { display: none; }
+  .topbar .workspace-mode-strip {
+    grid-column: 1 / -1;
+    order: 2;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+  }
+  .topbar .workspace-mode-select { min-width: 0; width: 100%; min-height: 36px; height: 36px; }
+}
+
+/* On ordinary 320–400px mobile viewports, keep the vault picker and workspace
+ * mode in a common second row. When history actions become enabled, preserve
+ * their full touch targets by letting navigation use its own row. This leaves
+ * the note editor more vertical room without hiding usable history. */
+@media (max-width: 400px) {
+  html[data-ui-reflow='mobile']:not([data-ui-zoom='high']) .topbar {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    column-gap: 6px;
+    row-gap: 6px;
+  }
+  html[data-ui-reflow='mobile']:not([data-ui-zoom='high']) .topbar .brand {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  html[data-ui-reflow='mobile']:not([data-ui-zoom='high']) .topbar .top-actions {
+    grid-row: 1;
+    grid-column: 2;
+  }
+  /* An empty history picker and the mode select occupy the same grid row.
+     Stretch both tracks to the same top edge instead of center-aligning their
+     different intrinsic heights. */
+  html[data-ui-reflow='mobile']:not([data-ui-zoom='high']) .topbar :is(.history-controls, .workspace-mode-strip) {
+    align-self: stretch;
+  }
+  html[data-ui-reflow='mobile']:not([data-ui-zoom='high']) .topbar .history-controls {
+    grid-row: 2;
+    grid-column: 1;
+    overflow-x: hidden;
+    min-width: 0;
+  }
+  html[data-ui-reflow='mobile']:not([data-ui-zoom='high']) .topbar .history-controls button:disabled {
+    display: none;
+  }
+  html[data-ui-reflow='mobile']:not([data-ui-zoom='high']) .topbar .workspace-mode-strip {
+    grid-row: 2;
+    grid-column: 2;
+    min-width: 0;
+    width: 100%;
+  }
+  html[data-ui-reflow='mobile']:not([data-ui-zoom='high']) .topbar:has(.history-controls button:not(:disabled)) .history-controls {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    overflow-x: auto;
+  }
+  html[data-ui-reflow='mobile']:not([data-ui-zoom='high']) .topbar:has(.history-controls button:not(:disabled)) .workspace-mode-strip {
+    grid-row: 3;
+    grid-column: 1 / -1;
+  }
+}
+
+/* At extreme application zoom 4 fixed minimum-width nav tracks can exceed
+   the real physical viewport. The four tracks share all available width;
+   physical hit targets remain large because the app itself is magnified. */
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-chrome {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-workspace-nav {
+  box-sizing: border-box;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-width: 100%;
+  width: 100%;
+}
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+/* At 200% UI zoom preserve touch targets but give the active document more
+ * vertical space by reducing noninteractive chrome and hiding secondary
+ * metrics visually (the text remains in the accessibility tree). */
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .tabs-row,
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .tabs-note-scroll { min-height:42px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .format-row.editor-toolbar { min-height:40px; padding-block:2px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .editor-status { min-height:24px; gap:8px; padding-inline:8px; }
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .editor-status > span:nth-of-type(2),
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .editor-status > span:nth-of-type(3) { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+
+
+/* VIS-007: at 200% UI zoom a desktop-width writing workspace still has
+ * enough effective inline room to place mode selection between identity and
+ * Settings. Reclaim the otherwise redundant second topbar row instead of
+ * reducing target dimensions. At genuinely narrow effective widths retain
+ * the existing two-row high-zoom arrangement and its complete controls. */
+@container workspace-chrome (min-width: 360px) {
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .brand {
+    grid-column: 1;
+    grid-row: 1;
+    order: 0;
+  }
+
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .workspace-mode-strip {
+    grid-column: 2;
+    grid-row: 1;
+    order: 1;
+    min-width: 0;
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .topbar .top-actions {
+    grid-column: 3;
+    grid-row: 1;
+    order: 2;
+  }
+}
+
+
+/* VIS-021: magnification should not hide destination names when real space
+ * remains. Keep the 32px high-zoom row height by laying out icon + short name
+ * horizontally. The 4 icon-only destinations remain at truly narrow
+ * effective widths, where labels would crowd or clip the targets. */
+@container mobile-chrome (min-width: 360px) {
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item {
+    flex-direction: row;
+    gap: 6px;
+    padding-inline: 6px;
+  }
+
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item > span {
+    display: inline;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1;
+    font-size: 11px;
+  }
+
+  html[data-ui-reflow='mobile'][data-ui-zoom='high'] .mobile-nav-item svg {
+    flex: none;
+  }
 }

@@ -249,7 +249,7 @@ export function PluginManagerCenter({
 
           {scope === 'plugins' && (
             <div className="plugin-manager-profiles">
-              <span className="profiles-label">{t('pluginManager.installerProfile')}</span>
+              <span className="profiles-label" dir="auto">{t('pluginManager.installerProfile')}</span>
               {(['focused', 'minimal', 'writer', 'scientific', 'researcher', 'developer', 'complete'] as const).map(
                 (profile) => (
                   <button

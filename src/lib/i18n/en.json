@@ -234,6 +234,8 @@
     }
   },
   "mobile": {
+    "more": "More",
+    "moreDestinations": "More destinations",
     "vault": "Vault",
     "write": "Write",
     "search": "Search",
@@ -371,6 +373,7 @@
     "currentFocus": " (selected note)",
     "computingLayout": "Arranging notes…",
     "ariaLabel": "Knowledge graph",
+    "navigationAria": "Graph search and connected notes",
     "closeGraph": "Close graph",
     "groupColors": "Graph group colors",
     "view": "View",
@@ -378,6 +381,13 @@
     "saveViews": "Save views",
     "legendAria": "Graph legend",
     "currentNote": "Current note",
+    "findNotes": "Find a note",
+    "matchingNotes": "Matching notes",
+    "noMatchingNotes": "No matching notes",
+    "nearbyNotes": "Connected notes",
+    "focusedViewHint": "Showing direct connections only; select Show all links for the full graph.",
+    "showAllLinks": "Show all links",
+    "highlightConnectedLinks": "Highlight connected links",
     "directedLink": "Directed link",
     "disabledTitle": "Knowledge Graph is disabled",
     "disabledDescription": "Enable the Graph module for this vault to explore note relationships.",
@@ -585,8 +595,11 @@
   },
   "inspector": {
     "ariaLabel": "Inspector",
+    "noVaultTitle": "Open a vault to inspect notes",
+    "noVaultHint": "The inspector will show document structure and links after you open a vault.",
     "modeAria": "Inspector mode",
     "presetAria": "Inspector content preset",
+    "moreTabs": "More inspector tabs",
     "tabs": {
       "inspector": "Inspector",
       "preview": "Rendered output",
@@ -685,6 +698,9 @@
     "moveSectionDown": "Move section down"
   },
   "store": {
+    "pluginCapabilities": "Plugin capabilities",
+    "permissionDetails": "Permission details",
+    "activePluginCount": "{{count}} of {{total}} installed plugins enabled",
     "pluginViews": "Plugin options",
     "manageInstalled": "Manage installed",
     "browsePlugins": "Browse plugins",
@@ -798,6 +814,8 @@
   },
   "integrations": {
     "google": {
+      "authorizationHeading": "Account authorization",
+      "authorizationHelp": "Connecting a service opens its own Google permission flow and takes effect when authorized. Vault configuration changes are saved separately with Save vault settings; a successful connection can also record account settings immediately.",
       "title": "Google",
       "description": "Connect Drive, Calendar, Tasks, and Gmail separately. Choose what each service can access.",
       "clientLifecycle": "Changing the Google app ID keeps previous sign-ins. Reconnect each service to use the new ID, then save your vault settings.",
@@ -833,6 +851,8 @@
       "showEvents": "Show Calendar events in Tasks",
       "mirrorTasks": "Enable vault → Google Tasks mirroring (changes are sent only after your approval)",
       "connect": "Connect Google",
+      "switchAccount": "Switch Google account",
+      "lastSync": "Last successful Calendar & Tasks refresh: {time}",
       "syncNow": "Sync now",
       "disconnect": "Disconnect",
       "status": {
@@ -850,6 +870,13 @@
       "developerSetup": "Advanced: use your own Google OAuth client (developers)"
     },
     "gmail": {
+      "integrationLimitations": "Integration limitations",
+      "deliveryUncertain": "Delivery uncertain",
+      "deliveryUncertainExplanation": "Check Gmail Sent before another send. Your current draft is retained until you review the result.",
+      "technicalErrorDetails": "Technical error details",
+      "safePlainText": "Shown as plain text; remote content was not loaded.",
+      "setupGuidance": "Enable Gmail Manager in Plugins, then connect your Google account. For recovery, check Settings > Integrations.",
+      "reviewAccountSetup": "Review account setup",
       "title": "Gmail",
       "subtitle": "Read, send, and save Gmail messages as Markdown notes.",
       "ariaLabel": "Gmail integration panel",
@@ -1072,6 +1099,10 @@
     "advanced": "Advanced appearance and spacing"
   },
   "settingsPanel": {
+    "vaultSaveStatusAria": "Vault settings save status",
+    "vaultManualSave": "Vault settings — save manually",
+    "noPendingVaultChanges": "No pending vault changes",
+    "autoSavePreferences": "App preferences — saved automatically.",
     "tabs": {
       "general": "General",
       "appearance": "Appearance",
@@ -1307,6 +1338,17 @@
     "eventMissing": "Event is outside the loaded window or was removed. Refresh or unlink before recreating.",
     "activeFinished": "The active change finished. Review stopped; applied changes remain saved.",
     "changeApplied": "Change applied. Refresh and review the remaining differences.",
+      "reviewVault": "Vault",
+      "reviewGoogle": "Google",
+      "reviewedChanges": "Reviewed changes",
+      "noDueDate": "No due date",
+      "notLinked": "Not linked",
+      "readOnlyCalendarExplanation": "Read-only calendar: changes can only be imported into the vault. Vault → Google is unavailable for this calendar.",
+      "technicalDetails": "Technical details",
+      "directionFromGoogle": "Google → vault",
+      "directionToGoogle": "Vault → Google",
+      "remainingToReview": "{{count}} remaining to review",
+      "reviewRowIndex": "Change {{index}} of {{count}}",
     "localRemoved": "Local block removed. Its Google event remains unchanged.",
     "cancelAfterActive": "Stopping after the active change. A sent provider request cannot be recalled.",
     "cancelledReview": "Review cancelled. No further changes applied."
@@ -1320,10 +1362,10 @@
     "legacyDocs": "Older Google Docs versions (read-only)",
     "disconnect": "Disconnect Google Drive",
     "autoTitle": "Check for new versions",
-    "autoExplain": "Check this folder for new versions every 30 seconds, for up to 15 minutes. No changes are made to local notes without review.",
+    "autoExplain": "Automatically check connected shared revisions roughly every 10 seconds. Clean changes can be applied safely; conflicts always require review.",
     "autoConsent": "Allow read-only checks for this folder",
     "autoLimits": "Check limits and stopping conditions",
-    "autoLimitsText": "Each check reads up to 100 versions, with no more than 30 checks. Checking stops when the panel closes, notes or vaults change, the app is hidden, or three checks fail.",
+    "autoLimitsText": "Each check reads up to 100 revisions. A session permits 90 checks over 15 minutes and renews automatically while connected. Checks pause when hidden and stop after three failures.",
     "connected": "Connected as {{account}}",
     "localNote": "Local note",
     "share": "Share saved version",

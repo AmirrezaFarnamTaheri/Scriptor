@@ -169,18 +169,22 @@ export const AdvancedSettingsSection = memo(function AdvancedSettingsSection({
       </section>
 
       {journey && onResetJourney ? (
-        <section className="settings-section" aria-label={t('advancedSettings.releaseQuality')}>
-          <ReleaseQualityPanel
-            journey={journey}
-            timeToFirstEditMs={timeToFirstEditMs}
-            timeToFirstExportMs={timeToFirstExportMs}
-            onResetJourney={onResetJourney}
-          />
-        </section>
+        <details className="settings-advanced-disclosure" data-section="performance">
+          <summary>{t('advancedSettings.releaseQuality')}</summary>
+          <section className="settings-section" aria-label={t('advancedSettings.releaseQuality')}>
+            <ReleaseQualityPanel
+              journey={journey}
+              timeToFirstEditMs={timeToFirstEditMs}
+              timeToFirstExportMs={timeToFirstExportMs}
+              onResetJourney={onResetJourney}
+            />
+          </section>
+        </details>
       ) : null}
 
-      <section className="settings-section" aria-labelledby="diagnostics-heading">
-        <h3 id="diagnostics-heading">{t('advancedSettings.diagnostics')}</h3>
+      <details className="settings-advanced-disclosure" data-section="diagnostics">
+        <summary>{t('advancedSettings.diagnostics')}</summary>
+        <section className="settings-section" aria-label={t('advancedSettings.diagnostics')}>
         <label className="diagnostics-opt-in">
           <input
             type="checkbox"
@@ -198,10 +202,12 @@ export const AdvancedSettingsSection = memo(function AdvancedSettingsSection({
           {t('advancedSettings.exportBundle')}
         </button>
         {supportBundleStatus ? <p className="health-subtitle" role="status">{supportBundleStatus}</p> : null}
-      </section>
+        </section>
+      </details>
 
-      <section className="settings-section" aria-labelledby="system-information-heading">
-        <h3 id="system-information-heading">{t('advancedSettings.systemInformation')}</h3>
+      <details className="settings-advanced-disclosure" data-section="system-information">
+        <summary>{t('advancedSettings.systemInformation')}</summary>
+        <section className="settings-section" aria-label={t('advancedSettings.systemInformation')}>
         {systemInfo ? (
           <dl className="settings-grid">
             <div><dt>{t('advancedSettings.os')}</dt><dd>{systemInfo.os}</dd></div>
@@ -212,7 +218,8 @@ export const AdvancedSettingsSection = memo(function AdvancedSettingsSection({
         ) : (
           <p className="empty-state">{t('advancedSettings.systemMetadata')}</p>
         )}
-      </section>
+        </section>
+      </details>
     </>
   )
 })

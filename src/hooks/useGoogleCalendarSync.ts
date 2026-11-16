@@ -97,6 +97,8 @@ export interface GoogleCalendarSyncResult {
   tasks: GoogleTask[]
   error: string | null
   authedEmail: string | null
+  /** Timestamp of the last fully confirmed provider read, never an attempted write. */
+  lastSyncedAt: number | null
   /** Changes even when reconnecting the same email; invalidates prepared reviews. */
   accountGeneration: number
   calendars: GoogleCalendarResource[]
@@ -194,6 +196,7 @@ export function useGoogleCalendarSync({
   refreshIntervalSeconds = 300,
 }: GoogleCalendarSyncOptions): GoogleCalendarSyncResult {
   const [status, setStatus] = useState<CalendarSyncStatus>('disconnected')
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [tasks, setTasks] = useState<GoogleTask[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -257,6 +260,7 @@ export function useGoogleCalendarSync({
     discoveryGenerationRef.current += 1
     setResources({ calendars: [], taskLists: [], loading: false, error: null })
     setStatus('authorizing')
+    setLastSyncedAt(null)
     setError(null)
     try {
       const email = await googleCalendarStartAuth({
@@ -285,6 +289,7 @@ export function useGoogleCalendarSync({
       setEvents(evtsRaw)
       setTasks(tasksRaw)
       setAuthedEmail(confirmedEmail || email)
+      setLastSyncedAt(Date.now())
       setStatus('synced')
       void discoverResources()
       return true
@@ -331,6 +336,7 @@ export function useGoogleCalendarSync({
       if (generation !== lifecycleGenerationRef.current) return
       setAccountGeneration(current => current + 1)
       setStatus('disconnected')
+      setLastSyncedAt(null)
       setAuthedEmail(null)
       setEvents([])
       setTasks([])
@@ -365,6 +371,7 @@ export function useGoogleCalendarSync({
         setTasks(tasksRaw)
       }
       setAuthedEmail(email)
+      setLastSyncedAt(Date.now())
       setStatus('synced')
       void discoverResources()
     } catch (err) {
@@ -404,7 +411,7 @@ export function useGoogleCalendarSync({
       taskMutationRevisionRef.current++
       setAccountGeneration(current => current + 1)
       const needsReconnect = detail.kind === 'reconnect-required'
-      setEvents([]); setTasks([]); setAuthedEmail(null)
+      setEvents([]); setTasks([]); setAuthedEmail(null); setLastSyncedAt(null)
       setError(needsReconnect ? detail.error ?? null : null)
       setResources({ calendars: [], taskLists: [], loading: false, error: null })
       setStatus(needsReconnect ? 'reconnect-required' : 'disconnected')
@@ -779,6 +786,7 @@ export function useGoogleCalendarSync({
     tasks: enabled ? tasks : EMPTY_TASKS,
     error: enabled ? error : null,
     authedEmail: enabled ? authedEmail : null,
+    lastSyncedAt: enabled ? lastSyncedAt : null,
     accountGeneration,
     calendars: enabled ? resources.calendars : [],
     taskLists: enabled ? resources.taskLists : [],

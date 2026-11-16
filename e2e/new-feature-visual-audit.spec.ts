@@ -22,10 +22,37 @@ test('new review workspaces expose usable geometry, focus and cancellation contr
     const panel = surface.name === 'Asset deck' ? page.locator('.asset-deck-workspace[role="region"]') : page.getByRole(modal ? 'dialog' : 'region', { name: surface.name, exact: true })
     await expect(panel).toBeVisible()
     if (surface.command === 'Drive collaboration') {
-      const summary = panel.locator('summary').last()
-      await summary.focus(); await page.keyboard.press('Tab'); await expect(summary).not.toBeFocused()
-      expect(await page.evaluate(() => Boolean(document.activeElement?.getClientRects().length))).toBe(true)
-      await page.keyboard.press('Shift+Tab'); await expect(summary).toBeFocused()
+      // The Docs disclosure sits inside setup, which deliberately starts
+      // collapsed before an account is connected. Open that visible parent
+      // through the keyboard before testing focus inside its nested content.
+      const setup = panel.locator('.collaboration-workflow-details')
+      const setupSummary = setup.locator(':scope > summary')
+      const setupInitiallyClosed = await setup.getAttribute('open') === null
+      if (setupInitiallyClosed) {
+        await expect(setupSummary).toBeVisible()
+        await setupSummary.focus()
+        await expect(setupSummary).toBeFocused()
+        await setupSummary.press('Enter')
+        await expect(setup).toHaveAttribute('open', '')
+      }
+      const summary = setup.locator('summary').last()
+      await expect(summary).toBeVisible()
+      await summary.focus()
+      await expect(summary).toBeFocused()
+      await summary.press('Enter')
+      const disclosure = summary.locator('..')
+      await expect(disclosure).toHaveAttribute('open', '')
+      await page.keyboard.press('Tab')
+      const inside = await disclosure.evaluate(element => element.contains(document.activeElement))
+      expect(inside, 'Tab should enter the expanded Drive Docs disclosure').toBe(true)
+      await page.keyboard.press('Shift+Tab')
+      await expect(summary).toBeFocused()
+      await summary.press('Enter')
+      await expect(disclosure).not.toHaveAttribute('open', '')
+      if (setupInitiallyClosed) {
+        await setupSummary.press('Enter')
+        await expect(setup).not.toHaveAttribute('open', '')
+      }
     }
     for (const direction of ['ltr', 'rtl']) {
       await page.locator('html').evaluate((element, value) => element.setAttribute('dir', value), direction)

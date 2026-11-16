@@ -20,13 +20,13 @@ export function PluginCard({ manifest, isEnabled, onToggle, workspaces = [], onO
     <div className="plugin-card">
       <div className="plugin-card-info">
         <div className="plugin-card-title">
-          <h3>{manifest.name}</h3>
-          <span className="plugin-badge">v{manifest.version}</span>
+          <h3 dir="auto">{manifest.name}</h3>
+          <span className="plugin-badge" dir="ltr">v{manifest.version}</span>
           {manifest.capabilityId ? (
-            <span className="plugin-badge capability-badge">{manifest.capabilityId}</span>
+            <span className="plugin-badge capability-badge" dir="ltr">{manifest.capabilityId}</span>
           ) : null}
         </div>
-        <p className="plugin-card-description">{manifest.description}</p>
+        <p className="plugin-card-description" dir="auto">{manifest.description}</p>
       </div>
       <div className="plugin-card-actions">
         {workspaces.map(({ view, unavailableReason }) => (
@@ -34,7 +34,7 @@ export function PluginCard({ manifest, isEnabled, onToggle, workspaces = [], onO
             <button type="button" className="toolbar-button" disabled={openingWorkspace || !!unavailableReason || !onOpenWorkspace} title={unavailableReason ?? view.description} onClick={() => onOpenWorkspace?.(view)}>
               {strings.open} {view.title}
             </button>
-            {unavailableReason ? <small className="plugin-workspace-unavailable">{unavailableReason}</small> : null}
+            {unavailableReason ? <small className="plugin-workspace-unavailable" dir="auto">{unavailableReason}</small> : null}
           </div>
         ))}
         <button

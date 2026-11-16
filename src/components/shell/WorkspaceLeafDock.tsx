@@ -43,6 +43,8 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
   const writingVisible = writing && !(revealed?.group === 'primary' && revealed.reference.kind !== 'note')
   const vaultId = workspace.vault?.id
   const focusedGroup = revealed?.group ?? dock.activeLeaf?.group ?? 'primary'
+  const wideSecondary = Boolean(secondary && (secondary.reference.kind === 'source' || secondary.reference.kind === 'plugin' || (secondary.reference.kind === 'feature' && ['source-editor', 'open-drive-collaboration', 'open-runtime-console', 'open-database-studio', 'open-publishing-studio', 'open-capture-reviewer'].includes(secondary.reference.id))))
+  const focusedWideWorkspace = wideSecondary && focusedGroup === 'secondary'
   // The editor owns tabs for opened notes. Saved but unopened note references
   // still need a way to activate their inert restoration prompts.
   const primaryHasTools = dock.state.leaves.some(leaf =>
@@ -61,8 +63,9 @@ export function WorkspaceLeafDock({ composition: dock, workspace, plugins, child
         { id: 'preview', label: copy.preview, disabled: !workspace.activePath, run: () => { if (workspace.activePath) void dock.openPreview(workspace.activePath) } },
         ...dock.commands.map(command => ({ id: command.id, label: command.label, run: () => { void command.run() } })),
       ]} compact /> : null
-  return <section className={`editor-panel workspace-leaf-dock${secondary ? ' has-side' : ''} focus-${focusedGroup}`} aria-label={copy.navigation}>
+  return <section className={`editor-panel workspace-leaf-dock${secondary ? ' has-side' : ''} focus-${focusedGroup}${focusedWideWorkspace ? ' is-focused-workspace' : ''}`} aria-label={copy.navigation}>
     {!writingVisible ? workspaceActions : null}
+    {focusedWideWorkspace ? <div className="workspace-focus-toolbar"><button type="button" className="toolbar-button" onClick={() => { if (primary) void dock.select(primary.id); else void dock.open({ kind: 'feature', id: 'editor' }, 'primary') }}>Back to writing</button></div> : null}
     {dock.status !== 'idle' && <p className="workspace-transition-status" role="status">{workspaceTransitionCopy(locale, dock.status === 'pending', dock.reason === 'limit')}</p>}
     <div className="workspace-leaf-grid">
       {(['primary', 'secondary'] as const).map(group => <div key={group} className={`workspace-group-heading ${group}${group === 'primary' && !hasPrimaryLeafTabs ? ' note-only' : ''}`}>
