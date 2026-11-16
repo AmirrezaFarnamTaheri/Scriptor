@@ -32,6 +32,10 @@ export function OverleafPanel({ document, onClose, onApplied, initialTarget, onD
   const dialog = useRef<HTMLDivElement>(null); const generation = useRef(0); const pending = useRef(false)
   const baseline = useRef<{ key: string; content: string } | null>(null)
   const reviewEdited = useRef(false)
+  // Mirrors of the displayed review, read by the background check so that an
+  // unchanged remote does not silently withdraw a consent the user just gave.
+  const snapshotRef = useRef<OverleafSnapshot | null>(null); const reviewedRef = useRef('')
+  useEffect(() => { snapshotRef.current = snapshot; reviewedRef.current = reviewed }, [snapshot, reviewed])
   const [autoChoice, setAutoChoice] = useState<{ key: string; enabled: boolean } | null>(null)
   const autoTarget = useMemo(() => {
     try {
@@ -123,7 +127,10 @@ export function OverleafPanel({ document, onClose, onApplied, initialTarget, onD
         }
         if (direction === 'equal') {
           baseline.current = { key: autoTarget.key, content: local.content }
-          setSnapshot(remote); setReviewed(local.content); setAccepted(false)
+          const shown = snapshotRef.current
+          const unchanged = shown !== null && shown.head === remote.head && shown.content_hash === remote.content_hash && reviewedRef.current === local.content
+          setSnapshot(remote)
+          if (!unchanged) { setReviewed(local.content); setAccepted(false) }
           setStatus('Auto-sync active: the saved local and Overleaf copies match.')
         } else if (direction === 'pull' && remote.content !== null) {
           if (!current()) return

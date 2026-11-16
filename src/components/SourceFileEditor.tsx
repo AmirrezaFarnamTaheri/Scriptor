@@ -40,6 +40,9 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
     vaultId: string; path: string; project: string; remotePath: string
   } | null>(null)
   const linkedOverleaf = useMemo(() => {
+    // The binding lives in localStorage, which React cannot observe. Closing the
+    // Overleaf dialog or changing its preference are the two moments it can change.
+    void overleafOpen; void overleafPreferenceVersion
     if (!document) return null
     try {
       const binding = readOverleafBinding(localStorage, overleafBindingKey(document.vault_id, document.path))
