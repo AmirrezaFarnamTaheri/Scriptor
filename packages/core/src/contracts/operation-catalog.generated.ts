@@ -393,7 +393,8 @@ export const OPERATION_CATALOG = {
         "value",
         "invalid",
         "failed"
-      ]
+      ],
+      "surface": "tauri"
     },
     {
       "name": "collaboration_live_public_key",
@@ -406,7 +407,8 @@ export const OPERATION_CATALOG = {
         "value",
         "invalid",
         "failed"
-      ]
+      ],
+      "surface": "tauri"
     },
     {
       "name": "collaboration_live_connect",
@@ -420,7 +422,8 @@ export const OPERATION_CATALOG = {
         "value",
         "invalid",
         "failed"
-      ]
+      ],
+      "surface": "tauri"
     },
     {
       "name": "collaboration_live_disconnect",
@@ -433,7 +436,8 @@ export const OPERATION_CATALOG = {
         "value",
         "invalid",
         "failed"
-      ]
+      ],
+      "surface": "tauri"
     },
     {
       "name": "collaboration_live_take_remote",
@@ -446,7 +450,8 @@ export const OPERATION_CATALOG = {
         "value",
         "invalid",
         "failed"
-      ]
+      ],
+      "surface": "tauri"
     },
     {
       "name": "collaboration_live_stop",

@@ -392,7 +392,8 @@
         "value",
         "invalid",
         "failed"
-      ]
+      ],
+      "surface": "tauri"
     },
     {
       "name": "collaboration_live_public_key",
@@ -405,7 +406,8 @@
         "value",
         "invalid",
         "failed"
-      ]
+      ],
+      "surface": "tauri"
     },
     {
       "name": "collaboration_live_connect",
@@ -419,7 +421,8 @@
         "value",
         "invalid",
         "failed"
-      ]
+      ],
+      "surface": "tauri"
     },
     {
       "name": "collaboration_live_disconnect",
@@ -432,7 +435,8 @@
         "value",
         "invalid",
         "failed"
-      ]
+      ],
+      "surface": "tauri"
     },
     {
       "name": "collaboration_live_take_remote",
@@ -445,7 +449,8 @@
         "value",
         "invalid",
         "failed"
-      ]
+      ],
+      "surface": "tauri"
     },
     {
       "name": "collaboration_live_stop",
