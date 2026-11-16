@@ -35,6 +35,10 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
   const [compileConfirmed, setCompileConfirmed] = useState(false)
   const [overleafOpen, setOverleafOpen] = useState(false)
   const [overleafPreferenceVersion, setOverleafPreferenceVersion] = useState(0)
+  // An unconfirmed target is ephemeral UI state, not an authorized sync binding.
+  const [overleafDraftTarget, setOverleafDraftTarget] = useState<{
+    vaultId: string; path: string; project: string; remotePath: string
+  } | null>(null)
   const linkedOverleaf = useMemo(() => {
     if (!document) return null
     try {
@@ -43,7 +47,7 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
       const key = autoSyncPreferenceKey('overleaf', document.vault_id, binding.projectId, binding.remotePath)
       return { key, enabled: readAutoSyncEnabled(localStorage, key) }
     } catch { return null }
-  }, [document?.vault_id, document?.path, overleafOpen, overleafPreferenceVersion])
+  }, [document, overleafOpen, overleafPreferenceVersion])
   const generation = useRef(0)
   const decisionRef = useRef<HTMLDivElement>(null)
   const dirty = document ? draft !== document.content : draft !== ''
@@ -233,7 +237,13 @@ export function SourceFileEditor({ expectedVaultId, path, onClose, onSaved, late
       onStatus={setStatus}
     />}
 
-    {overleafOpen && document && <OverleafPanel document={document} onClose={() => setOverleafOpen(false)} onApplied={(next, keepWatching = false) => {
+    {overleafOpen && document && <OverleafPanel document={document} onClose={() => setOverleafOpen(false)}
+      initialTarget={overleafDraftTarget?.vaultId === document.vault_id && overleafDraftTarget.path === document.path
+        ? { project: overleafDraftTarget.project, remotePath: overleafDraftTarget.remotePath } : null}
+      onDraftTargetChange={(project, remotePath) => setOverleafDraftTarget({
+        vaultId: document.vault_id, path: document.path, project, remotePath,
+      })}
+      onApplied={(next, keepWatching = false) => {
       if (next.vault_id !== expectedVaultId || next.path !== document.path) { setError('Synced source belongs to another file. Reload before continuing.'); return }
       setDocument(next); setDraft(next.content); setCompileConfirmed(false)
       if (!keepWatching) setOverleafOpen(false)

@@ -10,15 +10,21 @@ import { overleafBindingKey, readOverleafBinding, saveOverleafBinding, forgetOve
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import '../styles/components/overleaf.css'
-export interface OverleafPanelProps { document: SourceDocument; onClose: () => void; onApplied: (document: SourceDocument, keepWatching?: boolean) => void }
-export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelProps) {
+export interface OverleafPanelProps {
+  document: SourceDocument
+  onClose: () => void
+  onApplied: (document: SourceDocument, keepWatching?: boolean) => void
+  initialTarget?: { project: string; remotePath: string } | null
+  onDraftTargetChange?: (project: string, remotePath: string) => void
+}
+export function OverleafPanel({ document, onClose, onApplied, initialTarget, onDraftTargetChange }: OverleafPanelProps) {
   const bindingKey = useMemo(() => {
     try { return overleafBindingKey(document.vault_id, document.path) }
     catch { return null }
   }, [document.vault_id, document.path])
   const [linked] = useState(() => bindingKey ? readOverleafBinding(localStorage, bindingKey) : null)
-  const [project, setProject] = useState(linked?.projectId ?? '')
-  const [remotePath, setRemotePath] = useState(linked?.remotePath ?? document.path)
+  const [project, setProject] = useState(initialTarget?.project ?? linked?.projectId ?? '')
+  const [remotePath, setRemotePath] = useState(initialTarget?.remotePath ?? linked?.remotePath ?? document.path)
   const [snapshot, setSnapshot] = useState<OverleafSnapshot | null>(null); const [reviewed, setReviewed] = useState('')
   const [busy, setBusy] = useState(false); const [accepted, setAccepted] = useState(false)
   const [status, setStatus] = useState('Fetch a remote preview to compare it with the saved local source.'); const [error, setError] = useState<string | null>(null)
@@ -178,11 +184,11 @@ export function OverleafPanel({ document, onClose, onApplied }: OverleafPanelPro
     </details>
     <h3 className="overleaf-step-heading">1. Choose the remote file</h3>
     <p>Saved local source: <bdi>{document.path}</bdi></p>
-    <label>Overleaf project ID or official URL<input value={project} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setProject(event.target.value) }}/></label>
-    <label>Remote project source path<input value={remotePath} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setRemotePath(event.target.value) }}/></label>
+    <label>Overleaf project ID or official URL<input value={project} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setProject(event.target.value); onDraftTargetChange?.(event.target.value, remotePath) }}/></label>
+    <label>Remote project source path<input value={remotePath} disabled={busy} autoComplete="off" onChange={event => { changeTarget(); setRemotePath(event.target.value); onDraftTargetChange?.(project, event.target.value) }}/></label>
     {bindingKey && project && <button type="button" className="toolbar-button" disabled={busy} onClick={() => {
       try { forgetOverleafBinding(localStorage, bindingKey) } catch { /* Re-entering a project is still possible. */ }
-      changeTarget(); setProject(''); setRemotePath(document.path)
+      changeTarget(); setProject(''); setRemotePath(document.path); onDraftTargetChange?.('', document.path)
       setStatus('Saved Overleaf project link cleared. Select a project to connect again.')
     }}>Forget saved Overleaf link</button>}
     {autoTarget && <label className="overleaf-auto-sync-toggle"><input type="checkbox" checked={autoEnabled} onChange={event => {
