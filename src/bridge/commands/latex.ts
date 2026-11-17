@@ -30,14 +30,15 @@ export async function latexCompile(args: {
   // The scope must be built from the raw vault-relative request strings so it
   // matches the value the native command consumes. It names the output
   // destination too, so the approval covers where generated files are written.
-  // The pair is JSON-serialized rather than delimiter-joined: a plain
-  // "input (output: dir)" format is ambiguous, because ("a", "b (output: c")
-  // and ("a (output: b", "c") collapse to the same string and one grant would
-  // authorize the other. Both sides use the same serializer, so an exact
-  // string match means an exact path pair.
+  // The engine path is included because it comes from vault config: the user
+  // approves the exact executable, not just the files. The tuple is
+  // JSON-serialized rather than delimiter-joined: a plain "input (output: dir)"
+  // format is ambiguous, because ("a", "b (output: c") and ("a (output: b", "c")
+  // collapse to the same string and one grant would authorize the other. Both
+  // sides use the same serializer, so an exact string match means an exact tuple.
   const authorizationToken = await authorizeSensitiveOperation(
     'latex_compilation',
-    JSON.stringify([args.inputPath, args.outputDir]),
+    JSON.stringify([args.inputPath, args.outputDir, args.tectonicPath]),
   )
   return invoke<LatexCompileOutput>('latex_compile', {
     inputPath: args.inputPath,

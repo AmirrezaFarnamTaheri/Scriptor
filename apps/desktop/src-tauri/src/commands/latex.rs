@@ -78,6 +78,21 @@ fn resolve_tectonic(config_path: Option<&str>) -> Option<PathBuf> {
     find_on_path()
 }
 
+/// A vault is content the user may have received from someone else, and the
+/// engine path is read from its config. An executable that lives inside the
+/// vault would let that content choose what runs, so it is refused.
+fn reject_engine_inside_vault(binary: &Path, canonical_vault: &Path) -> Result<(), String> {
+    let resolved = std::fs::canonicalize(binary)
+        .map_err(|error| format!("invalid LaTeX engine path {}: {error}", binary.display()))?;
+    if resolved.starts_with(canonical_vault) {
+        return Err(
+            "The LaTeX engine must be installed outside the vault; a vault cannot supply its own executable."
+                .into(),
+        );
+    }
+    Ok(())
+}
+
 const ALLOWED_EXTRA_FLAGS: &[&str] = &[
     "--keep-logs",
     "--keep-intermediates",
@@ -163,8 +178,11 @@ fn resolve_vault_input(vault_root: &Path, input_path: &str) -> Result<PathBuf, S
 pub(crate) fn latex_authorization_scope(
     input_path: &str,
     output_dir: &str,
+    tectonic_path: Option<&str>,
 ) -> Result<String, String> {
-    serde_json::to_string(&(input_path, output_dir))
+    // The engine path comes from vault config, so it is part of what the user
+    // approves: the native dialog shows the exact executable that will run.
+    serde_json::to_string(&(input_path, output_dir, tectonic_path))
         .map_err(|error| format!("failed to encode LaTeX authorization scope: {error}"))
 }
 
@@ -262,7 +280,8 @@ pub fn latex_compile(
     let (output_candidate, vault_root_canonical) =
         validate_vault_output_dir(&canonical_vault, &output_dir)?;
 
-    let authorization_scope = latex_authorization_scope(&input_path, &output_dir)?;
+    let authorization_scope =
+        latex_authorization_scope(&input_path, &output_dir, tectonic_path.as_deref())?;
     require_sensitive_operation(
         &state,
         &authorization_token,
@@ -283,6 +302,7 @@ pub fn latex_compile(
         "Tectonic was not found. Install it or set the LaTeX engine path in vault settings."
             .to_string()
     })?;
+    reject_engine_inside_vault(&binary, &vault_root_canonical)?;
 
     let mut args: Vec<String> = vec![
         input.display().to_string(),
@@ -373,26 +393,37 @@ mod tests {
 
     #[test]
     fn authorization_scope_names_source_and_output_destination() {
-        let scope = latex_authorization_scope("papers/report.tex", ".scriptor/latex-out")
-            .expect("scope serialization");
+        let scope = latex_authorization_scope(
+            "papers/report.tex",
+            ".scriptor/latex-out",
+            Some("/opt/tectonic/bin/tectonic"),
+        )
+        .expect("scope serialization");
         assert!(scope.contains("papers/report.tex"));
         assert!(scope.contains(".scriptor/latex-out"));
+        assert!(scope.contains("/opt/tectonic/bin/tectonic"));
     }
 
     #[test]
     fn authorization_scope_is_unambiguous_and_matches_the_bridge_serializer() {
-        // The bridge builds the identical string with JSON.stringify([a, b]),
-        // so the scope must be a JSON array of the two paths in order.
+        // The bridge builds the identical string with JSON.stringify([a, b, c]),
+        // so the scope must be a JSON array of the paths in order, null when no
+        // engine path is configured.
         assert_eq!(
-            latex_authorization_scope("papers/report.tex", ".scriptor/latex-out")
+            latex_authorization_scope("papers/report.tex", ".scriptor/latex-out", None)
                 .expect("scope serialization"),
-            r#"["papers/report.tex",".scriptor/latex-out"]"#
+            r#"["papers/report.tex",".scriptor/latex-out",null]"#
+        );
+        assert_eq!(
+            latex_authorization_scope("a.tex", "out", Some("/usr/bin/tectonic"))
+                .expect("scope serialization"),
+            r#"["a.tex","out","/usr/bin/tectonic"]"#
         );
         // The old "input (output: dir)" delimiter joined these two pairs to the
         // same string, so a grant for one authorized the other.
         assert_ne!(
-            latex_authorization_scope("a.tex", "b (output: c").expect("scope serialization"),
-            latex_authorization_scope("a (output: b", "c").expect("scope serialization"),
+            latex_authorization_scope("a.tex", "b (output: c", None).expect("scope serialization"),
+            latex_authorization_scope("a (output: b", "c", None).expect("scope serialization"),
             "distinct path pairs must not collapse to one scope"
         );
     }
@@ -475,5 +506,21 @@ mod tests {
         let error = validate_vault_output_dir(&canonical_vault, "escape")
             .expect_err("a symlink escaping the vault must be rejected");
         assert!(error.contains("outside the active vault"));
+    }
+
+    #[test]
+    fn an_engine_inside_the_vault_is_refused() {
+        let vault = tempfile::tempdir().expect("vault");
+        let canonical_vault = std::fs::canonicalize(vault.path()).expect("canonical vault");
+        let planted = vault.path().join("tools").join("tectonic");
+        std::fs::create_dir_all(planted.parent().unwrap()).expect("tools dir");
+        std::fs::write(&planted, "#!/bin/sh\n").expect("planted engine");
+        let error = reject_engine_inside_vault(&planted, &canonical_vault)
+            .expect_err("a vault-supplied engine must be refused");
+        assert!(error.contains("outside the vault"));
+        let outside = tempfile::tempdir().expect("outside");
+        let installed = outside.path().join("tectonic");
+        std::fs::write(&installed, "#!/bin/sh\n").expect("installed engine");
+        reject_engine_inside_vault(&installed, &canonical_vault).expect("engine outside vault");
     }
 }
