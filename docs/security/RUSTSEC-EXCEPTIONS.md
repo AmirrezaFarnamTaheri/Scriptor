@@ -58,6 +58,14 @@ The current RustSec database, commit `db663534ae858abb3fbad408a041ce04209c377f`,
 
 The affected graph was `webpki-roots` 1.0.9, `webpki-root-certs` 1.0.9 and `rustls-webpki` 0.103.15 through `rustls` 0.23.46 and `rustls-platform-verifier` 0.7.0, reaching the capture, vault and CLI crates that make outbound HTTPS requests. The locked graph now resolves 1.0.10, 1.0.10 and 0.103.16 for those three crates.
 
+## 2026-11-17 advisory refresh
+
+**Temporary maintenance-only constraint:** RustSec marked `chrono` unmaintained on 2026-11-17 (all versions; no safe upgrade; recommended alternatives `jiff` and `time`). The locked graph resolves `chrono` 0.4.45, used directly by eight first-party crates (canvas-engine, cli, daemon, desktop, export-runner, indexer, mobile-runtime and vault) for note timestamps, daily-note dates, task due dates and audit records, and transitively by several parents. A safe migration changes date parsing and formatting across the vault format, so it needs format-compatibility tests rather than a lockfile edit. This exception is *informational* and **does not cover a vulnerability**; a vulnerability advisory against `chrono` would still fail the gate.
+
+| Advisory | Dependency family | Reachability | Owner | Upstream | Review by | Exit condition |
+|---|---|---|---|---|---|---|
+| RUSTSEC-2026-0543 | `chrono` 0.4.45, direct in first-party crates and transitive via Typst/hayagriva parents | Date and time parsing, formatting and arithmetic for notes, tasks, daily notes, history and audit logs | Release/Security | https://rustsec.org/advisories/RUSTSEC-2026-0543.html | 2027-02-01 | Migrate first-party crates to `jiff` with round-trip tests for every stored date format; remove when no first-party crate depends on `chrono` and transitive parents are tracked separately |
+
 ## Review procedure
 
 1. Fetch the current official RustSec database and run `cargo audit` and `cargo deny check` against the locked graph, including production targets and optional features.

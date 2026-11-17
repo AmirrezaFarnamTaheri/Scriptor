@@ -30,6 +30,10 @@ ignore = [
     "RUSTSEC-2026-0206",
     "RUSTSEC-2026-0192",
     "RUSTSEC-2024-0320",
+    # chrono 0.4.45 was marked unmaintained on 2026-11-17 with no safe upgrade.
+    # Eight first-party crates use it directly; the jiff/time migration is owned
+    # in the RustSec ledger. Maintenance-only, not a vulnerability.
+    "RUSTSEC-2026-0543",
 ]
 
 [bans]
