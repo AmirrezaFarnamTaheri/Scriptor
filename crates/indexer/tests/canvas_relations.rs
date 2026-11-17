@@ -76,7 +76,8 @@ fn migration_v11_to_v12_keeps_markdown_links_and_creates_canvas_provenance() {
     let conn = cache.connection().unwrap();
     assert_eq!(
         scriptor_indexer::db::read_schema_version(&conn).unwrap(),
-        Some(12)
+        // Migrating from v11 runs every later step too.
+        Some(13)
     );
     let count: i64 = conn
         .query_row(

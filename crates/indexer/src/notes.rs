@@ -37,13 +37,23 @@ pub fn upsert_note_on(
     markdown: &str,
 ) -> Result<(), IndexerError> {
     let parsed = parse_note_markdown(&metadata.path, markdown);
-    let tags_json = serde_json::to_string(&parsed.tags)?;
+    // A note's tags are its frontmatter `tags:` (already parsed into the vault
+    // metadata) plus its body hashtags, each counted once. Using the body alone
+    // dropped every frontmatter tag, and repeated hashtags made the tag browser
+    // count occurrences instead of notes.
+    let mut tags = metadata.tags.clone();
+    tags.extend(parsed.tags.iter().cloned());
+    tags.sort();
+    tags.dedup();
+    let tags_json = serde_json::to_string(&tags)?;
     let aliases_json = serde_json::to_string(&parsed.aliases)?;
     // Capture joined strings before moving fields into `enriched`.
     let headings_text = parsed.headings.join(" ");
+    // Full-text search keeps indexing body hashtags only: frontmatter terms are
+    // deliberately not searchable as body text (see body_search_returns_a_body_snippet).
     let tags_text = parsed.tags.join(" ");
     let mut enriched = metadata.clone();
-    enriched.tags = parsed.tags;
+    enriched.tags = tags;
     enriched.note_type = parsed.note_type.clone();
     enriched.organized = parsed.organized;
     enriched.archived = parsed.archived;
@@ -325,6 +335,22 @@ pub fn session_cache_path(session: &VaultSession) -> std::path::PathBuf {
 }
 
 #[cfg(test)]
+pub(crate) mod tests_support {
+    use scriptor_vault::NoteMetadata;
+
+    /// Metadata for a note body, as the vault scanner would produce it.
+    pub(crate) fn metadata_for(path: &str, markdown: &str) -> NoteMetadata {
+        let path = scriptor_vault::RelativeVaultPath::parse(path).expect("valid path");
+        scriptor_vault::metadata_from_markdown(
+            "vault-test",
+            &path,
+            markdown,
+            "2026-01-01T00:00:00Z".into(),
+        )
+    }
+}
+
+#[cfg(test)]
 mod remove_tests {
     use super::*;
     use crate::db::IndexCache;
@@ -374,6 +400,32 @@ mod remove_tests {
         let mut metadata = sample_metadata(path, markdown.split_whitespace().count() as u32);
         metadata.content_hash = content_hash(markdown);
         metadata
+    }
+
+    #[test]
+    fn frontmatter_and_body_tags_are_both_indexed_once_per_note() -> Result<(), IndexerError> {
+        let dir = tempdir().expect("temp dir");
+        let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
+        let markdown = "---\ntags: [project, shared]\n---\n# A\n#shared #body #body\n";
+        let mut metadata = metadata_for_markdown("a.md", markdown);
+        metadata.tags = vec!["project".into(), "shared".into()];
+        upsert_note(&cache, &metadata, markdown)?;
+        let other = "# B\n#body\n";
+        upsert_note(&cache, &metadata_for_markdown("b.md", other), other)?;
+        let tags = crate::list_vault_tags(&cache, "vault-test")?;
+        let counts: Vec<(String, i64)> = tags
+            .into_iter()
+            .map(|summary| (summary.tag, summary.note_count as i64))
+            .collect();
+        assert_eq!(
+            counts,
+            vec![
+                ("body".into(), 2),
+                ("project".into(), 1),
+                ("shared".into(), 1)
+            ]
+        );
+        Ok(())
     }
 
     #[test]

@@ -18,9 +18,10 @@
 //! | v10     | canonical task source note id + explicit path       | No       |
 //! | v11     | task source FK parity for upgraded caches           | No       |
 //! | v12     | explicit Canvas relations with separate provenance  | No       |
+//! | v13     | re-parse every note once (tag merge, strict tasks)   | Reindex  |
 
 /// Current on-disk schema version. Bump this constant exactly once per train step.
-pub const SCHEMA_VERSION: i32 = 12;
+pub const SCHEMA_VERSION: i32 = 13;
 
 /// Canvas provenance remains separate from Markdown links; paths resolve at query time.
 pub const CREATE_CANVAS_RELATIONS: &str = "
