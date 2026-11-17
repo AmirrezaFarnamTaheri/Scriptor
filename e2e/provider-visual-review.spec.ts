@@ -265,13 +265,18 @@ async function openOverleafReview(page: Page) {
         }
       }
       if (command === 'overleaf_read') {
+        // Like the real remote, a read after a successful push returns what was pushed.
+        const pushed = sessionStorage.getItem('e2e:overleaf-pushed')
+        if (pushed) return JSON.parse(pushed)
         return { head: 'c'.repeat(40), content: '\\section{Remote}\r\n', content_hash: 'd'.repeat(64) }
       }
       if (command === 'overleaf_push') {
         if (sessionStorage.getItem('e2e:overleaf-stale') === '1') {
           throw new Error('Overleaf changed since review. Fetch a new preview before sharing; no files were pushed.')
         }
-        return { head: 'e'.repeat(40), content: payload.content, content_hash: 'f'.repeat(64) }
+        const pushedSnapshot = { head: 'e'.repeat(40), content: payload.content, content_hash: 'f'.repeat(64) }
+        sessionStorage.setItem('e2e:overleaf-pushed', JSON.stringify(pushedSnapshot))
+        return pushedSnapshot
       }
       return original(command, payload, options)
     }

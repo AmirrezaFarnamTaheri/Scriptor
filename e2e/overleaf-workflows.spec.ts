@@ -20,6 +20,10 @@ async function open(page: Page) {
       }
       if (command === 'overleaf_read') {
         if (sessionStorage.getItem('e2e:overleaf-delay') === '1') await new Promise(resolve => setTimeout(resolve, 5000))
+        // Like the real remote, a read after a successful push returns what was pushed
+        // until a co-author update is simulated.
+        const pushed = sessionStorage.getItem('e2e:overleaf-pushed')
+        if (pushed && !sessionStorage.getItem('e2e:overleaf-live-update')) return JSON.parse(pushed)
         const remoteSource = sessionStorage.getItem('e2e:overleaf-live-update') === '2'
           ? '\\section{Another co-author update}\r\n'
           : sessionStorage.getItem('e2e:overleaf-live-update') === '1'
@@ -35,7 +39,9 @@ async function open(page: Page) {
       }
       if (command === 'overleaf_push') {
         if (sessionStorage.getItem('e2e:overleaf-stale') === '1') throw new Error('Overleaf changed since review. Fetch a new preview before sharing; no files were pushed.')
-        return { head: 'e'.repeat(40), content: args.content, content_hash: 'f'.repeat(64) }
+        const pushedSnapshot = { head: 'e'.repeat(40), content: args.content, content_hash: 'f'.repeat(64) }
+        sessionStorage.setItem('e2e:overleaf-pushed', JSON.stringify(pushedSnapshot))
+        return pushedSnapshot
       }
       return original(command, args, options)
     }
