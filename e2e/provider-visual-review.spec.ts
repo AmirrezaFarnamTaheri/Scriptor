@@ -272,6 +272,9 @@ async function openOverleafReview(page: Page) {
       }
       if (command === 'overleaf_push') {
         if (sessionStorage.getItem('e2e:overleaf-stale') === '1') {
+          // A stale rejection means a collaborator moved the remote: the next
+          // fetch returns their revision, not our last successful share.
+          sessionStorage.setItem('e2e:overleaf-pushed', JSON.stringify({ head: '1'.repeat(40), content: '\\section{Remote}\r\n', content_hash: '2'.repeat(64) }))
           throw new Error('Overleaf changed since review. Fetch a new preview before sharing; no files were pushed.')
         }
         const pushedSnapshot = { head: 'e'.repeat(40), content: payload.content, content_hash: 'f'.repeat(64) }
