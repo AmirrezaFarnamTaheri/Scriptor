@@ -750,10 +750,7 @@ mod tests {
     #[test]
     fn sqlite_outbox_sequences_must_not_wrap_or_be_nonpositive_on_the_wire() {
         assert_eq!(checked_outbox_sequence(1).unwrap(), 1);
-        assert_eq!(
-            checked_outbox_sequence(i64::MAX).unwrap(),
-            i64::MAX as u64
-        );
+        assert_eq!(checked_outbox_sequence(i64::MAX).unwrap(), i64::MAX as u64);
         assert!(checked_outbox_sequence(0).is_err());
         assert!(checked_outbox_sequence(-1).is_err());
     }
