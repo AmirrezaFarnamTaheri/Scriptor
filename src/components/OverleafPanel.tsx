@@ -32,10 +32,15 @@ export function OverleafPanel({ document, onClose, onApplied, initialTarget, onD
   const dialog = useRef<HTMLDivElement>(null); const generation = useRef(0); const pending = useRef(false)
   const baseline = useRef<{ key: string; content: string } | null>(null)
   const reviewEdited = useRef(false)
-  // Mirrors of the displayed review, read by the background check so that an
-  // unchanged remote does not silently withdraw a consent the user just gave.
-  const snapshotRef = useRef<OverleafSnapshot | null>(null); const reviewedRef = useRef('')
-  useEffect(() => { snapshotRef.current = snapshot; reviewedRef.current = reviewed }, [snapshot, reviewed])
+  // The remote head, remote hash and local text the user last saw. A background
+  // check withdraws consent only when one of them changes; an unchanged poll must
+  // not silently undo a consent the user just gave.
+  const lastSeen = useRef<{ head: string | null; hash: string | null; local: string } | null>(null)
+  const sawSame = (remote: OverleafSnapshot, local: string) => {
+    const seen = lastSeen.current
+    lastSeen.current = { head: remote.head, hash: remote.content_hash, local }
+    return seen !== null && seen.head === remote.head && seen.hash === remote.content_hash && seen.local === local
+  }
   const [autoChoice, setAutoChoice] = useState<{ key: string; enabled: boolean } | null>(null)
   const autoTarget = useMemo(() => {
     try {
@@ -87,13 +92,13 @@ export function OverleafPanel({ document, onClose, onApplied, initialTarget, onD
     if (current.content_hash !== document.content_hash) throw new Error('Local source changed since this panel opened. Close and reopen to review the saved version.')
     return current
   }
-  const changeTarget = () => { generation.current++; baseline.current = null; reviewEdited.current = false; setSnapshot(null); setAccepted(false); setReviewed(''); setError(null); setPreviousShare(null) }
+  const changeTarget = () => { generation.current++; baseline.current = null; lastSeen.current = null; reviewEdited.current = false; setSnapshot(null); setAccepted(false); setReviewed(''); setError(null); setPreviousShare(null) }
   const fetchRemote = () => void run(async () => {
     const current = generation.current
     const local = await guard()
     const result = await overleafRead(document.vault_id, project, remotePath)
     if (current !== generation.current) return
-    setSnapshot(result)
+    setSnapshot(result); sawSame(result, local.content)
     if (bindingKey && autoTarget) { try { saveOverleafBinding(localStorage, bindingKey, autoTarget.projectId, remotePath) } catch { /* Keep a working session even when preference storage is full. */ } }
     baseline.current = autoTarget && result.content === local.content ? { key: autoTarget.key, content: local.content } : null
     reviewEdited.current = false
@@ -120,15 +125,15 @@ export function OverleafPanel({ document, onClose, onApplied, initialTarget, onD
         if (bindingKey) { try { saveOverleafBinding(localStorage, bindingKey, autoTarget.projectId, remotePath) } catch { /* Sync remains available even when optional link storage fails. */ } }
         const common = baseline.current?.key === autoTarget.key ? baseline.current.content : null
         const direction = decideAutoSync(common, local.content, remote.content)
+        const unchanged = sawSame(remote, local.content)
         if (reviewEdited.current) {
+          if (unchanged) return
           setSnapshot(remote); setAccepted(false)
           setStatus('Auto-sync detected the latest remote state while you were editing a review. Check both copies before applying.')
           return
         }
         if (direction === 'equal') {
           baseline.current = { key: autoTarget.key, content: local.content }
-          const shown = snapshotRef.current
-          const unchanged = shown !== null && shown.head === remote.head && shown.content_hash === remote.content_hash && reviewedRef.current === local.content
           setSnapshot(remote)
           if (!unchanged) { setReviewed(local.content); setAccepted(false) }
           setStatus('Auto-sync active: the saved local and Overleaf copies match.')
@@ -137,7 +142,7 @@ export function OverleafPanel({ document, onClose, onApplied, initialTarget, onD
           const updated = await sourceFileSave(local, remote.content)
           if (!current()) return
           baseline.current = { key: autoTarget.key, content: remote.content }
-          setSnapshot(remote); setReviewed(remote.content); setAccepted(false)
+          setSnapshot(remote); setReviewed(remote.content); setAccepted(false); sawSame(remote, remote.content)
           setStatus('Auto-sync imported an unchanged-base update from Overleaf.')
           onApplied(updated, true)
         } else if (direction === 'push' && remote.content !== null) {
@@ -145,9 +150,10 @@ export function OverleafPanel({ document, onClose, onApplied, initialTarget, onD
           const result = await overleafPush(document.vault_id, project, remotePath, local.content, remote)
           if (!current()) return
           baseline.current = { key: autoTarget.key, content: local.content }
-          setSnapshot(result); setReviewed(local.content); setAccepted(false)
+          setSnapshot(result); setReviewed(local.content); setAccepted(false); sawSame(result, local.content)
           setStatus('Auto-sync shared saved local changes with Overleaf.')
         } else {
+          if (unchanged) return
           setSnapshot(remote); setReviewed(remote.content ?? local.content); setAccepted(false)
           setStatus('Auto-sync found different local and remote content. Review before applying or sharing; neither copy was overwritten.')
         }
@@ -239,7 +245,7 @@ export function OverleafPanel({ document, onClose, onApplied, initialTarget, onD
         const current = generation.current; await guard(); const result = await overleafPush(document.vault_id, project, remotePath, reviewed, snapshot)
         if (current !== generation.current) return
         baseline.current = autoTarget && result.content === document.content ? { key: autoTarget.key, content: document.content } : null
-        setSnapshot(result); setAccepted(false); setPreviousShare(new Date().toLocaleString()); setStatus('Reviewed source shared with Overleaf. Local source remains unchanged.')
+        setSnapshot(result); sawSame(result, document.content); setAccepted(false); setPreviousShare(new Date().toLocaleString()); setStatus('Reviewed source shared with Overleaf. Local source remains unchanged.')
       }, 'share')} aria-label="Share reviewed source with Overleaf"><span className="overleaf-action-full">Share reviewed source with Overleaf</span><span className="overleaf-action-compact" aria-hidden="true">Share with Overleaf</span></button>
       </div>
       </div>
