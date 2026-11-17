@@ -43,7 +43,11 @@
 }
 
 .runtime-banner.error {
-  background: color-mix(in oklch, var(--danger) 12%, white);
+  /* Mixed from the theme surface: a literal white mix put near-white text on a
+   * near-white box (1.07:1) in every dark appearance. */
+  background: color-mix(in oklch, var(--danger) 14%, var(--bg-elevated));
+  border-bottom-color: color-mix(in oklch, var(--danger) 45%, var(--border));
+  color: var(--ink-strong);
 }
 
 .runtime-banner code {
