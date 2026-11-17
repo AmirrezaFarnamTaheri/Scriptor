@@ -121,13 +121,8 @@ pub fn recover_pending_rename_transactions(
             cleanup_transaction(root, &txn)?;
             RenameRecoveryOutcome { reindex_paths }
         }
-        RenamePhase::LinkWritesDone => {
-            rollback_link_writes(root, &txn)?;
-            RenameRecoveryOutcome::default()
-        }
-        RenamePhase::Staged => {
-            recover_staged_transaction(root, &txn)?;
-            cleanup_transaction(root, &txn)?;
+        RenamePhase::LinkWritesDone | RenamePhase::Staged => {
+            roll_back_unfinished(root, &txn)?;
             RenameRecoveryOutcome::default()
         }
     };
@@ -239,12 +234,49 @@ fn restore_affected_backups(
     Ok(())
 }
 
-fn rollback_link_writes(
+/// Rolls back a transaction that never recorded `FileMoveDone`.
+///
+/// The move itself is not a recorded phase, so the files decide: when the
+/// destination holds this transaction's note (the source is gone, or the
+/// destination carries the bytes the transaction wrote there), the move
+/// happened and is undone together with the link writes. Restoring only the
+/// links would leave every backlink pointing at the old name while the note
+/// sits at the new one.
+fn roll_back_unfinished(
     root: &VaultRoot,
     txn: &RenameTransactionManifest,
 ) -> Result<(), VaultError> {
-    restore_affected_backups(root, txn)?;
-    cleanup_transaction(root, txn)
+    if note_was_moved(root, txn)? {
+        return rollback_file_move_and_link_writes(root, txn);
+    }
+    match txn.phase {
+        RenamePhase::Staged => {
+            recover_staged_transaction(root, txn)?;
+            cleanup_transaction(root, txn)
+        }
+        _ => {
+            restore_affected_backups(root, txn)?;
+            cleanup_transaction(root, txn)
+        }
+    }
+}
+
+fn note_was_moved(root: &VaultRoot, txn: &RenameTransactionManifest) -> Result<bool, VaultError> {
+    let from_abs = root.resolve_relative(&RelativeVaultPath::parse(&txn.from_path)?)?;
+    let to_abs = root.resolve_relative(&RelativeVaultPath::parse(&txn.to_path)?)?;
+    if !to_abs.is_file() {
+        return Ok(false);
+    }
+    if !from_abs.exists() {
+        return Ok(true);
+    }
+    // Copy-then-remove path: the destination was written but the source not yet
+    // removed. Only bytes this transaction wrote count as its destination.
+    let Some(intended) = txn.affected_intended_hashes.get(&txn.from_path) else {
+        return Ok(false);
+    };
+    let current = fs::read(&to_abs).map_err(|source| VaultError::io(&to_abs, source))?;
+    Ok(&content_hash_bytes(&current) == intended)
 }
 
 fn rollback_file_move_and_link_writes(
@@ -283,7 +315,10 @@ fn rollback_file_move_and_link_writes(
         fs::remove_file(&to_abs).map_err(|source| VaultError::io(&to_abs, source))?;
     }
 
-    if source_backup.is_file() {
+    // Restore the source only where it is missing: a source that still exists is
+    // either untouched or holds an edit made after planning (the reason a
+    // copy-then-remove move aborts), and the backup must not overwrite it.
+    if source_backup.is_file() && !from_abs.exists() {
         if let Some(parent) = from_abs.parent() {
             fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
         }
@@ -372,11 +407,9 @@ impl StagedRenameTransaction {
 
     pub fn abort(self) -> Result<(), VaultError> {
         match self.manifest.phase {
-            RenamePhase::Staged => {
-                recover_staged_transaction(&self.root, &self.manifest)?;
-                cleanup_transaction(&self.root, &self.manifest)
+            RenamePhase::Staged | RenamePhase::LinkWritesDone => {
+                roll_back_unfinished(&self.root, &self.manifest)
             }
-            RenamePhase::LinkWritesDone => rollback_link_writes(&self.root, &self.manifest),
             RenamePhase::FileMoveDone => {
                 rollback_file_move_and_link_writes(&self.root, &self.manifest)
             }
@@ -527,6 +560,101 @@ mod tests {
         assert!(outcome.reindex_paths.contains(&"Other.md".to_string()));
         assert!(!manifest_path(&session.root).is_file());
         assert!(session.root.resolve_relative(&to).unwrap().is_file());
+    }
+
+    /// A crash after the note moved but before `FileMoveDone` was recorded used
+    /// to restore the backlinks while leaving the note at its new name, so every
+    /// restored link pointed at a file that no longer existed.
+    #[test]
+    fn recovery_after_a_crash_mid_move_puts_the_note_back_with_its_links() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("Note.md"), "# Note\n").unwrap();
+        std::fs::write(dir.path().join("Other.md"), "# Other\n\n[[Note]]\n").unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let from = RelativeVaultPath::parse("Note.md").unwrap();
+        let to = RelativeVaultPath::parse("Renamed.md").unwrap();
+        let rewritten = "# Other\n\n[[Renamed]]\n";
+        let intended = BTreeMap::from([(
+            "Other.md".to_string(),
+            content_hash_bytes(rewritten.as_bytes()),
+        )]);
+        let mut staged = StagedRenameTransaction::begin_with_intended(
+            &session.root,
+            &from,
+            &to,
+            &["Note.md".into(), "Other.md".into()],
+            &intended,
+        )
+        .unwrap();
+        staged.record_phase(RenamePhase::LinkWritesDone).unwrap();
+        std::fs::write(dir.path().join("Other.md"), rewritten).unwrap();
+        std::fs::rename(dir.path().join("Note.md"), dir.path().join("Renamed.md")).unwrap();
+        drop(staged);
+
+        recover_pending_rename_transactions(&session.root).unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("Note.md")).unwrap(),
+            "# Note\n"
+        );
+        assert!(!dir.path().join("Renamed.md").exists());
+        assert!(
+            std::fs::read_to_string(dir.path().join("Other.md"))
+                .unwrap()
+                .contains("[[Note]]")
+        );
+        assert!(!manifest_path(&session.root).is_file());
+    }
+
+    #[test]
+    fn staged_recovery_after_the_move_returns_the_note_to_its_original_path() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("Note.md"), "# Note\n").unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let from = RelativeVaultPath::parse("Note.md").unwrap();
+        let to = RelativeVaultPath::parse("Renamed.md").unwrap();
+        let staged =
+            StagedRenameTransaction::begin(&session.root, &from, &to, &["Note.md".into()]).unwrap();
+        std::fs::rename(dir.path().join("Note.md"), dir.path().join("Renamed.md")).unwrap();
+
+        staged.abort().unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("Note.md")).unwrap(),
+            "# Note\n"
+        );
+        assert!(!dir.path().join("Renamed.md").exists());
+        assert!(!manifest_path(&session.root).is_file());
+    }
+
+    #[test]
+    fn rollback_never_overwrites_a_source_edited_after_planning() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("Note.md"), "# Note\n").unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let from = RelativeVaultPath::parse("Note.md").unwrap();
+        let to = RelativeVaultPath::parse("Renamed.md").unwrap();
+        let moved = "# Note moved\n";
+        let intended =
+            BTreeMap::from([("Note.md".to_string(), content_hash_bytes(moved.as_bytes()))]);
+        let staged = StagedRenameTransaction::begin_with_intended(
+            &session.root,
+            &from,
+            &to,
+            &["Note.md".into()],
+            &intended,
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("Renamed.md"), moved).unwrap();
+        std::fs::write(dir.path().join("Note.md"), "# Note edited meanwhile\n").unwrap();
+
+        staged.abort().unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("Note.md")).unwrap(),
+            "# Note edited meanwhile\n"
+        );
+        assert!(!dir.path().join("Renamed.md").exists());
     }
 
     #[test]
