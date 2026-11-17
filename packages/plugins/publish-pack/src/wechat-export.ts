@@ -40,57 +40,114 @@ function resolveCssVariables(css: string): string {
     .replace(/var\(--md-primary-color\)/g, '#576b95')
 }
 
-function mergeInlineStyle(existing: string | undefined, addition: string): string {
+function mergeInlineStyle(existing: string | undefined | null, addition: string): string {
   if (!existing?.trim()) return addition
   const trimmed = existing.trim().replace(/;$/, '')
   return `${trimmed}; ${addition}`
 }
 
-function inlineStylesOnTag(html: string, tag: string, style: string): string {
-  const openTag = new RegExp(`<${tag}(\\s[^>]*)?>`, 'gi')
-  return html.replace(openTag, (_match, attrs = '') => {
-    const styleMatch = /style="([^"]*)"/i.exec(attrs)
-    const merged = mergeInlineStyle(styleMatch?.[1], style)
-    const withoutStyle = attrs.replace(/\sstyle="[^"]*"/i, '')
-    return `<${tag}${withoutStyle} style="${merged}">`
+/*
+ * Tag-level rewriting goes through one left-to-right tokenizer. Each tag is
+ * matched whole, quoted attribute values included, so markup-like text inside an
+ * attribute (`title="a><img onerror=…>"`) is never seen as a tag, and a value is
+ * only ever re-emitted inside quotes with `"`, `<` and `>` escaped. Earlier
+ * per-tag regular expressions used `[^>]*`, which ended a tag at a `>` inside an
+ * attribute value and could inject a live element into the export.
+ */
+type Attribute = [name: string, value: string | null]
+type Tag = { name: string; closing: boolean; attributes: Attribute[]; selfClosing: boolean }
+
+const TOKEN = /<!--[\s\S]*?-->|<(\/?)([a-zA-Z][\w:-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>|[^<]+|</g
+const ATTRIBUTE = /([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g
+
+function parseAttributes(raw: string): { attributes: Attribute[]; selfClosing: boolean } {
+  const attributes: Attribute[] = []
+  for (const match of raw.matchAll(ATTRIBUTE)) {
+    attributes.push([match[1]!, match[2] ?? match[3] ?? match[4] ?? null])
+  }
+  return { attributes, selfClosing: /\/\s*$/.test(raw) }
+}
+
+function escapeAttribute(value: string): string {
+  return value.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function serializeTag(tag: Tag): string {
+  if (tag.closing) return `</${tag.name}>`
+  const attributes = tag.attributes
+    .map(([name, value]) => (value === null ? ` ${name}` : ` ${name}="${escapeAttribute(value)}"`))
+    .join('')
+  return `<${tag.name}${attributes}${tag.selfClosing ? ' /' : ''}>`
+}
+
+function getAttribute(tag: Tag, name: string): string | null | undefined {
+  return tag.attributes.find(([key]) => key.toLowerCase() === name)?.[1]
+}
+
+function setAttribute(tag: Tag, name: string, value: string): void {
+  const existing = tag.attributes.find(([key]) => key.toLowerCase() === name)
+  if (existing) existing[1] = value
+  else tag.attributes.push([name, value])
+}
+
+function removeAttribute(tag: Tag, name: string): void {
+  tag.attributes = tag.attributes.filter(([key]) => key.toLowerCase() !== name)
+}
+
+/** Rewrite each tag; returning null drops it. Text and comments pass through. */
+function rewriteTags(html: string, rewrite: (tag: Tag) => Tag | string | null): string {
+  return html.replace(TOKEN, (token, closing: string | undefined, name: string | undefined, raw: string | undefined) => {
+    if (name === undefined) return token
+    const { attributes, selfClosing } = parseAttributes(raw ?? '')
+    const result = rewrite({ name: name.toLowerCase(), closing: closing === '/', attributes, selfClosing })
+    if (result === null) return ''
+    return typeof result === 'string' ? result : serializeTag(result)
   })
 }
 
 function applyElementStyles(html: string, extraStyles: Record<string, string>): string {
-  const styles = { ...BASE_ELEMENT_STYLES, ...extraStyles }
-  let next = html
-  for (const [tag, style] of Object.entries(styles)) {
-    next = inlineStylesOnTag(next, tag, style)
-  }
-  return next
-}
-
-function fixWeChatImages(html: string): string {
-  return html.replace(/<img([^>]*)>/gi, (_match, attrs: string) => {
-    let nextAttrs = attrs
-    const widthMatch = /\bwidth="([^"]+)"/i.exec(nextAttrs)
-    const heightMatch = /\bheight="([^"]+)"/i.exec(nextAttrs)
-    let style = /style="([^"]*)"/i.exec(nextAttrs)?.[1] ?? ''
-
-    if (widthMatch) {
-      const width = widthMatch[1]!
-      nextAttrs = nextAttrs.replace(/\bwidth="[^"]+"/i, '')
-      style = mergeInlineStyle(style, `width: ${/^\d+$/.test(width) ? `${width}px` : width};`)
-    }
-    if (heightMatch) {
-      const height = heightMatch[1]!
-      nextAttrs = nextAttrs.replace(/\bheight="[^"]+"/i, '')
-      style = mergeInlineStyle(style, `height: ${/^\d+$/.test(height) ? `${height}px` : height};`)
-    }
-    style = mergeInlineStyle(style, 'max-width: 100%; height: auto; display: block; margin: 0.5em auto;')
-
-    nextAttrs = nextAttrs.replace(/\sstyle="[^"]*"/i, '')
-    return `<img${nextAttrs} style="${style}">`
+  const styles: Record<string, string> = { ...BASE_ELEMENT_STYLES, ...extraStyles }
+  return rewriteTags(html, tag => {
+    const style = Object.hasOwn(styles, tag.name) ? styles[tag.name] : undefined
+    if (!tag.closing && style) setAttribute(tag, 'style', mergeInlineStyle(getAttribute(tag, 'style'), style))
+    return tag
   })
 }
 
-function modifyHtmlStructure(htmlString: string): string {
-  return htmlString.replace(/(<li[^>]*>[\s\S]*?)(<ul[\s\S]*?<\/ul>)/gi, '$1</li>$2')
+function fixWeChatImages(html: string): string {
+  return rewriteTags(html, tag => {
+    if (tag.closing || tag.name !== 'img') return tag
+    let style = getAttribute(tag, 'style') ?? ''
+    for (const dimension of ['width', 'height'] as const) {
+      const value = getAttribute(tag, dimension)
+      if (!value) continue
+      removeAttribute(tag, dimension)
+      style = mergeInlineStyle(style, `${dimension}: ${/^\d+$/.test(value) ? `${value}px` : value};`)
+    }
+    removeAttribute(tag, 'style')
+    tag.attributes.push(['style', mergeInlineStyle(style, 'max-width: 100%; height: auto; display: block; margin: 0.5em auto;')])
+    return tag
+  })
+}
+
+/** WeChat drops a nested list unless its parent item is closed first. */
+function modifyHtmlStructure(html: string): string {
+  const open: string[] = []
+  return rewriteTags(html, tag => {
+    if (tag.selfClosing) return tag
+    if (tag.closing) {
+      const index = open.lastIndexOf(tag.name)
+      if (index !== -1) open.length = index
+      return tag
+    }
+    if (tag.name === 'ul' && open.at(-1) === 'li') {
+      open.pop()
+      open.push('ul')
+      return `</li>${serializeTag(tag)}`
+    }
+    if (!['img', 'br', 'hr', 'input', 'meta', 'link'].includes(tag.name)) open.push(tag.name)
+    return tag
+  })
 }
 
 function createEmptyNode(): string {
@@ -115,21 +172,32 @@ function parseSimpleThemeRules(themeCss: string): Record<string, string> {
 }
 
 function postProcessWeChatHtml(html: string): string {
-  let next = modifyHtmlStructure(html)
-  next = next.replace(/([^-])top:(.*?)em/g, '$1transform: translateY($2em)')
-  next = next.replace(/<a\b([^>]*)\bhref="#[^"]*"([^>]*)>/gi, '<a$1$2>')
-  next = next.replace(
-    /<span class="nodeLabel"([^>]*)><p[^>]*>(.*?)<\/p><\/span>/g,
-    '<span class="nodeLabel"$1>$2</span>',
-  )
-  next = next.replace(
-    /<span class="edgeLabel"([^>]*)><p[^>]*>(.*?)<\/p><\/span>/g,
-    '<span class="edgeLabel"$1>$2</span>',
-  )
-  next = next.replace(
-    /<tspan([^>]*)>/g,
-    '<tspan$1 style="fill: #333333 !important; color: #333333 !important; stroke: none !important;">',
-  )
+  let dropLabelParagraph = false
+  let previousWasLabel = false
+  const next = rewriteTags(modifyHtmlStructure(html), tag => {
+    const wasLabel = previousWasLabel
+    previousWasLabel = false
+    if (!tag.closing && tag.name === 'span') {
+      const className = getAttribute(tag, 'class') ?? ''
+      previousWasLabel = className === 'nodeLabel' || className === 'edgeLabel'
+    }
+    // Mermaid wraps label text in a <p> that WeChat renders as a block.
+    if (wasLabel && !tag.closing && tag.name === 'p') {
+      dropLabelParagraph = true
+      return null
+    }
+    if (dropLabelParagraph && tag.closing && tag.name === 'p') {
+      dropLabelParagraph = false
+      return null
+    }
+    const style = getAttribute(tag, 'style')
+    if (style) setAttribute(tag, 'style', style.replace(/(^|[^-])top:(.*?)em/g, '$1transform: translateY($2em)'))
+    if (!tag.closing && tag.name === 'a' && getAttribute(tag, 'href')?.startsWith('#')) removeAttribute(tag, 'href')
+    if (!tag.closing && tag.name === 'tspan') {
+      setAttribute(tag, 'style', 'fill: #333333 !important; color: #333333 !important; stroke: none !important;')
+    }
+    return tag
+  })
   return next
 }
 

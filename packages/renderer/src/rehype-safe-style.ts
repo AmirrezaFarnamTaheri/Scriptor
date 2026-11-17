@@ -43,13 +43,16 @@ export function sanitizeStyleAttribute(style: string): string {
 
     const property = declaration.slice(0, colon).trim().toLowerCase()
     const value = declaration.slice(colon + 1).trim()
+    // `!important` is a priority flag, not part of the value: `fixed !important`
+    // must be judged as `fixed`, or the position check below never matches it.
+    const core = value.replace(/!\s*important\s*$/i, '').trim()
 
     // Property names are `[a-z-]` only; anything else is obfuscation.
     if (!/^[a-z][a-z0-9-]*$/.test(property)) continue
     if (DANGEROUS_PROPERTY.test(property)) continue
     if (value.length === 0) continue
     if (DANGEROUS_VALUE.test(value)) continue
-    if (property === 'position' && POSITION_VALUE.test(value)) continue
+    if (property === 'position' && POSITION_VALUE.test(core)) continue
 
     kept.push(`${property}:${value}`)
   }
