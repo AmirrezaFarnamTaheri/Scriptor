@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Show the error reason and the Calendar & Tasks refresh time in every locale (two strings used single-brace placeholders that were never filled), keep the pending-approval count in the Persian Google Tasks result, insert translation values literally so `$&` or `{{name}}` in a note title or commit message is no longer rewritten, and keep a language change working when browser storage is blocked.
 - Bound process-broker output draining after a direct child exits; terminate descendants that keep inherited stdout/stderr pipes open and report a distinct output-drain failure instead of waiting for the executable deadline.
 
 ### Fixed

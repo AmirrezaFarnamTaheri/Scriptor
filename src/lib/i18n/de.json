@@ -841,7 +841,7 @@
       "openCollaboration": "Drive- & Docs-Zusammenarbeit öffnen",
       "openPlanner": "Kalender- & Aufgabenplaner öffnen",
       "openGmail": "Gmail-Manager öffnen",
-      "saveConnectionFailed": "Google ist verbunden, aber die Einstellungen konnten nicht gespeichert werden: {error}. Wählen Sie „Tresoreinstellungen speichern“ und versuchen Sie es erneut.",
+      "saveConnectionFailed": "Google ist verbunden, aber die Einstellungen konnten nicht gespeichert werden: {{error}}. Wählen Sie „Tresoreinstellungen speichern“ und versuchen Sie es erneut.",
       "experimental": "Experimentelle Integration.",
       "security": "Aktualisierungstoken werden im Schlüsselbund des Betriebssystems gespeichert. Scriptor verwendet PKCE und einen lokalen Loopback-Rückruf; ein Client-Secret ist nicht erforderlich.",
       "enableCalendarTasks": "Google Kalender & Aufgaben aktivieren",
@@ -852,7 +852,7 @@
       "mirrorTasks": "Vault → Google Tasks-Spiegelung aktivieren (Änderungen werden erst nach Ihrer Bestätigung übertragen)",
       "connect": "Mit Google verbinden",
       "switchAccount": "Google-Konto wechseln",
-      "lastSync": "Letzte erfolgreiche Aktualisierung von Kalender und Aufgaben: {time}",
+      "lastSync": "Letzte erfolgreiche Aktualisierung von Kalender und Aufgaben: {{time}}",
       "syncNow": "Jetzt synchronisieren",
       "disconnect": "Trennen",
       "status": {
