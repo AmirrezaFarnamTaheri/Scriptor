@@ -47,12 +47,13 @@ export function isTableSeparator(line: string): boolean {
   return cells.length > 0 && cells.every((cell) => /^:?-+:?$/.test(cell))
 }
 
+/** Splits a table row on unescaped pipes; `\|` stays inside its cell. */
 export function parseTableRow(line: string): string[] {
   return line
     .trim()
     .replace(/^\|/, '')
-    .replace(/\|$/, '')
-    .split('|')
+    .replace(/(?<!\\)\|$/, '')
+    .split(/(?<!\\)\|/)
     .map((cell) => cell.trim())
 }
 
@@ -97,16 +98,28 @@ export function addTableColumn(block: TableBlock): string[][] {
   return block.rows.map((row) => [...row, ''])
 }
 
+/**
+ * Re-emits a table. GFM only recognises a table whose delimiter row has as
+ * many cells as the header, so the delimiter is regenerated whenever the
+ * column count changed: existing alignment cells are kept in order and new
+ * columns get `---`. Pass `delimiter` to set the cells explicitly (column
+ * moves and per-column alignment).
+ */
 export function rebuildTableSegment(
   originalLines: string[],
   block: TableBlock,
   rows: string[][],
+  delimiter?: string[],
 ): string[] {
   const segment = originalLines.slice(block.startLine, block.endLine + 1)
   const separatorLine = segment.find((line) => isTableSeparator(line))
   const formatted = rows.map((row) => formatTableRow(row))
   if (separatorLine && formatted.length > 1) {
-    return [formatted[0], separatorLine, ...formatted.slice(1)]
+    const width = rows[0]?.length ?? 0
+    const existing = delimiter ?? parseTableRow(separatorLine)
+    const cells = Array.from({ length: width }, (_, index) => existing[index] ?? '---')
+    const separator = !delimiter && existing.length === width ? separatorLine : formatTableRow(cells)
+    return [formatted[0], separator, ...formatted.slice(1)]
   }
   return formatted
 }
