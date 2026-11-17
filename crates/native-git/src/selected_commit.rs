@@ -321,7 +321,7 @@ fn run_git_receipt_with_index(
         .args(args.iter().copied())
         .current_dir(repo_root)
         .timeout(Duration::from_secs(30))
-        .max_output_bytes(256 * 1024)
+        .max_output_bytes(crate::status::MAX_GIT_OUTPUT_BYTES)
         .env("GIT_TERMINAL_PROMPT", "0")
         .env("GCM_INTERACTIVE", "Never")
         .env("GIT_INDEX_FILE", index.as_os_str());
