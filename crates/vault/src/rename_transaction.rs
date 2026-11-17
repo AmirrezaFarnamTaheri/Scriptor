@@ -58,6 +58,36 @@ fn manifest_path(root: &VaultRoot) -> PathBuf {
     scriptor_meta_dir(root).join(TXN_MANIFEST)
 }
 
+/// Resolves a backup path recorded in a manifest.
+///
+/// The manifest is a file inside the vault, so a copied or synced vault can carry
+/// a hand-written one. Recovery moves, copies and deletes the files it names, so
+/// every backup must be exactly what `backup_file` writes: one hex-named `.bak`
+/// file directly inside `.scriptor/rename-txn/`, with neither directory a link.
+fn backup_abs(root: &VaultRoot, recorded: &str) -> Result<PathBuf, VaultError> {
+    let reject = || VaultError::PathEscape(recorded.to_string());
+    let name = recorded
+        .strip_prefix(&format!(".scriptor/{TXN_DIR_NAME}/"))
+        .and_then(|rest| rest.strip_suffix(".bak"))
+        .ok_or_else(reject)?;
+    if name.is_empty() || name.len() > 128 || !name.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(reject());
+    }
+    for dir in [scriptor_meta_dir(root), txn_dir(root)] {
+        match fs::symlink_metadata(&dir) {
+            Ok(meta) if meta.file_type().is_symlink() => return Err(reject()),
+            _ => {}
+        }
+    }
+    Ok(txn_dir(root).join(format!("{name}.bak")))
+}
+
+fn manifest_backups_are_confined(root: &VaultRoot, txn: &RenameTransactionManifest) -> bool {
+    std::iter::once(txn.source_backup.as_str())
+        .chain(txn.affected_backups.values().map(String::as_str))
+        .all(|recorded| backup_abs(root, recorded).is_ok())
+}
+
 pub fn recover_pending_rename_transactions(
     root: &VaultRoot,
 ) -> Result<RenameRecoveryOutcome, VaultError> {
@@ -75,6 +105,15 @@ pub fn recover_pending_rename_transactions(
             return Ok(RenameRecoveryOutcome::default());
         }
     };
+    if !manifest_backups_are_confined(root, &txn) {
+        // Not written by Scriptor. Acting on it could move or delete files the
+        // manifest names; leave every file alone and set the manifest aside so
+        // the vault still opens and the evidence survives.
+        let rejected = manifest_file.with_extension("json.rejected");
+        fs::rename(&manifest_file, &rejected)
+            .map_err(|source| VaultError::io(&manifest_file, source))?;
+        return Ok(RenameRecoveryOutcome::default());
+    }
 
     let outcome = match txn.phase {
         RenamePhase::FileMoveDone => {
@@ -132,7 +171,7 @@ fn recover_staged_transaction(
     let to = RelativeVaultPath::parse(&txn.to_path)?;
     let from_abs = root.resolve_relative(&from)?;
     let to_abs = root.resolve_relative(&to)?;
-    let source_backup = root.root().join(&txn.source_backup);
+    let source_backup = backup_abs(root, &txn.source_backup)?;
 
     if source_backup.is_file() && !from_abs.exists() && !to_abs.exists() {
         if let Some(parent) = from_abs.parent() {
@@ -151,7 +190,7 @@ fn restore_affected_backups(
 ) -> Result<(), VaultError> {
     for (note_path, backup_rel) in &txn.affected_backups {
         let note_abs = root.resolve_relative(&RelativeVaultPath::parse(note_path)?)?;
-        let backup_abs = root.root().join(backup_rel);
+        let backup_abs = backup_abs(root, backup_rel)?;
         if !backup_abs.is_file() {
             continue;
         }
@@ -216,7 +255,7 @@ fn rollback_file_move_and_link_writes(
     let to = RelativeVaultPath::parse(&txn.to_path)?;
     let from_abs = root.resolve_relative(&from)?;
     let to_abs = root.resolve_relative(&to)?;
-    let source_backup = root.root().join(&txn.source_backup);
+    let source_backup = backup_abs(root, &txn.source_backup)?;
 
     if to_abs.is_file() {
         // The destination may only be deleted while it still holds the bytes this
@@ -395,9 +434,9 @@ fn cleanup_transaction(
         }
     }
 
-    remove_if_present(&root.root().join(&txn.source_backup))?;
+    remove_if_present(&backup_abs(root, &txn.source_backup)?)?;
     for backup in txn.affected_backups.values() {
-        remove_if_present(&root.root().join(backup))?;
+        remove_if_present(&backup_abs(root, backup)?)?;
     }
     remove_if_present(&manifest_path(root))?;
     let dir = txn_dir(root);
@@ -566,6 +605,46 @@ mod tests {
             std::fs::read_to_string(dir.path().join("archive__notes.md")).unwrap(),
             "# Flat\n"
         );
+    }
+
+    #[test]
+    fn recovery_refuses_backup_paths_outside_the_transaction_directory() {
+        let dir = tempdir().unwrap();
+        let outside = tempdir().unwrap();
+        let victim = outside.path().join("victim.txt");
+        fs::write(&victim, "keep me").unwrap();
+        fs::write(dir.path().join("note.md"), "note").unwrap();
+        fs::create_dir_all(dir.path().join(".scriptor")).unwrap();
+        let root = VaultRoot::open(dir.path()).unwrap();
+        for hostile in [
+            victim.to_string_lossy().to_string(),
+            "../outside.bak".to_string(),
+            ".scriptor/rename-txn/../../note.md".to_string(),
+            "note.md".to_string(),
+        ] {
+            let manifest = RenameTransactionManifest {
+                version: 3,
+                phase: RenamePhase::FileMoveDone,
+                from_path: "note.md".into(),
+                to_path: "moved.md".into(),
+                source_backup: hostile.clone(),
+                ..Default::default()
+            };
+            write_manifest(&root, &manifest).unwrap();
+            let outcome = recover_pending_rename_transactions(&root).unwrap();
+            assert!(outcome.reindex_paths.is_empty(), "{hostile}");
+            assert!(!manifest_path(&root).exists(), "{hostile}");
+            assert!(
+                manifest_path(&root)
+                    .with_extension("json.rejected")
+                    .exists()
+            );
+            assert_eq!(fs::read_to_string(&victim).unwrap(), "keep me");
+            assert_eq!(
+                fs::read_to_string(dir.path().join("note.md")).unwrap(),
+                "note"
+            );
+        }
     }
 
     #[test]

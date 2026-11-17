@@ -571,11 +571,9 @@ pub fn config_path(vault_root: &Path) -> std::path::PathBuf {
 
 pub fn load_vault_config(vault_root: &Path) -> Result<VaultConfig, VaultError> {
     let path = config_path(vault_root);
-    if !path.exists() {
+    let Some(raw) = crate::fs::read_state_file(&path, crate::fs::MAX_STATE_FILE_BYTES)? else {
         return Ok(VaultConfig::default());
-    }
-
-    let raw = fs::read_to_string(&path).map_err(|source| VaultError::io(&path, source))?;
+    };
     let config = serde_json::from_str(&raw).map_err(|error| VaultError::InvalidConfig {
         message: error.to_string(),
     })?;
@@ -583,9 +581,8 @@ pub fn load_vault_config(vault_root: &Path) -> Result<VaultConfig, VaultError> {
 }
 
 pub fn save_vault_config(vault_root: &Path, config: &VaultConfig) -> Result<(), VaultError> {
-    let dir = vault_root.join(".scriptor");
-    fs::create_dir_all(&dir).map_err(|source| VaultError::io(&dir, source))?;
     let path = config_path(vault_root);
+    crate::fs::create_state_parent(&path)?;
     let payload = serde_json::to_string_pretty(config)?;
     atomic_write(&path, payload.as_bytes())?;
     Ok(())

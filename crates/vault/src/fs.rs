@@ -145,6 +145,67 @@ pub fn create_private_file(path: &Path) -> Result<fs::File, VaultError> {
         .map_err(|source| VaultError::io(path, source))
 }
 
+/// Largest `.scriptor` state file Scriptor will parse. Real files are a few KiB;
+/// the cap stops a hostile vault from pointing config at an endless stream.
+pub const MAX_STATE_FILE_BYTES: u64 = 8 * 1024 * 1024;
+
+/// Reads a vault state file such as `.scriptor/config.json`.
+///
+/// `Ok(None)` when it does not exist. A symbolic link, a non-regular file or a
+/// file over `max_bytes` is refused: a copied vault can carry a link to
+/// `/dev/zero` or to a file outside the vault, and every one of these is read
+/// on open.
+pub fn read_state_file(path: &Path, max_bytes: u64) -> Result<Option<String>, VaultError> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(VaultError::io(path, error)),
+    };
+    if !metadata.file_type().is_file() {
+        return Err(VaultError::InvalidConfig {
+            message: format!("{} must be a regular file, not a link", path.display()),
+        });
+    }
+    if metadata.len() > max_bytes {
+        return Err(VaultError::InvalidConfig {
+            message: format!("{} is larger than {max_bytes} bytes", path.display()),
+        });
+    }
+    use std::io::Read;
+    let mut raw = String::new();
+    fs::File::open(path)
+        .and_then(|file| file.take(max_bytes + 1).read_to_string(&mut raw))
+        .map_err(|source| VaultError::io(path, source))?;
+    if raw.len() as u64 > max_bytes {
+        return Err(VaultError::InvalidConfig {
+            message: format!("{} is larger than {max_bytes} bytes", path.display()),
+        });
+    }
+    Ok(Some(raw))
+}
+
+/// Creates the parent directory of a `.scriptor` state file, refusing to write
+/// through a link. Every existing directory from the file's parent up to and
+/// including the `.scriptor` directory must be a real directory: otherwise a
+/// copied vault with `.scriptor -> /somewhere` redirects config, audit and
+/// plugin-state writes outside the vault.
+pub fn create_state_parent(path: &Path) -> Result<(), VaultError> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| VaultError::InvalidRelativePath(path.display().to_string()))?;
+    for ancestor in parent.ancestors() {
+        if let Ok(metadata) = fs::symlink_metadata(ancestor)
+            && metadata.file_type().is_symlink()
+        {
+            return Err(VaultError::PathEscape(ancestor.display().to_string()));
+        }
+        if ancestor.file_name().is_some_and(|name| name == ".scriptor") {
+            break;
+        }
+    }
+    fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))
+}
+
 /// Write `bytes` to `path` atomically: temp file in the target directory, fsync, rename.
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
     let parent = path
@@ -377,6 +438,50 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn state_files_refuse_links_oversize_and_non_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let meta = dir.path().join(".scriptor");
+        fs::create_dir_all(&meta).unwrap();
+        assert_eq!(
+            read_state_file(&meta.join("absent.json"), 10).unwrap(),
+            None
+        );
+        fs::write(meta.join("ok.json"), "{}").unwrap();
+        assert_eq!(
+            read_state_file(&meta.join("ok.json"), 10)
+                .unwrap()
+                .as_deref(),
+            Some("{}")
+        );
+        fs::write(meta.join("big.json"), "x".repeat(11)).unwrap();
+        assert!(read_state_file(&meta.join("big.json"), 10).is_err());
+        fs::create_dir(meta.join("dir.json")).unwrap();
+        assert!(read_state_file(&meta.join("dir.json"), 10).is_err());
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink("/dev/zero", meta.join("zero.json")).unwrap();
+            assert!(read_state_file(&meta.join("zero.json"), 10).is_err());
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn state_writes_refuse_a_linked_scriptor_directory() {
+        let vault = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(outside.path(), vault.path().join(".scriptor")).unwrap();
+        let target = vault.path().join(".scriptor/audit/log.jsonl");
+        assert!(matches!(
+            create_state_parent(&target),
+            Err(VaultError::PathEscape(_))
+        ));
+        assert!(!outside.path().join("audit").exists());
+        let plain = tempfile::tempdir().unwrap();
+        create_state_parent(&plain.path().join(".scriptor/audit/log.jsonl")).unwrap();
+        assert!(plain.path().join(".scriptor/audit").is_dir());
+    }
     use std::io::Write;
     use std::process::Command;
     use std::time::SystemTime;

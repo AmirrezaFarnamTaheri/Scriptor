@@ -123,9 +123,7 @@ pub fn append_mcp_mutation(
     record: McpMutationAuditRecord,
 ) -> Result<(), VaultError> {
     let absolute = root.root().join(DEFAULT_MCP_AUDIT_PATH);
-    if let Some(parent) = absolute.parent() {
-        fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
-    }
+    crate::fs::create_state_parent(&absolute)?;
 
     // Serialize the complete read-hash / rotate / append sequence across
     // processes. Locking only the append would still allow two writers to read

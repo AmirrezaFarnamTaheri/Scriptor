@@ -30,6 +30,67 @@ const ALLOWED_EQ_PREFIXES: &[&str] = &[
 
 const ALLOWED_VALUE_FLAGS: &[&str] = &["--metadata", "--variable"];
 
+// `--metadata` and `--variable` take `KEY[=VALUE]` or `KEY[:VALUE]`. Several
+// Pandoc keys are file, URL, or raw-markup sinks (`bibliography`, `csl`,
+// `header-includes`, `include-before`, `css`, ...). Those would sidestep the
+// vault confinement applied to the dedicated `--bibliography=`/`--csl=`/`--css=`
+// flags, and the PDF-engine stage is not covered by `--sandbox`. Only keys that
+// carry plain presentation values are accepted.
+const ALLOWED_KEYED_VALUE_KEYS: &[&str] = &[
+    "abstract",
+    "aspectratio",
+    "author",
+    "classoption",
+    "colorlinks",
+    "colortheme",
+    "controls",
+    "date",
+    "description",
+    "dir",
+    "documentclass",
+    "fontsize",
+    "fonttheme",
+    "geometry",
+    "institute",
+    "keywords",
+    "lang",
+    "linestretch",
+    "link-citations",
+    "linkcolor",
+    "lof",
+    "lot",
+    "mainfont",
+    "monofont",
+    "numbersections",
+    "pagetitle",
+    "papersize",
+    "progress",
+    "reference-section-title",
+    "sansfont",
+    "secnumdepth",
+    "slidenumber",
+    "subject",
+    "subtitle",
+    "theme",
+    "title",
+    "toc-depth",
+    "toc-title",
+    "transition",
+    "urlcolor",
+];
+
+fn validate_keyed_value(pair: &str) -> Result<(), ExportError> {
+    let key = pair
+        .split_once(['=', ':'])
+        .map_or(pair, |(key, _)| key)
+        .trim()
+        .to_ascii_lowercase();
+    if pair.contains('\\') || !ALLOWED_KEYED_VALUE_KEYS.contains(&key.as_str()) {
+        return Err(ExportError::DisallowedArg(pair.to_string()));
+    }
+    Ok(())
+}
+
 fn contains_shell_metachar(value: &str) -> bool {
     value.contains(['&', '|', ';', '`', '\n', '\r'])
 }
@@ -55,6 +116,12 @@ fn validate_flag_token(arg: &str) -> Result<bool, ExportError> {
     }
     if ALLOWED_PDF_ENGINE_FLAGS.iter().any(|flag| flag == &arg) {
         return Ok(false);
+    }
+    for keyed in ["--metadata=", "--variable="] {
+        if let Some(pair) = arg.strip_prefix(keyed) {
+            validate_keyed_value(pair)?;
+            return Ok(false);
+        }
     }
     if ALLOWED_EQ_PREFIXES
         .iter()
@@ -82,6 +149,7 @@ pub fn validate_extra_args(extra_args: &[String]) -> Result<(), ExportError> {
                 return Err(ExportError::DisallowedArg(format!("{arg} missing value")));
             }
             validate_value_token(&extra_args[index])?;
+            validate_keyed_value(&extra_args[index])?;
         }
         index += 1;
     }
@@ -117,6 +185,41 @@ mod tests {
     fn allows_bare_token_as_value_of_value_flag() {
         assert!(validate_extra_args(&["-t".into(), "revealjs".into()]).is_err());
         validate_extra_args(&["--variable".into(), "theme:moon".into()]).expect("variable value");
+    }
+
+    #[test]
+    fn rejects_metadata_and_variable_keys_that_are_file_url_or_markup_sinks() {
+        for arg in [
+            "--metadata=bibliography=/etc/passwd",
+            "--metadata=csl=https://example.invalid/style.csl",
+            "--metadata=BIBLIOGRAPHY:/etc/passwd",
+            "--variable=header-includes=x",
+            "--variable=include-before:/etc/hostname",
+            "--variable=css=https://example.invalid/a.css",
+            "--variable=title=\\input{/etc/passwd}",
+            "--metadata=unknown-key=value",
+        ] {
+            assert!(validate_extra_args(&[arg.into()]).is_err(), "{arg}");
+        }
+        for (flag, value) in [
+            ("--metadata", "bibliography=/etc/passwd"),
+            ("--variable", "header-includes:x"),
+        ] {
+            assert!(validate_extra_args(&[flag.into(), value.into()]).is_err());
+        }
+    }
+
+    #[test]
+    fn allows_presentation_metadata_and_variable_keys() {
+        validate_extra_args(&[
+            "--metadata=title=Field notes".into(),
+            "--variable=fontsize=11pt".into(),
+            "--metadata".into(),
+            "lang=en-GB".into(),
+            "--variable".into(),
+            "geometry:margin=2cm".into(),
+        ])
+        .expect("presentation keys");
     }
 
     #[test]

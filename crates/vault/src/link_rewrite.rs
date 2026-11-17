@@ -189,6 +189,24 @@ static REFERENCE_DEF_RE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("valid reference definition regex")
 });
 
+/// A URL with a scheme (`https:`, `mailto:`, `file:`) or a network path (`//host`)
+/// names something outside the vault. Its last segment can still look like a
+/// note (`https://github.com/o/r/README.md`), so the resolver alone would rewrite
+/// it when `README.md` is renamed.
+fn is_external_url(url: &str) -> bool {
+    if url.starts_with("//") {
+        return true;
+    }
+    let Some((scheme, _)) = url.split_once(':') else {
+        return false;
+    };
+    let mut chars = scheme.chars();
+    chars.next().is_some_and(|first| first.is_ascii_alphabetic())
+        && chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
+        // A one-letter "scheme" is a Windows drive (`C:/notes/a.md`), not a URL.
+        && scheme.len() > 1
+}
+
 pub fn rewrite_note_rename_links(
     markdown: &str,
     from: &RenameLinkTarget,
@@ -259,7 +277,7 @@ pub fn rewrite_note_rename_links_with_resolver(
                     .unwrap_or("");
                 let section = capture.name("section").map(|value| value.as_str());
 
-                if !resolver.resolves_to(url, &from.path) {
+                if is_external_url(url) || !resolver.resolves_to(url, &from.path) {
                     return capture.get(0).unwrap().as_str().to_string();
                 }
 
@@ -283,7 +301,7 @@ pub fn rewrite_note_rename_links_with_resolver(
                     .map(|value| value.as_str().trim())
                     .unwrap_or("");
 
-                if !resolver.resolves_to(url, &from.path) {
+                if is_external_url(url) || !resolver.resolves_to(url, &from.path) {
                     return capture.get(0).unwrap().as_str().to_string();
                 }
 
@@ -399,6 +417,28 @@ pub(crate) fn join_frontmatter(frontmatter: Option<&str>, body: &str) -> String 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rename_leaves_external_urls_with_matching_last_segment_untouched() {
+        let paths = vec!["README.md".to_string()];
+        let from = RenameLinkTarget::from_note_path(
+            &RelativeVaultPath::parse("README.md").unwrap(),
+            "README",
+            &paths,
+        );
+        let to = RenameLinkTarget::from_note_path(
+            &RelativeVaultPath::parse("Guide.md").unwrap(),
+            "Guide",
+            &paths,
+        );
+        let input = "[local](README.md)\n[gh](https://github.com/o/r/README.md)\n[net](//cdn.example/README.md)\n[ref]: https://example.com/README.md\n";
+        let (output, edits) = rewrite_note_rename_links(input, &from, &to);
+        assert_eq!(edits, 1, "{output}");
+        assert!(output.contains("[gh](https://github.com/o/r/README.md)"));
+        assert!(output.contains("[net](//cdn.example/README.md)"));
+        assert!(output.contains("[ref]: https://example.com/README.md"));
+        assert!(!output.contains("[local](README.md)"));
+    }
 
     #[test]
     fn preserves_alias_and_section_on_rename() {
