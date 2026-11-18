@@ -16,6 +16,7 @@ import { launchApp, waitForWorkspace } from './helpers'
 const VAULT_LINT = 'Vault Lint'
 
 async function openInstalled(page: Page) {
+  await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome', JSON.stringify({ schemaVersion: 1, data: { inspectorCollapsed: false } })))
   await launchApp(page)
   await waitForWorkspace(page)
   // The store is reached through the inspector's Tools tab, not a command.

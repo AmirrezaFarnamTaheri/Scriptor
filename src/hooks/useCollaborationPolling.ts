@@ -5,7 +5,7 @@ import { MAX_POLL_REQUESTS, pollingDelay } from '../lib/collaborationPolling'
 
 type Listing = Awaited<ReturnType<typeof collaborationPollRead>>
 /** A visible panel owns a finite native lease; stopping invalidates late results. */
-export function useCollaborationPolling(folderId: string, vaultId: string | null, path: string | null, transport: CollaborationTransport, onListing: (listing: Listing) => void) {
+export function useCollaborationPolling(folderId: string, vaultId: string | null, path: string | null, transport: CollaborationTransport, onListing: (listing: Listing) => void, autoStart = false, accountScope = '') {
   const [active, setActive] = useState(false)
   const [starting, setStarting] = useState(false)
   const [status, setStatus] = useState('')
@@ -15,6 +15,10 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lease = useRef<{ id: string; vaultId: string } | null>(null)
   const receive = useRef(onListing)
+  const startRef = useRef<(() => Promise<void>) | null>(null)
+  const autoEnabledRef = useRef(autoStart)
+  const mounted = useRef(false)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   useEffect(() => { receive.current = onListing }, [onListing])
   const release = useCallback(() => {
     const current = ++generation.current
@@ -32,12 +36,15 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
     release()
     const current = generation.current
     void Promise.resolve().then(() => { if (current === generation.current) { setActive(false); setStarting(pending.current) } })
-    const hidden = () => { if (document.hidden) { stop(); setStatus('Polling stopped while this window was hidden. Start a new session explicitly.') } }
+    const hidden = () => {
+      if (document.hidden) { stop(); setStatus('Automatic shared checks paused while this window is hidden.') }
+      else if (autoEnabledRef.current) void startRef.current?.()
+    }
     document.addEventListener('visibilitychange', hidden)
     return () => { release(); document.removeEventListener('visibilitychange', hidden) }
-  }, [folderId, vaultId, path, transport, stop, release])
-  const start = async () => {
-    if (!folderId || !vaultId || pending.current || lease.current) return
+  }, [folderId, vaultId, path, transport, accountScope, stop, release])
+  const start = useCallback(async () => {
+    if (!accountScope.trim() || !folderId || !vaultId || pending.current || lease.current) return
     pending.current = true
     const current = ++generation.current
     setStarting(true); setError('')
@@ -49,7 +56,14 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
       let requests = 0, failures = 0
       const tick = async () => {
         if (current !== generation.current) return
-        if (requests >= MAX_POLL_REQUESTS || Date.now() >= Date.parse(session.expires_at)) { stop(); setStatus('Polling session ended. Start another session explicitly to check again.'); return }
+        if (requests >= MAX_POLL_REQUESTS || Date.now() >= Date.parse(session.expires_at)) {
+          release(); setActive(false)
+          if (autoEnabledRef.current && !document.hidden) {
+            setStatus('Refreshing the automatic shared-check lease…')
+            timer.current = setTimeout(() => { void startRef.current?.() }, 1_000)
+          } else setStatus('Polling session ended. Start another session explicitly to check again.')
+          return
+        }
         requests++
         try {
           const listing = await collaborationPollRead(session.lease_id, vaultId)
@@ -66,7 +80,27 @@ export function useCollaborationPolling(folderId: string, vaultId: string | null
       }
       void tick()
     } catch (reason) { if (current === generation.current) { setError(String(reason)); setStarting(false) } }
-    finally { pending.current = false; setStarting(false) }
-  }
+    finally {
+      pending.current = false
+      if (mounted.current) setStarting(false)
+      // A cancelled, in-flight authorization may have prevented the new
+      // folder's start attempt. Re-arm only the latest context, never a
+      // retired lease and never after unmount or explicit Off.
+      if (current !== generation.current && mounted.current && autoEnabledRef.current && !document.hidden) {
+        void Promise.resolve().then(() => {
+          if (mounted.current && autoEnabledRef.current && !pending.current && !lease.current)
+            void startRef.current?.()
+        })
+      }
+    }
+  }, [folderId, vaultId, transport, accountScope, stop, release])
+  useEffect(() => { startRef.current = start }, [start])
+  useEffect(() => { autoEnabledRef.current = autoStart }, [autoStart])
+  useEffect(() => {
+    if (!autoStart || !accountScope.trim() || !folderId || !vaultId || !path || document.hidden) return
+    let live = true
+    void Promise.resolve().then(() => { if (live) void start() })
+    return () => { live = false }
+  }, [autoStart, folderId, vaultId, path, transport, accountScope, start])
   return { active, starting, status, error, start, stop }
 }

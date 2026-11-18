@@ -76,6 +76,10 @@ test('workspace shortcuts keep compact defaults and persist custom names, dimens
   await runCode.press('Enter')
   await expect(page.getByRole('region', { name: 'Runtime console', exact: true })).toBeVisible()
   await page.reload()
+  // Restored tool leaves remain focused after a reload; return through the
+  // visible Back to writing action before asserting writing shortcuts.
+  await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to writing', exact: true }).click()
   await waitForWorkspace(page)
   await expect(bar.getByRole('button', { name: 'Code', exact: true })).toBeVisible()
   const removed = await customize(page)

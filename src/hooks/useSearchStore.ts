@@ -32,6 +32,7 @@ export function useSearchStore({
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchHit[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
 
   const searchTimer = useRef<number | null>(null)
   const searchRequestId = useRef(0)
@@ -45,12 +46,14 @@ export function useSearchStore({
       if (!trimmed) {
         searchRequestId.current += 1
         setSearchResults([])
+        setSearchError(null)
         setIsSearching(false)
         return
       }
 
       const requestId = ++searchRequestId.current
       setIsSearching(true)
+      setSearchError(null)
       const started = performance.now()
       try {
         const hits = await indexerSearch(trimmed, maxResults)
@@ -78,8 +81,11 @@ export function useSearchStore({
         onSearchTiming?.(Math.round(performance.now() - started))
         setSearchResults(fused)
         onSearchComplete?.(fused)
-      } catch {
-        if (requestId === searchRequestId.current) setSearchResults([])
+      } catch (error) {
+        if (requestId === searchRequestId.current) {
+          setSearchResults([])
+          setSearchError(error instanceof Error ? error.message : String(error))
+        }
       } finally {
         if (requestId === searchRequestId.current) setIsSearching(false)
       }
@@ -92,6 +98,7 @@ export function useSearchStore({
     (query: string) => {
       searchRequestId.current += 1
       setSearchQuery(query)
+      setSearchError(null)
       if (searchTimer.current) window.clearTimeout(searchTimer.current)
       if (!query.trim()) {
         searchTimer.current = null
@@ -119,6 +126,7 @@ export function useSearchStore({
     searchRequestId.current += 1
     semanticSupportedRef.current = true
     setSearchQuery('')
+    setSearchError(null)
     setSearchResults([])
     setIsSearching(false)
     if (searchTimer.current) {
@@ -138,6 +146,7 @@ export function useSearchStore({
     searchQuery,
     searchResults,
     isSearching,
+    searchError,
     runSearch,
     setVaultSearchQuery,
     clearSearch,

@@ -98,8 +98,9 @@ export function AnnotationPopover({ selection, onAnnotate, onDismiss }: Annotati
             className={`annotation-popover__swatch${color === c.value ? ' annotation-popover__swatch--active' : ''}`}
             style={{ background: c.value }}
             aria-label={`Highlight ${selection.quote} in ${c.label}`}
+            aria-pressed={color === c.value}
             onClick={() => setColor(c.value)}
-          />
+          ><span className="annotation-popover__swatch-label" aria-hidden="true">{c.label}</span></button>
         ))}
       </div>
 

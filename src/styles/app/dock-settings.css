@@ -28,10 +28,12 @@
 
 .export-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
   gap: 8px;
 }
 
+.export-preview-selection { display: grid; gap: 6px; margin-block: 12px; }
+.export-preview-selection select { min-width: 0; width: 100%; min-height: 36px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--ink); }
 .export-grid button {
   min-height: 36px;
   display: inline-flex;
@@ -1005,3 +1007,14 @@
   padding: 8px 0;
 }
 
+
+
+/* Search results are information cards, not compressed log lines. Use the
+ * available dock width and preserve readable snippets at 320px and 200% zoom. */
+#dock-panel-search .dock-list { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 10px; padding: 10px 12px 14px; }
+#dock-panel-search .dock-list > li { min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); font-size: 14px; line-height: 1.45; }
+#dock-panel-search .dock-list > li > button { display: grid; gap: 5px; width: 100%; min-width: 0; min-height: 44px; padding: 0; color: var(--ink); overflow-wrap: anywhere; text-align: start; }
+#dock-panel-search .dock-list > li strong { font-size: 14px; line-height: 1.4; }
+#dock-panel-search .dock-list > li span { color: var(--muted); font-size: 12px; }
+#dock-panel-search .dock-list > li small { color: var(--ink); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+#dock-panel-search .dock-list > li button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }

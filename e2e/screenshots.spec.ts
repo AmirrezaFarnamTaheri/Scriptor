@@ -410,45 +410,30 @@ test('publish center', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Export & publish' })).toBeVisible()
   await page.waitForTimeout(800)
   const publish = page.getByRole('dialog', { name: 'Export & publish' })
-  const profiles = publish.locator('.publish-profile-list > li')
-  await expect(profiles.first()).toBeVisible()
-  await expect(profiles.first().getByRole('button', { name: 'Export HTML', exact: true })).toBeVisible()
-
-  // The refreshed Publish Center collapses save destinations on purpose.
-  // Exercise that disclosure instead of requiring the old, expanded bitmap:
-  // the screenshot remains a per-run visual artifact for human review.
-  const destination = profiles.first().locator('details.publish-profile-destination')
-  await expect(destination).not.toHaveAttribute('open', '')
-  await expect(destination.locator('code')).toBeHidden()
-  await destination.locator(':scope > summary').click()
-  await expect(destination.locator('code')).toBeVisible()
-  await destination.locator(':scope > summary').click()
-  await expect(destination).not.toHaveAttribute('open', '')
-
-  const geometry = await publish.evaluate((panel) => {
+  const picker = publish.getByRole('combobox', { name: 'Export format' })
+  await expect(picker).toHaveValue('pdf-offline')
+  await expect(publish.locator('.publish-format-selection')).toBeVisible()
+  await expect(publish.getByRole('button', { name: 'Export PDF', exact: true })).toBeVisible()
+  const destination = publish.locator('.publish-format-destination code')
+  await expect(destination).toContainText('.scriptor/exports/offline')
+  const geometry = await publish.evaluate(panel => {
     const panelRect = panel.getBoundingClientRect()
-    const cards = Array.from(panel.querySelectorAll<HTMLElement>('.publish-profile-list > li'))
-    // LaTeX has another action row outside any profile card. Check only
-    // per-card actions against the card bounds; do not treat LaTeX as overflow.
-    const actions = cards.flatMap((card) => Array.from(card.querySelectorAll<HTMLElement>('.publish-profile-actions')))
+    const selected = panel.querySelector<HTMLElement>('.publish-format-selection')
+    const actions = selected?.querySelector<HTMLElement>('.publish-profile-actions')
+    const selectedRect = selected?.getBoundingClientRect()
+    const actionsRect = actions?.getBoundingClientRect()
     return {
       panelInViewport: panelRect.left >= -1 && panelRect.right <= window.innerWidth + 1
         && panelRect.top >= -1 && panelRect.bottom <= window.innerHeight + 1,
       panelOverflow: panel.scrollWidth - panel.clientWidth,
-      cardOverflow: cards.some((card) => card.scrollWidth > card.clientWidth + 1),
-      checkedActionRows: actions.length,
-      actionOverflow: actions.some((action) => {
-        const rect = action.getBoundingClientRect()
-        const card = action.closest('li')?.getBoundingClientRect()
-        return !card || rect.left < card.left - 1 || rect.right > card.right + 1
-      }),
+      selectedOverflow: Boolean(selected && selected.scrollWidth > selected.clientWidth + 1),
+      actionsContained: Boolean(selectedRect && actionsRect && actionsRect.left >= selectedRect.left - 1 && actionsRect.right <= selectedRect.right + 1),
     }
   })
   expect(geometry.panelInViewport).toBe(true)
   expect(geometry.panelOverflow).toBeLessThanOrEqual(1)
-  expect(geometry.cardOverflow).toBe(false)
-  expect(geometry.checkedActionRows).toBeGreaterThan(0)
-  expect(geometry.actionOverflow).toBe(false)
+  expect(geometry.selectedOverflow).toBe(false)
+  expect(geometry.actionsContained).toBe(true)
   await captureReadyScreenshot(page, shotPath('publish-center'))
 })
 
@@ -610,7 +595,8 @@ test('compact mobile vault and inspector panes', async ({ page }) => {
   await expect(page.locator('.virtual-note-list').getByRole('button', { name: 'Research Plan.md' })).toBeVisible()
   await captureReadyScreenshot(page, shotPath('mobile-vault'))
 
-  await nav.getByRole('button', { name: 'Inspector' }).click()
+  await nav.getByRole('button', { name: 'More' }).click()
+  await page.getByRole('group', { name: 'More destinations' }).getByRole('button', { name: 'Inspector' }).click()
   await waitForInspectorReady(page)
   await expect(page.locator('.inspector-panel')).toBeInViewport()
   await captureReadyScreenshot(page, shotPath('mobile-inspector'))

@@ -326,3 +326,9 @@
     transition: none;
   }
 }
+
+/* Text labels make highlight choices readable without relying on color alone. */
+.annotation-popover__swatch { display:grid; place-items:center; padding:2px; }
+.annotation-popover__swatch-label { font-size:10px; font-weight:700; color:#14232a; line-height:1.2; }
+.annotation-popover__swatch[aria-pressed='true'] { outline:2px solid var(--reader-text); outline-offset:2px; }
+.annotation-popover__swatch:focus-visible { outline:2px solid var(--reader-accent); outline-offset:3px; }

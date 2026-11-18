@@ -1,4 +1,5 @@
 .overleaf-panel {
+  container: overleaf-dialog / inline-size;
   width: min(880px, calc(var(--app-viewport-width, 100vw) - 24px));
   max-height: calc(var(--app-viewport-height, 100dvh) - 24px);
   overflow: hidden;
@@ -23,6 +24,11 @@
 .overleaf-panel h2 { margin: 0; }
 .overleaf-panel-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  /* Critical: do not shrink the consent row to fit a bounded scroll viewport.
+     At 200% app zoom its text otherwise paints over the action buttons. */
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 12px;
   min-height: 0;
   padding: 16px;
@@ -50,3 +56,65 @@
 .overleaf-requirements summary { cursor: pointer; font-weight: 600; }
 .overleaf-requirements p { margin: 10px 0 0; line-height: 1.5; }
 .overleaf-step-heading { margin: 8px 0 0; font-size: 14px; }
+
+
+/* Review controls grow with wrapped and magnified labels. */
+.overleaf-panel .overleaf-consent { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:center; gap:10px; min-height:44px; }
+.overleaf-panel .overleaf-consent > span { display:block; min-width:0; overflow-wrap:anywhere; line-height:1.45; }
+.overleaf-panel .overleaf-review-actions { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; min-width:0; }
+.overleaf-panel .overleaf-review-actions > button { display:block; width:100%; height:auto; min-width:0; min-height:44px; white-space:normal; overflow-wrap:anywhere; word-break:normal; line-height:1.45; padding:10px; text-align:center; }
+.overleaf-panel .overleaf-review-actions > button > span { display:block; min-width:0; white-space:normal; overflow-wrap:anywhere; line-height:1.4; }
+.overleaf-panel .overleaf-action-compact { display:none !important; }
+/* Small logical dialog widths correspond to 320px screens at 200% app zoom:
+   shorten only the visible text, never the safety-sensitive accessible names. */
+@container overleaf-dialog (max-width:220px) {
+  .overleaf-panel-body { padding:8px; gap:8px; }
+  .overleaf-panel .overleaf-action-full { display:none !important; }
+  .overleaf-panel .overleaf-action-compact { display:block !important; }
+  .overleaf-panel .overleaf-review-actions > button { min-height:44px; padding:8px 5px; }
+  .overleaf-panel .overleaf-consent { grid-template-columns:20px minmax(0,1fr); gap:7px; }
+  .overleaf-panel .overleaf-consent > span { font-size:.9rem; }
+}
+/* The close action stays beside the title at phone widths and high zoom.
+   The button retains a 44px accessible target while reclaiming a header row. */
+.overleaf-panel > header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+@media(max-width:600px) {
+  .overleaf-panel > header { align-items:center; flex-wrap:nowrap; padding:10px; gap:8px; }
+  .overleaf-panel > header h2 { flex: 1 1 auto; min-width:0; font-size:1.1rem; line-height:1.25; overflow-wrap:anywhere; }
+  .overleaf-panel-body { padding:10px; gap:10px; scroll-padding-block-end:32px; }
+}
+
+/* VIS-023/027: the current operation is authoritative; older shares are history. */
+.overleaf-operation-error { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--danger); border-inline-start: 4px solid var(--danger); border-radius: 8px; background: color-mix(in srgb, var(--danger) 9%, var(--surface)); overflow-wrap: anywhere; }
+.overleaf-operation-error strong { line-height: 1.5; }
+.overleaf-operation-error button { justify-self: start; }
+.overleaf-current-status.is-error { font-weight: 700; }
+.overleaf-previous-share { color: var(--ink-muted, var(--muted)); }
+.overleaf-previous-share summary { cursor: pointer; }
+.overleaf-diff-legend { padding: 7px 10px; border-inline-start: 3px solid var(--primary); background: var(--surface-raised); overflow-wrap: anywhere; }
+.overleaf-diff-line { display: block; min-height: 1.2em; white-space: pre-wrap; }
+.overleaf-diff-line.is-changed { background: color-mix(in srgb, var(--amber) 24%, var(--surface)); border-inline-start: 3px solid var(--amber); font-weight: 650; }
+.overleaf-action-footer { position: sticky; bottom: -16px; z-index: 2; display: grid; gap: 8px; padding: 12px; margin: 4px -16px -16px; border-block-start: 1px solid var(--border-strong, var(--border)); background: var(--bg); box-shadow: 0 -8px 18px color-mix(in srgb, var(--ink) 10%, transparent); }
+@media(max-width:600px) { .overleaf-action-footer { margin: 4px -10px -10px; bottom: -10px; padding: 10px; } }
+@media(min-width:600px) { .overleaf-review-actions { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+
+/* VIS-OVERLEAF-HIGH-ZOOM: a sticky 2-row approval bar obscures the comparison
+   on a 900px screen at 200% app zoom (450 logical px available). At high zoom,
+   keep approval after the reviewed source in document order, not over it.
+   The existing sticky desktop footer is retained at normal zoom. */
+html[data-ui-zoom='high'] .overleaf-panel .overleaf-action-footer {
+  position: static;
+  bottom: auto;
+  z-index: auto;
+  margin: 4px 0 0;
+  padding: 12px 0 0;
+  box-shadow: none;
+}

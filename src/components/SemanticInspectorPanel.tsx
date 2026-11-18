@@ -6,7 +6,7 @@ import { vaultLoadConfig, vaultSaveConfig } from '../bridge/commands/vault'
 import { projectSemanticPoints, type SemanticInspection } from '../lib/semanticInspector'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import type { VaultConfig } from '../types/vault'
-import './semantic-inspector.css'
+import '../styles/components/semantic-inspector.css'
 
 const SEMANTIC_INSPECTOR_LABELS = {
   title: 'Semantic Inspector', local: 'Index health and PCA are computed locally from stored vectors. Reindexing and similarity queries contact the selected provider after permission.',
@@ -97,10 +97,30 @@ export function SemanticInspectorPanel({ vaultId, onClose, onOpenNote, embedded 
           <p>{copy.bounded}</p>
           <label>{copy.view}<select value={mode} onChange={e => setMode(e.target.value as '2d'|'3d')}><option value="2d">{copy.two}</option><option value="3d">{copy.three}</option></select></label>
           {mode === '3d' && <div className="semantic-controls"><label>{copy.yaw}<input type="range" min={-3.14} max={3.14} step={0.01} value={yaw} onChange={e => setYaw(Number(e.target.value))} /></label><label>{copy.pitch}<input type="range" min={-1.57} max={1.57} step={0.01} value={pitch} onChange={e => setPitch(Number(e.target.value))} /></label></div>}
-          {points.length ? <svg className="semantic-projection" viewBox="0 0 600 360" role="group" aria-label={`${copy.title}: ${mode}`}>
-            <line x1={30} x2={570} y1={180} y2={180} /><line x1={300} x2={300} y1={30} y2={330} />
-            {points.map(p => <g key={p.note_path} role="button" tabIndex={0} aria-label={p.note_path} onClick={() => onOpenNote(p.note_path)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenNote(p.note_path) } }}><title>{p.note_path}</title><circle className={p.stale ? 'stale' : ''} cx={p.x} cy={p.y} r={7} /></g>)}
-          </svg> : <p>{copy.empty}</p>}
+          {points.length ? <>
+            <svg className="semantic-projection" viewBox="0 0 600 360" role="group" aria-label={`${copy.title}: ${mode}`}>
+              <line x1={30} x2={570} y1={180} y2={180} /><line x1={300} x2={300} y1={30} y2={330} />
+              <text className="semantic-projection-axis" x="555" y="171" textAnchor="end">PCA 1</text>
+              <text className="semantic-projection-axis" x="309" y="48">PCA 2</text>
+              {points.map(p => (
+                <g key={p.note_path} role="button" tabIndex={0} aria-label={p.note_path}
+                  onClick={() => onOpenNote(p.note_path)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenNote(p.note_path) } }}>
+                  <title>{p.note_path}</title>
+                  <circle className={p.stale ? 'stale' : ''} cx={p.x} cy={p.y} r={7} />
+                  {points.length <= 8 ? <text aria-hidden="true" className="semantic-projection-point-label"
+                    x={p.x > 460 ? p.x - 12 : p.x + 12} y={Math.max(18, p.y - 12)}
+                    textAnchor={p.x > 460 ? 'end' : 'start'}>
+                    {p.note_path.length > 24 ? p.note_path.slice(0, 23) + '…' : p.note_path}
+                  </text> : null}
+                </g>
+              ))}
+            </svg>
+            <div className="semantic-projection-legend" role="group" aria-label="Projection key">
+              <span><i className="semantic-projection-key-dot" aria-hidden="true" />{copy.current} vector</span>
+              <span><i className="semantic-projection-key-dot stale" aria-hidden="true" />{copy.stale} vector</span>
+            </div>
+          </> : <p>{copy.empty}</p>}
           <p>{copy.variance}: {report.explained_variance.slice(0, mode === '2d' ? 2 : 3).map(v => `${(v*100).toFixed(1)}%`).join(' / ')}</p>
           {points.length > 0 && <ul className="semantic-note-list">{report.points.map(p => <li key={p.note_path}><button type="button" onClick={() => onOpenNote(p.note_path)}>{p.note_path}{p.stale ? ` (${copy.stale})` : ''}</button></li>)}</ul>}
         </>}
@@ -112,11 +132,11 @@ export function SemanticInspectorPanel({ vaultId, onClose, onOpenNote, embedded 
         </fieldset>
         {provider === 'openai' && <fieldset disabled={busy}><legend>{copy.key}</legend><p>{copy.keyNotice}</p><label>{copy.key}<input type="password" autoComplete="new-password" value={key} onChange={e => setKey(e.target.value)} /></label><button type="button" disabled={!key.trim()} onClick={() => void run(async () => { await semanticSetApiKey(key); setKey(''); setStatus(copy.keySaved) })}>{copy.storeKey}</button><button type="button" onClick={() => void run(async () => { await semanticDeleteApiKey(); setStatus(copy.keyRemoved) })}>{copy.removeKey}</button></fieldset>}
         <button type="button" disabled={busy || provider === 'none' || settingsDirty || !config} onClick={() => void run(async () => { const synced = await semanticSync(vaultId ?? undefined); await refresh(); setStatus(`${copy.synced}: ${synced.embedded} / ${synced.total_notes}`) })}>{copy.reindex}</button>
-        <fieldset disabled={busy || provider === 'none' || settingsDirty || !config}><legend>{copy.query}</legend><label>{copy.query}<input value={query} maxLength={4000} onChange={e => setQuery(e.target.value)} /></label><button type="button" disabled={!query.trim()} onClick={() => void run(async () => { const searched = query.trim(); const result = await semanticSearch(searched,100,vaultId ?? undefined); setHits({ query: searched, results: result }) })}>{copy.search}</button><label>{copy.threshold}: {threshold.toFixed(2)}<input type="range" min={-1} max={1} step={0.01} value={threshold} onChange={e => setThreshold(Number(e.target.value))} /></label>
-          {shownHits && (visibleHits.length ? <ul>{visibleHits.map(hit => <li key={hit.note_path}><button type="button" onClick={() => onOpenNote(hit.note_path)}>{hit.note_path}</button> <output>{hit.score.toFixed(3)}</output></li>)}</ul> : <p>{copy.noHits}</p>)}
+        <fieldset disabled={busy || provider === 'none' || settingsDirty || !config}><legend>{copy.query}</legend><label><span className="sr-only">{copy.query}</span><input value={query} maxLength={4000} onChange={e => setQuery(e.target.value)} /></label><button type="button" disabled={!query.trim()} onClick={() => void run(async () => { const searched = query.trim(); const result = await semanticSearch(searched,100,vaultId ?? undefined); setHits({ query: searched, results: result }) })}>{copy.search}</button><label>{copy.threshold}: {threshold.toFixed(2)}<input type="range" min={-1} max={1} step={0.01} value={threshold} onChange={e => setThreshold(Number(e.target.value))} /></label>
+          {shownHits && (visibleHits.length ? <ul>{visibleHits.map(hit => <li key={hit.note_path}><button type="button" onClick={() => onOpenNote(hit.note_path)}>{hit.note_path}</button> <output>{hit.score.toFixed(3)}</output></li>)}</ul> : <p dir="auto">{copy.noHits}</p>)}
         </fieldset>
       </>}
-      {busy && <p role="status">{copy.working}</p>}{status && <p role="status">{status}</p>}{error && <p role="alert">{error}</p>}
+      {busy && <p role="status" dir="auto">{copy.working}</p>}{status && <p role="status" dir="auto">{status}</p>}{error && <p role="alert" dir="auto" className="semantic-inspector-error">{error}</p>}
     </div>
   return embedded ? <section aria-label={copy.title} className="semantic-inspector-panel">{content}</section> :
     <UnifiedPanelShell title={copy.title} ariaLabel={copy.title} helpTopic="ai" icon={<Orbit size={18} />} onClose={onClose} wide className="semantic-inspector-panel">{content}</UnifiedPanelShell>

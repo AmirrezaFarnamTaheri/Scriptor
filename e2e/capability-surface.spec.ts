@@ -4,6 +4,7 @@ import { launchApp, openCommandPalette, runCommand, settleLayout } from './helpe
 
 test.describe('capability surfaces', () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome', JSON.stringify({ schemaVersion: 1, data: { inspectorCollapsed: false } })))
     await launchApp(page)
     await settleLayout(page)
   })
@@ -33,7 +34,8 @@ test.describe('capability surfaces', () => {
     await expect(graphServices).toHaveAttribute('aria-pressed', 'true')
 
     await page.getByRole('tab', { name: 'Layouts' }).click()
-    const zenLayout = page.getByRole('button', { name: 'Apply Zen layout' })
+    await page.getByRole('radio', { name: 'Zen', exact: true }).check()
+    const zenLayout = page.getByRole('button', { name: 'Apply Zen layout template' })
     await expect(zenLayout).toBeEnabled()
     await zenLayout.click()
     await expect(page.locator('html')).toHaveClass(/scriptor-distraction-free/)
@@ -42,6 +44,38 @@ test.describe('capability surfaces', () => {
     await expect(editorToolbar).toHaveCSS('opacity', '0.55')
     await editorToolbar.getByRole('button').first().focus()
     await expect(editorToolbar).toHaveCSS('opacity', '1')
+  })
+
+  test('layout selection previews a distinct workspace before one Apply action', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Tools' }).click()
+    await page.getByRole('tab', { name: 'Layouts' }).click()
+    const choices = page.getByRole('radio')
+    await expect(choices).toHaveCount(8)
+    const researcher = page.getByRole('radio', { name: 'Researcher' })
+    await researcher.check()
+    await expect(researcher).toBeChecked()
+    await expect(page.getByRole('img', { name: /Researcher layout preview:/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Apply Researcher layout template' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: /^Apply .* layout template$/ })).toHaveCount(1)
+  })
+
+  test('layout galleries have separate native radio groups for Store and Settings', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Tools' }).click()
+    await page.getByRole('tab', { name: 'Layouts' }).click()
+    const storeGallery = page.locator('.store-root .settings-layout-presets')
+    await expect(storeGallery).toBeVisible()
+    const storeName = await storeGallery.getByRole('radio', { name: 'Zen', exact: true }).getAttribute('name')
+    expect(storeName).toBeTruthy()
+
+    await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await expect(settings).toBeVisible()
+    await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
+    const settingsGallery = settings.locator('.settings-layout-presets')
+    await expect(settingsGallery).toBeVisible()
+    const settingsName = await settingsGallery.getByRole('radio', { name: 'Zen', exact: true }).getAttribute('name')
+    expect(settingsName).toBeTruthy()
+    expect(settingsName).not.toBe(storeName)
   })
 
   test('keeps populated knowledge repair rows separated at 200% text zoom', async ({ page }) => {
@@ -87,6 +121,6 @@ test.describe('capability surfaces', () => {
     const layoutsTab = storeTabs.getByRole('tab', { name: 'Layouts' })
     await layoutsTab.evaluate((element) => element.scrollIntoView({ inline: 'nearest', block: 'nearest' }))
     await layoutsTab.click()
-    await expect(page.getByRole('button', { name: 'Apply Zen layout' })).toBeVisible()
+    await expect(page.getByRole('radio', { name: 'Zen', exact: true })).toBeVisible()
   })
 })

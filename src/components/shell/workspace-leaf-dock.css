@@ -32,3 +32,13 @@
   .workspace-leaf-dock.has-side.focus-secondary .workspace-writing-leaf,.workspace-leaf-dock.has-side.focus-secondary .workspace-leaf-content.primary { display:none; }
   .workspace-leaf-dock.has-side.focus-primary .workspace-leaf-content.secondary { display:none; }
 }
+
+/* Large workspaces own the full writing area while preserving mounted drafts. */
+.workspace-focus-toolbar { display: flex; justify-content: flex-start; padding: 6px 12px; border-bottom: 1px solid var(--border); }
+.workspace-focus-toolbar button { min-height: 36px; }
+.workspace-leaf-dock.is-focused-workspace .workspace-leaf-grid { grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr); }
+.workspace-leaf-dock.is-focused-workspace .workspace-group-heading.primary { display: none; }
+.workspace-leaf-dock.is-focused-workspace .workspace-group-heading.secondary { grid-column: 1; grid-row: 1; }
+.workspace-leaf-dock.is-focused-workspace .workspace-writing-leaf,
+.workspace-leaf-dock.is-focused-workspace .workspace-leaf-content.primary { display: none; }
+.workspace-leaf-dock.is-focused-workspace .workspace-leaf-content.secondary { grid-column: 1; grid-row: 2; border-inline-start: 0; }

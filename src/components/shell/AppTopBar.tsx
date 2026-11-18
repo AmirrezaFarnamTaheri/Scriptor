@@ -157,10 +157,11 @@ function AppTopBarImpl({
     [chrome],
   )
   const [customizeOpen, setCustomizeOpen] = useState(false)
+  const [customizeRestoreFocusTarget, setCustomizeRestoreFocusTarget] = useState<HTMLElement | null>(null)
   const [customizePos, setCustomizePos] = useState<{ x: number; y: number } | null>(null)
   const customizeAnchorRef = useRef<HTMLButtonElement | null>(null)
   const customizePopupRef = useRef<HTMLDivElement | null>(null)
-  useFocusTrap(customizePopupRef, { active: customizeOpen })
+  useFocusTrap(customizePopupRef, { active: customizeOpen, restoreTo: customizeRestoreFocusTarget })
 
   const quickActions = [
     { id: 'workbench', label: t('topBar.workbench'), icon: <BookOpenText />, onClick: onOpenKnowledgeWorkbench, emphasized: workspaceMode === 'knowledge', className: 'topbar-secondary-action' },
@@ -211,6 +212,7 @@ function AppTopBarImpl({
 
   const openCustomize = useCallback(() => {
     positionCustomize()
+    setCustomizeRestoreFocusTarget(customizeAnchorRef.current)
     setCustomizeOpen((open) => !open)
   }, [positionCustomize])
 
@@ -230,7 +232,7 @@ function AppTopBarImpl({
       if (event.key !== 'Escape') return
       event.preventDefault()
       setCustomizeOpen(false)
-      customizeAnchorRef.current?.focus()
+      // The trap restores focus when the customization dialog unmounts.
     }
     const onViewportChange = () => positionCustomize()
     const onViewportScroll = (event: Event) => {
@@ -254,6 +256,8 @@ function AppTopBarImpl({
     (event: React.MouseEvent) => {
       event.preventDefault()
       positionCustomize()
+      // The Customize icon is hidden at high zoom; keep focus on visible Settings.
+      setCustomizeRestoreFocusTarget(document.querySelector<HTMLElement>('.topbar-settings-toggle'))
       setCustomizeOpen(true)
     },
     [positionCustomize],
@@ -396,6 +400,7 @@ function AppTopBarImpl({
               palette: theme,
             })}
             onClick={onToggleTheme}
+            className="topbar-theme-toggle"
           >
             {resolvedAppearance === 'dark' ? <Sun /> : <Moon />}
           </IconButton>
@@ -426,16 +431,16 @@ function AppTopBarImpl({
               <span className="action-button-label">{t('topBar.plugins')}</span>
             </button>
           ) : null}
-          <IconButton tooltip={false} label={t('topBar.settings')} onClick={onOpenSettings}>
+          <IconButton tooltip={false} className="topbar-settings-toggle" label={t('topBar.settings')} onClick={onOpenSettings}>
             <Settings />
           </IconButton>
-          <IconButton tooltip={false} label={t('topBar.help')} onClick={() => requestHelp('workspace')}>
+          <IconButton tooltip={false} className="topbar-help-toggle" label={t('topBar.help')} onClick={() => requestHelp('workspace')}>
             <CircleHelp />
           </IconButton>
           <button
             type="button"
             ref={customizeAnchorRef}
-            className={`status-button${customizeOpen ? ' emphasized' : ''}`}
+            className={`topbar-customize-toggle status-button${customizeOpen ? ' emphasized' : ''}`}
             aria-label={t('topBar.customizeAria')}
             aria-expanded={customizeOpen}
             onClick={openCustomize}

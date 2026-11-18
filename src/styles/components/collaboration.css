@@ -28,3 +28,37 @@
 }
 .collaboration-guidance[open] { padding-bottom: 8px; }
 .collaboration-guidance > p { margin: 0 0 10px; line-height: 1.5; }
+
+/* VIS-022: a disconnected provider should not demand scrolling through
+ * inactive folder, revision and automatic-check tools before its first action.
+ * The whole reviewed workflow remains one disclosure away, and opens once
+ * an authenticated account is available. */
+.collaboration-workflow-details {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface);
+  padding: 0 12px;
+}
+.collaboration-workflow-details > summary {
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.collaboration-workflow-details[open] {
+  padding-block-end: 12px;
+}
+.collaboration-workflow-details > .collaboration-actions {
+  margin-block: 12px;
+}
+.collaboration-workflow-details > .collaboration-auto-checks {
+  min-width: 0;
+}
+
+/* Keep translated note labels and LTR filenames as separate bidi isolates. */
+.collaboration-local-note { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; min-width:0; }
+.collaboration-local-note > :is(span,bdi) { unicode-bidi:isolate; overflow-wrap:anywhere; }
+
+/* VIS-029: unresolved merge markers must not read as ordinary imported prose. */
+.collaboration-conflict-warning { display: grid; gap: 5px; margin-block: 10px; padding: 12px; border: 1px solid var(--amber); border-inline-start: 4px solid var(--amber); background: color-mix(in srgb, var(--amber) 11%, var(--surface)); border-radius: 7px; color: var(--ink); }
+.collaboration-conflict-warning p { margin: 0; line-height: 1.5; }

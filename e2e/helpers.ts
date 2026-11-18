@@ -48,6 +48,18 @@ export const WORKSPACE_CHROME_PREFS = {
  * flaky, so mark it complete before the app mounts. Callers that need extra
  * bootstrap state should add their own `page.addInitScript` before calling.
  */
+/** Expand the inspector using its production toggle before testing rail content.
+ * This preserves the application's collapsed-by-default preference instead of
+ * silently overriding workspace chrome state in unrelated tests. */
+export async function expandInspector(page: Page) {
+  const workspace = page.locator('.workspace-grid')
+  await expect(workspace).toBeVisible()
+  if (await workspace.getAttribute('data-inspector-collapsed') === 'true') {
+    await page.locator('.topbar-inspector-toggle').click()
+  }
+  await expect(workspace).toHaveAttribute('data-inspector-collapsed', 'false')
+}
+
 export async function launchApp(page: Page, options: { theme?: string; showFirstOpenHelp?: boolean } = {}) {
   // Seed only when unset: init scripts run on every navigation, and clobbering
   // the theme on reload would mask persistence bugs.

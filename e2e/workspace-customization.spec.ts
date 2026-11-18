@@ -123,6 +123,12 @@ test('toolbar and top-bar customize surfaces retain their own scroll position', 
   await page.getByRole('button', { name: 'Customize top bar actions', exact: true }).click()
   const topBarCustomizer = page.getByRole('dialog', { name: 'Customize top bar actions' })
   await expect.poll(() => topBarCustomizer.evaluate((element) => element.scrollHeight > element.clientHeight + 1)).toBe(true)
+  // Ambient first-use Help must yield to the interactive customization scrollport.
+  await expect.poll(() => topBarCustomizer.evaluate((element) => {
+    const rect = element.getBoundingClientRect()
+    const target = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+    return target === element || element.contains(target)
+  })).toBe(true)
   await topBarCustomizer.hover()
   await page.mouse.wheel(0, 500)
   await expect.poll(() => topBarCustomizer.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)

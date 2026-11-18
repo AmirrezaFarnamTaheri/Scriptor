@@ -16,3 +16,8 @@
 @media(max-width:600px) {.capture-reviewer form {flex-direction:column;align-items:stretch;}.capture-reviewer form label,.capture-reviewer form button {width:100%;flex:auto;}}
 @container capture-reviewer (max-width:768px) {.capture-reviewer-split {grid-template-columns:minmax(0,1fr);}}
 @container capture-reviewer (max-width:600px) {.capture-reviewer form {flex-direction:column;align-items:stretch;}.capture-reviewer form label,.capture-reviewer form button {width:100%;flex:auto;}}
+
+/* VIS-028: extraction failures need one clear adjacent recovery path. */
+.capture-extraction-alert { display: grid; justify-items: start; gap: 8px; padding: 12px 14px; border: 1px solid var(--danger); border-inline-start: 4px solid var(--danger); border-radius: 8px; background: color-mix(in srgb, var(--danger) 9%, var(--surface)); overflow-wrap: anywhere; }
+.capture-extraction-alert p { margin: 0; line-height: 1.5; }
+.capture-extraction-alert button { min-height: 44px; border-color: var(--danger); font-weight: 700; }

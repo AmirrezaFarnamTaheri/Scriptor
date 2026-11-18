@@ -245,6 +245,9 @@ test.describe('visual review states', () => {
     await expect(workspace).toBeVisible()
     await expect(page.getByText('Open your writing workspace', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Open vault', exact: true })).toBeVisible()
+    await expect(page.getByRole('complementary', { name: 'Vault', exact: true }).getByRole('button', { name: 'Open vault folder', exact: true })).toHaveCount(0)
+    await expect(page.locator('.inspector-panel')).toContainText('Open a vault to inspect notes')
+    await expect(page.locator('.inspector-panel')).not.toContainText('Export formats')
     await expect(page.locator('.monaco-editor, .cm-editor, article[aria-label="Markdown preview"]')).toHaveCount(0)
     await expectNoHorizontalOverflow(page)
 
@@ -265,6 +268,14 @@ test.describe('visual review states', () => {
       )
       .toBe('rgb(15, 23, 42)')
 
+    // VIS-022: the active 11px workspace mode label must use the readable
+    // theme ink, not a palette accent that can drop below 4.5:1 on dark chrome.
+    // The tinted active background remains a separate non-color selection cue.
+    const modeColors = await page.locator('header.topbar .workspace-mode.active').evaluate((element) => ({
+      selected: getComputedStyle(element).color,
+      heading: getComputedStyle(document.querySelector('header.topbar .brand')!).color,
+    }))
+    expect(modeColors.selected).toBe(modeColors.heading)
     await captureVisual(page, 'visual-editor-split-dark.png')
   })
 
@@ -457,6 +468,12 @@ test.describe('visual review states', () => {
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav.getByRole('button', { name: 'Write' })).toHaveAttribute('aria-current', 'page')
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
+    const mobileOverflow = page.locator('.editor-primary-formatting .tools-trigger')
+    await expect(mobileOverflow).toBeInViewport({ ratio: 1 })
+    await expect(mobileOverflow.locator('.toolbar-menu-trigger-label')).toBeVisible()
+    await mobileOverflow.click()
+    await expect(page.getByRole('menuitem', { name: /Customize/i })).toBeVisible()
+    await page.keyboard.press('Escape')
 
     await captureVisual(page, 'visual-mobile-editor-390.png')
   })
@@ -497,11 +514,58 @@ test.describe('visual review states', () => {
     const graph = page.getByRole('dialog', { name: 'Knowledge graph' })
     await expect(graph).toBeVisible()
     await expect(graph.locator('.graph-header')).toContainText('120 nodes')
+    // The dense graph must expose named, clickable immediate neighbors without
+    // requiring users to hover or guess which dot represents which note.
+    const neighbors = graph.getByRole('group', { name: 'Connected notes' })
+    await expect(neighbors).toBeVisible()
+    for (const label of ['Topic 002', 'Topic 018', 'Topic 120']) {
+      await expect(neighbors.getByRole('button', { name: label, exact: true })).toBeVisible()
+    }
+    // The bitmap has a real alternative: all inbound/outbound edges of the
+    // focused note, in authored direction. The disclosure starts collapsed so
+    // large graphs retain their drawing area.
+    const relations = graph.locator('.graph-directed-relationships')
+    await expect(relations).toBeVisible()
+    await expect(relations).not.toHaveAttribute('open', '')
+    await relations.locator('summary').click()
+    await expect(relations.locator('li').first()).toBeVisible()
+    await expect(relations.locator('.graph-relationship-direction').first()).toContainText('→')
+    await relations.locator('summary').click()
+
+    const allLinks = graph.getByRole('button', { name: 'Show all links', exact: true })
+    const focusedHint = graph.locator('.graph-focus-hint')
+    const view = graph.getByRole('combobox', { name: 'View' })
+    // VIS-020: the focused canvas deliberately displays first-degree links
+    // even when the backend query includes two steps. The selected View label
+    // must describe what is visibly drawn rather than imply two drawn hops.
+    await expect(view.locator('option:checked')).toHaveText('Connected notes')
+    await expect(focusedHint).toContainText('Showing direct connections only')
+    await expect(allLinks).toHaveAttribute('aria-pressed', 'true')
+    await allLinks.click()
+    await expect(focusedHint).toBeHidden()
+    await expect(view.locator('option:checked')).toHaveText('Nearby notes (2 steps)')
+    const focusLinks = graph.getByRole('button', { name: 'Highlight connected links', exact: true })
+    await expect(focusLinks).toHaveAttribute('aria-pressed', 'false')
+    await focusLinks.click()
+    await expect(view.locator('option:checked')).toHaveText('Connected notes')
+    await expect(allLinks).toHaveAttribute('aria-pressed', 'true')
     const stage = graph.locator('.graph-stage')
     const canvas = graph.locator('.graph-canvas-accessible-shell canvas')
     await expect(stage).toBeVisible()
     await expect(canvas).toBeVisible({ timeout: 15_000 })
     await expect(canvas).toHaveAttribute('aria-label', /120 notes and 160 links/)
+    await expect(canvas).toHaveAttribute('aria-label', /Connected notes: 3/)
+    // The root of a focused graph must be visually prominent at the actual
+    // center of the bitmap. The old 120-node clustering put the focus at the
+    // lower left; testing only canvas dimensions would have missed this.
+    await expect.poll(() => canvas.evaluate((element) => {
+      const bitmap = element as HTMLCanvasElement
+      const ctx = bitmap.getContext('2d')
+      if (!ctx) return false
+      const center = ctx.getImageData(Math.floor(bitmap.width / 2), Math.floor(bitmap.height / 2), 1, 1).data
+      const corner = ctx.getImageData(8, 8, 1, 1).data
+      return Math.hypot(center[0] - corner[0], center[1] - corner[1], center[2] - corner[2]) > 80
+    })).toBe(true)
     const geometry = await stage.evaluate((element) => {
       const canvas = element.querySelector('canvas')
       if (!canvas) return null
@@ -547,6 +611,22 @@ test.describe('visual review states', () => {
     expect(svgBox).not.toBeNull()
     expect((stageBox?.height ?? 0) - (svgBox?.height ?? 0)).toBeLessThanOrEqual(96)
 
+    // VIS-019: a loaded board must not lose the bottom cards behind the
+    // viewport edge. The source scene is tight without padding, so this
+    // assertion fails on the old viewBox even though 5 SVG groups exist.
+    const margins = await stageSvg.evaluate((element) => {
+      const frame = element.getBoundingClientRect()
+      const cards = Array.from(element.querySelectorAll<SVGGElement>('.canvas-block'))
+      return cards.map((card) => {
+        const rect = card.getBoundingClientRect()
+        return { top: rect.top - frame.top, bottom: frame.bottom - rect.bottom }
+      })
+    })
+    expect(margins).toHaveLength(5)
+    for (const margin of margins) {
+      expect(margin.top, 'card top must be visible with a frame margin').toBeGreaterThanOrEqual(12)
+      expect(margin.bottom, 'card bottom must not meet the stage boundary').toBeGreaterThanOrEqual(12)
+    }
     await captureElement(page, canvas, 'visual-canvas-populated.png')
   })
 
@@ -573,6 +653,28 @@ test.describe('visual review states', () => {
     await settleLayout(page)
 
     await captureElement(page, workbench, 'visual-knowledge-triage-populated.png')
+  })
+
+  test('a returning writer keeps diagnostics dock collapsed until requested', async ({ page }) => {
+    // The broad screenshot baseline intentionally opens the dock. Verify the
+    // real clean default separately so VIS-021 is not judged from test-only chrome.
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:status-dock-collapsed', 'true')
+    })
+    await openVisualWorkspace(page)
+    const footer = page.locator('.status-strip')
+    await expect(footer).toHaveClass(/is-dock-collapsed/)
+    await expect(page.locator('#status-dock-chrome')).toHaveCount(0)
+    await expect(footer.locator('.jobs-button')).toBeVisible()
+    await expect(footer.locator('.dock-chrome-toggle')).toHaveAttribute('aria-expanded', 'false')
+    await captureVisual(page, 'visual-workspace-compact-default.png')
+
+    await footer.locator('.jobs-button').click()
+    await expect(page.locator('#status-dock-chrome')).toBeVisible()
+    await expect(footer.locator('.dock-chrome-toggle')).toHaveAttribute('aria-expanded', 'true')
+    await footer.locator('.dock-chrome-toggle').click()
+    await expect(page.locator('#status-dock-chrome')).toHaveCount(0)
+    await expect(footer.locator('.jobs-button')).toBeVisible()
   })
 
   test('Help stays centralized while F1 remains contextual', async ({ page }) => {
@@ -627,12 +729,20 @@ test.describe('visual review states', () => {
 
   test('first-open graph guidance evidence', async ({ page }) => {
     await openVisualWorkspace(page)
-    await page.evaluate(() => window.localStorage.setItem('scriptor:help-guides:v1', JSON.stringify({ version: 2, progress: {} })))
+    await page.evaluate(() => window.localStorage.setItem('scriptor:help-guides:v1', JSON.stringify({ version: 1, progress: {} })))
     await page.reload({ waitUntil: 'domcontentloaded' })
     await waitForVisualWorkspace(page)
     await openCommandPalette(page)
     await runCommand(page, 'Open graph')
-    await expect(page.getByRole('region', { name: 'Knowledge graph navigation' })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Knowledge graph', exact: true })
+      .getByRole('region', { name: 'Graph search and connected notes', exact: true })).toBeVisible()
+    const invitation = page.locator('.help-invitation')
+    await expect(invitation).toBeVisible()
+    await expect(invitation.locator('h2')).toHaveText('Knowledge graph navigation')
+    await expect(invitation).not.toContainText('Export and Pandoc preflight')
+    const invitationBox = await invitation.boundingBox()
+    expect(invitationBox).not.toBeNull()
+    expect(invitationBox!.y + invitationBox!.height).toBeLessThanOrEqual(900 - 60)
     await settleLayout(page)
     await page.screenshot({ path: test.info().outputPath('visual-graph-first-open-guidance.png'), animations: 'disabled', caret: 'hide' })
   })
@@ -693,15 +803,35 @@ test.describe('visual review states', () => {
   test('minimum-width mobile workspace evidence', async ({ page }) => {
     await openMobileWorkspace(page, 320, 720)
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
-    await expect(nav.getByRole('button')).toHaveCount(5)
-    await expect(nav.getByRole('button', { name: 'Plugins' })).toBeVisible()
+    await expect(nav.getByRole('button')).toHaveCount(4)
+    await expect(nav.getByRole('button', { name: 'Command', exact: true })).toBeVisible()
+    const topbar = page.locator('header.topbar')
+    const history = topbar.locator('.history-controls')
+    const mode = topbar.locator('.workspace-mode-strip')
+    if (await history.locator('button:not(:disabled)').count() === 0) {
+      // When Back and Forward are disabled, vault and workspace mode should
+      // share the second row rather than consume two rows of writing space.
+      const historyBox = (await history.boundingBox())!
+      const modeBox = (await mode.boundingBox())!
+      expect(Math.abs(historyBox.y - modeBox.y)).toBeLessThanOrEqual(2)
+    }
+    await nav.getByRole('button', { name: 'More' }).click()
+    await expect(page.getByRole('group', { name: 'More destinations' }).getByRole('button', { name: 'Plugins' })).toBeVisible()
+    await page.keyboard.press('Escape')
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeVisible()
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeInViewport()
     const mobileTools = page.locator('.editor-primary-formatting .tools-trigger')
     await expect(mobileTools).toBeInViewport({ ratio: 1 })
+    await expect(mobileTools.locator('.toolbar-menu-trigger-label')).toBeVisible()
     await mobileTools.click()
     await expect(page.getByRole('menuitem', { name: /Customize/i })).toBeVisible()
     await page.keyboard.press('Escape')
+    const toolbarScroll = page.locator('.format-row.editor-toolbar')
+    await expect.poll(() => toolbarScroll.evaluate(element => element.scrollWidth - element.clientWidth)).toBeGreaterThan(20)
+    await expect(toolbarScroll).toHaveCSS('scrollbar-width', 'thin')
+    await toolbarScroll.evaluate(element => { element.scrollLeft = element.scrollWidth })
+    await expect.poll(() => toolbarScroll.evaluate(element => element.scrollLeft)).toBeGreaterThan(10)
+    await toolbarScroll.evaluate(element => { element.scrollLeft = 0 })
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-mobile-320.png')
@@ -779,6 +909,11 @@ test.describe('visual review states', () => {
     await expect(page.locator('.metric-grid')).toContainText('Defekte Links')
     await expect(page.locator('.metric-grid')).toContainText('Wörter im Vault')
     await expect(page.locator('.inspector-panel')).not.toContainText('Broken links')
+    // A translated Inspector mode can be constrained by a resizable rail.
+    // Preserve a complete, discoverable title even when the visible tab ellipsises.
+    await expect.poll(() => page.locator('.inspector-tabs').evaluate((root) =>
+      [...root.querySelectorAll('button')].every(button => Boolean(button.title) && button.title === button.textContent?.trim()),
+    )).toBe(true)
     await expect.poll(() => page.locator('.inspector-tabs').evaluate((root) =>
       [...root.querySelectorAll('button')].every((button) => button.scrollWidth <= button.clientWidth + 1),
     )).toBe(true)
@@ -818,7 +953,21 @@ test.describe('visual review states', () => {
     await expect(page.locator('html')).toHaveAttribute('data-ui-zoom', 'high')
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav).toBeVisible()
-    await expect(nav.getByRole('button', { name: 'Command' })).toBeVisible()
+    // VIS-021: a 1440px-wide window at 200% zoom still has room for all
+    // four labels beside their icons. Identifiable navigation must not cost
+    // another row of document height.
+    for (const name of ['Vault', 'Write', 'Command', 'More']) {
+      await expect(nav.getByRole('button', { name, exact: true }).locator('span')).toBeVisible()
+    }
+    const navBox = await nav.boundingBox()
+    expect(navBox).not.toBeNull()
+    expect(navBox!.height).toBeLessThanOrEqual(128)
+    await nav.getByRole('button', { name: 'Command', exact: true }).click()
+    // The mobile entry opens the command dialog; .command-search is the
+    // intentionally hidden desktop top-bar trigger, not the dialog.
+    await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: 'Command palette' })).toHaveCount(0)
     await expect(page.locator('.status-strip')).toBeHidden()
     await expect(page.locator('.command-search')).toBeHidden()
     const modeSelect = page.locator('.workspace-mode-select')
@@ -843,19 +992,37 @@ test.describe('visual review states', () => {
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeHidden()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-    const [historyBox, modeBox] = await Promise.all([
-      page.locator('.history-controls').boundingBox(),
+    // High zoom deliberately hides duplicate vault/history controls. The mode
+    // selector must remain wholly inside the compact top bar.
+    await expect(page.locator('.history-controls')).toBeHidden()
+    const [modeBox, topbarBox] = await Promise.all([
       page.locator('.workspace-mode-strip').boundingBox(),
+      page.locator('header.topbar').boundingBox(),
     ])
-    expect(historyBox).not.toBeNull()
     expect(modeBox).not.toBeNull()
-    expect(Math.abs((historyBox?.y ?? 0) - (modeBox?.y ?? 0))).toBeLessThanOrEqual(2)
+    expect(topbarBox).not.toBeNull()
+    expect(modeBox!.y).toBeGreaterThanOrEqual(topbarBox!.y)
+    expect(modeBox!.y + modeBox!.height).toBeLessThanOrEqual(topbarBox!.y + topbarBox!.height + 1)
+    // The mode selector belongs beside identity/settings at wide high-zoom widths,
+    // not on a dedicated second chrome row that steals writing height.
+    const [brandBox, settingsBox] = await Promise.all([
+      page.locator('header.topbar .brand').boundingBox(),
+      page.locator('header.topbar .topbar-settings-toggle').boundingBox(),
+    ])
+    expect(brandBox).not.toBeNull()
+    expect(settingsBox).not.toBeNull()
+    expect(modeBox!.y).toBeLessThan(topbarBox!.y + topbarBox!.height / 2)
+    expect(modeBox!.x).toBeGreaterThanOrEqual(brandBox!.x + brandBox!.width - 2)
+    expect(modeBox!.x + modeBox!.width).toBeLessThanOrEqual(settingsBox!.x + 2)
     await expect(page.locator('.monaco-editor')).toBeVisible()
     await expect.poll(() => page.locator('.monaco-editor').evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(96)
+    // VIS-007: at 200% UI zoom the writing viewport must occupy at least half the screen.
+    await expect.poll(() => page.locator('.monaco-editor').evaluate(element => element.getBoundingClientRect().height / window.innerHeight)).toBeGreaterThanOrEqual(0.5)
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-ui-zoom-200-editor.png')
 
-    await nav.getByRole('button', { name: 'Inspector' }).click()
+    await nav.getByRole('button', { name: 'More' }).click()
+    await page.getByRole('group', { name: 'More destinations' }).getByRole('button', { name: 'Inspector' }).click()
     await expect(page.locator(WRITING_EDITOR_PANEL)).toBeHidden()
     await expect(page.locator('.inspector-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeInViewport()
@@ -928,6 +1095,16 @@ test.describe('visual review states', () => {
         window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
         window.localStorage.setItem('scriptor:split-preview', 'false')
         window.localStorage.setItem('scriptor:status-dock-collapsed', 'false')
+        // Device-scale evidence is an ordinary returning-user workspace.
+        // Keep first-run Help invitations for their dedicated scenario.
+        window.localStorage.setItem('scriptor:help-guides:v1', JSON.stringify({
+          version: 1,
+          progress: Object.fromEntries([
+            'workbench', 'graph', 'canvas', 'tasks', 'kanban', 'reader',
+            'export', 'plugins', 'modules', 'integrations', 'gmail', 'mcp',
+            'custom-theme', 'resource-sync',
+          ].map(id => [id, { step: 0, completed: false, introduced: true }])),
+        }))
         window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
       }, WORKSPACE_CHROME_PREFS)
       await scaledPage.goto('/', { waitUntil: 'domcontentloaded' })
@@ -1166,6 +1343,12 @@ test.describe('visual review states', () => {
     await expect(tour).toBeVisible()
     await expect(tour.getByRole('heading', { name: 'Your vault' })).toBeVisible()
     await expect(tour.getByRole('button', { name: 'Next' })).toBeFocused()
+    const close = tour.getByRole('button', { name: /^Close / })
+    const heading = tour.getByRole('heading', { name: 'Your vault' })
+    const [closeBox, headingBox] = await Promise.all([close.boundingBox(), heading.boundingBox()])
+    expect(closeBox).not.toBeNull()
+    expect(headingBox).not.toBeNull()
+    expect(closeBox!.y).toBeLessThan(headingBox!.y + headingBox!.height + 4)
     await expectNoHorizontalOverflow(page)
     await captureElement(page, tour, 'visual-onboarding-dark.png')
   })
@@ -1189,7 +1372,18 @@ test.describe('visual review states', () => {
     await daemon.scrollIntoViewIfNeeded()
     await captureElement(page, daemon, 'visual-settings-daemon-operations.png')
 
-    const releaseQuality = settings.locator('.release-quality-panel')
+    // VIS-012: advanced diagnostics and quality evidence start collapsed.
+    // Keyboard users can reveal a section without stepping through unrelated
+    // settings on the way to their task.
+    const disclosures = settings.locator('details.settings-advanced-disclosure')
+    await expect(disclosures).toHaveCount(3)
+    const releaseDisclosure = settings.locator('details[data-section="performance"]')
+    await expect(releaseDisclosure).not.toHaveAttribute('open', '')
+    const summary = releaseDisclosure.locator('summary')
+    await summary.focus()
+    await summary.press('Enter')
+    await expect(releaseDisclosure).toHaveAttribute('open', '')
+    const releaseQuality = releaseDisclosure.locator('.release-quality-panel')
     await expect(releaseQuality).toBeVisible()
     const releaseQualityHeading = releaseQuality.getByRole('heading', { name: 'Performance checks', exact: true })
     await releaseQualityHeading.scrollIntoViewIfNeeded()
@@ -1205,18 +1399,21 @@ test.describe('visual review states', () => {
     const store = page.locator('.store-root')
     await expect(store).toBeVisible()
     await store.getByRole('tab', { name: 'Layouts', exact: true }).click()
-    await expect(store.getByRole('button', { name: 'Apply Zen layout' })).toBeVisible()
+    await expect(store.getByRole('radio', { name: 'Zen', exact: true })).toBeVisible()
     await settleLayout(page)
     await expectNoHorizontalOverflow(page)
     const inspector = page.locator('.inspector-panel')
     await captureElement(page, inspector, 'visual-layout-presets.png')
 
-    // The Inspector rail owns vertical scrolling. StorePanel's internal body can
-    // fully expand within that rail, so asserting its scrollTop creates a false
-    // failure even when lower presets are genuinely offscreen.
-    await inspector.evaluate((element) => { element.scrollTop = element.scrollHeight })
-    await expect.poll(() => inspector.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
-    await expect(store.getByRole('button', { name: 'Apply Synthesis layout' })).toBeInViewport()
+    // The gallery may fit entirely inside the Inspector: inspect the actual
+    // selected preview and the one action instead of requiring scrollTop > 0.
+    const synthesis = store.getByRole('radio', { name: 'Synthesis', exact: true })
+    await synthesis.scrollIntoViewIfNeeded()
+    await expect(synthesis).toBeInViewport()
+    await synthesis.check()
+    await expect(synthesis).toBeChecked()
+    await expect(store.getByRole('img', { name: /Synthesis layout preview:/ })).toBeVisible()
+    await expect(store.getByRole('button', { name: 'Apply Synthesis layout template' })).toBeEnabled()
     await captureElement(page, inspector, 'visual-layout-presets-bottom.png')
   })
 
@@ -1397,6 +1594,8 @@ test.describe('visual review states', () => {
       context.fillRect(0, 0, 1, 1)
       return context.getImageData(0, 0, 1, 1).data[3]
     })).toBe(255)
+    await expect(annotation.locator('.annotation-popover__swatch-label')).toHaveText(['Yellow', 'Green', 'Blue', 'Pink'])
+    await expect(annotation.locator('.annotation-popover__swatch[aria-pressed="true"]')).toHaveCount(1)
     await annotation.getByRole('button', { name: 'Comment (c)', exact: true }).click()
     await expect(annotation.getByPlaceholder('Add a comment…')).toBeVisible()
     await expect.poll(() => annotation.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
@@ -1759,6 +1958,11 @@ test.describe('visual review states', () => {
         && element.scrollWidth <= element.clientWidth + 1
     })).toBe(true)
     await expect(capture).toContainText('Tasks')
+    const scratchpadField = capture.locator('.scratchpad-editor')
+    const scratchpadActions = capture.locator('.quick-capture-actions')
+    await expect.poll(() => Promise.all([scratchpadField.boundingBox(), scratchpadActions.boundingBox()])
+      .then(([editor, actions]) => Boolean(editor && actions && actions.y >= editor.y + editor.height - 1))).toBe(true)
+    await expect(capture.getByRole('button', { name: 'Add sticky note', exact: true })).toBeInViewport({ ratio: 1 })
     await captureElement(page, capture, 'visual-quick-capture.png')
 
     await todoRow.getByRole('button', { name: 'Mark task complete: Review visual evidence before release', exact: true }).click()
@@ -2006,11 +2210,8 @@ test.describe('visual review states', () => {
 
     const publish = page.getByRole('dialog', { name: 'Export & publish', exact: true })
     await expect(publish).toBeVisible()
-    await publish
-      .locator('.publish-profile-list > li')
-      .filter({ has: page.locator('.publish-profile-title-row > strong').filter({ hasText: /^PDF$/ }) })
-      .getByRole('button', { name: 'Preview export', exact: true })
-      .click()
+    await publish.getByRole('combobox', { name: 'Export format' }).selectOption('pdf-print')
+    await publish.getByRole('button', { name: 'Preview export', exact: true }).click()
 
     await expect(publish.getByRole('heading', { name: 'Preflight preview', exact: true })).toBeVisible({ timeout: 15_000 })
     await expect(publish.locator('.publish-command-preview')).toContainText('pandoc', { ignoreCase: true })
@@ -2051,6 +2252,47 @@ test.describe('visual review states', () => {
       await expect(tab).toHaveAttribute('aria-selected', 'true')
       const body = settings.locator('.unified-panel-body')
       await expect.poll(() => body.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+      if (state.tab === 'Workspace') {
+        const presetRows = await settings.locator('.layout-preset-item').evaluateAll(items => items.map(item => Math.round(item.getBoundingClientRect().top)))
+        expect(presetRows).toHaveLength(8)
+        expect(new Set(presetRows).size).toBe(2)
+        expect(presetRows.slice(0, 4).every(top => top === presetRows[0])).toBe(true)
+        expect(presetRows.slice(4).every(top => top === presetRows[4])).toBe(true)
+        // The active saved layout must be the initial preview selection, not
+        // an arbitrary Zen alternative that users could mistake for current.
+        // The word "Current" is part of the label's accessible name. A
+        // currently applied preset (if one matches) must be selected, but a
+        // custom layout is allowed to have no matching built-in preset.
+        const applied = settings.locator('.layout-preset-choice').filter({ has: settings.locator('small:text-is("Current")') })
+        if (await applied.count()) {
+          await expect(applied).toHaveCount(1)
+          await expect(applied.locator('input[type="radio"]')).toBeChecked()
+        }
+        // VIS-016: "Author Current" must not split the template name.
+        // The radio's computed name can include the separate Current badge.
+        // Locate the visible Author tile directly, then measure its name.
+        const author = settings.locator('.layout-preset-choice:has(> span:text-is("Author"))')
+        await expect(author).toHaveCount(1)
+        const nameLines = await author.locator(':scope > span').evaluate(element => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          return range.getClientRects().length
+        })
+        expect(nameLines, 'Author template name must remain on one visual line').toBe(1)
+        const current = author.locator(':scope > small')
+        if (await current.count()) {
+          const geometry = await author.evaluate(element => {
+            const name = element.querySelector('span')!.getBoundingClientRect()
+            const status = element.querySelector('small')!.getBoundingClientRect()
+            return { nameBottom: name.bottom, statusTop: status.top }
+          })
+          expect(geometry.statusTop, 'Current status follows the name without collision').toBeGreaterThanOrEqual(geometry.nameBottom - 1)
+        }
+      }
+      if (state.tab === 'Shortcuts') {
+        await expect(settings.locator('.shortcut-table')).toHaveClass(/shortcut-table--no-actions/)
+        await expect(settings.getByRole('columnheader', { name: 'Actions' })).toHaveCount(0)
+      }
       await captureElement(page, settings, state.image)
     }
   })
@@ -2140,6 +2382,20 @@ test.describe('visual review states', () => {
 
     await page.locator('header.topbar').getByRole('button', { name: /Switch to dark appearance/ }).click()
     await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark')
+    const colorHealth = await page.locator('.inspector-panel').evaluate(panel => {
+      const active = panel.querySelector('.inspector-preset-row button.active')
+      const health = panel.querySelector('.widget-action')
+      const title = panel.querySelector('.widget-card h3')
+      if (!active || !health || !title) return null
+      return {
+        active: getComputedStyle(active).color,
+        status: getComputedStyle(health).color,
+        heading: getComputedStyle(title).color,
+      }
+    })
+    expect(colorHealth).not.toBeNull()
+    expect(colorHealth?.active).toBe(colorHealth?.heading)
+    expect(colorHealth?.status).toBe(colorHealth?.heading)
     await expect(page.locator('.cm-editor .cm-content')).toBeVisible()
     await captureVisual(page, 'visual-codemirror-workspace-dark.png')
   })

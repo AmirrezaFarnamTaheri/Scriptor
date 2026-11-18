@@ -73,6 +73,13 @@ export const PublishCenter = memo(function PublishCenter({
   onApplyPlan,
 }: PublishCenterProps) {
   const latex = useLatexCompiler({ config: latexConfig ?? undefined })
+  const [selectedProfileId, setSelectedProfileId] = useState('pdf-offline')
+  const selectedProfile = exportProfiles.find(profile => profile.id === selectedProfileId)
+    ?? exportProfiles.find(profile => profile.id === 'pdf-offline')
+    ?? exportProfiles[0]
+  const orderedProfiles = useMemo(() =>
+    [...exportProfiles].sort((a, b) => Number(b.id === 'pdf-offline') - Number(a.id === 'pdf-offline')),
+  [exportProfiles])
   const offlineRunning = isExporting && exportHistory.some(entry => entry.status === 'running' && entry.profile_label === 'PDF · Offline')
   const translationRunning = isExporting && exportHistory.some(entry => entry.status === 'running' && exportProfiles.some(profile => profile.id === 'pdf-translate' && profile.label === entry.profile_label))
   const isTexDocument = Boolean(activePath && /\.(tex|ltx)$/i.test(activePath))
@@ -130,47 +137,58 @@ export const PublishCenter = memo(function PublishCenter({
           <p className="health-subtitle">
             Choose a format. Save folders are configured per format; offline PDF needs no internet connection.
           </p>
-          <ul className="publish-profile-list">
-            {exportProfiles.map((profile) => {
-              const formatBadge = formatBadgeFor(profile)
-              return (
-                <li key={profile.id}>
-                <div className="publish-profile-summary">
-                  <div className="publish-profile-title-row">
-                    <strong>{profile.label}</strong>
-                    {formatBadge ? <span className="publish-format-chip">{formatBadge}</span> : null}
-                  </div>
-                  <details className="publish-profile-destination">
-                    <summary><FolderOutput size={13} aria-hidden="true" /> Save location</summary>
-                    <code>{profile.outputDirectory}</code>
-                  </details>
+          <div className="publish-format-workflow">
+            <label className="publish-format-picker">
+              Export format
+              <select aria-label="Export format" value={selectedProfile?.id ?? ''}
+                disabled={!selectedProfile || isExporting}
+                onChange={event => setSelectedProfileId(event.target.value)}>
+                {orderedProfiles.map(profile => <option key={profile.id} value={profile.id}>
+                  {profile.label}{formatBadgeFor(profile) ? ` (${formatBadgeFor(profile)})` : ''}
+                </option>)}
+              </select>
+            </label>
+            {selectedProfile ? (
+              <div className="publish-format-selection" aria-live="polite">
+                <div className="publish-format-selection-label">
+                  <strong>{selectedProfile.label}</strong>
+                  {selectedProfile.id === 'pdf-offline'
+                    ? <span className="publish-recommended-chip">Recommended PDF</span>
+                    : null}
+                </div>
+                <p className="health-subtitle">
+                  {selectedProfile.id === 'pdf-offline'
+                    ? 'Creates a PDF on this device without an external typesetting service.'
+                    : selectedProfile.id === 'pdf-print'
+                      ? 'Standard PDF via Pandoc; requires a configured PDF engine.'
+                      : selectedProfile.id === 'pdf-typst'
+                        ? 'PDF via the Typst engine; requires Typst to be installed.'
+                        : selectedProfile.id === 'pdf-translate'
+                          ? 'Translate a PDF using the configured external translation tool.'
+                          : 'Export the active document using this format.'}
+                </p>
+                <div className="publish-format-destination">
+                  <FolderOutput size={14} aria-hidden="true" />
+                  <span>Save folder:</span>
+                  <code title={selectedProfile.outputDirectory}>{selectedProfile.outputDirectory}</code>
                 </div>
                 <div className="publish-profile-actions">
-                  {profile.id !== 'pdf-offline' && profile.id !== 'pdf-translate' ? (
-                    <button
-                      type="button"
-                      className="toolbar-button"
+                  {selectedProfile.id !== 'pdf-offline' && selectedProfile.id !== 'pdf-translate' ? (
+                    <button type="button" className="toolbar-button"
                       disabled={!activePath || isExporting}
                       title="Check export settings without creating a file"
-                      onClick={() => onExport(profile.id, true)}
-                    >
-                      Preview export
-                    </button>
+                      onClick={() => onExport(selectedProfile.id, true)}>Preview export</button>
                   ) : null}
-                  <button
-                    type="button"
-                    className="primary-button publish-export-action"
+                  <button type="button" className="primary-button publish-export-action"
                     disabled={!activePath || isExporting || !nativeReady}
-                    onClick={() => onExport(profile.id, false)}
-                  >
+                    onClick={() => onExport(selectedProfile.id, false)}>
                     {isExporting ? <Loader2 className="spin" size={14} aria-hidden="true" /> : null}
-                    Export {profile.format.toUpperCase()}
+                    Export {selectedProfile.format.toUpperCase()}
                   </button>
                 </div>
-                </li>
-              )
-            })}
-          </ul>
+              </div>
+            ) : <p role="status">No export formats are available.</p>}
+          </div>
           {exportProfiles.some(profile => profile.id === 'pdf-offline') ? <OfflinePdfNotices /> : null}
           {offlineRunning ? <p role="status">Typesetting offline PDF. The compiler finishes its current document before controls unlock.</p> : null}
           {translationRunning ? <p role="status">Translating PDF. The translation tool finishes its current document before controls unlock.</p> : null}

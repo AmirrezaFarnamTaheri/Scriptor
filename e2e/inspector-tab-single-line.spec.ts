@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { launchApp, waitForWorkspace } from './helpers'
+import { expandInspector, launchApp, waitForWorkspace } from './helpers'
 
 /**
  * The inspector tab row is a tablist: three tabs on one line. The 821–1100px band
@@ -11,6 +11,7 @@ import { launchApp, waitForWorkspace } from './helpers'
 test('inspector tabs stay on one line across the tablet band', async ({ page }) => {
   await launchApp(page)
   await waitForWorkspace(page)
+  await expandInspector(page)
   await expect(page.locator('.inspector-tabs')).toBeVisible({ timeout: 20_000 })
   await page.waitForTimeout(500)
 
@@ -69,9 +70,50 @@ test('inspector tabs stay on one line across the tablet band', async ({ page }) 
   }
 })
 
+test('translated inspector tabs stay on one row and remain reachable by scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await page.addInitScript(() => localStorage.setItem('scriptor:locale', 'de'))
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await expandInspector(page)
+  const tabs = page.locator('.inspector-tabs button[role="tab"]')
+  await expect(tabs).toHaveCount(3)
+  const geometry = await tabs.evaluateAll(nodes => nodes.map(node => ({
+    top: Math.round(node.getBoundingClientRect().top),
+    clipped: node.scrollWidth > node.clientWidth + 1,
+  })))
+  expect(new Set(geometry.map(item => item.top)).size).toBe(1)
+  expect(geometry.every(item => !item.clipped), 'scrolling the rail must not truncate a tab inside its own button').toBe(true)
+
+  // The full German publishing heading must wrap inside its card, not paint
+  // past the inspector edge even when the rail is narrower than a single word.
+  const publishing = page.locator('.inspector-panel .widget-card h3').filter({ hasText: 'Veröffentlichungsbereitschaft' })
+  await publishing.scrollIntoViewIfNeeded()
+  await expect(publishing).toBeVisible()
+  const heading = await publishing.evaluate(element => {
+    const box = element.getBoundingClientRect()
+    const card = element.closest('.widget-card')!.getBoundingClientRect()
+    return {
+      hasHorizontalOverflow: element.scrollWidth > element.clientWidth + 1,
+      withinCard: box.left >= card.left - 1 && box.right <= card.right + 1,
+    }
+  })
+  expect(heading.hasHorizontalOverflow, 'the translated card heading must be fully readable').toBe(false)
+  expect(heading.withinCard, 'the heading must stay within the widget card').toBe(true)
+
+  const reveal = page.locator('.inspector-tabs-reveal')
+  await expect(reveal).toBeVisible()
+  await expect(reveal).toHaveAccessibleName(/\S/)
+  await reveal.click()
+  await tabs.last().scrollIntoViewIfNeeded()
+  await tabs.last().click()
+  await expect(tabs.last()).toHaveAttribute('aria-selected', 'true')
+})
+
 test('a truncated tab label still exposes its full name', async ({ page }) => {
   await launchApp(page)
   await waitForWorkspace(page)
+  await expandInspector(page)
   await page.setViewportSize({ width: 900, height: 900 })
   await page.waitForTimeout(400)
 

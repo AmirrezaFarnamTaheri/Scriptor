@@ -316,6 +316,7 @@ export function CanvasPanel({
         <CanvasStage
           sceneJson={sceneJson}
           blocks={blocks}
+          relations={document.relations ?? []}
           sceneBounds={viewport}
           selectedBlockIds={selectedBlockIds}
           activeTool={activeTool}

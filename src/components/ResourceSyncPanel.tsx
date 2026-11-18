@@ -522,14 +522,28 @@ export function ResourceSyncPanel() {
           ) : null}
 
           {applyResult ? (
-            <section className={`resource-sync-message ${applyResult.status}`} role="status">
-              <CheckCircle2 size={17} aria-hidden="true" />
+            <section className={`resource-sync-message ${applyResult.status}`} role={applyResult.status === 'completed' ? 'status' : 'alert'}>
+              {applyResult.status === 'completed' ? <CheckCircle2 size={17} aria-hidden="true" /> : <AlertTriangle size={17} className="lucide-triangle-alert" aria-hidden="true" />}
               <div>
                 <strong>{applyResult.status === 'completed' ? 'Sync finished' : applyResult.status === 'partial' ? 'Sync partly finished' : 'Sync could not finish'}</strong>
-                <span>{applyResult.receipts.length} steps confirmed · {applyResult.failures.length} failed</span>
+                <span>{applyResult.receipts.length} {applyResult.receipts.length === 1 ? 'step' : 'steps'} confirmed · {applyResult.failures.length} failed</span>
+                {applyResult.receipts.length > 0 && <div className="resource-sync-confirmed-ops">
+                  <strong>Confirmed operations</strong>
+                  <ul>{applyResult.receipts.slice(0, 3).map(receipt => <li key={receipt.operationId}>
+                    <bdi>{receipt.targetId}</bdi> · {receipt.outcome === 'unchanged' ? 'Already aligned' : 'Applied'} · <bdi>{receipt.destinationPath}</bdi>
+                  </li>)}</ul>
+                  {applyResult.receipts.length > 3 && <details>
+                    <summary>View {applyResult.receipts.length - 3} more confirmed operations</summary>
+                    <ul>{applyResult.receipts.slice(3).map(receipt => <li key={receipt.operationId}>
+                      <bdi>{receipt.targetId}</bdi> · {receipt.outcome === 'unchanged' ? 'Already aligned' : 'Applied'} · <bdi>{receipt.destinationPath}</bdi>
+                    </li>)}</ul>
+                  </details>}
+                </div>}
+                {applyResult.failures.length > 0 && <strong>Needs review before another sync:</strong>}
                 {applyResult.failures.map((failure) => (
-                  <small key={failure.operationId}>{failure.targetId}: {failure.message}</small>
+                  <p className="resource-sync-failure" key={failure.operationId}><strong>{failure.targetId}</strong>: {failure.message}</p>
                 ))}
+                {applyResult.status !== 'completed' && <button type="button" className="toolbar-button" disabled={planning || applying || !source || !selectedTargetIds.size} onClick={() => void buildPlan()}>Review changed destinations</button>}
               </div>
             </section>
           ) : null}

@@ -85,11 +85,7 @@ import { useJourneyMetrics } from './hooks/useJourneyMetrics'
 import { useStarlightPublishing } from './hooks/useStarlightPublishing'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
 import { extractPandocCitationKeys } from './lib/citationExtract'
-import {
-  vaultReadNote,
-  vaultSaveNote,
-  codeChunkRun,
-} from './bridge/commands'
+import { vaultReadNote, vaultSaveNote, codeChunkRun } from './bridge/commands'
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
 import { useI18n } from './lib/i18n'
@@ -298,7 +294,7 @@ function App() {
     }
     patchChrome({ inspectorCollapsed: false })
     setActiveMode('plugins')
-    showToast('Enable Gmail Manager in Plugins before opening the mail workspace.')
+    showToast('Gmail Manager is not active. In Plugins → Manage installed, review its vault permissions, then enable it to open Mail.')
   }, [gmailPluginEnabled, patchChrome, setActiveMode, setGmailManagerOpen, showToast])
   // Pulled out of the per-render registry result so memoized callbacks can depend on the
   // stable `useCallback` identity instead of the whole hook object.
@@ -1598,6 +1594,7 @@ function App() {
           inspectorPreset={inspectorPreset}
           onInspectorPresetChange={setInspectorPreset}
           showInspectorHealth={chrome.showInspectorHealth && Boolean(workspace.vault)}
+          vaultOpen={Boolean(workspace.vault)}
           onOpenKnowledgeWorkbench={handleOpenKnowledgeWorkbenchRepair}
           onOpenPublishCenter={handleOpenPublishCenter}
           onOpenGraph={handleOpenGraph}
@@ -1616,6 +1613,8 @@ function App() {
         searchResults={workspace.searchResults}
         searchQuery={workspace.searchQuery}
         isSearching={workspace.isSearching}
+        searchError={workspace.searchError}
+        onRetrySearch={() => { void workspace.runSearch(workspace.searchQuery) }}
         exportResult={workspace.exportResult}
         exportHistory={workspace.exportHistory}
         isExporting={workspace.isExporting}

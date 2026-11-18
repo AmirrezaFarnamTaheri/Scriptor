@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import type { CanvasBlock, CanvasDocument } from '@scriptor/core/contracts/canvas'
 
 import { CanvasCrdtSync, mergeCrdtOps, type CanvasCrdtOp } from './crdt-sync.ts'
-import { runCanvasValidationTests } from './index.ts'
+import { runCanvasValidationTests, sceneBounds } from './index.ts'
 
 function loadFixture(name: string): CanvasDocument {
   const root = join(dirname(fileURLToPath(import.meta.url)), '../../test-fixtures/canvas')
@@ -103,6 +103,23 @@ function emptyDocument(blocks: CanvasBlock[]): CanvasDocument {
     updatedAt: '2026-01-01T00:00:00.000Z',
   }
 }
+
+test('scene bounds frame every populated Canvas card with safe margins on first open', () => {
+  const blocks = [
+    { ...block('question', 'Question'), bounds: { x: -260, y: -120, width: 180, height: 110 } },
+    { ...block('evidence', 'Evidence'), bounds: { x: -30, y: -120, width: 180, height: 110 } },
+    { ...block('synthesis', 'Synthesis'), bounds: { x: 200, y: -120, width: 180, height: 110 } },
+    { ...block('method', 'Method'), bounds: { x: -145, y: 80, width: 220, height: 140 } },
+    { ...block('plan', 'Plan'), bounds: { x: 115, y: 80, width: 220, height: 140 } },
+  ]
+  const frame = sceneBounds(emptyDocument(blocks))
+  for (const item of blocks) {
+    assert.ok(item.bounds.x - frame.x >= 24, 'left edge must fit away from viewBox')
+    assert.ok(item.bounds.y - frame.y >= 24, 'top edge must fit away from viewBox')
+    assert.ok(frame.x + frame.width - item.bounds.x - item.bounds.width >= 24, 'right edge must fit')
+    assert.ok(frame.y + frame.height - item.bounds.y - item.bounds.height >= 24, 'bottom edge must fit')
+  }
+})
 
 test('crdt merge converges regardless of op application order', () => {
   const sameMs = '2026-01-01T00:00:00.000Z'

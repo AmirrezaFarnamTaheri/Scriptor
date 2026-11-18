@@ -25,6 +25,11 @@
   margin: 10px 0 6px;
   padding: 4px;
   gap: 4px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   /* A solid themed base stops scrolled text showing through the tinted tabs. */
@@ -38,7 +43,7 @@
      ellipsise even when the row had room for all three, because its share was
      fixed at a third of the bar. Tabs may still shrink if the row is genuinely
      too narrow. */
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
   min-height: 34px;
   padding: 0 6px;
@@ -72,7 +77,12 @@
 
   .inspector-tabs button {
     min-height: 44px;
-    max-width: 100%;
+    /* Tablet rail is a horizontal scrollport, not an ellipsis for each tab.
+       `max-width:100%` constrained the translated label to a single narrow
+       grid column and hid its ending even when scrolling right. */
+    max-width: none;
+    min-width: max-content;
+    width: max-content;
     padding-inline: 2px;
     font-size: 11px;
     /* Keep the 44px touch target, but do not let the labels wrap. This band used to
@@ -82,8 +92,8 @@
        A tab row stays one line; a label that genuinely cannot fit ellipsises like
        every other tab, and the full name stays on the accessible name. */
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
     line-height: 1.2;
   }
 }
@@ -424,18 +434,34 @@
   .external-change-banner-actions { width: 100%; margin-inline-start: 0; }
 }
 
-/* Translated tab labels are longer than the English single-line contract.
-   Preserve compact English chrome while allowing German tabs to wrap in the
-   constrained 821-1100px inspector rather than clipping their names. */
-html[lang='de'] .inspector-tabs { flex-wrap: wrap; }
-html[lang='de'] .inspector-tabs button {
-  flex: 1 1 30%;
-  min-width: min(100%, 5rem);
+/* Translated tabs keep their full accessible names and stay on one row.
+ * Narrow inspector rails scroll horizontally instead of cutting words or
+ * consuming a second row of writing space. */
+/* WidgetCard defaults to h3. Include the actual semantic heading so the
+   translated `Veröffentlichungsbereitschaft` remains inside a 160px rail. */
+.inspector-panel .widget-card :is(h2, h3, h4) {
+  min-width: 0;
+  max-width: 100%;
   white-space: normal;
   overflow-wrap: anywhere;
-  line-height: 1.25;
 }
-html[lang='de'] .inspector-panel .widget-card h2 {
-  min-width: 0;
-  overflow-wrap: anywhere;
+
+
+/* A visible and keyboard-operable overflow cue for translated tablet tabs. */
+.inspector-tabs-shell { display:grid; grid-template-columns:minmax(0,1fr) 30px; align-items:center; gap:3px; position:sticky; top:0; z-index:2; padding-block:10px 6px; background:var(--surface); min-width:0; }
+.inspector-tabs-shell .inspector-tabs { position:static; margin:0; min-width:0; }
+.inspector-tabs-reveal { display:grid; place-items:center; width:30px; min-height:44px; padding:0; border:1px solid var(--border); border-radius:6px; color:var(--ink); background:var(--surface-raised); cursor:pointer; }
+.inspector-tabs-reveal:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+html[dir='rtl'] .inspector-tabs-reveal svg { transform:scaleX(-1); }
+@media(min-width:1101px) { .inspector-tabs-shell { grid-template-columns:minmax(0,1fr); } .inspector-tabs-reveal { display:none; } }
+
+/* At dark appearance the teal accent is ~3:1 against the badge background:
+ * too weak for small text. Preserve the accent border/fill but use readable ink. */
+/* Dark-mode badge and selected-chip labels should match readable widget
+ * headings. --ink-strong was noticeably brighter than the headings, creating
+ * inconsistent contrast across the same inspector panel. */
+html:is([data-theme='dark'], [data-appearance='dark']) .inspector-preset-row button.active,
+html:is([data-theme='dark'], [data-appearance='dark']) .widget-card header span,
+html:is([data-theme='dark'], [data-appearance='dark']) .widget-action {
+  color: var(--ink);
 }

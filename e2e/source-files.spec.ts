@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { closeWorkspacePanel, launchApp, openCommandPalette, runCommand } from './helpers'
 import { attachVisualState } from './visual-state-evidence'
 
-async function openEditor(page: Page, theme = 'light') {
+async function openEditor(page: Page, theme = 'light', plainText = true) {
   await launchApp(page, { theme })
   await page.evaluate(() => {
     const internals = (window as Window & { __TAURI_INTERNALS__?: { invoke?: (command: string, args?: Record<string, unknown>, options?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__
@@ -36,9 +36,34 @@ async function openEditor(page: Page, theme = 'light') {
   })
   await openCommandPalette(page); await runCommand(page, 'Source file editor')
   const editor = page.getByRole('region', { name: 'Source file editor', exact: true })
-  await expect(editor.getByRole('heading', { name: 'Source files', exact: true })).toBeVisible()
+  await expect(editor).toBeVisible()
+  await expect(editor.getByLabel('File path', { exact: true })).toBeVisible()
+  // At 390px the duplicate embedded title is intentionally hidden to put the
+  // editor above the fold; at desktop widths the heading remains visible.
+  const embeddedHeader = editor.locator(':scope > header[data-workspace-header-only="true"]')
+  if ((page.viewportSize()?.width ?? 1024) <= 400 && await embeddedHeader.count() > 0) {
+    await expect(embeddedHeader).toBeHidden()
+  } else {
+    await expect(editor.getByRole('heading', { name: 'Source files', exact: true })).toBeVisible()
+  }
+  if (plainText) await editor.getByRole('button', { name: 'Plain text', exact: true }).click()
   return editor
 }
+test('source editing defaults to local Monaco with line numbers, syntax and a plain-text fallback', async ({ page }) => {
+  const editor = await openEditor(page, 'light', false)
+  await expect(editor.getByRole('button', { name: 'Code editor' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(editor.locator('.source-file-monaco .monaco-editor')).toBeVisible({ timeout: 20_000 })
+  await expect(editor.locator('.source-file-monaco .margin')).toBeVisible()
+  await editor.getByRole('button', { name: 'Plain text' }).click()
+  const textarea = editor.getByLabel('Source file content', { exact: true })
+  await textarea.fill('print("source fallback")\\n')
+  await editor.getByRole('button', { name: 'Code editor' }).click()
+  await expect(editor.locator('.source-file-monaco .monaco-editor')).toBeVisible({ timeout: 20_000 })
+  await expect(editor.locator('.source-file-monaco .view-lines')).toContainText('source fallback')
+  await editor.getByRole('button', { name: 'Plain text' }).click()
+  await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('print("source fallback")\\n')
+})
+
 test('source editor creates LaTeX and compiles only reviewed saved content', async ({ page }, testInfo) => {
   const editor = await openEditor(page)
   await editor.getByLabel('File path', { exact: true }).fill('main.tex')
@@ -123,6 +148,9 @@ test('pending source decision stays visible until cancelled before a sidebar fil
   await editor.getByRole('button', { name: 'Keep editing', exact: true }).click()
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('e2e:source-vault-result'))).toBe('[false]')
   await bibliography.click()
+  // Each new file leaf defaults to Monaco; choose the explicit editable
+  // plain-text fallback before asserting a textarea value.
+  await editor.getByRole('button', { name: 'Plain text', exact: true }).click()
   await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('@article{reviewed, title={Reviewed source}}\n')
   await attachVisualState(page, testInfo, 'source-bibtex-populated', editor, editor.getByLabel('Source file content', { exact: true }))
   await page.getByRole('tab', { name: originalTabLabel, exact: true }).click()
@@ -137,6 +165,7 @@ test('real vault switching reveals two dirty source leaves sequentially and refu
   await attachVisualState(page, testInfo, 'source-python-populated', editor, editor.getByLabel('Source file content', { exact: true }))
   await editor.getByLabel('Source file content', { exact: true }).fill('print("first draft")\n')
   await page.getByRole('complementary', { name: 'Vault', exact: true }).getByRole('button', { name: 'references.bib', exact: true }).click()
+  await editor.getByRole('button', { name: 'Plain text', exact: true }).click()
   await expect(editor.getByLabel('Source file content', { exact: true })).toHaveValue('@article{reviewed, title={Reviewed source}}\n')
   await editor.getByLabel('Source file content', { exact: true }).fill('Second retained draft')
   await page.evaluate(() => sessionStorage.setItem('e2e:source-picked-vault', '/e2e/next-source-vault'))
@@ -188,6 +217,8 @@ test('source editor retains conflicts and dirty drafts across cancelled close an
   await page.evaluate(() => sessionStorage.setItem('e2e:source-stale', '1'))
   await editor.getByRole('button', { name: 'Save file', exact: true }).click()
   await expect(editor.getByRole('alert')).toContainText('Source changed on disk')
+  await expect(editor.getByRole('alert')).toContainText('Disk conflict — local changes retained')
+  await expect(editor.getByRole('button', { name: 'Review reload from disk', exact: true })).toBeVisible()
   await attachVisualState(page, testInfo, 'source-mobile-disk-conflict', editor, editor.getByRole('alert'))
   await closeWorkspacePanel(page, editor)
   await expect(editor.getByRole('button', { name: 'Keep editing', exact: true })).toBeFocused()

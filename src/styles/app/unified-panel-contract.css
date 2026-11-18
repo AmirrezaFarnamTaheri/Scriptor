@@ -333,3 +333,89 @@ html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
     padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* Quick Capture must remain operable on narrow docked and zoomed mobile panes. */
+.quick-capture-panel .quick-capture-actions button,
+.quick-capture-panel .quick-todo-compose button,
+.quick-capture-panel .quick-todo-actions button,
+.quick-capture-panel .quick-todo-list .icon-button { min-height:44px; min-width:44px; }
+.quick-capture-panel :is(.scratchpad-editor, .quick-todo-compose textarea, .quick-todo-list textarea) { box-sizing:border-box; min-width:0; width:100%; line-height:1.5; }
+@container unified-panel (max-width:460px) {
+  .quick-capture-panel .quick-capture-section-header { align-items:flex-start; flex-direction:column; gap:10px; }
+  .quick-capture-panel .quick-capture-actions { display:grid; grid-template-columns:minmax(0,1fr); width:100%; gap:8px; }
+  .quick-capture-panel .quick-capture-actions button { width:100%; white-space:normal; overflow-wrap:anywhere; }
+  .quick-capture-panel .quick-todo-compose { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; }
+  .quick-capture-panel .quick-todo-list > li { grid-template-columns:44px minmax(0,1fr); }
+  .quick-capture-panel .quick-todo-actions { grid-column:1 / -1; justify-content:flex-end; }
+}
+
+
+/* The bounded scroll body must remain tall enough to show a consent label.
+ * Do not let a multi-line decorative title and optional subtitle consume most
+ * of a 320px viewport at browser/text zoom. The description is retained in the
+ * DOM and aria-describedby for assistive technology, but visually condensed.
+ * All actions and the actual consent text remain visible and interactive. */
+@media (max-width: 400px) {
+  .unified-panel-shell:not(.unified-panel-docked) .unified-panel-header {
+    padding: 7px 9px;
+    gap: 6px;
+    align-items: center;
+    min-height: 42px;
+  }
+  .unified-panel-shell .unified-panel-header > div:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .unified-panel-shell .unified-panel-header h2 {
+    font-size: 14px;
+    line-height: 1.25;
+    gap: 5px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .unified-panel-shell .unified-panel-header h2 svg {
+    width: 16px;
+    height: 16px;
+    flex: none;
+  }
+  .unified-panel-shell .unified-panel-header .health-subtitle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .unified-panel-shell .unified-panel-header-actions {
+    flex: 0 0 auto;
+    align-items: center;
+    min-width: 0;
+  }
+  .unified-panel-shell .unified-panel-body {
+    padding: 8px;
+    scroll-padding-block-start: 8px;
+    scroll-padding-block-end: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Vault health's status badge is the first actionable diagnostic result.
+     Preserve its divider clearance in the compact RTL/LTR dialog. */
+  .unified-panel-shell.health-dashboard .unified-panel-body {
+    /* One extra CSS pixel avoids rounding below the required 12px divider
+       clearance at fractional browser zoom and device scale. */
+    padding-top: 13px;
+  }
+}
+
+/* Writing precedes saving in Quick Capture. At 380-460px container width,
+ * place the two actions side-by-side to preserve the sticky-note CTA. */
+.quick-capture-panel .quick-capture-actions { margin-top: 8px; }
+@container unified-panel (min-width: 380px) and (max-width: 460px) {
+  .quick-capture-panel .quick-capture-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
