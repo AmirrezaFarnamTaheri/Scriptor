@@ -45,3 +45,29 @@ test('operator CLI scripts enable TypeScript stripping for the shared protocol p
     assert.match(manifest.scripts[name], /--experimental-sqlite/)
   }
 })
+
+test('the CLI runs when its install path needs percent-encoding', async () => {
+  const { cpSync, mkdtempSync: makeTemp } = await import('node:fs')
+  const { spawnSync } = await import('node:child_process')
+  const { fileURLToPath } = await import('node:url')
+  const packageDir = fileURLToPath(new URL('..', import.meta.url))
+  // A sibling of the package, so the relative import of the shared protocol
+  // module (../../src/lib) still resolves.
+  const installed = makeTemp(join(packageDir, '..', 'relay copy '))
+  const dir = mkdtempSync(join(tmpdir(), 'scriptor-cli-'))
+  try {
+    cpSync(join(packageDir, 'src'), join(installed, 'src'), { recursive: true })
+    const bootstrapFile = join(dir, 'bootstrap.json')
+    writeFileSync(bootstrapFile, JSON.stringify(bootstrap), { mode: 0o600 })
+    const result = spawnSync(process.execPath, ['--experimental-sqlite', '--no-warnings', join(installed, 'src', 'cli.mjs'), 'bootstrap'], {
+      env: { ...process.env, SCRIPTOR_RELAY_DATA_DIR: join(dir, 'store'), SCRIPTOR_RELAY_BOOTSTRAP_FILE: bootstrapFile },
+      encoding: 'utf8',
+      timeout: 30_000,
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.match(result.stdout, /Created or verified room at durable cursor 1/)
+  } finally {
+    rmSync(installed, { recursive: true, force: true })
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

@@ -2,6 +2,7 @@
 /** Explicit operator-only commands; never auto-started by Scriptor. */
 import { lstatSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { RelayRoomStore } from './room-store.mjs'
 import { startRelayServer } from './server.mjs'
 
@@ -47,7 +48,9 @@ export async function executeRelayCommand(command, env = process.env) {
   throw new Error('Expected explicit command: bootstrap or serve')
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === new URL(import.meta.url).pathname) {
+// fileURLToPath decodes percent-escapes and Windows drive letters; URL.pathname
+// does neither, so the CLI silently did nothing from such install paths.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   executeRelayCommand(process.argv[2]).then(result => {
     if (process.argv[2] === 'bootstrap') {
       process.stdout.write(`Created or verified room at durable cursor ${result.cursor}\n`)

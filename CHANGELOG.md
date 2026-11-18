@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Stop live collaboration edits from failing with "source changed" while a projection saves the note: the note hash is now read under the journal lock. The collaboration relay CLI now runs from install paths with spaces or other percent-encoded characters (and Windows drive paths) instead of exiting silently.
 - Bound process-broker output draining after a direct child exits; terminate descendants that keep inherited stdout/stderr pipes open and report a distinct output-drain failure instead of waiting for the executable deadline.
 
 ### Fixed

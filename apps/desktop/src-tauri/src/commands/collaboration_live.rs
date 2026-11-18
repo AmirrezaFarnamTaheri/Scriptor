@@ -247,12 +247,14 @@ pub fn collaboration_live_append(
     }
     let relative =
         RelativeVaultPath::parse(&lease.scope.note_path).map_err(|error| error.to_string())?;
-    let document = read_note(&lease.scope.vault_id, &session.root, &relative)
-        .map_err(|error| error.to_string())?;
-    let mut journal = lock_recover(&lease.journal, "collaboration local journal");
-    let result = journal.append(
+    let result = append_with_current_hash(
+        &lease.journal,
         &lease.scope,
-        &document.metadata.content_hash,
+        || {
+            read_note(&lease.scope.vault_id, &session.root, &relative)
+                .map(|document| document.metadata.content_hash)
+                .map_err(|error| error.to_string())
+        },
         &message_id,
         client_seq,
         &decoded,
@@ -261,6 +263,23 @@ pub fn collaboration_live_append(
         duplicate: result.duplicate,
         locally_durable: result.locally_durable,
     })
+}
+
+/// Reads the note's hash while holding the journal lock. `project` saves the
+/// note and advances the journal baseline under the same lock, so a hash read
+/// before taking it could be one projection old and fail an ordinary append
+/// with "source changed" in the middle of typing.
+fn append_with_current_hash(
+    journal: &Mutex<LocalJournal>,
+    scope: &JournalScope,
+    current_hash: impl FnOnce() -> Result<String, String>,
+    message_id: &str,
+    client_seq: u64,
+    payload: &[u8],
+) -> Result<super::collaboration_live_journal::JournalAppend, String> {
+    let mut journal = lock_recover(journal, "collaboration local journal");
+    let hash = current_hash()?;
+    journal.append(scope, &hash, message_id, client_seq, payload)
 }
 
 /// Replay never clears local data. Re-authorization for the same document is
@@ -383,6 +402,57 @@ pub fn collaboration_live_stop(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn appends_racing_projections_never_see_a_stale_file_hash() {
+        let temporary = tempfile::tempdir().unwrap();
+        let scope = JournalScope {
+            vault_id: "vault_A".into(),
+            room_id: "room_B".into(),
+            document_id: "doc_C".into(),
+            epoch: 1,
+            peer_id: "peer_D".into(),
+            note_path: "notes/demo.md".into(),
+        };
+        let first = format!("{:064x}", 0);
+        let mut opened = LocalJournal::open(temporary.path()).unwrap();
+        opened.begin(&scope, &first).unwrap();
+        let journal = Arc::new(Mutex::new(opened));
+        let file_hash = Arc::new(Mutex::new(first));
+
+        let projector = {
+            let (journal, file_hash, scope) = (journal.clone(), file_hash.clone(), scope.clone());
+            std::thread::spawn(move || {
+                for round in 1..=300u32 {
+                    let mut journal = journal.lock().unwrap();
+                    let previous = file_hash.lock().unwrap().clone();
+                    let next = format!("{round:064x}");
+                    // The note is saved, then the baseline advanced, under the journal lock.
+                    *file_hash.lock().unwrap() = next.clone();
+                    journal
+                        .advance_projected_baseline(&scope, &previous, &next)
+                        .unwrap();
+                    drop(journal);
+                    std::thread::yield_now();
+                }
+            })
+        };
+        let mut failures = 0;
+        for seq in 1..=300u64 {
+            let read = || {
+                let hash = file_hash.lock().unwrap().clone();
+                std::thread::yield_now();
+                Ok(hash)
+            };
+            if append_with_current_hash(&journal, &scope, read, &format!("msg_{seq}"), seq, &[1])
+                .is_err()
+            {
+                failures += 1;
+            }
+        }
+        projector.join().unwrap();
+        assert_eq!(failures, 0);
+    }
 
     #[test]
     fn local_file_can_have_only_one_collaboration_owner() {
