@@ -26,6 +26,13 @@ use commands::collaboration::{
     collaboration_poll_read, collaboration_poll_start, collaboration_poll_stop, collaboration_read,
     collaboration_write,
 };
+use commands::collaboration_live::{
+    collaboration_live_append, collaboration_live_pending, collaboration_live_project,
+    collaboration_live_public_key, collaboration_live_start, collaboration_live_stop,
+};
+use commands::collaboration_live_relay::{
+    collaboration_live_connect, collaboration_live_disconnect, collaboration_live_take_remote,
+};
 use commands::daemon::{
     daemon_backlinks, daemon_endpoint, daemon_export_cancel, daemon_export_job_status,
     daemon_export_run_markdown, daemon_export_run_note, daemon_export_start_note,
@@ -228,6 +235,15 @@ pub fn run() {
             health_repair_apply,
             health_repair_restore,
             health_repair_receipts,
+            collaboration_live_start,
+            collaboration_live_append,
+            collaboration_live_pending,
+            collaboration_live_project,
+            collaboration_live_public_key,
+            collaboration_live_connect,
+            collaboration_live_disconnect,
+            collaboration_live_take_remote,
+            collaboration_live_stop,
             collaboration_poll_start,
             collaboration_poll_read,
             collaboration_poll_stop,

@@ -1,7 +1,7 @@
 import { autocompletion } from '@codemirror/autocomplete'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
-import { Compartment, EditorState } from '@codemirror/state'
+import { Compartment, EditorState, Transaction } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, placeholder } from '@codemirror/view'
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 
@@ -58,6 +58,7 @@ import {
   type EditorThemeId,
 } from './editor-themes.ts'
 import type { MarkdownEditorHandle } from './editor-types.ts'
+import type { CollaborativeEditorBinding, CollaborativeEditorConnection } from './collaboration-port.ts'
 import {
   countCharacters,
   countWords,
@@ -67,6 +68,7 @@ import {
 } from './adapter'
 import type { SnippetVariableContext } from './snippet-parser.ts'
 
+const collaborationReadOnlyCompartment = new Compartment()
 const spellcheckCompartment = new Compartment()
 const languageToolCompartment = new Compartment()
 const wysiwygCompartment = new Compartment()
@@ -79,6 +81,13 @@ const themeCompartment = editorThemeCompartment()
 
 class CodeMirrorAdapter implements EditorAdapter {
   private view: EditorView
+  private collaborationConnection: CollaborativeEditorConnection | null = null
+  private collaborationError: ((error: unknown) => void) | null = null
+  private applyingRemote = false
+  private destroyed = false
+  private externalReadOnly = false
+  private collaborationReadOnly = false
+  private effectiveReadOnly = false
   private onVisibleLineChange?: (line: number) => void
   private scrollListener?: () => void
   private snippetContext: SnippetVariableContext
@@ -86,6 +95,8 @@ class CodeMirrorAdapter implements EditorAdapter {
 
   constructor(host: HTMLElement, options: EditorAdapterOptions) {
     this.onVisibleLineChange = options.onVisibleLineChange
+    this.externalReadOnly = Boolean(options.readOnly)
+    this.effectiveReadOnly = this.externalReadOnly
     this.snippetContext = options.snippetContext ?? {}
     this.visualBlockRenderer = options.visualBlockRenderer ?? null
     setPasteImageHandler(options.saveImageFromClipboard ?? null)
@@ -167,10 +178,14 @@ class CodeMirrorAdapter implements EditorAdapter {
           backgroundColor: 'var(--primary-soft) !important',
         },
       }),
-      EditorState.readOnly.of(Boolean(options.readOnly)),
+      collaborationReadOnlyCompartment.of(EditorState.readOnly.of(Boolean(options.readOnly))),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
-          options.onChange?.(update.state.doc.toString())
+        if (update.docChanged && !this.applyingRemote) {
+          if (this.collaborationConnection) {
+            void this.collaborationConnection.localChange().catch(error => this.collaborationError?.(error))
+          } else {
+            options.onChange?.(update.state.doc.toString())
+          }
         }
         // Cursor/selection movement is the semantic "active writing line".
         // Do not emit for a controlled-value sync alone: the sibling editor
@@ -219,6 +234,62 @@ class CodeMirrorAdapter implements EditorAdapter {
       dispatchSnippetCatalog(this.view, options.snippetCatalog)
     }
     dispatchSnippetContext(this.view, this.snippetContext)
+  }
+
+  /** Reconfigure only the read-only facet; the CodeMirror view, selections,
+   * history and other extension compartments remain mounted. */
+  setReadOnly(value: boolean): void {
+    this.externalReadOnly = value
+    this.reconfigureReadOnly()
+  }
+
+  private reconfigureReadOnly(): void {
+    if (this.destroyed) return
+    const next = (this.collaborationConnection ? false : this.externalReadOnly) || this.collaborationReadOnly
+    if (next === this.effectiveReadOnly) return
+    this.effectiveReadOnly = next
+    this.view.dispatch({
+      effects: collaborationReadOnlyCompartment.reconfigure(EditorState.readOnly.of(next)),
+    })
+  }
+
+  attachCollaboration(binding: CollaborativeEditorBinding): () => void {
+    if (this.collaborationConnection) throw new Error('Collaboration editor already attached')
+    this.collaborationError = binding.onError
+    const connection = binding.connect({
+      getValue: () => this.getValue(),
+      setReadOnly: (value) => {
+        // A CodeMirror view must not dispatch during its own update listener.
+        queueMicrotask(() => {
+          if (!this.destroyed && this.collaborationConnection === connection) {
+            this.collaborationReadOnly = value
+            this.reconfigureReadOnly()
+          }
+        })
+      },
+      applyRemoteEdit: ({ from, to, insert }) => {
+        this.applyingRemote = true
+        try {
+          this.view.dispatch({
+            changes: { from, to, insert },
+            annotations: Transaction.addToHistory.of(false),
+          })
+        } finally {
+          this.applyingRemote = false
+        }
+      },
+    })
+    this.collaborationConnection = connection
+    this.reconfigureReadOnly()
+    return () => {
+      if (this.collaborationConnection === connection) {
+        this.collaborationConnection = null
+        this.collaborationError = null
+        connection.dispose()
+        this.collaborationReadOnly = false
+        this.reconfigureReadOnly()
+      }
+    }
   }
 
   setSnippetCatalog(entries: SnippetCatalogEntry[]): void {
@@ -394,6 +465,9 @@ class CodeMirrorAdapter implements EditorAdapter {
   }
 
   destroy(): void {
+    this.destroyed = true
+    this.collaborationConnection?.dispose()
+    this.collaborationConnection = null
     if (this.scrollListener) {
       this.view.scrollDOM.removeEventListener('scroll', this.scrollListener)
     }
@@ -432,6 +506,7 @@ export interface MarkdownEditorProps {
   editorTheme?: EditorThemeId
   onVimSave?: () => void | Promise<void>
   onVimQuit?: () => void | Promise<void>
+  collaboration?: CollaborativeEditorBinding
 }
 
 export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(function MarkdownEditor(
@@ -463,6 +538,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     onVimQuit,
     saveImageFromClipboard,
     visualBlockRenderer,
+    collaboration,
   },
   ref,
 ) {
@@ -548,8 +624,18 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       adapter.destroy()
       adapterRef.current = null
     }
+    // Keyed note changes remount this view. Changing readOnly must not.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    adapterRef.current?.setReadOnly(Boolean(readOnly))
   }, [readOnly])
+
+  useEffect(() => {
+    if (!collaboration || !adapterRef.current) return
+    return adapterRef.current.attachCollaboration(collaboration)
+  }, [collaboration])
 
   useEffect(() => {
     setPasteImageHandler(saveImageFromClipboard ?? null)
@@ -560,9 +646,9 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   }, [visualBlockRenderer])
 
   useEffect(() => {
-    if (value === lastEmittedValueRef.current) return
+    if (collaboration || value === lastEmittedValueRef.current) return
     adapterRef.current?.setValue(value)
-  }, [value])
+  }, [value, collaboration])
 
   useEffect(() => {
     if (scrollToLine && scrollToLine > 0) {
