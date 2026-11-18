@@ -78,11 +78,21 @@ export interface CodeChunkRunOutput {
   language: string
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+/** Must match `code_run_scope` in commands/code_chunk.rs. */
+export async function codeRunScope(language: string, code: string): Promise<string> {
+  return `code:run:${language.trim().toLowerCase()}:${await sha256Hex(code)}`
+}
+
 export async function codeChunkRun(language: string, code: string): Promise<CodeChunkRunOutput> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation(
     'code_execution',
-    language.trim().toLowerCase(),
+    await codeRunScope(language, code),
   )
   return invoke<CodeChunkRunOutput>('code_chunk_run', { language, code, authorizationToken })
 }

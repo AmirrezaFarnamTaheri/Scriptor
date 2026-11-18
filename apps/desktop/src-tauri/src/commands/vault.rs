@@ -753,7 +753,7 @@ pub(crate) fn validate_expected_vault(
 
 #[cfg(test)]
 mod tests {
-    use super::validate_expected_vault;
+    use super::{csv_field, validate_expected_vault, validate_textbundle_destination};
 
     #[test]
     fn validate_expected_vault_accepts_matching_and_none() {
@@ -767,5 +767,51 @@ mod tests {
         assert!(err.contains("stale save target"));
         assert!(err.contains("vault-2"));
         assert!(err.contains("vault-1"));
+    }
+
+    #[test]
+    fn textbundle_destination_accepts_only_new_or_regular_textpack_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let ok = dir.path().join("note.textpack");
+        assert!(validate_textbundle_destination(ok.to_str().unwrap()).is_ok());
+        std::fs::write(&ok, "x").unwrap();
+        assert!(validate_textbundle_destination(ok.to_str().unwrap()).is_ok());
+
+        let wrong_ext = dir.path().join("note.zip");
+        let missing_parent = dir.path().join("missing").join("note.textpack");
+        let dotdot = format!("{}/sub/../note.textpack", dir.path().display());
+        let as_dir = dir.path().join("folder.textpack");
+        std::fs::create_dir(&as_dir).unwrap();
+        for bad in [
+            wrong_ext.to_str().unwrap(),
+            missing_parent.to_str().unwrap(),
+            dotdot.as_str(),
+            as_dir.to_str().unwrap(),
+            "relative/note.textpack",
+            "note.textpack",
+        ] {
+            assert!(validate_textbundle_destination(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn textbundle_destination_refuses_symlinks() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("victim.txt");
+        std::fs::write(&target, "keep").unwrap();
+        let link = dir.path().join("link.textpack");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        assert!(validate_textbundle_destination(link.to_str().unwrap()).is_err());
+    }
+
+    #[test]
+    fn csv_field_quotes_and_neutralizes_formula_prefixes() {
+        assert_eq!(csv_field("plain"), "\"plain\"");
+        assert_eq!(csv_field("say \"hi\""), "\"say \"\"hi\"\"\"");
+        for trigger in ["=1+1", "+1", "-1", "@SUM(A1)", "\tx", "\rx"] {
+            let out = csv_field(trigger);
+            assert!(out.starts_with("\"'"), "{trigger:?} -> {out:?}");
+        }
     }
 }

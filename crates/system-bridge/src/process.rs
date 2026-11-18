@@ -490,7 +490,17 @@ fn resolve_executable(program: &OsStr, current_dir: Option<&Path>) -> Result<Pat
     let path = std::env::var_os("PATH").ok_or_else(|| BridgeError::ProcessPolicy {
         message: "PATH is unavailable while resolving external executable".into(),
     })?;
-    for directory in std::env::split_paths(&path) {
+    resolve_in_search_path(program, &path)
+}
+
+/// Search `path` for `program`. Relative and empty entries mean "the current
+/// directory", which a hostile vault can populate, so only absolute directories
+/// are consulted.
+fn resolve_in_search_path(program: &OsStr, path: &OsStr) -> Result<PathBuf, BridgeError> {
+    for directory in std::env::split_paths(path) {
+        if !directory.is_absolute() {
+            continue;
+        }
         for name in executable_names(program) {
             let candidate = directory.join(name);
             if candidate.is_file() {
@@ -698,6 +708,34 @@ fn escape_sandbox_profile_string(value: &OsStr) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn search_path_ignores_relative_entries() {
+        let name = format!("scriptor-relpath-fixture-{}", std::process::id());
+        let relative_dir = PathBuf::from(&name);
+        std::fs::create_dir_all(&relative_dir).expect("fixture dir");
+        let tool = relative_dir.join("fixture-tool");
+        std::fs::write(&tool, "#!/bin/sh\n").expect("fixture tool");
+        let absolute_dir = std::fs::canonicalize(&relative_dir).expect("absolute dir");
+
+        let relative_only =
+            std::env::join_paths([relative_dir.as_path(), Path::new("")]).expect("join relative");
+        let relative_result = resolve_in_search_path(OsStr::new("fixture-tool"), &relative_only);
+
+        let absolute = std::env::join_paths([absolute_dir.as_path()]).expect("join absolute");
+        let absolute_result = resolve_in_search_path(OsStr::new("fixture-tool"), &absolute);
+
+        std::fs::remove_dir_all(&relative_dir).expect("cleanup");
+        assert!(
+            relative_result.is_err(),
+            "relative PATH entries must be skipped"
+        );
+        assert!(
+            absolute_result.is_ok(),
+            "absolute PATH entries still resolve"
+        );
+    }
 
     #[cfg(unix)]
     #[test]

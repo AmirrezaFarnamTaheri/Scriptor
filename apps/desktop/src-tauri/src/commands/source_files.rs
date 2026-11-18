@@ -49,6 +49,18 @@ fn language(path: &str) -> Result<&'static str, String> {
         _ => Err("Unsupported source file format".into()),
     }
 }
+/// A vault root is chosen by the renderer, so a vault can sit above a user
+/// profile. Script-typed files must never be created where the operating system
+/// runs them at sign-in (Windows Startup folder, macOS LaunchAgents/Daemons).
+fn is_autostart_location(path: &str) -> bool {
+    let parts: Vec<String> = path.split('/').map(str::to_lowercase).collect();
+    parts
+        .windows(3)
+        .any(|w| w[0] == "start menu" && w[1] == "programs" && w[2] == "startup")
+        || parts
+            .iter()
+            .any(|part| part == "launchagents" || part == "launchdaemons")
+}
 fn resolve(session: &VaultSession, path: &str) -> Result<PathBuf, String> {
     resolve_path(session, path, false)
 }
@@ -66,6 +78,9 @@ fn resolve_path(
             .any(|p| p.starts_with('.') || p.ends_with(['.', ' ']))
     {
         return Err("Invalid source path".into());
+    }
+    if is_autostart_location(path) {
+        return Err("Source files cannot be placed in operating-system autostart folders".into());
     }
     let relative = RelativeVaultPath::parse(path).map_err(|e| e.to_string())?;
     let mut prefix = session.root.root().to_path_buf();
@@ -420,6 +435,20 @@ mod tests {
             "image.png",
         ] {
             assert!(read(&session, path).is_err());
+        }
+    }
+    #[test]
+    fn autostart_locations_are_refused() {
+        for path in [
+            "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/run.js",
+            "appdata/roaming/microsoft/windows/start menu/programs/STARTUP/run.py",
+            "Library/LaunchAgents/x.py",
+            "library/launchdaemons/x.js",
+        ] {
+            assert!(is_autostart_location(path), "{path}");
+        }
+        for path in ["scripts/run.js", "Programs/Startup/notes.py", "main.py"] {
+            assert!(!is_autostart_location(path), "{path}");
         }
     }
 }

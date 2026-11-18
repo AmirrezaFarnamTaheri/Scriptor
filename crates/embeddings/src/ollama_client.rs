@@ -23,6 +23,7 @@ impl OllamaClient {
     fn build_http_client() -> Result<reqwest::blocking::Client, reqwest::Error> {
         reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(120))
+            .redirect(reqwest::redirect::Policy::none())
             .build()
     }
 

@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, run_process};
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::state::{AppState, active_session};
@@ -73,6 +74,16 @@ fn mark_truncated(value: String, truncated: bool) -> String {
     }
 }
 
+/// The grant is bound to the language and a digest of the exact code, so a
+/// renderer cannot obtain approval for one snippet and then run another.
+fn code_run_scope(language: &str, code: &str) -> String {
+    let digest: String = Sha256::digest(code.as_bytes())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    format!("code:run:{language}:{digest}")
+}
+
 #[tauri::command]
 pub fn code_chunk_run(
     state: tauri::State<AppState>,
@@ -86,7 +97,7 @@ pub fn code_chunk_run(
         &state,
         &authorization_token,
         SensitiveOperation::CodeExecution,
-        Some(&lang),
+        Some(&code_run_scope(&lang, &code)),
         Some(&session.descriptor.id),
     )?;
     if !environment_opt_in(CODE_EXECUTION_OPT_IN) {
@@ -146,7 +157,7 @@ pub fn code_chunk_run(
 
 #[cfg(test)]
 mod tests {
-    use super::{enabled_from_value, mark_truncated};
+    use super::{code_run_scope, enabled_from_value, mark_truncated};
 
     #[test]
     fn output_receipts_mark_truncation() {
@@ -163,5 +174,14 @@ mod tests {
         for value in ["1", " true ", "TRUE", "yes", "YeS"] {
             assert!(enabled_from_value(Some(value)), "{value:?}");
         }
+    }
+
+    #[test]
+    fn code_run_scope_binds_language_and_exact_code() {
+        let base = code_run_scope("python", "print(1)");
+        assert_eq!(base, code_run_scope("python", "print(1)"));
+        assert_ne!(base, code_run_scope("python", "print(2)"));
+        assert_ne!(base, code_run_scope("bash", "print(1)"));
+        assert!(base.starts_with("code:run:python:"));
     }
 }

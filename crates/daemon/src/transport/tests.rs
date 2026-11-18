@@ -1105,3 +1105,16 @@ fn outside_lock_git_preview_reads_reject_stale_and_missing_vault_identity() {
         allowed.result
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn socket_directory_is_created_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = tempfile::tempdir().expect("tempdir");
+    let nested = root.path().join("a").join("b");
+    create_private_dir(&nested).expect("create private dir");
+    for dir in [root.path().join("a"), nested] {
+        let mode = fs::metadata(&dir).expect("metadata").permissions().mode() & 0o777;
+        assert_eq!(mode, 0o700, "{}", dir.display());
+    }
+}

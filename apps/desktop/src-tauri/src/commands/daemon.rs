@@ -349,8 +349,32 @@ pub fn daemon_start(
         .arg("serve")
         .spawn()
         .map_err(|error| format!("failed to start {binary_display}: {error}"))?;
-    thread::sleep(Duration::from_secs(2));
+    wait_for_daemon(Duration::from_secs(10), Duration::from_millis(100), || {
+        daemon_ping().is_ok()
+    })?;
     read_endpoint().map_err(|error| error.to_string())
+}
+
+/// Poll until the daemon answers or the deadline passes, instead of sleeping
+/// a fixed interval that is too short on a slow start and too long otherwise.
+fn wait_for_daemon(
+    deadline: Duration,
+    interval: Duration,
+    mut ready: impl FnMut() -> bool,
+) -> Result<(), String> {
+    let started = std::time::Instant::now();
+    loop {
+        if ready() {
+            return Ok(());
+        }
+        if started.elapsed() >= deadline {
+            return Err(format!(
+                "the background daemon did not become ready within {} s",
+                deadline.as_secs()
+            ));
+        }
+        thread::sleep(interval);
+    }
 }
 #[tauri::command]
 pub fn daemon_open_vault(state: tauri::State<AppState>, root_path: String) -> Result<(), String> {
@@ -666,4 +690,27 @@ pub(crate) fn bridge_export_job_status(state: &AppState) -> Result<String, Strin
 }
 pub(crate) fn bridge_export_cancel(state: &AppState, job_id: Option<String>) -> Result<(), String> {
     with_verified_vault(state, "daemon export cancel", || export_cancel_impl(job_id))
+}
+
+#[cfg(test)]
+mod wait_tests {
+    use super::wait_for_daemon;
+    use std::time::Duration;
+
+    #[test]
+    fn returns_as_soon_as_ready() {
+        let mut calls = 0;
+        let result = wait_for_daemon(Duration::from_secs(5), Duration::from_millis(1), || {
+            calls += 1;
+            calls == 3
+        });
+        assert!(result.is_ok());
+        assert_eq!(calls, 3);
+    }
+
+    #[test]
+    fn fails_after_deadline() {
+        let result = wait_for_daemon(Duration::ZERO, Duration::from_millis(1), || false);
+        assert!(result.unwrap_err().contains("did not become ready"));
+    }
 }
