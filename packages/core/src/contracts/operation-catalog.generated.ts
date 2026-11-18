@@ -345,7 +345,7 @@ export const OPERATION_CATALOG = {
       "owner": "apps/desktop/src-tauri/src/commands/collaboration_live.rs",
       "authorizationClass": "brokered-sensitive",
       "mutationClass": "sensitive-mutation",
-      "scope": "vault-note-collaboration-room",
+      "scope": "live_collaboration_start",
       "authorizationVariant": "LiveCollaborationStart",
       "schemaKind": "native-rust",
       "outcomePolicy": [
@@ -415,7 +415,7 @@ export const OPERATION_CATALOG = {
       "owner": "apps/desktop/src-tauri/src/commands/collaboration_live_relay.rs",
       "authorizationClass": "brokered-sensitive",
       "mutationClass": "sensitive-mutation",
-      "scope": "vault-note-approved-wss-relay",
+      "scope": "live_collaboration_connect",
       "authorizationVariant": "LiveCollaborationConnect",
       "schemaKind": "native-rust",
       "outcomePolicy": [
