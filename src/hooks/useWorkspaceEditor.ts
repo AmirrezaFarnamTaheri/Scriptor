@@ -36,6 +36,25 @@ interface OpenTab {
 
 export type WorkspaceCloseState = 'idle' | 'saving' | 'delayed' | 'failed'
 
+interface LiveNoteSaveOwnership {
+  vaultId: string
+  path: string
+  baselineHash: string
+  markdown: string
+  phase: 'claiming' | 'native-started'
+}
+
+export interface LiveNoteSaveLease {
+  readonly vaultId: string
+  readonly path: string
+  readonly baselineHash: string
+  readonly markdown: string
+  markNativeStarted(): void
+  receiveCanonicalText(markdown: string): void
+  abortBeforeNativeStart(): Promise<void>
+  releaseAfterNativeStop(stopNative: () => Promise<void>): Promise<void>
+}
+
 interface SaveRequest {
   path: string
   markdown: string
@@ -87,6 +106,7 @@ export function useWorkspaceEditor({
   const [activeNote, setActiveNote] = useState<NoteDocument | null>(null)
   const [draftMarkdown, setDraftMarkdown] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [liveNoteSaveLocked, setLiveNoteSaveLocked] = useState(false)
   const [closeState, setCloseState] = useState<WorkspaceCloseState>('idle')
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [externalChangeConflict, setExternalChangeConflict] = useState<ExternalChangeConflict | null>(null)
@@ -103,6 +123,8 @@ export function useWorkspaceEditor({
     action: TypographyAction
   } | null>(null)
 
+  /** Separate, fail-closed source writer. Never clear while a live projection is unresolved. */
+  const liveNoteOwnerRef = useRef<LiveNoteSaveOwnership | null>(null)
   const saveTimer = useRef<number | null>(null)
   const saveOverwriteRef = useRef(false)
   const navigationGenerationRef = useRef(0)
@@ -166,6 +188,10 @@ export function useWorkspaceEditor({
   }, [activeNoteRef, draftMarkdownRef, setError])
 
   const resetNoteNavigation = useCallback(async (): Promise<boolean> => {
+    if (liveNoteOwnerRef.current) {
+      setError('Stop collaborative editing and verify the projected file before switching vaults.')
+      return false
+    }
     if (persistenceSuspendedRef.current) {
       // Never destroy the quarantined vault's paused editor on navigation.
       setError('Vault switching is blocked while a restore outcome is unknown. Copy unsaved draft text outside Scriptor, then close and restart the application before opening a vault.')
@@ -221,14 +247,148 @@ export function useWorkspaceEditor({
     [activeNoteRef, activePathRef, draftMarkdownRef],
   )
 
+  /**
+   * Atomically transfer an already-clean note away from the ordinary autosave
+   * coordinator. Ownership is reserved *before* the asynchronous disk read;
+   * competing navigation, mutations, saves, and native close then fail closed.
+   * No hidden draft flush or overwrite is allowed during this handoff.
+   */
+  const claimLiveNoteSaveOwnership = useCallback(async (): Promise<LiveNoteSaveLease> => {
+    if (liveNoteOwnerRef.current || persistenceSuspendedRef.current) {
+      throw new Error('Another writer or suspended restore already owns note persistence')
+    }
+    const note = activeNoteRef.current
+    const path = activePathRef.current
+    if (!note || !path || note.metadata.path !== path || !note.metadata.vault_id) {
+      throw new Error('Select a saved Markdown note before enabling live collaboration')
+    }
+    const vaultId = note.metadata.vault_id
+    if (isSavingRef.current || hasPendingSave(path, vaultId) || saveOverwriteRef.current || externalChangeConflict) {
+      throw new Error('Save and resolve all pending drafts and external conflicts before collaboration')
+    }
+    const owner: LiveNoteSaveOwnership = {
+      vaultId,
+      path,
+      baselineHash: note.metadata.content_hash,
+      markdown: note.markdown,
+      phase: 'claiming',
+    }
+    const generation = navigationGenerationRef.current
+    const revision = draftRevisionRef.current
+    liveNoteOwnerRef.current = owner
+    setLiveNoteSaveLocked(true)
+
+    const ensureOwner = () => {
+      if (liveNoteOwnerRef.current !== owner ||
+        activePathRef.current !== path ||
+        activeNoteRef.current?.metadata.vault_id !== vaultId) {
+        throw new Error('Live collaboration note ownership was revoked or switched')
+      }
+    }
+    const verifyDisk = async (expectedMarkdown: string) => {
+      ensureOwner()
+      const disk = await vaultReadNote(path, vaultId)
+      ensureOwner()
+      if (disk.metadata.vault_id !== vaultId ||
+        disk.metadata.path !== path ||
+        disk.markdown !== expectedMarkdown) {
+        throw new Error('Live collaboration projection does not match the exact disk note; draft retained')
+      }
+      return disk
+    }
+    const finish = (disk: NoteDocument) => {
+      ensureOwner()
+      // No old autosave request is allowed to reassert a stale hash after this
+      // transition; the journal projector was the file's sole writing owner.
+      savedHashesRef.current.set(path, disk.metadata.content_hash)
+      docVaultsRef.current.set(path, vaultId)
+      activeNoteRef.current = disk
+      draftMarkdownRef.current = disk.markdown
+      setActiveNote(disk)
+      setDraftMarkdown(disk.markdown)
+      setOpenTabs(tabs => tabs.map(tab => tab.path === path
+        ? { ...tab, title: disk.metadata.title, contentHash: disk.metadata.content_hash }
+        : tab))
+      setExternalChangeConflict(null)
+      liveNoteOwnerRef.current = null
+      setLiveNoteSaveLocked(false)
+    }
+
+    try {
+      const disk = await verifyDisk(owner.markdown)
+      if (disk.metadata.content_hash !== owner.baselineHash ||
+        navigationGenerationRef.current !== generation ||
+        draftRevisionRef.current !== revision ||
+        activeNoteRef.current?.metadata.content_hash !== owner.baselineHash ||
+        draftMarkdownRef.current !== owner.markdown) {
+        throw new Error('Live collaboration source revision changed during save ownership handoff')
+      }
+    } catch (error) {
+      if (liveNoteOwnerRef.current === owner) {
+        liveNoteOwnerRef.current = null
+        setLiveNoteSaveLocked(false)
+      }
+      throw error
+    }
+
+    return {
+      path,
+      vaultId,
+      baselineHash: owner.baselineHash,
+      markdown: owner.markdown,
+      markNativeStarted: () => {
+        ensureOwner()
+        if (owner.phase !== 'claiming') {
+          throw new Error('Native collaboration session already started')
+        }
+        owner.phase = 'native-started'
+      },
+      receiveCanonicalText: (markdown: string) => {
+        ensureOwner()
+        if (owner.phase !== 'native-started' || typeof markdown !== 'string') {
+          throw new Error('Cannot accept unconfirmed collaboration text')
+        }
+        if (markdown === draftMarkdownRef.current) return
+        draftRevisionRef.current += 1
+        draftRevisionsByDocRef.current.set(`${vaultId}:${path}`, draftRevisionRef.current)
+        draftMarkdownRef.current = markdown
+        setDraftMarkdown(markdown)
+      },
+      abortBeforeNativeStart: async () => {
+        ensureOwner()
+        if (owner.phase !== 'claiming') {
+          throw new Error('Active native collaboration must stop and project before release')
+        }
+        const disk = await verifyDisk(owner.markdown)
+        if (disk.metadata.content_hash !== owner.baselineHash) {
+          throw new Error('Cannot abandon live handoff after disk revision changed')
+        }
+        finish(disk)
+      },
+      releaseAfterNativeStop: async (stopNative: () => Promise<void>) => {
+        ensureOwner()
+        if (owner.phase !== 'native-started' || typeof stopNative !== 'function') {
+          throw new Error('Native collaboration must have started and be stopped explicitly')
+        }
+        await stopNative()
+        // A native stop never implies that pending local or remote CRDT
+        // updates have actually reached the Markdown file. Do not unlock
+        // ordinary autosave until exact bytes are proven on disk.
+        const disk = await verifyDisk(draftMarkdownRef.current)
+        finish(disk)
+      },
+    }
+  }, [activeNoteRef, activePathRef, draftMarkdownRef, externalChangeConflict, hasPendingSave, isSavingRef])
+
   const loadNote = useCallback(
     async (path: string, isCurrent: () => boolean = () => true) => {
-      if (!isCurrent() || persistenceSuspendedRef.current) return false
+      if (!isCurrent() || persistenceSuspendedRef.current || liveNoteOwnerRef.current) return false
       const navigationGeneration = ++navigationGenerationRef.current
       const draftRevision = draftRevisionRef.current
       const canApplyRead = () => isCurrent()
         && navigationGeneration === navigationGenerationRef.current
         && !persistenceSuspendedRef.current
+        && !liveNoteOwnerRef.current
         && draftRevision === draftRevisionRef.current
       const currentPath = activePathRef.current
       const currentVaultId = activeNoteRef.current?.metadata.vault_id
@@ -324,7 +484,7 @@ export function useWorkspaceEditor({
       active: string | null,
       isCurrent: () => boolean = () => true,
     ) => {
-      if (tabs.length === 0 || !isCurrent()) return
+      if (tabs.length === 0 || !isCurrent() || liveNoteOwnerRef.current) return
       setOpenTabs(
         tabs.map((tab) => ({
           path: tab.path,
@@ -357,7 +517,7 @@ export function useWorkspaceEditor({
 
   /** A history restore may only replace a fully persisted draft in its original vault. */
   const canRestoreNoteHistory = useCallback((path: string, vaultId: string): boolean => {
-    if (!path || !vaultId || persistenceSuspendedRef.current || isSavingRef.current) return false
+    if (!path || !vaultId || persistenceSuspendedRef.current || isSavingRef.current || liveNoteOwnerRef.current) return false
     const note = activeNoteRef.current
     return activePathRef.current === path
       && note?.metadata.vault_id === vaultId
@@ -367,7 +527,7 @@ export function useWorkspaceEditor({
   const reloadActiveNoteFromDisk = useCallback(async (options?: { requireClean?: boolean }): Promise<boolean> => {
     const path = activePathRef.current
     const vaultId = activeNoteRef.current?.metadata.vault_id
-    if (!path || !vaultId || persistenceSuspendedRef.current) return false
+    if (!path || !vaultId || persistenceSuspendedRef.current || liveNoteOwnerRef.current) return false
     const requireClean = options?.requireClean ?? false
     // History restore must never discard an unsaved draft. An explicit
     // external-change reload remains user-controlled and may discard edits.
@@ -443,7 +603,7 @@ export function useWorkspaceEditor({
   }, [activeNoteRef, activePathRef, draftMarkdownRef, logActivity, setBacklinks])
 
   const keepEditingAfterExternalChange = useCallback(() => {
-    if (!externalChangeConflict) return
+    if (!externalChangeConflict || liveNoteOwnerRef.current) return
     saveOverwriteRef.current = true
     setExternalChangeConflict(null)
     logActivity('info', 'Keeping local edits', `${externalChangeConflict.path} will overwrite on save`)
@@ -454,7 +614,7 @@ export function useWorkspaceEditor({
       path: string,
       expected?: { navigationGeneration: number; draftRevision: number },
     ) => {
-      if (activePath !== path || !activeNote) return
+      if (activePath !== path || !activeNote || liveNoteOwnerRef.current) return
       const navigationGeneration = expected?.navigationGeneration ?? navigationGenerationRef.current
       const draftRevision = expected?.draftRevision ?? draftRevisionRef.current
       const doc = await vaultReadNote(path)
@@ -480,7 +640,7 @@ export function useWorkspaceEditor({
   const checkExternalChanges = useCallback(async () => {
     const path = activePathRef.current
     const note = activeNoteRef.current
-    if (!path || !note || isSavingRef.current || saveOverwriteRef.current || persistenceSuspendedRef.current) return
+    if (!path || !note || isSavingRef.current || saveOverwriteRef.current || persistenceSuspendedRef.current || liveNoteOwnerRef.current) return
 
     const navigationGeneration = navigationGenerationRef.current
     const draftRevision = draftRevisionRef.current
@@ -530,6 +690,7 @@ export function useWorkspaceEditor({
 
   const closeTab = useCallback(
     async (path: string, force = false): Promise<boolean> => {
+      if (liveNoteOwnerRef.current) return false
       const closing = openTabs.find((tab) => tab.path === path)
       if (closing?.pinned && !force) return false
 
@@ -611,7 +772,7 @@ export function useWorkspaceEditor({
 
   const createSaveRequest = useCallback(
     (markdown: string, customPath?: string, customVaultId?: string): SaveRequest | null => {
-      if (persistenceSuspendedRef.current) return null
+      if (persistenceSuspendedRef.current || liveNoteOwnerRef.current) return null
       const path = customPath ?? activePathRef.current
       const note = activeNoteRef.current
       const vaultId = customVaultId ?? (path ? docVaultsRef.current.get(path) : undefined) ?? note?.metadata.vault_id
@@ -638,7 +799,7 @@ export function useWorkspaceEditor({
 
   const isSaveRequestCurrent = useCallback(
     (request: SaveRequest) => {
-      if (request.persistenceGeneration !== persistenceGenerationRef.current) return false
+      if (liveNoteOwnerRef.current || request.persistenceGeneration !== persistenceGenerationRef.current) return false
       const active = activeNoteRef.current
       if (!active || activePathRef.current !== request.path) return false
       if (active.metadata.vault_id !== request.vaultId) return false
@@ -674,7 +835,7 @@ export function useWorkspaceEditor({
     async (request: SaveRequest) => {
       const isCurrent = () => isSaveRequestCurrent(request)
       try {
-        if (request.persistenceGeneration !== persistenceGenerationRef.current || persistenceSuspendedRef.current) {
+        if (liveNoteOwnerRef.current || request.persistenceGeneration !== persistenceGenerationRef.current || persistenceSuspendedRef.current) {
           return false
         }
         if (isCurrent()) setError(null)
@@ -760,6 +921,7 @@ export function useWorkspaceEditor({
 
   const performSave = useCallback(
     (request: SaveRequest) => {
+      if (liveNoteOwnerRef.current) return Promise.resolve(false)
       pendingSaveCountRef.current += 1
       isSavingRef.current = true
       setIsSaving(true)
@@ -785,7 +947,7 @@ export function useWorkspaceEditor({
   const flushPendingDocumentSave = useCallback(
     (path: string, vaultId?: string): Promise<boolean> => {
       const targetVaultId = vaultId ?? docVaultsRef.current.get(path) ?? activeNoteRef.current?.metadata.vault_id
-      if (!targetVaultId || persistenceSuspendedRef.current) return Promise.resolve(false)
+      if (!targetVaultId || persistenceSuspendedRef.current || liveNoteOwnerRef.current) return Promise.resolve(false)
       const docKey = `${targetVaultId}:${path}`
       const timer = saveTimersByDocRef.current.get(docKey)
       if (timer) {
@@ -818,7 +980,7 @@ export function useWorkspaceEditor({
     const activeDirty = Boolean(
       activeNoteRef.current && draftMarkdownRef.current !== activeNoteRef.current.markdown,
     )
-    return persistenceSuspendedRef.current || activeDirty ||
+    return persistenceSuspendedRef.current || Boolean(liveNoteOwnerRef.current) || activeDirty ||
       pendingSaveCountRef.current > 0 ||
       pendingRequestsByDocRef.current.size > 0 ||
       saveTimersByDocRef.current.size > 0 ||
@@ -828,7 +990,7 @@ export function useWorkspaceEditor({
   const flushAllPendingSaves = useCallback(async (): Promise<boolean> => {
     // Save/mutation callers never receive permission from a frozen-draft
     // discard confirmation. Only the desktop close handler may request exit.
-    if (persistenceSuspendedRef.current) return false
+    if (persistenceSuspendedRef.current || liveNoteOwnerRef.current) return false
     const failuresBefore = saveFailureCountRef.current
     let ok = true
     if (activePathRef.current && activeNoteRef.current) {
@@ -851,7 +1013,7 @@ export function useWorkspaceEditor({
 
   const scheduleSave = useCallback(
     (markdown: string) => {
-      if (persistenceSuspendedRef.current) return
+      if (persistenceSuspendedRef.current || liveNoteOwnerRef.current) return
       const request = createSaveRequest(markdown)
       if (!request) return
       const docKey = `${request.vaultId}:${request.path}`
@@ -931,6 +1093,7 @@ export function useWorkspaceEditor({
 
   const runNoteMutation = useCallback(
     async (sourcePath: string, runMutation: () => Promise<void>) => {
+      if (liveNoteOwnerRef.current) return false
       const note = activeNoteRef.current
       const navigationGeneration = navigationGenerationRef.current
       const draftRevision = draftRevisionRef.current
@@ -966,6 +1129,9 @@ export function useWorkspaceEditor({
 
   const updateDraft = useCallback(
     (markdown: string) => {
+      if (liveNoteOwnerRef.current) {
+        throw new Error('Live collaboration owns this note; changes must enter the durable coordinator')
+      }
       draftRevisionRef.current += 1
       setDraftMarkdown(markdown)
       const path = activePathRef.current
@@ -1151,6 +1317,7 @@ export function useWorkspaceEditor({
     activeNote,
     draftMarkdown,
     isNoteDirty,
+    liveNoteSaveLocked,
     externalChangeConflict,
     isSaving,
     closeState,
@@ -1172,6 +1339,7 @@ export function useWorkspaceEditor({
     togglePinTab,
     closedTabs,
     updateDraft,
+    claimLiveNoteSaveOwnership,
     saveVaultImage,
     importDroppedFiles,
     generateLinkReferences,

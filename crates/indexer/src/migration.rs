@@ -204,6 +204,18 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
         current = 12;
     }
 
+    // v12 → v13: no table change. Note tags now merge frontmatter with body
+    // hashtags, and list items that start with a link are no longer tasks or
+    // kanban cards. Rebuilds skip notes whose content hash is unchanged, so
+    // clear the stored hashes once: the next rebuild re-parses every note.
+    if current == 12 && SCHEMA_VERSION >= 13 {
+        let transaction = connection.unchecked_transaction()?;
+        transaction.execute("UPDATE notes SET content_hash = ''", [])?;
+        stamp_schema_version(&transaction, 13)?;
+        transaction.commit()?;
+        current = 13;
+    }
+
     if current == SCHEMA_VERSION {
         Ok(())
     } else {
@@ -379,6 +391,28 @@ mod tests {
     use super::*;
     use crate::schema::{CREATE_META, CREATE_NOTES};
     use rusqlite::Connection;
+
+    #[test]
+    fn migration_v12_to_v13_forces_every_note_to_be_reparsed() -> Result<(), IndexerError> {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("cache.sqlite");
+        let markdown = "# A\n- [[Linked]]\n";
+        let metadata = crate::notes::tests_support::metadata_for("a.md", markdown);
+        {
+            let cache = open_cache_migrated(&path)?;
+            crate::notes::upsert_note(&cache, &metadata, markdown)?;
+            assert!(!crate::notes::note_needs_reindex(
+                &cache, &metadata, markdown
+            )?);
+            let connection = cache.connection()?;
+            stamp_schema_version(&connection, 12)?;
+        }
+        let cache = open_cache_migrated(&path)?;
+        assert!(crate::notes::note_needs_reindex(
+            &cache, &metadata, markdown
+        )?);
+        Ok(())
+    }
 
     #[test]
     fn migrates_schema_v1_to_v2() -> Result<(), IndexerError> {

@@ -238,11 +238,18 @@ fn parse_card_line(line: &str, line_idx: usize, archived: bool) -> Option<Kanban
         .or_else(|| trimmed.strip_prefix("* "))
         .or_else(|| trimmed.strip_prefix("+ "))?;
 
-    if !rest.starts_with('[') {
+    // A card checkbox is exactly one character between brackets, followed by a
+    // space or the end of the line, as for tasks: `- [[Note]]` is not a card.
+    let mut chars = rest.chars();
+    if chars.next() != Some('[') {
         return None;
     }
-    let close = rest.find(']')?;
-    if close < 2 {
+    let marker = chars.next()?;
+    if marker == '[' || marker == ']' || chars.next() != Some(']') {
+        return None;
+    }
+    let close = 1 + marker.len_utf8();
+    if !matches!(rest[close + 1..].chars().next(), None | Some(' ' | '\t')) {
         return None;
     }
     let status = rest[1..close].trim().to_string();
@@ -347,6 +354,17 @@ fn is_card_line(line: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn link_list_items_are_not_cards() {
+        assert!(parse_card_line("- [[Board note]]", 0, false).is_none());
+        assert!(parse_card_line("- [label](https://example.com)", 0, false).is_none());
+        let card = parse_card_line("- [ ] write tests", 3, false).unwrap();
+        assert_eq!(
+            (card.status.as_str(), card.text.as_str(), card.line),
+            ("", "write tests", 3)
+        );
+    }
 
     const SAMPLE: &str = r#"---
 kanban-plugin: basic

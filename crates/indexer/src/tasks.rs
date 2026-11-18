@@ -255,12 +255,19 @@ fn parse_task_line(line_idx: usize, line: &str) -> Option<ParsedTask> {
         .or_else(|| trimmed.strip_prefix("* "))
         .or_else(|| trimmed.strip_prefix("+ "))?;
 
-    // Checkbox: `[<char>] `.
-    if !rest.starts_with('[') {
+    // A task checkbox is exactly one character between brackets, followed by a
+    // space or the end of the line. Without this, list items that start with a
+    // link (`- [[Note]]`, `- [text](url)`) were indexed as tasks.
+    let mut chars = rest.chars();
+    if chars.next() != Some('[') {
         return None;
     }
-    let close = rest.find(']')?;
-    if close < 2 {
+    let marker = chars.next()?;
+    if marker == '[' || marker == ']' || chars.next() != Some(']') {
+        return None;
+    }
+    let close = 1 + marker.len_utf8();
+    if !matches!(rest[close + 1..].chars().next(), None | Some(' ' | '\t')) {
         return None;
     }
     // Do NOT trim here — a space is the canonical "open" checkbox character.
@@ -1168,6 +1175,27 @@ fn compact_task_spacing(line: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn list_items_that_start_with_links_are_not_tasks() {
+        for line in [
+            "- [[Note]] is a link, not a task",
+            "- [text](https://example.com)",
+            "- [ab] two characters",
+            "- [x]no space after the box",
+            "* [] empty box",
+        ] {
+            assert!(parse_task_line(0, line).is_none(), "{line}");
+        }
+        assert_eq!(parse_task_line(0, "- [ ] open").unwrap().status, "open");
+        assert_eq!(parse_task_line(0, "- [x] done").unwrap().status, "done");
+        assert_eq!(
+            parse_task_line(0, "  + [/] started").unwrap().status,
+            "in-progress"
+        );
+        assert_eq!(parse_task_line(0, "- [x]").unwrap().status, "done");
+        assert_eq!(parse_task_line(0, "- [é] custom").unwrap().status, "é");
+    }
 
     // ── parse_tasks_from_markdown ─────────────────────────────────────────────
 

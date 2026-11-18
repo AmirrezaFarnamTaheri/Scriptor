@@ -103,7 +103,8 @@ test('unconfirmed restore never silently closes a suspended draft or switches va
   const flushEnd = workspaceEditor.indexOf('const scheduleSave = useCallback', flushStart)
   assert.ok(flushStart > 0 && flushEnd > flushStart)
   const flush = workspaceEditor.slice(flushStart, flushEnd)
-  assert.match(flush, /if \(persistenceSuspendedRef\.current\) return false/)
+  // A live-collaboration note owner blocks the same flush, so the guard may name both.
+  assert.match(flush, /if \(persistenceSuspendedRef\.current(?: \|\| liveNoteOwnerRef\.current)?\) return false/)
   assert.doesNotMatch(flush, /requestFrozenDraftExit\(/)
   const closeStart = workspaceEditor.indexOf('appWindow.onCloseRequested(')
   const closeEnd = workspaceEditor.indexOf('await appWindow.destroy()', closeStart)
@@ -111,7 +112,7 @@ test('unconfirmed restore never silently closes a suspended draft or switches va
   const close = workspaceEditor.slice(closeStart, closeEnd)
   assert.match(close, /persistenceSuspendedRef\.current\s*\?\s*await requestFrozenDraftExitRef\.current\(\)\s*:\s*await flushAllPendingSavesRef\.current\(\)/)
   assert.match(workspaceEditor, /const requestFrozenDraftExitRef = useRef\(requestFrozenDraftExit\)/)
-  assert.match(workspaceEditor, /return persistenceSuspendedRef\.current \|\| activeDirty/)
+  assert.match(workspaceEditor, /return persistenceSuspendedRef\.current \|\| (?:Boolean\(liveNoteOwnerRef\.current\) \|\| )?activeDirty/)
   assert.match(workspaceEditor, /Vault switching is blocked while a restore outcome is unknown/)
   assert.match(useVaultWorkspace, /if \(isEditorPersistenceSuspended\(\)\) \{/)
   assert.match(workspaceEditor, /Discard and close/)

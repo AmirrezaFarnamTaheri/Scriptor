@@ -135,6 +135,12 @@ fn run_git_receipt(repo_root: &Path, args: &[&str]) -> Result<ProcessReceipt, Gi
     run_git_receipt_with_index(repo_root, args, None)
 }
 
+/// `git status --porcelain -uall` prints one line per changed or untracked file,
+/// and truncated output is refused rather than misread. 256 KiB failed every Git
+/// command once a vault had about 6,000 untracked notes (a fresh `git init` on a
+/// large vault); 16 MiB covers several hundred thousand paths.
+pub(crate) const MAX_GIT_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
+
 fn run_git_receipt_with_index(
     repo_root: &Path,
     args: &[&str],
@@ -144,7 +150,7 @@ fn run_git_receipt_with_index(
         .args(args.iter().copied())
         .current_dir(repo_root)
         .timeout(Duration::from_secs(30))
-        .max_output_bytes(256 * 1024)
+        .max_output_bytes(MAX_GIT_OUTPUT_BYTES)
         .env("GIT_TERMINAL_PROMPT", "0")
         .env("GCM_INTERACTIVE", "Never");
     if let Some(index) = index {
@@ -587,6 +593,22 @@ mod tests {
             )
             .into());
         }
+        Ok(())
+    }
+
+    #[test]
+    fn status_lists_thousands_of_untracked_notes() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        run_git(root, &["init", "-q"])?;
+        let folder = root.join("an-imported-folder-with-a-reasonably-long-name");
+        fs::create_dir_all(&folder)?;
+        for index in 0..7_000 {
+            fs::write(folder.join(format!("note number {index:05}.md")), "x")?;
+        }
+        let status = git_status(root)?;
+        assert_eq!(status.changed_files.len(), 7_000);
+        assert!(!status.clean);
         Ok(())
     }
 

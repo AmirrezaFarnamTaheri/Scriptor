@@ -28,6 +28,8 @@ export type SensitiveOperation =
   | 'keychain_delete'
   | 'keychain_write'
   | 'latex_compilation'
+  | 'live_collaboration_start'
+  | 'live_collaboration_connect'
   | 'pdf_translation'
   | 'plant_uml_execution'
   | 'publish_site'
