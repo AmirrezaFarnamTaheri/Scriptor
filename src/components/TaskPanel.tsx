@@ -280,7 +280,7 @@ export const TaskPanel = memo(function TaskPanel({
   runSourceNoteMutation,
   calendarConfig,
 }: TaskPanelProps) {
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
   const store = useTaskStore(runSourceNoteMutation)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [pushingVaultTasks, setPushingVaultTasks] = useState(false)
@@ -382,7 +382,7 @@ export const TaskPanel = memo(function TaskPanel({
 
   const body = (
     <>
-      {vaultId ? <PlannerWorkspace key={`${vaultId}:${calendarSync.accountGeneration}:${calendarSync.authedEmail ?? ''}:${calendarConfig?.google_calendar_id ?? ''}:${calendarConfig?.google_task_list_id ?? ''}`} vaultId={vaultId} tasks={calendarConfig?.enabled && vaultTasksComplete ? allVaultTasks : store.tasks} events={calendarSync.events} remoteTasks={calendarSync.tasks} calendarId={calendarConfig?.google_calendar_id || 'primary'} taskListId={calendarConfig?.google_task_list_id || '@default'} connected={calendarSync.status === 'synced'} googleAccount={calendarSync.authedEmail} calendarWritable={calendarSync.calendars.some(calendar => (calendarConfig?.google_calendar_id && calendarConfig.google_calendar_id !== 'primary' ? calendar.id === calendarConfig.google_calendar_id : calendar.primary) && calendar.writable)} runSourceNoteMutation={runSourceNoteMutation} onReload={async()=>{store.load();await calendarSync.refresh()}} onOpenNote={onOpenNote}/> : null}
+      {vaultId ? <PlannerWorkspace key={`${vaultId}:${calendarSync.accountGeneration}:${calendarSync.authedEmail ?? ''}:${calendarConfig?.google_calendar_id ?? ''}:${calendarConfig?.google_task_list_id ?? ''}`} vaultId={vaultId} tasks={calendarConfig?.enabled && vaultTasksComplete ? allVaultTasks : store.tasks} events={calendarConfig?.show_events_in_tasks === false ? [] : calendarSync.events} remoteTasks={calendarSync.tasks} calendarId={calendarConfig?.google_calendar_id || 'primary'} taskListId={calendarConfig?.google_task_list_id || '@default'} connected={calendarSync.status === 'synced'} googleAccount={calendarSync.authedEmail} calendarWritable={calendarSync.calendars.some(calendar => (calendarConfig?.google_calendar_id && calendarConfig.google_calendar_id !== 'primary' ? calendar.id === calendarConfig.google_calendar_id : calendar.primary) && calendar.writable)} runSourceNoteMutation={runSourceNoteMutation} onReload={async()=>{store.load();await calendarSync.refresh()}} onOpenNote={onOpenNote}/> : null}
       {calendarConfig?.enabled ? (
         <section className="settings-section" aria-label={t('tasks.google.ariaLabel')}>
           <div className="section-heading-row">
@@ -414,25 +414,6 @@ export const TaskPanel = memo(function TaskPanel({
           {calendarSync.error ? <p className="error-state" role="alert">{calendarSync.error}</p> : null}
           {vaultTaskLoadError && <p className="error-state" role="alert">{t(vaultTaskLoadError)}</p>}
           {vaultSyncSummary && <p className="health-subtitle" role="status">{vaultSyncSummary}</p>}
-
-          {calendarConfig.show_events_in_tasks ? (
-            <div>
-              <h4>{t('tasks.google.upcomingEvents')}</h4>
-              {calendarSync.events.length === 0 ? (
-                <p className="health-subtitle">{t('tasks.google.noEvents')}</p>
-              ) : (
-                <ul className="compact-list">
-                  {calendarSync.events.slice(0, 8).map((event) => (
-                    <li key={event.id}>
-                      <strong>{event.summary || t('tasks.google.untitledEvent')}</strong>{' '}
-                      <time dateTime={event.start}>{new Date(event.start).toLocaleString(locale === 'fa' ? 'fa-IR-u-ca-gregory' : locale === 'de' ? 'de-DE' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}</time>
-                      {event.location ? <span> · {event.location}</span> : null}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ) : null}
 
           <div>
             <h4>{t('tasks.google.tasks')}</h4>
