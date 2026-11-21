@@ -217,6 +217,9 @@ struct AuthenticatedStream {
 }
 
 struct ClientInner {
+    /// Vault this client last opened. Attached to every vault-scoped request so
+    /// the daemon can reject calls once another client has swapped the vault.
+    bound_vault: Mutex<Option<String>>,
     stream: Mutex<Option<AuthenticatedStream>>,
     event_handlers: Arc<Mutex<Vec<EventHandler>>>,
     listener: Mutex<Option<EventListener>>,
@@ -240,6 +243,7 @@ impl Drop for ClientInner {
 impl ClientInner {
     fn new() -> Self {
         Self {
+            bound_vault: Mutex::new(None),
             stream: Mutex::new(None),
             event_handlers: Arc::new(Mutex::new(Vec::new())),
             listener: Mutex::new(None),
@@ -527,6 +531,27 @@ impl ClientInner {
     }
 
     fn call_with_timeout(
+        &self,
+        mut request: RpcRequest,
+        timeout: Duration,
+    ) -> Result<RpcResponse, IpcError> {
+        if request.method.is_vault_scoped()
+            && request.expected_vault_id.is_none()
+            && let Some(id) = lock_recover(&self.bound_vault).clone()
+        {
+            request.expected_vault_id = Some(id);
+        }
+        let response = self.call_with_timeout_unbound(request, timeout)?;
+        if let scriptor_ipc::RpcResult::Ok(scriptor_ipc::RpcPayload::VaultOpened {
+            vault_id, ..
+        }) = &response.result
+        {
+            *lock_recover(&self.bound_vault) = Some(vault_id.clone());
+        }
+        Ok(response)
+    }
+
+    fn call_with_timeout_unbound(
         &self,
         request: RpcRequest,
         timeout: Duration,

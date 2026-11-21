@@ -315,10 +315,11 @@ fn run_switch_scenario(
         "A cannot read B's Git status"
     );
     assert!(
-        stale["status"]["reason"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("Git status vault identity mismatch"),
+        {
+            let reason = stale["status"]["reason"].as_str().unwrap_or_default();
+            reason.contains("Git status vault identity mismatch")
+                || reason.contains("rpc.vault_mismatch")
+        },
         "A must be refused for an identity mismatch, not due to transport failure: {stale}"
     );
     assert_eq!(stale["vault_id"], id_a);

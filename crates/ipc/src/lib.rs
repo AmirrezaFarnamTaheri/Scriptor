@@ -23,6 +23,13 @@ pub struct RpcRequest {
     #[serde(default)]
     #[ts(optional)]
     pub endpoint_nonce: Option<String>,
+    /// Identity of the vault the caller believes is open. The daemon holds one
+    /// vault for every client, so vault-scoped methods are rejected unless this
+    /// matches (a second client opening another vault must not redirect a
+    /// first client's writes).
+    #[serde(default)]
+    #[ts(optional)]
+    pub expected_vault_id: Option<String>,
 }
 
 impl RpcRequest {
@@ -31,7 +38,13 @@ impl RpcRequest {
             id,
             method,
             endpoint_nonce: None,
+            expected_vault_id: None,
         }
+    }
+
+    pub fn with_expected_vault(mut self, vault_id: impl Into<String>) -> Self {
+        self.expected_vault_id = Some(vault_id.into());
+        self
     }
 
     pub fn with_nonce(id: u64, method: RpcMethod, nonce: String) -> Self {
@@ -39,6 +52,7 @@ impl RpcRequest {
             id,
             method,
             endpoint_nonce: Some(nonce),
+            expected_vault_id: None,
         }
     }
 }
@@ -49,7 +63,21 @@ impl Default for RpcRequest {
             id: 0,
             method: RpcMethod::Ping,
             endpoint_nonce: None,
+            expected_vault_id: None,
         }
+    }
+}
+
+impl RpcMethod {
+    /// Methods that act on whichever vault the daemon currently holds.
+    pub fn is_vault_scoped(&self) -> bool {
+        !matches!(
+            self,
+            RpcMethod::Ping
+                | RpcMethod::OpenVault { .. }
+                | RpcMethod::SubscribeEvents
+                | RpcMethod::ListCommands
+        )
     }
 }
 
