@@ -265,14 +265,15 @@
     "loadFailed": "Notiz konnte nicht geladen werden"
   },
   "mcp": {
+    "topBarLabel": "KI-Agenten",
     "title": "MCP-Automatisierung",
-    "subtitle": "Legen Sie fest, welche Automatisierungstools diesen Tresor lesen oder ändern dürfen.",
+    "subtitle": "Legen Sie fest, was KI-Agenten und Automatisierungstools mit Ihren Notizen tun dürfen.",
     "resetVaultMcp": "Tresor-MCP zurücksetzen",
     "generateWithAi": "Mit KI generieren",
-    "disabledMessage": "MCP ist für diesen Tresor deaktiviert. Wählen Sie einen Modus, um Werkzeuge freizugeben.",
+    "disabledMessage": "Der Zugriff für KI-Agenten ist aus. Wählen Sie eine Stufe, damit Agenten mit Ihren Notizen arbeiten können.",
     "noToolsRegistered": "Für die aktuelle Serverkonfiguration sind keine MCP-Werkzeuge registriert.",
     "noRecipesAvailable": "Für die aktuellen Werkzeuge und die aktive Notiz sind keine geführten Rezepte verfügbar.",
-    "enableReadOnly": "MCP aktivieren (Nur Lesen)",
+    "enableReadOnly": "Agenten dürfen lesen",
     "tabRecipes": "Rezepte",
     "tabTools": "Werkzeuge",
     "tabDrafts": "Entwürfe",
@@ -293,10 +294,10 @@
     "tabSharing": "Teilen & Synchronisieren",
     "authorizationSubtitle": "Wählen Sie, was verbundene Tools in diesem Tresor tun dürfen.",
     "authorizationHeading": "Tresor-Autorisierung",
-    "authorizationScope": "Diese Berechtigungen gelten nur für den aktuellen Tresor.",
+    "authorizationScope": "Diese Stufe gilt für jeden Tresor, den Sie auf diesem Gerät öffnen.",
     "authorizationLevelAria": "MCP-Autorisierungsstufe",
     "modeOff": "Aus",
-    "modeOffDescription": "Kein MCP-Werkzeug kann auf den aktiven Tresor zugreifen.",
+    "modeOffDescription": "Kein Agent und kein Automatisierungstool kann auf Ihre Tresore zugreifen.",
     "modeReadOnly": "Nur lesen",
     "modeReadOnlyDescription": "Werkzeuge dürfen Tresorinhalte prüfen, aber keine Änderungen vorbereiten oder schreiben.",
     "modeDraft": "Änderungen entwerfen",
@@ -304,8 +305,8 @@
     "modeWriteApproved": "Freigegebene Schreibvorgänge",
     "modeWriteApprovedDescription": "Freigegebene Tools dürfen Dateien in diesem Tresor ändern. Nur vertrauenswürdige Tools verwenden.",
     "administration": "Verwaltung",
-    "administrationDescription": "Zurücksetzen deaktiviert MCP für den aktiven Tresor, ohne andere Tresore zu ändern.",
-    "resetActiveVaultAuthorization": "MCP-Autorisierung des aktiven Tresors zurücksetzen"
+    "administrationDescription": "Zurücksetzen schaltet den Agentenzugriff auf diesem Gerät aus.",
+    "resetActiveVaultAuthorization": "Agentenzugriff ausschalten"
   },
   "git": {
     "title": "Git",

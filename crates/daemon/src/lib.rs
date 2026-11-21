@@ -8,6 +8,7 @@ pub mod handler;
 pub mod index_job;
 pub mod locks;
 pub mod transport;
+mod vault_binding;
 pub mod watcher;
 #[cfg(windows)]
 mod windows_rpc;

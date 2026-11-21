@@ -265,14 +265,15 @@
     "loadFailed": "Failed to load note"
   },
   "mcp": {
+    "topBarLabel": "AI agents",
     "title": "MCP automation",
-    "subtitle": "Control which automation tools can read or change this vault.",
+    "subtitle": "Choose what AI agents and automation tools may do with your notes.",
     "resetVaultMcp": "Reset vault MCP",
     "generateWithAi": "Generate with AI",
-    "disabledMessage": "MCP is disabled for this vault. Select a mode to expose tools.",
+    "disabledMessage": "AI agent access is off. Choose a level to let agents work with your notes.",
     "noToolsRegistered": "No MCP tools registered for the current server configuration.",
     "noRecipesAvailable": "No guided recipes are available for the current tools and active note.",
-    "enableReadOnly": "Enable MCP (Read-Only)",
+    "enableReadOnly": "Allow agents to read",
     "tabRecipes": "Recipes",
     "tabTools": "Tools",
     "tabDrafts": "Drafts",
@@ -293,10 +294,10 @@
     "tabSharing": "Sharing & sync",
     "authorizationSubtitle": "Choose what connected tools may do in this vault.",
     "authorizationHeading": "Vault authorization",
-    "authorizationScope": "These permissions apply only to the current vault.",
+    "authorizationScope": "This level applies to every vault you open on this device.",
     "authorizationLevelAria": "MCP authorization level",
     "modeOff": "Off",
-    "modeOffDescription": "No MCP tool can access the active vault.",
+    "modeOffDescription": "No agent or automation tool can access your vaults.",
     "modeReadOnly": "Read only",
     "modeReadOnlyDescription": "Tools may inspect vault content but cannot prepare or write changes.",
     "modeDraft": "Draft changes",
@@ -304,8 +305,8 @@
     "modeWriteApproved": "Approved writes",
     "modeWriteApprovedDescription": "Approved tools can change files in this vault. Use only with tools you trust.",
     "administration": "Administration",
-    "administrationDescription": "Reset disables MCP for the active vault without changing other vaults.",
-    "resetActiveVaultAuthorization": "Reset active-vault MCP authorization"
+    "administrationDescription": "Reset turns agent access off on this device.",
+    "resetActiveVaultAuthorization": "Turn agent access off"
   },
   "git": {
     "title": "Git",

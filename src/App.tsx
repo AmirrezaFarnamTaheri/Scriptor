@@ -114,6 +114,8 @@ import './styles/components/markdown-preview.css'
 import './styles/components/canvas-graph.css'
 import './App.css'
 import './styles/motion.css'
+const MCP_MODE_LABEL_KEYS = { off: 'mcp.modeOff', 'read-only': 'mcp.modeReadOnly', draft: 'mcp.modeDraft', 'write-approved': 'mcp.modeWriteApproved' } as const
+
 function App() {
   const { t } = useI18n()
   const localDate = useLocalDate()
@@ -1354,7 +1356,7 @@ function App() {
           }
           gitNeutral={!workspace.isGitStatusLoading && !workspace.gitStatusError && !workspace.gitStatus?.is_repo}
           onOpenGit={() => setPanel('gitPanelOpen', (open) => !open)}
-          mcpLabel={`MCP ${mcp.mode}`}
+          mcpLabel={`${t('mcp.topBarLabel')}: ${t(MCP_MODE_LABEL_KEYS[mcp.mode])}`}
           onOpenMcp={() => setPanel('mcpPanelOpen', (open) => !open)}
           onOpenSupport={() => setPanel('supportOpen', (open) => !open)}
           onOpenSettings={() => setPanel('settingsOpen', (open) => !open)}
