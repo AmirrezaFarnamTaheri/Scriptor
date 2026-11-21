@@ -38,6 +38,16 @@ function normalizeMcpMode(value: string | undefined, disabled?: boolean): McpMod
   return 'read-only'
 }
 
+const LEGACY_HIBERNATE_KEY = 'scriptor:hibernate-mcp'
+/** MCP "hibernation" was a second off-switch. Carry a paused state over to the
+ * access level once, so removing the toggle never turns agents back on. */
+async function migrateLegacyHibernation(): Promise<void> {
+  let paused: boolean
+  try { paused = localStorage.getItem(LEGACY_HIBERNATE_KEY) === 'true' } catch { return }
+  if (paused) await saveAgentAccessMode('off')
+  try { localStorage.removeItem(LEGACY_HIBERNATE_KEY) } catch { /* storage unavailable */ }
+}
+
 export function useMcpRuntime(
   vaultOpen: boolean,
   vaultId: string | undefined,
@@ -50,12 +60,11 @@ export function useMcpRuntime(
     pluginId: string,
     permission: import('@scriptor/core/contracts/plugin').PluginPermission['permission'],
   ) => boolean,
-  hibernated: boolean = false,
 ) {
   // Agent access is a per-user setting. The vault's own `mcp` config is ignored
   // so a cloned or shared vault cannot grant agents access.
   const [storedMode, setStoredMode] = useState<McpMode>('read-only')
-  const mode = normalizeMcpMode(storedMode, !vaultOpen || hibernated)
+  const mode = normalizeMcpMode(storedMode, !vaultOpen)
   const [lastResult, setLastResult] = useState<CommandResult | null>(null)
   const [snapshot, setSnapshot] = useState(0)
   const mcpMutationRevisionRef = useRef(0)
@@ -64,7 +73,8 @@ export function useMcpRuntime(
   useEffect(() => {
     mcpMutationRevisionRef.current += 1
     let cancelled = false
-    void loadAgentAccessMode()
+    void migrateLegacyHibernation()
+      .then(() => loadAgentAccessMode())
       .then((saved) => {
         if (cancelled || !saved) return
         storedModeRef.current = saved

@@ -246,7 +246,6 @@ function App() {
     editorThemeSyncedToApp,
     hibernateGit,
     hibernateGraph,
-    hibernateMcp,
     hibernateSpellcheck,
     hibernateWatcher,
     languageTool,
@@ -254,7 +253,6 @@ function App() {
     setDistractionFree,
     setHibernateGit,
     setHibernateGraph,
-    setHibernateMcp,
     setHibernateSpellcheck,
     setHibernateWatcher,
     setLanguageTool,
@@ -406,7 +404,6 @@ function App() {
     plugins.contributions.mcpTools,
     pluginCommandRuntime,
     plugins.canExecutePluginCommand,
-    hibernateMcp,
   )
   const storeSurface = useStoreSurfaceController({
     workspaceMode,
@@ -416,9 +413,8 @@ function App() {
     setStickiesVisible,
     setGraphDepth,
     setDistractionFree,
-    mcp,
-    hibernation: { graph: hibernateGraph, mcp: hibernateMcp, watcher: hibernateWatcher, git: hibernateGit, spellcheck: hibernateSpellcheck },
-    setHibernation: { graph: setHibernateGraph, mcp: setHibernateMcp, watcher: setHibernateWatcher, git: setHibernateGit, spellcheck: setHibernateSpellcheck },
+    hibernation: { graph: hibernateGraph, watcher: hibernateWatcher, git: hibernateGit, spellcheck: hibernateSpellcheck },
+    setHibernation: { graph: setHibernateGraph, watcher: setHibernateWatcher, git: setHibernateGit, spellcheck: setHibernateSpellcheck },
   })
   const ai = useAiProvider()
   const { saveApiKey: aiSaveApiKey, clearApiKey: aiClearApiKey } = ai
@@ -857,9 +853,7 @@ function App() {
         perfHudOpen,
         hibernateGraph,
         setHibernateGraph,
-        hibernateMcp,
-        setHibernateMcp,
-        hibernateWatcher,
+                hibernateWatcher,
         setHibernateWatcher,
         hibernateGit,
         setHibernateGit,
@@ -915,9 +909,7 @@ function App() {
       perfHudOpen,
       hibernateGraph,
       setHibernateGraph,
-      hibernateMcp,
-      setHibernateMcp,
-      hibernateWatcher,
+          hibernateWatcher,
       setHibernateWatcher,
       hibernateGit,
       setHibernateGit,
@@ -1612,8 +1604,6 @@ function App() {
         timeToFirstExportMs={journey.timeToFirstExportMs}
         hibernateGraph={hibernateGraph}
         onHibernateGraphChange={setHibernateGraph}
-        hibernateMcp={hibernateMcp}
-        onHibernateMcpChange={setHibernateMcp}
         hibernateWatcher={hibernateWatcher}
         onHibernateWatcherChange={setHibernateWatcher}
         hibernateGit={hibernateGit}
@@ -1745,9 +1735,7 @@ function App() {
           timeToFirstExportMs={journey.timeToFirstExportMs}
           hibernateGraph={hibernateGraph}
           onHibernateGraphChange={setHibernateGraph}
-          hibernateMcp={hibernateMcp}
-          onHibernateMcpChange={setHibernateMcp}
-          hibernateWatcher={hibernateWatcher}
+              hibernateWatcher={hibernateWatcher}
           onHibernateWatcherChange={setHibernateWatcher}
           hibernateGit={hibernateGit}
           onHibernateGitChange={setHibernateGit}

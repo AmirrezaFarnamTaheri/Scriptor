@@ -634,20 +634,17 @@ test.describe('Frontend polish regressions', () => {
     await expect(panel).toContainText(/Working tree|changed file/i)
   })
 
-  test('store surface owns live MCP and feature controls', async ({ page }) => {
+  test('store surface owns live feature controls; agent access lives only under AI agents', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('scriptor:workspace-chrome',
       JSON.stringify({ schemaVersion: 1, data: { inspectorCollapsed: false } })))
     await launchApp(page)
     await settleLayout(page)
 
     await page.getByRole('tab', { name: 'Tools' }).click()
-    await page.getByRole('tab', { name: 'MCP' }).click()
-    const readOnlyMode = page.getByRole('radio', { name: /Read-Only/i })
-    await expect(readOnlyMode).toBeEnabled()
-    await readOnlyMode.click()
-    await expect(readOnlyMode).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByRole('tab', { name: 'MCP' })).toHaveCount(0)
 
     await page.getByRole('tab', { name: 'Features' }).click()
     await expect(page.getByRole('button', { name: 'Toggle Vault file watcher' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Toggle MCP runtime' })).toHaveCount(0)
   })
 })

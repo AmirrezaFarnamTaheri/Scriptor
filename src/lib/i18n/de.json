@@ -571,29 +571,8 @@
     "pluginManagement": "Plugins finden und verwalten",
     "tabs": {
       "plugins": "Plugins",
-      "mcp": "MCP",
       "features": "Funktionen",
       "layouts": "Layouts"
-    },
-    "mcpUnavailable": "MCP-Steuerungen sind hier nicht verfügbar. Öffnen Sie den eigenen MCP-Bereich, um den Modus zu ändern.",
-    "mcpMode": "MCP-Modus",
-    "mcpModes": {
-      "off": {
-        "label": "Aus",
-        "description": "MCP ist deaktiviert; keine Werkzeuge werden bereitgestellt."
-      },
-      "readOnly": {
-        "label": "Nur Lesen",
-        "description": "Nur Such-, Lese- und Prüfwerkzeuge."
-      },
-      "draft": {
-        "label": "Entwurf",
-        "description": "KI darf Änderungen vorschlagen; Sie bestätigen sie."
-      },
-      "writeApproved": {
-        "label": "Schreiben (bestätigt)",
-        "description": "Bestätigte Änderungen werden direkt angewendet."
-      }
     },
     "availableTools": "Verfügbare Werkzeuge ({{count}})",
     "auditLog": "Audit-Protokoll ({{count}} Einträge)",

@@ -61,7 +61,6 @@ export function useEditorPreferences(appearance: ResolvedAppearance, initialLayo
   const [languageTool, setLanguageTool] = usePersistedBoolean('scriptor:language-tool', false)
 
   const [hibernateGraph, setHibernateGraph] = usePersistedBoolean('scriptor:hibernate-graph', false)
-  const [hibernateMcp, setHibernateMcp] = usePersistedBoolean('scriptor:hibernate-mcp', false)
   const [hibernateWatcher, setHibernateWatcher] = usePersistedBoolean('scriptor:hibernate-watcher', false)
   const [hibernateSpellcheck, setHibernateSpellcheck] = usePersistedBoolean('scriptor:hibernate-spellcheck', false)
   const [hibernateGit, setHibernateGit] = usePersistedBoolean('scriptor:hibernate-git', false)
@@ -120,7 +119,6 @@ export function useEditorPreferences(appearance: ResolvedAppearance, initialLayo
     editorThemeSyncedToApp: editorThemeOverride === null,
     hibernateGit,
     hibernateGraph,
-    hibernateMcp,
     hibernateSpellcheck,
     hibernateWatcher,
     languageTool,
@@ -128,7 +126,6 @@ export function useEditorPreferences(appearance: ResolvedAppearance, initialLayo
     setDistractionFree,
     setHibernateGit,
     setHibernateGraph,
-    setHibernateMcp,
     setHibernateSpellcheck,
     setHibernateWatcher,
     setLanguageTool,

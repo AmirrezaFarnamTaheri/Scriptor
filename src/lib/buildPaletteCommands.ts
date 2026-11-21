@@ -84,8 +84,6 @@ export interface PaletteCommandContext {
   perfHudOpen?: boolean
   hibernateGraph?: boolean
   setHibernateGraph?: (value: boolean) => void
-  hibernateMcp?: boolean
-  setHibernateMcp?: (value: boolean) => void
   hibernateWatcher?: boolean
   setHibernateWatcher?: (value: boolean) => void
   hibernateGit?: boolean
@@ -144,8 +142,6 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     perfHudOpen,
     hibernateGraph,
     setHibernateGraph,
-    hibernateMcp,
-    setHibernateMcp,
     hibernateWatcher,
     setHibernateWatcher,
     hibernateGit,
@@ -350,16 +346,6 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
             label: hibernateGraph ? 'Wake graph simulation subsystem' : 'Hibernate graph simulation subsystem',
             run: () => setHibernateGraph(!hibernateGraph),
             keywords: ['performance', 'battery', 'd3', 'force', 'cpu'],
-          } satisfies AppCommandDefinition,
-        ]
-      : []),
-    ...(setHibernateMcp
-      ? [
-          {
-            id: 'toggle-hibernate-mcp',
-            label: hibernateMcp ? 'Wake MCP subsystem' : 'Hibernate MCP subsystem',
-            run: () => setHibernateMcp(!hibernateMcp),
-            keywords: ['performance', 'battery', 'model', 'context', 'protocol'],
           } satisfies AppCommandDefinition,
         ]
       : []),

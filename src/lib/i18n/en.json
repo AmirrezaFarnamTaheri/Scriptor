@@ -571,29 +571,8 @@
     "pluginManagement": "Find and manage plugins",
     "tabs": {
       "plugins": "Plugins",
-      "mcp": "MCP",
       "features": "Features",
       "layouts": "Layouts"
-    },
-    "mcpUnavailable": "MCP controls are unavailable here. Open the dedicated MCP panel to change mode.",
-    "mcpMode": "MCP mode",
-    "mcpModes": {
-      "off": {
-        "label": "Off",
-        "description": "MCP disabled. No tools exposed."
-      },
-      "readOnly": {
-        "label": "Read-only",
-        "description": "Search, read, and inspect tools only."
-      },
-      "draft": {
-        "label": "Draft",
-        "description": "AI may propose patches; you approve."
-      },
-      "writeApproved": {
-        "label": "Write (approved)",
-        "description": "Approved patches apply directly."
-      }
     },
     "availableTools": "Available tools ({{count}})",
     "auditLog": "Audit log ({{count}} entries)",

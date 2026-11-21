@@ -24,6 +24,7 @@
 
 ### Improved
 
+- Removed the remaining duplicate agent switches: the Store "MCP" tab, the "MCP runtime" feature toggle, the status-bar MCP badge and the "Hibernate MCP subsystem" command. If you had paused MCP, agent access is set to Off once so nothing turns back on.
 - AI agent access has a single switch, the access level. The separate "Model Context Protocol (MCP)" plugin card is gone, and choosing a level other than Off clears any disable left by the old card. Plugin errors no longer claim a setting belongs to the current vault.
 - Website publishing now has one home, the Publishing studio. Export & publish handles files and links to the studio, which remembers your site folder per vault. The separate "Publish Starlight site" command is gone; search for "Publishing studio" or "website" instead.
 - AI agent access settings use plain wording and say correctly that the level applies to every vault on this device. The top bar shows "AI agents: <level>".

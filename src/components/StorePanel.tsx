@@ -14,9 +14,6 @@
 import { memo, useState } from 'react'
 import {
   Box,
-  Check,
-  ChevronRight,
-  Cpu,
   FlaskConical,
   LayoutTemplate,
   Lock,
@@ -30,8 +27,6 @@ import {
 } from 'lucide-react'
 
 import type { TemplatePackContribution } from '@scriptor/core/contracts/plugin'
-import type { McpMode } from '@scriptor/core/contracts/mcp'
-import type { McpToolDescriptor } from '@scriptor/core/contracts/mcp'
 import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
 import { contributionLabels, summarizePluginContributions } from '../lib/pluginContributions'
 import { summarizeLintIssues } from '../lib/vaultLintSummary'
@@ -46,7 +41,7 @@ import { useTablistKeys } from '../hooks/useTablistKeys'
 // Types
 // ---------------------------------------------------------------------------
 
-type StoreTab = 'plugins' | 'mcp' | 'features' | 'layouts'
+type StoreTab = 'plugins' | 'features' | 'layouts'
 const PLUGIN_SUBTABS = ['store-plugin-tab-installed', 'store-plugin-tab-marketplace'] as const
 
 export interface FeatureFlagEntry {
@@ -55,13 +50,6 @@ export interface FeatureFlagEntry {
   description: string
   enabled: boolean
   requiresRestart?: boolean
-}
-
-export interface McpAuditEntry {
-  toolName: string
-  commandId: string
-  outcome: 'allowed' | 'denied' | 'failed'
-  timestamp?: string
 }
 
 interface StorePanelProps {
@@ -82,13 +70,6 @@ interface StorePanelProps {
   ) => void
   onRevokeConsent: (pluginId: string) => void
   onInstallMarketplace: (pluginId: string) => void
-  // --- MCP tab ---
-  // Optional: hosts that do not own MCP state (e.g. the inspector rail) render
-  // the tab in its empty, read-only state rather than not at all.
-  mcpMode?: McpMode
-  mcpTools?: McpToolDescriptor[]
-  mcpAuditLog?: McpAuditEntry[]
-  onSetMcpMode?: (mode: McpMode) => void
   // --- Features tab ---
   featureFlags?: FeatureFlagEntry[]
   onToggleFeature?: (key: string, enabled: boolean) => void
@@ -137,123 +118,6 @@ function TabButton({
       {icon}
       {label}
     </button>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// MCP Tab
-// ---------------------------------------------------------------------------
-
-const MCP_MODES: Array<{ value: McpMode; labelKey: string; descriptionKey: string }> = [
-  { value: 'off', labelKey: 'store.mcpModes.off.label', descriptionKey: 'store.mcpModes.off.description' },
-  { value: 'read-only', labelKey: 'store.mcpModes.readOnly.label', descriptionKey: 'store.mcpModes.readOnly.description' },
-  { value: 'draft', labelKey: 'store.mcpModes.draft.label', descriptionKey: 'store.mcpModes.draft.description' },
-  { value: 'write-approved', labelKey: 'store.mcpModes.writeApproved.label', descriptionKey: 'store.mcpModes.writeApproved.description' },
-]
-
-function McpTab({
-  mcpMode,
-  mcpTools,
-  mcpAuditLog,
-  onSetMcpMode,
-}: Required<Pick<StorePanelProps, 'mcpMode' | 'mcpTools' | 'mcpAuditLog' | 'onSetMcpMode'>>) {
-  const { t } = useI18n()
-  const [showAudit, setShowAudit] = useState(false)
-  const interactive = onSetMcpMode !== noopSetMcpMode
-
-  return (
-    <div className="store-stack">
-      {!interactive ? (
-        <p className="store-hint">
-          {t('store.mcpUnavailable')}
-        </p>
-      ) : null}
-      {/* Mode selector */}
-      <section>
-        <h3
-          id="mcp-mode-label"
-          className="store-section-label"
-        >
-          {t('store.mcpMode')}
-        </h3>
-        <div
-          role="radiogroup"
-          aria-labelledby="mcp-mode-label"
-          className="store-stack-xs"
-        >
-          {MCP_MODES.map((m) => (
-            <button
-              key={m.value}
-              type="button"
-              role="radio"
-              aria-checked={mcpMode === m.value}
-              disabled={!interactive}
-              onClick={() => onSetMcpMode(m.value)}
-              className={`store-mode-option${mcpMode === m.value ? ' active' : ''}`}
-            >
-              {mcpMode === m.value
-                ? <Check size={14} color="var(--accent)" />
-                : <div className="store-check-spacer" />}
-              <div>
-                <div className="store-item-title">{t(m.labelKey)}</div>
-                <div className="store-item-desc">{t(m.descriptionKey)}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Tool list */}
-      {mcpMode !== 'off' && (
-        <section>
-          <h3 className="store-section-label">
-            {t('store.availableTools', { count: mcpTools.length })}
-          </h3>
-          <div className="store-scroll-list">
-            {mcpTools.map((tool) => (
-              <div
-                key={tool.name}
-                className="store-tool-row"
-              >
-                <Cpu size={12} className="store-icon-dim" />
-                <span className="store-mono">{tool.name}</span>
-                <span className="store-ellipsis">
-                  — {tool.description}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Audit log */}
-      <section>
-        <button
-          type="button"
-          aria-expanded={showAudit}
-          onClick={() => setShowAudit((s) => !s)}
-          className="store-audit-toggle"
-        >
-          <ChevronRight size={12} />
-          {t('store.auditLog', { count: mcpAuditLog.length })}
-        </button>
-        {showAudit && (
-          <div className="store-audit-list">
-            {mcpAuditLog.slice(0, 50).map((entry, i) => (
-              <div
-                key={i}
-                className={`store-audit-row${entry.outcome === 'denied' ? ' denied' : entry.outcome === 'failed' ? ' failed' : ''}`}
-              >
-                <span className="store-audit-outcome">
-                  {t(`store.auditOutcome.${entry.outcome}`)}
-                </span>
-                <span className="store-mono-dim">{entry.toolName}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
   )
 }
 
@@ -705,7 +569,6 @@ function PluginsTab({
 /** Tab order used for both rendering and Arrow-key navigation. */
 const STORE_TABS: Array<{ id: StoreTab; labelKey: string; icon: React.ReactNode; helpTopic: string }> = [
   { id: 'plugins', labelKey: 'store.tabs.plugins', icon: <Box size={13} />, helpTopic: 'plugins' },
-  { id: 'mcp', labelKey: 'store.tabs.mcp', icon: <Cpu size={13} />, helpTopic: 'mcp' },
   { id: 'features', labelKey: 'store.tabs.features', icon: <FlaskConical size={13} />, helpTopic: 'feature-flags' },
   { id: 'layouts', labelKey: 'store.tabs.layouts', icon: <LayoutTemplate size={13} />, helpTopic: 'layout-presets' },
 ]
@@ -713,12 +576,9 @@ const STORE_TABS: Array<{ id: StoreTab; labelKey: string; icon: React.ReactNode;
 const tabId = (tab: StoreTab) => `store-tab-${tab}`
 const panelId = (tab: StoreTab) => `store-panel-${tab}`
 
-// Stable empty fallbacks for hosts that do not own MCP / feature-flag state.
+// Stable empty fallbacks for hosts that do not own feature-flag state.
 // Module-level constants keep the tab props referentially stable across renders.
-const EMPTY_MCP_TOOLS: McpToolDescriptor[] = []
-const EMPTY_MCP_AUDIT: McpAuditEntry[] = []
 const EMPTY_FEATURE_FLAGS: FeatureFlagEntry[] = []
-const noopSetMcpMode = () => {}
 const noopToggleFeature = () => {}
 
 export const StorePanel = memo(function StorePanel(props: StorePanelProps) {
@@ -794,14 +654,6 @@ export const StorePanel = memo(function StorePanel(props: StorePanelProps) {
               onInstallMarketplace={props.onInstallMarketplace}
             />
           </>
-        )}
-        {activeTab === 'mcp' && (
-          <McpTab
-            mcpMode={props.mcpMode ?? 'off'}
-            mcpTools={props.mcpTools ?? EMPTY_MCP_TOOLS}
-            mcpAuditLog={props.mcpAuditLog ?? EMPTY_MCP_AUDIT}
-            onSetMcpMode={props.onSetMcpMode ?? noopSetMcpMode}
-          />
         )}
         {activeTab === 'features' && (
           <FeaturesTab
