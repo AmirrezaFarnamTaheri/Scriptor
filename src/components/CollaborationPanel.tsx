@@ -312,7 +312,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
   }
   return <UnifiedPanelShell title="Drive collaboration" ariaLabel="Drive collaboration" helpTopic="integrations" onClose={onClose} wide>
     <div className="collaboration-panel">
-      <p>Connected shared Markdown revisions sync automatically when both copies have a trusted common base. Concurrent edits and unknown histories require review; turning auto-sync off stops new automatic transfers.</p>
+      <p>Shared notes sync on their own. If both sides changed, you review the difference first.</p>
       <details className="collaboration-guidance">
         <summary>How sharing works and where data is stored</summary>
         <p>The Google sign-in requests Drive access. Scriptor confines these transfers to the folder you enter. Your credentials stay in the operating-system keychain.</p>
@@ -465,7 +465,7 @@ export default function CollaborationPanel({ path, vaultId, googleConfig, onClos
       </>}
       <details><summary>{t('collaborationUi.docsTitle')}</summary>
         {folderId && <CollaborationResources kind="docs" resources={documents} selectedId={docsId} busy={busy || !vaultId} canAccess={Boolean(account)} hasMore={Boolean(documentPage)} onSelect={id => { setDocsId(id); setDocsPreview(null); setDocsConsent(false) }} onBrowse={next => void run(current => browseResources(current, 'docs', next))} />}
-        <p>Live simultaneous editing remains in Google Docs itself. Scriptor can import reviewed text or create a plain-text copy, but cannot live-round-trip formatting or suggestions. This preserves text, not rich document fidelity. Comments, suggestions, history, layout, embedded media and access permissions do not transfer. Markdown syntax remains literal in exported plain-text copies. Existing Google documents are never overwritten.</p>
+        <p>Import a document's text, or send this note to Google Docs as a new plain-text copy. Only text moves: formatting, comments and suggestions stay in Docs, and existing documents are never overwritten.</p>
         <label>Google document ID<input value={docsId} disabled={busy} onChange={event => { setDocsId(event.target.value.trim()); setDocsPreview(null); setDocsConsent(false) }} autoComplete="off" /></label>
         <button disabled={busy || !folderId || !docsId || !path || !vaultId || !account} onClick={() => void run(async current => {
           const translated = translateGoogleDoc(await collaborationReadDocs(vaultId!, folderId, docsId))

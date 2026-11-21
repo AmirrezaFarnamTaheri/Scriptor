@@ -8,7 +8,6 @@ async function installExportFixture(page: Page) {
     const host = window as Window & {
       __TAURI_INTERNALS__: { invoke(command: string, args?: Record<string, unknown>, options?: unknown): Promise<unknown> }
       finishExportFixture?: () => void
-      finishPlanFixture?: () => void
     }
     const original = host.__TAURI_INTERNALS__.invoke.bind(host.__TAURI_INTERNALS__)
     let selectedVault = 'screenshot-vault'
@@ -32,7 +31,6 @@ async function installExportFixture(page: Page) {
         return { artifact_path: 'C:/vault/completed-offline.pdf', page_count: 2, warnings: [], duration_ms: 1 }
       }
       if (command === 'vault_publish_plan_starlight') {
-        if (sessionStorage.getItem('e2e:delay-publication-plan') === '1') await new Promise<void>(resolve => { host.finishPlanFixture = resolve })
         return { output: 'C:/reviewed-site', docs_dir: 'C:/reviewed-site/src/content/docs', plan: { new_items: [{ rel_path: 'Research Plan.md', content_hash: 'a'.repeat(64) }], changed: [], unchanged: [], orphaned: [] } }
       }
       if (command === 'plantuml_render') return { svg: '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"></svg>' }
@@ -99,26 +97,12 @@ test('a pending offline export blocks a competing palette profile and vault repl
   expect((await calls(page, 'export_pdf_inprocess'))[0].args.expectedVaultId).toBe('screenshot-vault')
 })
 
-test('a delayed publication plan cannot reopen or populate the publish center after an actual vault change', async ({ page }) => {
+test('site publishing is handed off from Export & publish to the Publishing studio', async ({ page }) => {
   await installExportFixture(page)
-  await page.evaluate(() => sessionStorage.setItem('e2e:delay-publication-plan', '1'))
-  await command(page, 'Publish Starlight site')
-  const prompt = page.getByRole('dialog', { name: 'Plan Starlight publish', exact: true })
-  await prompt.getByRole('button', { name: 'Review plan', exact: true }).click()
-  await expect.poll(async () => (await calls(page, 'vault_publish_plan_starlight')).length).toBe(1)
-  await command(page, 'Publish Starlight site')
-  await expect(page.getByText('A publication operation is already running. Wait for it to finish before reviewing another plan.', { exact: true })).toBeVisible()
-  expect(await calls(page, 'vault_publish_plan_starlight')).toHaveLength(1)
-  await expect(prompt).toHaveCount(0)
-  await chooseAnotherVault(page)
-  await expect.poll(async () => (await calls(page, 'vault_open')).length).toBe(1)
-  await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible()
-  await expect(page.getByRole('complementary', { name: 'Vault', exact: true }).getByText('Next vault', { exact: true })).toBeVisible()
-  await page.evaluate(() => (window as Window & { finishPlanFixture: () => void }).finishPlanFixture())
   const panel = await publishCenter(page)
-  await expect(panel.getByRole('button', { name: 'Plan site publish', exact: true })).toBeVisible()
-  expect(await calls(page, 'vault_publish_apply_starlight')).toHaveLength(0)
-  expect((await calls(page, 'vault_publish_plan_starlight'))[0].args.expectedVaultId).toBe('screenshot-vault')
+  await panel.getByRole('button', { name: 'Open Publishing studio', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Publishing studio', exact: true })).toBeVisible()
+  expect(await calls(page, 'vault_publish_plan_starlight')).toHaveLength(0)
 })
 
 test('previewing a diagram export writes no assets, and repeated exports preserve existing diagram files', async ({ page }, testInfo) => {

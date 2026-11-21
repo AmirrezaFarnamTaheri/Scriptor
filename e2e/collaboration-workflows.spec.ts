@@ -40,7 +40,7 @@ test('default-on automatic checks stop immediately when the user turns them off'
   await page.clock.install()
   await page.addInitScript(() => sessionStorage.setItem('e2e:poll-delay', '1'))
   const panel = await open(page)
-  const auto = panel.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })
+  const auto = panel.getByRole('checkbox', { name: 'Auto-sync this shared note' })
   await expect(auto).toBeChecked()
   await expect.poll(() => calls(page, 'collaboration_poll_read')).toHaveLength(1)
   await auto.uncheck()
@@ -54,7 +54,7 @@ test('default-on automatic checks stop immediately when the user turns them off'
 
 test('Explicit Google Drive Auto-sync Off survives a panel reload', async ({ page }) => {
   const panel = await open(page)
-  const toggle = panel.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })
+  const toggle = panel.getByRole('checkbox', { name: 'Auto-sync this shared note' })
   await expect(toggle).toBeChecked()
   await toggle.uncheck()
   const before = (await calls(page, 'collaboration_poll_start')).length
@@ -64,14 +64,14 @@ test('Explicit Google Drive Auto-sync Off survives a panel reload', async ({ pag
   const reopened = page.getByRole('region', { name: 'Drive collaboration', exact: true })
   // This fixture does not persist vault config; reselect the same folder.
   await reopened.getByLabel('Shared folder ID', { exact: true }).fill('shared-folder')
-  await expect(reopened.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })).not.toBeChecked()
+  await expect(reopened.getByRole('checkbox', { name: 'Auto-sync this shared note' })).not.toBeChecked()
   expect((await calls(page, 'collaboration_poll_start')).length).toBe(before)
 })
 
 test('auto-sync is scoped to the selected folder; switching safely stops the previous lease', async ({ page }) => {
   await page.clock.install()
   const panel = await open(page)
-  const auto = panel.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })
+  const auto = panel.getByRole('checkbox', { name: 'Auto-sync this shared note' })
   await expect.poll(() => calls(page, 'collaboration_poll_read')).toHaveLength(1)
   await auto.uncheck()
   await panel.getByLabel('Shared folder ID', { exact: true }).fill('another-folder')
@@ -123,7 +123,7 @@ test('automatic checks back off and stop after three errors without provider wri
   await page.clock.install()
   await page.addInitScript(() => sessionStorage.setItem('e2e:poll-failure', '1'))
   const panel = await open(page)
-  await expect(panel.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })).toBeChecked()
+  await expect(panel.getByRole('checkbox', { name: 'Auto-sync this shared note' })).toBeChecked()
   await expect(panel.getByRole('status').filter({ hasText: 'next attempt in 20 seconds' })).toContainText('next attempt in 20 seconds')
   await page.clock.fastForward(21_000)
   await expect(panel.getByRole('status').filter({ hasText: 'next attempt in 40 seconds' })).toContainText('next attempt in 40 seconds')
@@ -136,7 +136,7 @@ test('automatic checks back off and stop after three errors without provider wri
 test('legacy Google Docs revisions can be monitored by default but never shared non-atomically', async ({ page }) => {
   await page.clock.install()
   const panel = await open(page)
-  const auto = panel.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })
+  const auto = panel.getByRole('checkbox', { name: 'Auto-sync this shared note' })
   await auto.uncheck()
   await panel.getByLabel('Where shared versions are saved', { exact: true }).selectOption('google_docs')
   await expect(panel.getByRole('button', { name: 'Share saved version', exact: true })).toBeDisabled()

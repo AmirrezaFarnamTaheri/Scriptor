@@ -23,16 +23,14 @@ test('all note-exploration entry points share one short localized name', () => {
 
 test('prominent help text favors actions over implementation jargon in every locale', () => {
   const paths = [
-    'settingsPanel.subtitle', 'settings.vaultConfig', 'settings.workspaceChrome',
-    'settings.panelPresentation', 'settings.enableInboxTriage',
+    'settingsPanel.subtitle', 'settings.vaultConfig',     'settings.enableInboxTriage',
     'knowledge.subtitle', 'knowledge.discoverDescription',
     'inspector.preset.balanced.description', 'inspector.previewSyncActive',
     'inspector.publishingHint', 'integrations.google.resourceHelp',
     'integrations.gmail.subtitle', 'integrations.gmail.connectionStatus',
-    'mcp.subtitle', 'mcp.authorizationSubtitle', 'mcp.recipesDescription',
+    'mcp.authorizationSubtitle', 'mcp.recipesDescription',
     'graph.computingLayout', 'graph.pausedDescription',
-    'store.pluginManagement', 'store.runtimeReady',
-    'pluginManager.installerProfile', 'themeCustomizer.title',
+    'store.pluginManagement',     'pluginManager.installerProfile', 'themeCustomizer.title',
     'themeCustomizer.livePreview', 'themeCustomizer.loadPreset',
     'advancedSettings.description',
   ]
@@ -107,11 +105,10 @@ test('major workflow explanations avoid internal-only language', () => {
 
 test('everyday settings, sharing and planning labels stay clear in all shipped languages', () => {
   const keys = [
-    'settings.subtitle', 'settingsPanel.persistence', 'settingsPanel.workspaceChrome',
+    'settingsPanel.persistence', 'settingsPanel.workspaceChrome',
     'settingsPanel.resetWorkspaceChrome', 'settingsPanel.saveVaultConfig',
     'settingsPanel.configLoaded', 'settingsPanel.configSaved', 'settingsPanel.configReadFailed',
-    'editor.error.detail', 'editor.empty.openBody', 'store.layoutHint',
-    'plannerWorkspace.explanation', 'plannerWorkspace.reviewSync',
+    'editor.error.detail', 'editor.empty.openBody',     'plannerWorkspace.explanation', 'plannerWorkspace.reviewSync',
     'appearanceSettings.blurNone', 'integrations.google.clientLifecycle',
   ]
   for (const key of keys) {
@@ -159,7 +156,7 @@ test('routine editor tools and update guidance use plain, concrete language', ()
   for (const locale of ['en', 'de', 'fa']) {
     for (const key of [
       'advancedSettings.updatesHelp', 'advancedSettings.systemMetadata',
-      'settings.systemMetadataAvailable', 'editor.transforms.markOrganized',
+      'editor.transforms.markOrganized',
       'inspector.health.orphanAssets', 'inspector.health.cacheStale', 'aiSettings.description',
     ]) {
       const value = get(locale, key)

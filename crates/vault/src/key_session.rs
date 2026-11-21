@@ -6,9 +6,9 @@
 //! duration.  When the TTL expires — or when the vault is locked, the window
 //! blurs, or the user explicitly locks — the key is zeroized.
 //!
-//! Callers gate every decrypt operation with `SensitiveOperation::DecryptContent`
-//! via `permissions::check` *before* calling [`KeySession::open`].  The session
-//! does not re-check permissions; that is the caller's responsibility.
+//! Callers gate every decrypt operation (the desktop authorization broker, or the
+//! trusted CLI) *before* calling [`KeySession::open`].  The session does not
+//! re-check permissions; that is the caller's responsibility.
 //!
 //! # Thread-safety
 //!

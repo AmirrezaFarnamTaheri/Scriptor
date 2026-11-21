@@ -87,7 +87,7 @@ export function CaptureReviewerPanel({vaultOpen,vaultId,onClose,onSaved,embedded
     </section> : error ? <p role="alert">{error}</p> : null}
     {savedCapture?.vaultId===vaultId ? <section aria-label="Research workflow next steps">
       <h3>Continue your research draft</h3>
-      <p>Saved capture: <code>{savedCapture.path}</code>. Source ID: <code>{savedCapture.sourceId}</code>. Next, review the citation key in your bibliography, link the passage to a literature note, and cite that key in your manuscript before exporting. These later steps are not verified by this capture.</p>
+      <p>Saved capture: <code>{savedCapture.path}</code>. Source ID: <code>{savedCapture.sourceId}</code>. Next: check the citation key in your bibliography, then cite it in your draft.</p>
     </section> : null}
     {source?<>
       <p>Source: <a href={source} target="_blank" rel="noreferrer">{source}</a></p>

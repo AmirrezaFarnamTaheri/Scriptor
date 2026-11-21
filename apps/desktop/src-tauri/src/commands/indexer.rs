@@ -48,7 +48,7 @@ fn require_graph_capability<'a>(
     if plugin_state.is_enabled("scriptor.graph") {
         Ok(session)
     } else {
-        Err("Plugin capability 'scriptor.graph' is disabled in active vault".into())
+        Err("Plugin capability 'scriptor.graph' is turned off. Turn it on in Plugins".into())
     }
 }
 

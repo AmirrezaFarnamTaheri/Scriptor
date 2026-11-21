@@ -8,6 +8,7 @@ pub mod handler;
 pub mod index_job;
 pub mod locks;
 pub mod transport;
+mod vault_binding;
 pub mod watcher;
 #[cfg(windows)]
 mod windows_rpc;
@@ -32,6 +33,7 @@ pub use transport::{
 pub struct SharedRpcClient;
 
 static SHARED_RPC_CLIENT: SharedRpcClient = SharedRpcClient;
+static SHARED_BOUND_VAULT: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
 pub fn shared_rpc_client() -> &'static SharedRpcClient {
     &SHARED_RPC_CLIENT
@@ -47,14 +49,26 @@ impl SharedRpcClient {
         request: RpcRequest,
         timeout: Duration,
     ) -> Result<RpcResponse, IpcError> {
+        // The per-process vault binding lives here, above the platform split,
+        // so Windows named pipes and Unix sockets attach expected_vault_id alike.
+        let mut request = request;
+        if request.method.is_vault_scoped()
+            && request.expected_vault_id.is_none()
+            && let Some(id) = locks::lock_recover(&SHARED_BOUND_VAULT).clone()
+        {
+            request.expected_vault_id = Some(id);
+        }
         #[cfg(windows)]
-        {
-            windows_rpc::call_with_timeout(request, timeout)
-        }
+        let response = windows_rpc::call_with_timeout(request, timeout)?;
         #[cfg(not(windows))]
+        let response = client::shared_rpc_client().call_with_timeout(request, timeout)?;
+        if let scriptor_ipc::RpcResult::Ok(scriptor_ipc::RpcPayload::VaultOpened {
+            vault_id, ..
+        }) = &response.result
         {
-            client::shared_rpc_client().call_with_timeout(request, timeout)
+            *locks::lock_recover(&SHARED_BOUND_VAULT) = Some(vault_id.clone());
         }
+        Ok(response)
     }
 
     pub fn reset(&self) {

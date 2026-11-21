@@ -1,8 +1,6 @@
 interface SubsystemTogglesProps {
   graph: boolean
   onGraphChange: (enabled: boolean) => void
-  mcp: boolean
-  onMcpChange: (enabled: boolean) => void
   watcher: boolean
   onWatcherChange: (enabled: boolean) => void
   git: boolean
@@ -14,8 +12,6 @@ interface SubsystemTogglesProps {
 export function SubsystemToggles({
   graph,
   onGraphChange,
-  mcp,
-  onMcpChange,
   watcher,
   onWatcherChange,
   git,
@@ -25,7 +21,6 @@ export function SubsystemToggles({
 }: SubsystemTogglesProps) {
   const subsystems = [
     { label: 'Graph', title: 'Graph simulation', hibernated: graph, onChange: onGraphChange },
-    { label: 'MCP', title: 'MCP', hibernated: mcp, onChange: onMcpChange },
     { label: 'Watch', title: 'Watcher', hibernated: watcher, onChange: onWatcherChange },
     { label: 'Git', title: 'Git polling', hibernated: git, onChange: onGitChange },
     { label: 'Spell', title: 'Spellcheck', hibernated: spellcheck, onChange: onSpellcheckChange },

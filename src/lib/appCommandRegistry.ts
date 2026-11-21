@@ -47,7 +47,6 @@ export type AppCommandId =
   | 'insert-footnote'
   | 'toggle-perf-hud'
   | 'toggle-hibernate-graph'
-  | 'toggle-hibernate-mcp'
   | 'toggle-hibernate-watcher'
   | 'toggle-hibernate-git'
   | 'toggle-hibernate-spellcheck'

@@ -10,11 +10,18 @@ import '../styles/components/research-studio.css'
 import '../styles/components/publishing-studio.css'
 
 export interface PublishingStudioPanelProps { vaultId: string; onClose(): void; onOpenNote(path: string): void; runSourceNoteMutation(sourcePath: string, runMutation: () => Promise<void>): Promise<boolean> }
+const folderKey = (vaultId: string) => `scriptor:publishing-folder:${vaultId}`
+function readRememberedFolder(vaultId: string): string {
+  try { return localStorage.getItem(folderKey(vaultId)) ?? '' } catch { return '' }
+}
+function rememberFolder(vaultId: string, folder: string) {
+  try { localStorage.setItem(folderKey(vaultId), folder) } catch { /* storage unavailable */ }
+}
 export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceNoteMutation }: PublishingStudioPanelProps) {
   const [notes, setNotes] = useState<ViewNoteHit[]>([])
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
-  const [output, setOutput] = useState('')
+  const [output, setOutput] = useState(() => readRememberedFolder(vaultId))
   const [review, setReview] = useState<{ requested: string; site: StarlightPublishPlanOutput } | null>(null)
   const [preview, setPreview] = useState<NoteDocument | null>(null)
   const [busy, setBusy] = useState(false)
@@ -50,6 +57,7 @@ export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceN
     const requested = output.trim()
     if (!requested) throw new Error('Choose a local site folder')
     const next = await vaultPublishPlanStarlight(requested, vaultId)
+    rememberFolder(vaultId, requested)
     if (mounted.current) setReview({ requested, site: next })
   }
   async function read(path: string) {
@@ -83,7 +91,7 @@ export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceN
     } finally { currentJob.current = null; if (mounted.current) { setRunningJob(null); if (deploy) setApiToken('') } }
   }
   return <UnifiedPanelShell title="Publishing studio" ariaLabel="Publishing studio" helpTopic="export" onClose={onClose} wide className="publishing-studio">
-    <p>Only notes marked <code>publish: true</code> can be included. Review changes before building or publishing.</p>
+    <p>Notes marked <code>publish: true</code> are included. Pick a folder, review the changes, then build.</p>
     <div className="research-controls">
       <label>Local site folder<input dir="ltr" value={output} disabled={busy} maxLength={4096} placeholder="Absolute folder path" onChange={event => setOutput(event.target.value)} /></label>
       <button disabled={busy || !output.trim()} onClick={() => void action(replan)}>Review publication plan</button>
@@ -104,7 +112,7 @@ export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceN
       })} />
       <div className="research-controls"><button disabled={busy} onClick={() => void action(() => runJob(false))}>Build local site</button>{busy && runningJob && <button onClick={() => void publishingCancelJob(runningJob, vaultId).catch(reason => setError(String(reason)))}>Cancel build or deployment</button>}</div>
       <details><summary>Cloudflare Pages deployment and custom domain</summary>
-        <p>Use an existing Pages project and installed Wrangler. The token stays in memory for this action. Domain attachment reports provider status; DNS remains a separate configuration step.</p>
+        <p>Needs an existing Cloudflare Pages project and Wrangler installed. The token is used once and not saved.</p>
         <div className="research-controls">
           <label>Account ID<input dir="ltr" value={accountId} maxLength={32} disabled={busy} onChange={event => setAccountId(event.target.value.trim())} /></label>
           <label>Project name<input dir="ltr" value={project} maxLength={63} disabled={busy} onChange={event => setProject(event.target.value.trim())} /></label>

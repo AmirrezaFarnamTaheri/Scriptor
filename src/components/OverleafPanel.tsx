@@ -189,10 +189,10 @@ export function OverleafPanel({ document, onClose, onApplied, initialTarget, onD
   return <div className="modal-backdrop"><section className="modal-card overleaf-panel" ref={dialog} role="dialog" aria-modal="true" aria-label="Overleaf source sync" data-help-topic="git">
     <header><h2>Overleaf source sync</h2><button type="button" aria-label="Close Overleaf sync" title="Close" onClick={onClose}><X aria-hidden="true" size={18} /></button></header>
     <div className="overleaf-panel-body" dir="auto">
-    <p>Linked source files sync automatically when both copies share a known common revision. First-time differences and concurrent edits require review. Only this file is exchanged; the rest of the Overleaf project stays untouched.</p>
+    <p>This file syncs with Overleaf on its own. The first sync, and any edit made on both sides, waits for your review. Nothing else in the project is touched.</p>
     <details className="overleaf-requirements">
       <summary>Connection requirements and limits</summary>
-      <p>Overleaf Cloud Git access requires an eligible paid plan and a Git token stored in your operating-system credential manager with username “git”. Scriptor does not import browser sessions or passwords.</p>
+      <p>Needs an Overleaf plan with Git access and a Git token saved in your system credential manager under the username “git”.</p>
       <p>Only the selected UTF-8 .tex, .ltx or .bib file is exchanged. Figures, included files, and compiler settings remain in their projects. Existing remote edits are never force-pushed.</p>
     </details>
     <h3 className="overleaf-step-heading">1. Choose the remote file</h3>
@@ -212,8 +212,8 @@ export function OverleafPanel({ document, onClose, onApplied, initialTarget, onD
         setAutoChoice({ key: autoTarget.key, enabled })
         if (!enabled) setStatus('Overleaf auto-sync is off for this project file. Manual review and sharing remain available.')
       } catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)) }
-    }} />Auto-sync this Overleaf source (on by default)</label>}
-    {autoTarget && <p className="health-subtitle">Checks this source while this panel is open. Only changes with a known, unchanged shared base sync automatically; concurrent edits require review. Turning Off is remembered for this project.</p>}
+    }} />Auto-sync with Overleaf</label>}
+    {autoTarget && <p className="health-subtitle">Checks for changes while this panel is open. Turning it off is remembered for this project.</p>}
     <button type="button" disabled={busy || !project.trim() || !remotePath.trim()} onClick={fetchRemote}>Fetch remote source preview</button>
     {!error && <p role="status" className="overleaf-current-status">{status}</p>}
     {error && <div className="overleaf-operation-error" role="alert">

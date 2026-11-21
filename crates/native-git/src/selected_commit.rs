@@ -6,7 +6,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use scriptor_system_bridge::{ProcessReceipt, ProcessSpec, run_process};
 
 use crate::error::GitError;
-use crate::status::{GitCommitOutput, GitStatus, git_status, run_git};
+use crate::status::{
+    GitCommitOutput, GitStatus, UNTRUSTED_REPOSITORY_OVERRIDES, ensure_supported_git_version,
+    git_status, run_git,
+};
 
 /// Commit a reviewed set of paths without bypassing Git's normal commit
 /// machinery. Ordinary selected-file commits use a temporary index so
@@ -317,7 +320,9 @@ fn run_git_receipt_with_index(
     args: &[&str],
     index: &Path,
 ) -> Result<ProcessReceipt, GitError> {
+    ensure_supported_git_version()?;
     let mut spec = ProcessSpec::new("git")
+        .args(UNTRUSTED_REPOSITORY_OVERRIDES)
         .args(args.iter().copied())
         .current_dir(repo_root)
         .timeout(Duration::from_secs(30))

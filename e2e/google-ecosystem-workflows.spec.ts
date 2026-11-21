@@ -69,7 +69,7 @@ test('Drive keeps important account and cache privacy details available without 
   await details.locator('summary').click()
   await expect(details).toHaveAttribute('open', '')
   await expect(panel.getByText('The last shared ancestor and this note’s peer identity', { exact: false })).toBeVisible()
-  await expect(panel.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })).toBeChecked()
+  await expect(panel.getByRole('checkbox', { name: 'Auto-sync this shared note' })).toBeChecked()
   await expect.poll(async () => (await calls(page)).filter(call => call.cmd === 'collaboration_poll_read').length).toBeGreaterThan(0)
 })
 
@@ -84,7 +84,7 @@ test('Drive switches accounts while auto-sync is on without reusing the old acco
   await expect(panel.getByText('switched@example.com', { exact: false })).toBeVisible()
   await expect.poll(async () => (await calls(page)).filter(call => call.cmd === 'collaboration_poll_stop').length).toBeGreaterThanOrEqual(1)
   await expect.poll(async () => (await calls(page)).filter(call => call.cmd === 'collaboration_poll_start').length).toBeGreaterThanOrEqual(2)
-  await expect(panel.getByRole('checkbox', { name: 'Auto-sync this shared note (on by default)' })).toBeChecked()
+  await expect(panel.getByRole('checkbox', { name: 'Auto-sync this shared note' })).toBeChecked()
 })
 
 test('Drive discovers and deduplicates folders, authorizes creation, and persists its transport after reopening', async ({ page }, testInfo) => {

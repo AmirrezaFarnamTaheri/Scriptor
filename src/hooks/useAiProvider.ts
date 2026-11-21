@@ -13,6 +13,8 @@ export type AiProviderId = 'openai-compatible' | 'off'
 
 const PROVIDER_KEY = 'scriptor.ai.provider'
 const ENDPOINT_KEY = 'scriptor.ai.endpoint'
+const MODEL_KEY = 'scriptor.ai.model'
+export const DEFAULT_AI_MODEL = 'gpt-4o-mini'
 const REQUEST_TIMEOUT_MS = 30_000
 
 function readProvider(): AiProviderId {
@@ -26,9 +28,15 @@ function readEndpoint(): string {
   return window.localStorage.getItem(ENDPOINT_KEY) ?? 'https://api.openai.com/v1/chat/completions'
 }
 
+function readModel(): string {
+  if (typeof window === 'undefined') return DEFAULT_AI_MODEL
+  return window.localStorage.getItem(MODEL_KEY) ?? DEFAULT_AI_MODEL
+}
+
 export function useAiProvider() {
   const [provider, setProviderState] = useState<AiProviderId>(readProvider)
   const [endpoint, setEndpointState] = useState(readEndpoint)
+  const [model, setModelState] = useState(readModel)
   const [hasApiKey, setHasApiKey] = useState(false)
   const [busy, setBusy] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
@@ -100,6 +108,11 @@ export function useAiProvider() {
     window.localStorage.setItem(ENDPOINT_KEY, next)
   }, [])
 
+  const setModel = useCallback((next: string) => {
+    setModelState(next)
+    window.localStorage.setItem(MODEL_KEY, next)
+  }, [])
+
   const saveApiKey = useCallback(async (secret: string) => {
     setBusy(true)
     setLastError(null)
@@ -153,7 +166,7 @@ export function useAiProvider() {
       const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
       try {
         return await Promise.race([
-          aiProviderProposeDraft(endpoint, prompt, currentMarkdown),
+          aiProviderProposeDraft(endpoint, prompt, currentMarkdown, model),
           new Promise<never>((_, reject) => {
             controller.signal.addEventListener(
               'abort',
@@ -167,7 +180,7 @@ export function useAiProvider() {
         abortControllersRef.current.delete(controller)
       }
     },
-    [endpoint, provider],
+    [endpoint, model, provider],
   )
 
   const enabled = useMemo(() => provider !== 'off' && hasApiKey, [hasApiKey, provider])
@@ -175,6 +188,7 @@ export function useAiProvider() {
   return {
     provider,
     endpoint,
+    model,
     hasApiKey,
     enabled,
     busy,
@@ -182,6 +196,7 @@ export function useAiProvider() {
     httpWarning,
     setProvider,
     setEndpoint,
+    setModel,
     saveApiKey,
     clearApiKey,
     refreshKeyState,

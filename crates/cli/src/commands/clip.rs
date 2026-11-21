@@ -3,9 +3,9 @@
 //! Invokes the `scriptor-capture` pipeline (W3-4) to fetch, sanitize, extract,
 //! and convert a URL to Markdown, then writes through `vault/src/fs.rs` (I-1).
 //!
-//! Permission gate: the CLI is always a trusted process, so `SensitiveOperation::WebClip`
-//! is enforced at documentation level; the full F-4 runtime gate will be wired
-//! once `crates/vault/src/permissions.rs` ships its `WebClip` variant.
+//! Permission gate: the CLI is always a trusted process and has no native
+//! consent dialog; the desktop app gates the same capture with its `WebClip`
+//! authorization.
 
 use std::path::PathBuf;
 

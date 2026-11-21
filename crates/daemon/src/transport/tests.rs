@@ -158,6 +158,26 @@ fn accept_and_handle_n(
     }
 }
 
+/// Bind a fresh client to the vault the test daemon already holds, the way real
+/// clients do by opening it before any vault-scoped call.
+fn bind_client_to_vault(client: &crate::client::DaemonRpcClient, vault_path: &str) {
+    let response = client
+        .call(RpcRequest::new(
+            9_000,
+            RpcMethod::OpenVault {
+                path: vault_path.to_string(),
+            },
+        ))
+        .expect("bind client to vault");
+    assert!(
+        matches!(
+            response.result,
+            RpcResult::Ok(RpcPayload::VaultOpened { .. })
+        ),
+        "bind failed: {response:?}"
+    );
+}
+
 #[test]
 fn endpoint_roundtrip() {
     let _guard = endpoint_lock();
@@ -407,6 +427,8 @@ fn event_listener_recovers_after_failed_connection() {
     let config_json = r#"{"daily_note":{"directory":"notes","filename_format":"{iso}","title_format":"{iso}","template_path":null}}"#;
     std::fs::write(dir.path().join(".scriptor/config.json"), config_json).expect("write config");
     let vault_path = dir.path().display().to_string();
+    #[allow(unused_variables)]
+    let client_vault_path = vault_path.clone();
 
     let (socket, _socket_dir) = test_socket_name();
     let mut pipe_guard = PipeGuard::new(&socket);
@@ -472,6 +494,7 @@ fn event_listener_recovers_after_failed_connection() {
     );
 
     let reloader = crate::client::DaemonRpcClient::new();
+    bind_client_to_vault(&reloader, &client_vault_path);
     reloader
         .call(RpcRequest::new(51, RpcMethod::ReloadConfig))
         .expect("reload rpc");
@@ -646,6 +669,8 @@ fn ping_succeeds_during_background_export() {
     let dir = tempfile::tempdir().expect("tempdir");
     std::fs::write(dir.path().join("alpha.md"), "# Alpha\n\nBody\n").expect("write");
     let vault_path = dir.path().display().to_string();
+    #[allow(unused_variables)]
+    let client_vault_path = vault_path.clone();
 
     let (socket, _socket_dir) = test_socket_name();
     let mut pipe_guard = PipeGuard::new(&socket);
@@ -684,6 +709,7 @@ fn ping_succeeds_during_background_export() {
     // export job is running in the background while the same authenticated
     // session remains available for a Ping.
     let client = crate::client::DaemonRpcClient::new();
+    bind_client_to_vault(&client, &client_vault_path);
     let export_resp = client
         .call(RpcRequest::new(
             32,
@@ -728,6 +754,8 @@ fn reload_config_broadcasts_config_json_to_connected_clients() {
     let config_json = r#"{"daily_note":{"directory":"notes","filename_format":"{iso}","title_format":"{iso}","template_path":null}}"#;
     std::fs::write(dir.path().join(".scriptor/config.json"), config_json).expect("write config");
     let vault_path = dir.path().display().to_string();
+    #[allow(unused_variables)]
+    let client_vault_path = vault_path.clone();
 
     let (socket, _socket_dir) = test_socket_name();
     let mut pipe_guard = PipeGuard::new(&socket);
@@ -775,6 +803,7 @@ fn reload_config_broadcasts_config_json_to_connected_clients() {
     std::thread::sleep(Duration::from_millis(100));
 
     let reloader = crate::client::DaemonRpcClient::new();
+    bind_client_to_vault(&reloader, &client_vault_path);
     let response = reloader
         .call(RpcRequest::new(41, RpcMethod::ReloadConfig))
         .expect("reload rpc");
@@ -884,7 +913,11 @@ fn daemon_git_status_rejects_stale_identity_but_accepts_originating_vault() {
 
     let stale = dispatch_git_status_sync(&state, 903, "another-vault");
     assert!(
-        format!("{:?}", stale.result).contains("Git status vault identity mismatch"),
+        {
+            let rendered = format!("{:?}", stale.result);
+            rendered.contains("Git status vault identity mismatch")
+                || rendered.contains("rpc.vault_mismatch")
+        },
         "a stale RPC must not read the active vault"
     );
 
@@ -1016,9 +1049,34 @@ fn authenticated_clients_keep_git_status_bound_after_another_client_switches_vau
         )
         .expect("client A receives an explicit denial, not a transport error");
     assert!(
-        format!("{:?}", stale.result).contains("Git status vault identity mismatch"),
+        {
+            let rendered = format!("{:?}", stale.result);
+            rendered.contains("Git status vault identity mismatch")
+                || rendered.contains("rpc.vault_mismatch")
+        },
         "client A must never receive vault B's status after the switch: {:?}",
         stale.result
+    );
+
+    // Writes from the stale client are rejected too, not redirected to vault B.
+    let stale_save = client_a
+        .call_with_timeout(
+            RpcRequest::new(
+                910,
+                RpcMethod::SaveNote {
+                    path: "redirected.md".into(),
+                    markdown: "# must not land in vault B\n".into(),
+                    expected_content_hash: None,
+                    dry_run: false,
+                },
+            ),
+            timeout,
+        )
+        .expect("stale save receives an explicit denial");
+    assert!(
+        format!("{:?}", stale_save.result).contains("rpc.vault_mismatch"),
+        "stale SaveNote must be rejected: {:?}",
+        stale_save.result
     );
 
     let current = client_b
@@ -1104,4 +1162,22 @@ fn outside_lock_git_preview_reads_reject_stale_and_missing_vault_identity() {
         "matching vault identity must still permit a read-only preview: {:?}",
         allowed.result
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn socket_directory_is_created_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = tempfile::tempdir().expect("tempdir");
+    let nested = root.path().join("a").join("b");
+    create_private_dir(&nested).expect("create private dir");
+    for dir in [root.path().join("a"), nested] {
+        let mode = fs::metadata(&dir).expect("metadata").permissions().mode() & 0o777;
+        assert_eq!(
+            mode & 0o077,
+            0,
+            "{} must not grant group/other access",
+            dir.display()
+        );
+    }
 }

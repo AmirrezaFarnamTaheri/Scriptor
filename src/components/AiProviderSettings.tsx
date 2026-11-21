@@ -5,12 +5,14 @@ import { useI18n } from '../lib/i18n'
 interface AiProviderSettingsProps {
   provider: AiProviderId
   endpoint: string
+  model: string
   hasApiKey: boolean
   busy: boolean
   lastError: string | null
   httpWarning?: string | null
   onProviderChange: (provider: AiProviderId) => void
   onEndpointChange: (endpoint: string) => void
+  onModelChange: (model: string) => void
   onSaveApiKey: (secret: string) => void
   onClearApiKey: () => void
 }
@@ -18,12 +20,14 @@ interface AiProviderSettingsProps {
 export const AiProviderSettings = memo(function AiProviderSettings({
   provider,
   endpoint,
+  model,
   hasApiKey,
   busy,
   lastError,
   httpWarning,
   onProviderChange,
   onEndpointChange,
+  onModelChange,
   onSaveApiKey,
   onClearApiKey,
 }: AiProviderSettingsProps) {
@@ -48,6 +52,18 @@ export const AiProviderSettings = memo(function AiProviderSettings({
           value={endpoint}
           disabled={provider === 'off'}
           onChange={(event) => onEndpointChange(event.target.value)}
+        />
+      </label>
+      <label className="settings-field">
+        <span>{t('aiSettings.model')}</span>
+        <input
+          type="text"
+          dir="ltr"
+          value={model}
+          maxLength={128}
+          spellCheck={false}
+          disabled={provider === 'off'}
+          onChange={(event) => onModelChange(event.target.value)}
         />
       </label>
       <label className="settings-field">

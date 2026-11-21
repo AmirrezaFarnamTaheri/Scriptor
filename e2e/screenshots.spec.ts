@@ -633,7 +633,7 @@ test('plugins panel', async ({ page }) => {
   await page.getByRole('tab', { name: 'Tools' }).click()
   await expect(page.getByRole('heading', { name: 'Find and manage plugins' })).toBeVisible()
   const storeTabs = page.locator('.store-tablist .store-tab')
-  await expect(storeTabs).toHaveCount(4)
+  await expect(storeTabs).toHaveCount(3)
   const storeTabRows = await storeTabs.evaluateAll((elements) =>
     Array.from(new Set(elements.map((element) => Math.round(element.getBoundingClientRect().top)))),
   )

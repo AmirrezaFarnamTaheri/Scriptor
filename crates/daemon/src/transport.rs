@@ -48,6 +48,23 @@ use limits::{
     ConnectionBudget, ConnectionSlot, MAX_CONCURRENT_CONNECTIONS, MAX_PREAUTH_CONNECTIONS,
 };
 
+/// Create the socket's parent directory owner-only from the start, so the
+/// socket is never reachable through a looser directory between bind and chmod.
+fn create_private_dir(path: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        fs::DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(path)
+    }
+    #[cfg(not(unix))]
+    {
+        fs::create_dir_all(path)
+    }
+}
+
 pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     let resolved = match socket_path {
         Some(path) => path,
@@ -56,7 +73,7 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     if !cfg!(windows)
         && let Some(parent) = Path::new(&resolved).parent()
     {
-        fs::create_dir_all(parent).map_err(IpcError::from)?;
+        create_private_dir(parent).map_err(IpcError::from)?;
     }
     let name = resolve_name(&resolved)?;
     let listener = ListenerOptions::new()
@@ -290,6 +307,14 @@ fn dispatch_request(
     event_hub: &Arc<EventHub>,
 ) -> RpcResponse {
     let id = request.id;
+    if request.method.is_vault_scoped()
+        && let Err(error) = crate::vault_binding::check_vault_binding(state, &request)
+    {
+        return RpcResponse {
+            id,
+            result: RpcResult::Error(error),
+        };
+    }
     let runs_outside_lock = matches!(
         &request.method,
         RpcMethod::ExportRunNote { .. }

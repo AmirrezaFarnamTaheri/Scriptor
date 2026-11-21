@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 /// interior to a multi-byte codepoint). Callers are responsible for enforcing
 /// this; `ByteRange::new` returns `None` if the invariant is violated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ByteRange {
     pub start: usize,
     pub end: usize,
@@ -42,6 +43,7 @@ impl ByteRange {
 /// time the annotation was created. `quote` is a short excerpt (typically the
 /// selected text) used as the fuzzy fallback during re-anchoring.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TextRangeSelector {
     pub range: ByteRange,
     /// Verbatim excerpt of the annotated text. Should be ≤ 512 bytes;
@@ -55,6 +57,7 @@ pub struct TextRangeSelector {
 /// reported by pdf.js. `locator` is the raw pdf.js highlight serialisation
 /// (opaque to this crate — stored and returned as-is).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PdfQuoteSelector {
     pub page: u32,
     pub quote: String,
@@ -67,6 +70,7 @@ pub struct PdfQuoteSelector {
 /// `cfi` is an EPUB CFI string (e.g. `epubcfi(/6/4[chapter01]!/4/1:0)`).
 /// `quote` is the extracted text of the selection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EpubCfiSelector {
     pub cfi: String,
     pub quote: String,

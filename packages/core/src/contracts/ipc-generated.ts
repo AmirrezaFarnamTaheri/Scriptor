@@ -12,7 +12,14 @@ export type RpcMethod = "Ping" | { "OpenVault": { path: string, } } | "ListNotes
 
 export type RpcPayload = { "Pong": { version: string, } } | { "VaultOpened": { vault_id: string, name: string, root_path: string, } } | { "NoteList": { notes: Array<NoteSummary>, } } | { "SearchHits": { hits: Array<SearchHit>, } } | { "NoteDocument": { path: string, title: string, markdown: string, } } | { "RebuildSummary": { indexed_notes: number, skipped_notes: number, links_written: number, } } | { "HealthReport": { json: string, } } | { "HealthDiagnostics": { json: string, } } | { "GitStatus": { json: string, } } | { "Backlinks": { path: string, json: string, } } | { "GraphSummary": { json: string, } } | { "NoteSaved": { json: string, } } | { "RenameApplied": { json: string, } } | { "ExportResult": { json: string, } } | { "ExportStarted": { job_id: string, } } | { "ExportJobStatus": { json: string, } } | { "IndexRebuildStatus": { json: string, } } | { "ConfigReloaded": { json: string, generation: bigint, } } | "Unit" | { "Json": { json: string, } };
 
-export type RpcRequest = { id: bigint, method: RpcMethod, endpoint_nonce?: string, };
+export type RpcRequest = { id: bigint, method: RpcMethod, endpoint_nonce?: string, 
+/**
+ * Identity of the vault the caller believes is open. The daemon holds one
+ * vault for every client, so vault-scoped methods are rejected unless this
+ * matches (a second client opening another vault must not redirect a
+ * first client's writes).
+ */
+expected_vault_id?: string, };
 
 export type RpcResponse = { id: bigint, result: RpcResult, };
 

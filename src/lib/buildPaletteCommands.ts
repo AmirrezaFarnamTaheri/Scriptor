@@ -60,7 +60,6 @@ export interface PaletteCommandContext {
   setTemplatePickerOpen?: (open: boolean) => void
   setObsidianImportOpen?: (open: boolean) => void
   insertSnippet?: (text: string) => void
-  publishStarlight?: () => void
   promptText?: (request: {
     title: string
     label: string
@@ -85,8 +84,6 @@ export interface PaletteCommandContext {
   perfHudOpen?: boolean
   hibernateGraph?: boolean
   setHibernateGraph?: (value: boolean) => void
-  hibernateMcp?: boolean
-  setHibernateMcp?: (value: boolean) => void
   hibernateWatcher?: boolean
   setHibernateWatcher?: (value: boolean) => void
   hibernateGit?: boolean
@@ -127,7 +124,6 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     setTemplatePickerOpen,
     setObsidianImportOpen,
     insertSnippet,
-    publishStarlight,
     promptText,
     pluginCommands = [],
     runPluginCommand,
@@ -146,8 +142,6 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     perfHudOpen,
     hibernateGraph,
     setHibernateGraph,
-    hibernateMcp,
-    setHibernateMcp,
     hibernateWatcher,
     setHibernateWatcher,
     hibernateGit,
@@ -355,16 +349,6 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
           } satisfies AppCommandDefinition,
         ]
       : []),
-    ...(setHibernateMcp
-      ? [
-          {
-            id: 'toggle-hibernate-mcp',
-            label: hibernateMcp ? 'Wake MCP subsystem' : 'Hibernate MCP subsystem',
-            run: () => setHibernateMcp(!hibernateMcp),
-            keywords: ['performance', 'battery', 'model', 'context', 'protocol'],
-          } satisfies AppCommandDefinition,
-        ]
-      : []),
     ...(setHibernateWatcher
       ? [
           {
@@ -510,14 +494,6 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
         setStatusDockTab('jobs')
         void workspace.exportWithProfile?.('reveal-slides')
       },
-    })
-  }
-
-  if (publishStarlight) {
-    commands.push({
-      id: 'publish-starlight',
-      label: 'Publish Starlight site',
-      run: publishStarlight,
     })
   }
 

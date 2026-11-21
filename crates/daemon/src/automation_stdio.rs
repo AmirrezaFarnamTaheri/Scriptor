@@ -163,11 +163,14 @@ const WRITE_TOOLS: &[(&str, &str, &str)] = &[
     ),
 ];
 
+const AGENT_ACCESS_OFF: &str =
+    "AI agent access is off. Choose an access level under AI agents in Scriptor.";
+
 pub fn run_automation_stdio(options: AutomationStdioOptions) -> Result<(), String> {
     let session = open_vault(&options.vault_path).map_err(|error| error.to_string())?;
     let plugin_state = load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;
-    if !plugin_state.is_enabled("scriptor.mcp") {
-        return Err("Plugin capability 'scriptor.mcp' is disabled in active vault".into());
+    if !plugin_state.agent_access_enabled() {
+        return Err(AGENT_ACCESS_OFF.into());
     }
     reconcile_pending_mcp_mutations(&session.root).map_err(|error| error.to_string())?;
     let index_cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
@@ -345,8 +348,8 @@ fn invoke_tool(
     // process is alive. Re-check each request rather than trusting startup.
     let plugin_state =
         load_plugin_state(state.session.root.root()).map_err(|error| error.to_string())?;
-    if !plugin_state.is_enabled("scriptor.mcp") {
-        return Err("Plugin capability 'scriptor.mcp' is disabled in active vault".into());
+    if !plugin_state.agent_access_enabled() {
+        return Err(AGENT_ACCESS_OFF.into());
     }
     let args = arguments.unwrap_or(json!({}));
     match tool_name {
@@ -917,7 +920,7 @@ mod tests {
             Some(json!({ "path": "alpha.md" })),
         )
         .expect_err("disabled MCP must reject a request in an existing session");
-        assert!(error.contains("scriptor.mcp"));
+        assert!(error.contains("AI agent access is off"));
     }
 
     #[test]

@@ -67,8 +67,6 @@ interface WorkspaceStatusFooterProps {
   timeToFirstExportMs?: number | null
   hibernateGraph: boolean
   onHibernateGraphChange: (enabled: boolean) => void
-  hibernateMcp: boolean
-  onHibernateMcpChange: (enabled: boolean) => void
   hibernateWatcher: boolean
   onHibernateWatcherChange: (enabled: boolean) => void
   hibernateGit: boolean
@@ -108,8 +106,6 @@ function WorkspaceStatusFooterImpl({
   timeToFirstExportMs = null,
   hibernateGraph,
   onHibernateGraphChange,
-  hibernateMcp,
-  onHibernateMcpChange,
   hibernateWatcher,
   onHibernateWatcherChange,
   hibernateGit,
@@ -253,8 +249,6 @@ function WorkspaceStatusFooterImpl({
           <SubsystemToggles
             graph={hibernateGraph}
             onGraphChange={onHibernateGraphChange}
-            mcp={hibernateMcp}
-            onMcpChange={onHibernateMcpChange}
             watcher={hibernateWatcher}
             onWatcherChange={onHibernateWatcherChange}
             git={hibernateGit}

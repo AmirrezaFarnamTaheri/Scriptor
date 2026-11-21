@@ -90,8 +90,13 @@ export function inspectInstalledDebFixture({ root, directory, expectedCommit, ar
     const logArg = '--log=' + logFile
     // fakeroot and --root prevent any system package install; --force-depends
     // intentionally bypasses dependencies (not runtime dependency acceptance).
-    run('fakeroot', ['--', 'dpkg', rootArg, logArg, '--force-depends', '--install', packageFile],
-      { timeout: 60000 })
+    // A closed stdin and a non-interactive frontend keep dpkg from waiting on a
+    // prompt; shared CI runners are slow enough that 60s timed out intermittently.
+    // fakeroot's faked can stall on the huge open-file limit of CI containers;
+    // cap it for this one command.
+    run('sh', ['-c', 'ulimit -n 4096 2>/dev/null; exec fakeroot -- dpkg "$@"', 'sh',
+      rootArg, logArg, '--force-depends', '--install', packageFile],
+      { timeout: 180000, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, DEBIAN_FRONTEND: 'noninteractive' } })
     const status = run('dpkg', [rootArg, '--status', 'scriptor'])
     assert(/^Status: install ok installed$/m.test(status), 'Package manager did not record installed status')
     assert(status.split('\n').includes('Version: ' + version), 'Package-manager version mismatch')
@@ -112,7 +117,8 @@ export function inspectInstalledDebFixture({ root, directory, expectedCommit, ar
       env: { ...process.env, HOME: isolatedRoot, XDG_CONFIG_HOME: isolatedRoot, XDG_DATA_HOME: isolatedRoot },
     })
     assert(daemonOutput === 'scriptor-daemon ' + version, 'Installed daemon version output mismatch')
-    run('fakeroot', ['--', 'dpkg', rootArg, logArg, '--remove', 'scriptor'], { timeout: 60000 })
+    run('sh', ['-c', 'ulimit -n 4096 2>/dev/null; exec fakeroot -- dpkg "$@"', 'sh', rootArg, logArg, '--remove', 'scriptor'],
+      { timeout: 180000, stdio: ['ignore', 'pipe', 'pipe'] })
     assert(fs.statSync(logFile).size > 0, 'Confined package-manager log was not created')
     assert(!fs.existsSync(desktop.file) && !fs.existsSync(daemon.file) && !fs.existsSync(receipt.file),
       'Uninstall left installed executables or receipt behind')

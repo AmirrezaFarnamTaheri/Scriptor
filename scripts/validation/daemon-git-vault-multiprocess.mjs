@@ -37,7 +37,12 @@ function assertKind(reply, kind, label) {
 }
 
 function assertStaleDenied(reply, label) {
-  if (reply.kind !== 'rpc_error' || !String(reply.message).includes('Git status vault identity mismatch')) {
+  // Either guard denies a stale client: the RPC-level vault binding
+  // (rpc.vault_mismatch) runs first, the Git identity check is the fallback.
+  const message = String(reply.message)
+  const denied = message.includes('Git status vault identity mismatch') ||
+    message.includes('the daemon has a different vault open than this client expects')
+  if (reply.kind !== 'rpc_error' || !denied) {
     throw new Error(label + ': expected daemon vault-identity rejection, got ' + JSON.stringify(reply))
   }
 }

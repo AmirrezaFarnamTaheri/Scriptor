@@ -5,12 +5,11 @@ import { Archive, BookOpen, ChevronRight, FileText, Hash, Link2, Pencil, Quote, 
 import { MarkdownPreview, type MarkdownPreviewHandle, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
 import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
 import type { TemplatePackContribution } from '@scriptor/core/contracts/plugin'
-import type { McpMode, McpToolDescriptor } from '@scriptor/core/contracts/mcp'
 import type { LayoutPreset } from '../../lib/workspace/layoutPresets'
 import { WidgetCard } from '../chrome/WorkspaceChrome'
 import { EmptyState } from '../EmptyState'
 import { ReferencesPreviewPanel } from '../ReferencesPreviewPanel'
-import type { FeatureFlagEntry, McpAuditEntry } from '../StorePanel'
+import type { FeatureFlagEntry } from '../StorePanel'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
 import { NoteQualityCard } from '../inspector/NoteQualityCard'
@@ -79,10 +78,6 @@ interface InspectorRailProps {
    * renders its MCP / Features / Layouts tabs in an empty, read-only state.
    */
   store?: {
-    mcpMode?: McpMode
-    mcpTools?: McpToolDescriptor[]
-    mcpAuditLog?: McpAuditEntry[]
-    onSetMcpMode?: (mode: McpMode) => void
     featureFlags?: FeatureFlagEntry[]
     onToggleFeature?: (key: string, enabled: boolean) => void
     activeLayoutPresetId?: string | null
@@ -612,10 +607,6 @@ function InspectorRailImpl({
               onReviewConsent={plugins.onReviewConsent}
               onRevokeConsent={plugins.onRevokeConsent}
               onInstallMarketplace={plugins.onInstallMarketplace}
-              mcpMode={store?.mcpMode}
-              mcpTools={store?.mcpTools}
-              mcpAuditLog={store?.mcpAuditLog}
-              onSetMcpMode={store?.onSetMcpMode}
               featureFlags={store?.featureFlags}
               onToggleFeature={store?.onToggleFeature}
               activeLayoutPresetId={store?.activeLayoutPresetId}

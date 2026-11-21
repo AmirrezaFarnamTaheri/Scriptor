@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+### Security
+- The agent (MCP) access level is now a per-user setting instead of a vault setting, so a cloned vault cannot grant AI agents access; any level stored in a vault's config is ignored and the level starts at read-only until you change it. The unused duplicate permission enum in the vault crate was removed.
+- The background daemon now rejects vault-scoped requests whose caller did not name the open vault, or named another one, so a second window or CLI opening a different vault can no longer redirect a first client's saves or index operations (F-REL-03). Bundled clients attach the vault id automatically.
+- Plugin and capability choices are now stored per user (in your app data folder, keyed by vault path) instead of inside the vault, so a cloned vault can no longer arrive with optional integrations switched on. Capabilities a vault had disabled stay disabled; previously enabled optional integrations must be re-enabled once (F-SEC-07).
+- Starting Google Calendar/Drive/Gmail connection flows is limited to 3 per minute per service; extra attempts get a "try again" message (F-SEC-06).
+- Authorization grants, canvas documents and annotation selectors now reject unknown fields instead of silently ignoring them (F-ENG-03, first batch).
+- `cargo deny` now rejects wildcard (`*`) registry dependency requirements; application crates are marked `publish = false` so workspace path dependencies stay exempt (F-OPS-03).
+
+- Export profiles may set only presentation `--metadata`/`--variable` keys (title, author, lang, fontsize, geometry, theme and similar); keys that name files, URLs or raw markup (`bibliography`, `csl`, `header-includes`, `css`, …) and any backslash value are rejected. Profiles using other keys now fail with a disallowed-argument error.
+- TextBundle export accepts only an absolute `.textpack` destination in an existing folder and never follows or replaces a symbolic link, directory or other file type.
+- Audit-log CSV export quotes every field and neutralizes spreadsheet formula prefixes (`=`, `+`, `-`, `@`, tab, carriage return). Consumers that split rows on bare commas must use a CSV parser.
+- Git commands run with `core.fsmonitor` and `core.untrackedCache` forced off, so a repository's own configuration cannot launch a program during `git status`. Users who relied on fsmonitor for very large repositories lose that speed-up inside Scriptor.
+- One-shot code execution grants are bound to the language and a digest of the exact code, not the language name alone.
+- The Ollama semantic-search endpoint must be a loopback address without credentials, and embedding clients no longer follow redirects.
+- Source files cannot be created inside Windows Startup or macOS LaunchAgents/LaunchDaemons folders.
+- Executable lookup skips relative and empty `PATH` entries; the background daemon's socket directory is created owner-only.
+- CI checkouts in jobs that never push set `persist-credentials: false`.
+- TextBundle export opens the archive without following a link at the final path component (and rejects non-regular files before truncating), closing the window between destination validation and write.
+- Embedding clients reject redirect responses instead of decoding them, and process-tree termination calls `kill`/`taskkill` by absolute path rather than through `PATH`.
+
+### Improved
+
+- Removed the remaining duplicate agent switches: the Store "MCP" tab, the "MCP runtime" feature toggle, the status-bar MCP badge and the "Hibernate MCP subsystem" command. If you had paused MCP, agent access is set to Off once so nothing turns back on.
+- AI agent access has a single switch, the access level. The separate "Model Context Protocol (MCP)" plugin card is gone, and choosing a level other than Off clears any disable left by the old card. Plugin errors no longer claim a setting belongs to the current vault.
+- Website publishing now has one home, the Publishing studio. Export & publish handles files and links to the studio, which remembers your site folder per vault. The separate "Publish Starlight site" command is gone; search for "Publishing studio" or "website" instead.
+- AI agent access settings use plain wording and say correctly that the level applies to every vault on this device. The top bar shows "AI agents: <level>".
+
+- AI draft proposals use a configurable model name (Settings → AI, default `gpt-4o-mini`) instead of always sending `gpt-4o-mini`; names are limited to letters, digits and `- _ . : / @`.
+
+### Fixed
+
+- Starting the background daemon waits for it to answer (up to 10 s) instead of sleeping a fixed 2 s, and a failed `scriptor://` deep-link registration no longer aborts startup.
+
 ### Fixed
 
 - Bound process-broker output draining after a direct child exits; terminate descendants that keep inherited stdout/stderr pipes open and report a distinct output-drain failure instead of waiting for the executable deadline.

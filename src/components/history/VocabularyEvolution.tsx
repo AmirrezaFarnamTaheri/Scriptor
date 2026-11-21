@@ -28,7 +28,7 @@ export function VocabularyEvolution({ path, vaultId, revisions }: Props) {
   const maximum=Math.max(1,...points.map(point=>point.uniqueWords))
   return <section className="vocabulary-evolution" aria-label="Vocabulary evolution">
     <h3>Vocabulary evolution</h3>
-    <p>Measures the latest 32 retained revisions, up to 16 MiB total. Words come from Markdown source, including code and metadata. Distinct word counts describe vocabulary; they are not a readability score.</p>
+    <p>Counts distinct words across the last 32 saved revisions of this note.</p>
     <button type="button" disabled={!vaultId||busy} onClick={()=>void analyze()}>{result?'Analyze again':'Analyze vocabulary evolution'}</button>
     {busy?<><p role="status">{cancelled?'Finishing the current read; later revisions will not be read.':'Reading retained revisions…'}</p><button type="button" disabled={cancelled} onClick={()=>{generation.current++;setCancelled(true);setError('Analysis cancelled. The current read may finish; no later revisions will be read.')}}>Cancel vocabulary analysis</button></>:null}
     {error?<p role="alert">{error}</p>:null}

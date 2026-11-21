@@ -82,7 +82,6 @@ import { useAppKeyboardShortcuts } from './hooks/useAppKeyboardShortcuts'
 import { useAppZoom } from './hooks/useAppZoom'
 import { useVaultSidebarActions } from './hooks/useVaultSidebarActions'
 import { useJourneyMetrics } from './hooks/useJourneyMetrics'
-import { useStarlightPublishing } from './hooks/useStarlightPublishing'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
 import { extractPandocCitationKeys } from './lib/citationExtract'
 import { vaultReadNote, vaultSaveNote, codeChunkRun } from './bridge/commands'
@@ -114,6 +113,8 @@ import './styles/components/markdown-preview.css'
 import './styles/components/canvas-graph.css'
 import './App.css'
 import './styles/motion.css'
+const MCP_MODE_LABEL_KEYS = { off: 'mcp.modeOff', 'read-only': 'mcp.modeReadOnly', draft: 'mcp.modeDraft', 'write-approved': 'mcp.modeWriteApproved' } as const
+
 function App() {
   const { t } = useI18n()
   const localDate = useLocalDate()
@@ -245,7 +246,6 @@ function App() {
     editorThemeSyncedToApp,
     hibernateGit,
     hibernateGraph,
-    hibernateMcp,
     hibernateSpellcheck,
     hibernateWatcher,
     languageTool,
@@ -253,7 +253,6 @@ function App() {
     setDistractionFree,
     setHibernateGit,
     setHibernateGraph,
-    setHibernateMcp,
     setHibernateSpellcheck,
     setHibernateWatcher,
     setLanguageTool,
@@ -345,18 +344,6 @@ function App() {
   })
 
   const { promptRequest, promptText, submitPrompt, cancelPrompt } = useTextPrompt()
-  const {
-    applyStarlightPlan,
-    publishApplying,
-    publishOutputPath,
-    publishPlan,
-    publishStarlight,
-  } = useStarlightPublishing({
-    vaultId: workspace.vault?.id ?? null,
-    promptText,
-    showToast,
-    openPublishCenter: () => setPublishCenterOpen(true),
-  })
   const recentVaults = useRecentVaults()
   const rememberRecentVault = recentVaults.remember
   useEffect(() => {
@@ -411,15 +398,12 @@ function App() {
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
     workspace.vault?.id,
-    workspace.vaultConfig,
-    workspace.setVaultConfig,
     workspace.activePath,
     workspace.activeNote?.metadata.content_hash ?? null,
     plugins.contributions.exportProfiles,
     plugins.contributions.mcpTools,
     pluginCommandRuntime,
     plugins.canExecutePluginCommand,
-    hibernateMcp,
   )
   const storeSurface = useStoreSurfaceController({
     workspaceMode,
@@ -429,9 +413,8 @@ function App() {
     setStickiesVisible,
     setGraphDepth,
     setDistractionFree,
-    mcp,
-    hibernation: { graph: hibernateGraph, mcp: hibernateMcp, watcher: hibernateWatcher, git: hibernateGit, spellcheck: hibernateSpellcheck },
-    setHibernation: { graph: setHibernateGraph, mcp: setHibernateMcp, watcher: setHibernateWatcher, git: setHibernateGit, spellcheck: setHibernateSpellcheck },
+    hibernation: { graph: hibernateGraph, watcher: hibernateWatcher, git: hibernateGit, spellcheck: hibernateSpellcheck },
+    setHibernation: { graph: setHibernateGraph, watcher: setHibernateWatcher, git: setHibernateGit, spellcheck: setHibernateSpellcheck },
   })
   const ai = useAiProvider()
   const { saveApiKey: aiSaveApiKey, clearApiKey: aiClearApiKey } = ai
@@ -759,13 +742,6 @@ function App() {
   const handleCancelExportFromPublishCenter = useCallback(() => {
     void cancelExport()
   }, [cancelExport])
-  const handlePlanStarlight = useCallback(() => { void publishStarlight() }, [publishStarlight])
-  const handleReplanStarlight = useCallback(() => {
-    void publishStarlight(publishOutputPath ?? undefined)
-  }, [publishStarlight, publishOutputPath])
-  const handleApplyPlanFromPublishCenter = useCallback((selectedPaths: string[], deleteOrphans: string[]) => {
-    void applyStarlightPlan(selectedPaths, deleteOrphans)
-  }, [applyStarlightPlan])
 
   const { handleCloseCommandPalette, handleSearchNotes, handleOpenNoteFromPalette } =
     usePaletteNoteNavigation(Boolean(workspace.vault), openNote, setCommandPaletteOpen)
@@ -854,7 +830,6 @@ function App() {
         setTemplatePickerOpen: nativeReady && workspace.vault ? setTemplatePickerOpen : undefined,
         setObsidianImportOpen: nativeReady && workspace.vault ? setObsidianImportOpen : undefined,
         insertSnippet: (text) => workspace.insertSnippet(text),
-        publishStarlight: nativeReady ? () => void publishStarlight() : undefined,
         promptText,
         pluginCommands: pluginCommandEntries,
         canExecutePluginCommand,
@@ -878,9 +853,7 @@ function App() {
         perfHudOpen,
         hibernateGraph,
         setHibernateGraph,
-        hibernateMcp,
-        setHibernateMcp,
-        hibernateWatcher,
+                hibernateWatcher,
         setHibernateWatcher,
         hibernateGit,
         setHibernateGit,
@@ -904,7 +877,6 @@ function App() {
       patchChrome,
       pluginCommandEntries,
       pluginCommandRuntime,
-      publishStarlight,
       promptText,
       recentNotes,
       setBibliographyOpen,
@@ -937,9 +909,7 @@ function App() {
       perfHudOpen,
       hibernateGraph,
       setHibernateGraph,
-      hibernateMcp,
-      setHibernateMcp,
-      hibernateWatcher,
+          hibernateWatcher,
       setHibernateWatcher,
       hibernateGit,
       setHibernateGit,
@@ -1356,7 +1326,7 @@ function App() {
           }
           gitNeutral={!workspace.isGitStatusLoading && !workspace.gitStatusError && !workspace.gitStatus?.is_repo}
           onOpenGit={() => setPanel('gitPanelOpen', (open) => !open)}
-          mcpLabel={`MCP ${mcp.mode}`}
+          mcpLabel={`${t('mcp.topBarLabel')}: ${t(MCP_MODE_LABEL_KEYS[mcp.mode])}`}
           onOpenMcp={() => setPanel('mcpPanelOpen', (open) => !open)}
           onOpenSupport={() => setPanel('supportOpen', (open) => !open)}
           onOpenSettings={() => setPanel('settingsOpen', (open) => !open)}
@@ -1634,8 +1604,6 @@ function App() {
         timeToFirstExportMs={journey.timeToFirstExportMs}
         hibernateGraph={hibernateGraph}
         onHibernateGraphChange={setHibernateGraph}
-        hibernateMcp={hibernateMcp}
-        onHibernateMcpChange={setHibernateMcp}
         hibernateWatcher={hibernateWatcher}
         onHibernateWatcherChange={setHibernateWatcher}
         hibernateGit={hibernateGit}
@@ -1732,13 +1700,13 @@ function App() {
           diagnosticsOptIn={diagnostics.optIn}
           onDiagnosticsOptInChange={diagnostics.setOptIn}
           aiProvider={ai.provider}
-          aiEndpoint={ai.endpoint}
+          aiEndpoint={ai.endpoint} aiModel={ai.model}
           aiHasApiKey={ai.hasApiKey}
           aiBusy={ai.busy}
           aiLastError={ai.lastError}
           aiHttpWarning={ai.httpWarning}
           onAiProviderChange={ai.setProvider}
-          onAiEndpointChange={ai.setEndpoint}
+          onAiEndpointChange={ai.setEndpoint} onAiModelChange={ai.setModel}
           onAiSaveApiKey={handleAiSaveApiKey}
           onAiClearApiKey={handleAiClearApiKey}
           nativeReady={nativeReady}
@@ -1767,9 +1735,7 @@ function App() {
           timeToFirstExportMs={journey.timeToFirstExportMs}
           hibernateGraph={hibernateGraph}
           onHibernateGraphChange={setHibernateGraph}
-          hibernateMcp={hibernateMcp}
-          onHibernateMcpChange={setHibernateMcp}
-          hibernateWatcher={hibernateWatcher}
+              hibernateWatcher={hibernateWatcher}
           onHibernateWatcherChange={setHibernateWatcher}
           hibernateGit={hibernateGit}
           onHibernateGitChange={setHibernateGit}
@@ -1870,14 +1836,10 @@ function App() {
         onInsertTagFromWorkbench={handleInsertTagFromWorkbench}
         onRenameTagFromWorkbench={handleRenameTagFromWorkbench}
         publishCenterOpen={publishCenterOpen}
-        publishPlan={publishPlan}
-        publishApplying={publishApplying}
         onClosePublishCenter={handleClosePublishCenter}
         onExportFromPublishCenter={handleExportFromPublishCenter}
         onCancelExportFromPublishCenter={handleCancelExportFromPublishCenter}
-        onPlanStarlight={handlePlanStarlight}
-        onReplanStarlight={handleReplanStarlight}
-        onApplyPlanFromPublishCenter={handleApplyPlanFromPublishCenter}
+        onOpenPublishingStudio={() => composition.commands.find(command => command.id === 'open-publishing-studio')?.run()}
         snippetsOpen={snippetsOpen}
         setSnippetsOpen={setSnippetsOpen}
         cheatsheetOpen={cheatsheetOpen}
