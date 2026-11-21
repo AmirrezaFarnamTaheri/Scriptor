@@ -13,7 +13,7 @@
 ## 全局安全约束
 
 - 精确验证 vault、room、document、epoch 和 peer；用户对每个文档单独授权。
-- 大小限制：单次更新 256 KiB、在线状态 2 KiB、实体化文档 2 MiB、本地未确认队列 64 MiB。
+- 具有约束力的数值限制仅以 [Global Constraints](2026-11-14-live-collaboration.md#global-constraints) 为准；本译文不单独维护规范数值。
 - 已撤销成员不得读写；只读成员不得写入。过期会话的异步结果不得修改当前文档。
 - ACK 必须表示中继已完成持久事务，不能以发送网络帧代替确认；本地已确认的更改必须经得起重启。
 - 保持原有 Drive/Docs 不可变修订、有限轮询、Overleaf Git 交换、CAS 与恢复机制的独立完整性。
@@ -66,7 +66,7 @@
 
 ## 任务 5：恢复、安全与发布证据
 
-**文件：** e2e/live-collaboration-workflows.spec.ts 和 docs/validation/LIVE-COLLABORATION-ACCEPTANCE.md。
+**文件：** e2e/live-collaboration-workflows.spec.ts 和 docs/VERIFICATION.md。
 
 - [ ] 使用 100 个确定性随机种子、每个种子 1000 次编辑、三个客户端进行测试；覆盖网络分区、重启、丢失 ACK、撤权、损坏快照及同文件竞争。
 - [ ] 保留原始失败证据，只修复实际的数据丢失、授权、安全、性能和无障碍问题，不削弱断言。

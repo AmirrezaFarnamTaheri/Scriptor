@@ -13,7 +13,7 @@
 ## Restricciones generales
 
 - Identificación exacta de vault/sala/documento/época/participante; consentimiento explícito para cada documento.
-- Límites: 256 KiB por actualización, 2 KiB por presencia, 2 MiB por documento materializado y 64 MiB de cola local pendiente.
+- Los límites vinculantes se mantienen exclusivamente en [Global Constraints](2026-11-14-live-collaboration.md#global-constraints); esta traducción no establece cifras normativas propias.
 - Un participante revocado no puede leer ni escribir; un observador no puede escribir. Las respuestas antiguas nunca sustituyen el contexto activo.
 - ACK significa que el servidor confirmó una transacción durable, no que recibió un paquete. Los cambios reconocidos localmente deben sobrevivir a reinicios.
 - Mantener sin cambios las revisiones inmutables de Drive/Docs, el sondeo limitado, la sincronización Git existente y las protecciones CAS/recuperación.
@@ -66,7 +66,7 @@
 
 ## Tarea 5: Verificación de recuperación y seguridad
 
-**Archivos:** e2e/live-collaboration-workflows.spec.ts y docs/validation/LIVE-COLLABORATION-ACCEPTANCE.md.
+**Archivos:** e2e/live-collaboration-workflows.spec.ts y docs/VERIFICATION.md.
 
 - [ ] Ejecutar 100 semillas deterministas, 1.000 cambios por semilla y tres participantes; cubrir particiones, reinicios, ACK perdidos, accesos revocados, instantáneas dañadas y concurrencia local.
 - [ ] Registrar y corregir los fallos reales, sin suprimir pruebas.
