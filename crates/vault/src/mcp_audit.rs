@@ -419,6 +419,30 @@ mod tests {
         })
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn linked_audit_file_cannot_redirect_reads_or_appends_outside_the_vault()
+        -> Result<(), Box<dyn std::error::Error>>
+    {
+        use std::os::unix::fs::symlink;
+        let vault = tempdir()?;
+        let external = tempdir()?;
+        let target = external.path().join("external-log.txt");
+        fs::write(&target, "external-file-must-not-change\\n")?;
+        let root = VaultRoot::open(vault.path())?;
+        let audit = root.root().join(DEFAULT_MCP_AUDIT_PATH);
+        fs::create_dir_all(audit.parent().unwrap())?;
+        symlink(&target, &audit)?;
+        let intent = McpMutationAuditRecord::intent(
+            "blocked-link".into(), "mcp.createNote", "note.create", None, None,
+        );
+        assert!(append_mcp_mutation(&root, intent).is_err());
+        assert!(read_mcp_audit_tail(&root, 1).is_err());
+        assert!(verify_mcp_audit_chain(&root).is_err());
+        assert_eq!(fs::read_to_string(target)?, "external-file-must-not-change\\n");
+        Ok(())
+    }
+
     #[test]
     fn audit_records_are_hash_chained_and_tail_is_bounded() -> Result<(), Box<dyn std::error::Error>>
     {
