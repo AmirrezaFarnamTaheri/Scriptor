@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
 
-import { accentReport, cascade, contrast, hexToRgb, palettes, parseRootRules, resolveColor } from './palette-contrast.mjs'
+import { ACCENT_TOKENS, APPEARANCES, SURFACE_TOKENS, accentReport, cascade, contrast, hexToRgb, palettes, parseRootRules, resolveColor } from './palette-contrast.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const indexCss = fs.readFileSync(path.join(root, 'src/index.css'), 'utf8')
@@ -24,9 +24,29 @@ test('cascade applies appearance and palette+appearance rules over the palette',
   assert.deepEqual(resolveColor(tokens, tokens.get('--bg')).map((c) => Math.round(c * 255)), [255, 255, 255])
 })
 
-test('every palette keeps accent and status colours at 4.5:1 on its surfaces in both appearances', () => {
-  const failures = accentReport(indexCss)
-  assert.deepEqual(failures, [], `${failures.length} palette/appearance/token pairs fall below 4.5:1:\n${failures.map((f) => JSON.stringify(f)).join('\n')}`)
+test('every palette checks every required accent/surface pair at 4.5:1', () => {
+  const rules = parseRootRules(indexCss)
+  const themes = palettes(rules)
+  assert.ok(themes.length > 0, 'a zero-palette report cannot satisfy contrast coverage')
+  let checked = 0
+  for (const theme of themes) {
+    for (const appearance of APPEARANCES) {
+      const tokens = cascade(rules, theme, appearance)
+      for (const surface of SURFACE_TOKENS) {
+        const background = resolveColor(tokens, tokens.get(surface) ?? '')
+        assert.ok(background, `missing background ${theme}/${appearance}/${surface}`)
+        for (const accent of ACCENT_TOKENS) {
+          const foreground = resolveColor(tokens, tokens.get(accent) ?? '')
+          assert.ok(foreground, `missing accent ${theme}/${appearance}/${accent}`)
+          assert.ok(contrast(foreground, background) >= 4.5,
+            `low contrast ${theme}/${appearance}/${accent} on ${surface}`)
+          checked++
+        }
+      }
+    }
+  }
+  assert.equal(checked, themes.length * APPEARANCES.length * SURFACE_TOKENS.length * ACCENT_TOKENS.length)
+  assert.deepEqual(accentReport(indexCss), [])
 })
 
 test('the runtime error banner is mixed from the theme surface, not literal white', () => {
@@ -35,4 +55,21 @@ test('the runtime error banner is mixed from the theme surface, not literal whit
   assert.ok(rule, '.runtime-banner.error rule exists')
   assert.doesNotMatch(rule[1], /,\s*white\)/)
   assert.match(rule[1], /var\(--bg-elevated\)/)
+  const background = /background:\s*([^;]+);/.exec(rule[1])
+  const foreground = /color:\s*([^;]+);/.exec(rule[1])
+  assert.ok(background && foreground, 'banner has both surface and foreground colours')
+  const rules = parseRootRules(indexCss)
+  let checked = 0
+  for (const theme of palettes(rules)) {
+    for (const appearance of APPEARANCES) {
+      const tokens = cascade(rules, theme, appearance)
+      const bg = resolveColor(tokens, background[1])
+      const fg = resolveColor(tokens, foreground[1])
+      assert.ok(bg && fg, `runtime banner colours resolve: ${theme}/${appearance}`)
+      const ratio = contrast(fg, bg)
+      assert.ok(ratio >= 4.5, `runtime banner contrast ${theme}/${appearance}: ${ratio.toFixed(2)}`)
+      checked++
+    }
+  }
+  assert.ok(checked >= 2, 'runtime banner contrast must be measured in multiple appearances')
 })
