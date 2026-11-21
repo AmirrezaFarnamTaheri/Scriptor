@@ -1,0 +1,18 @@
+{
+  "sessionId": "2026-11-21-1701",
+  "startedAt": "2026-11-21T13:17:31Z",
+  "endedAt": "2026-11-21T13:31:16Z",
+  "currentFeature": "",
+  "filesChanged": [
+    "apps/desktop/src-tauri/src/commands/daemon.rs",
+    "apps/desktop/src-tauri/src/commands/source_files.rs",
+    "apps/desktop/src-tauri/src/commands/vault.rs"
+  ],
+  "featuresCompleted": [],
+  "featuresFailed": [],
+  "errors": [],
+  "toolCallSequences": [],
+  "rawToolSequence": [],
+  "taskTimeDistribution": {},
+  "pluginUsage": {}
+}

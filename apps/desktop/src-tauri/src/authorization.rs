@@ -228,7 +228,7 @@ impl SensitiveOperation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthorizationGrant {
     pub token: String,
     pub operation: SensitiveOperation,
@@ -466,6 +466,17 @@ fn sanitize_scope(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn grant_payload_rejects_unknown_fields() {
+        let base = serde_json::json!({
+            "token": "t", "operation": "code_execution", "scope": null, "expiresAtMs": 1
+        });
+        assert!(serde_json::from_value::<AuthorizationGrant>(base.clone()).is_ok());
+        let mut extra = base;
+        extra["injected"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<AuthorizationGrant>(extra).is_err());
+    }
 
     #[test]
     fn grants_are_one_time_operation_and_scope_bound() {

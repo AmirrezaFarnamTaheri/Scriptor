@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Security
+- Authorization grants, canvas documents and annotation selectors now reject unknown fields instead of silently ignoring them (F-ENG-03, first batch).
+- `cargo deny` now rejects wildcard (`*`) registry dependency requirements; application crates are marked `publish = false` so workspace path dependencies stay exempt (F-OPS-03).
+
+- Export profiles may set only presentation `--metadata`/`--variable` keys (title, author, lang, fontsize, geometry, theme and similar); keys that name files, URLs or raw markup (`bibliography`, `csl`, `header-includes`, `css`, …) and any backslash value are rejected. Profiles using other keys now fail with a disallowed-argument error.
+- TextBundle export accepts only an absolute `.textpack` destination in an existing folder and never follows or replaces a symbolic link, directory or other file type.
+- Audit-log CSV export quotes every field and neutralizes spreadsheet formula prefixes (`=`, `+`, `-`, `@`, tab, carriage return). Consumers that split rows on bare commas must use a CSV parser.
+- Git commands run with `core.fsmonitor` and `core.untrackedCache` forced off, so a repository's own configuration cannot launch a program during `git status`. Users who relied on fsmonitor for very large repositories lose that speed-up inside Scriptor.
+- One-shot code execution grants are bound to the language and a digest of the exact code, not the language name alone.
+- The Ollama semantic-search endpoint must be a loopback address without credentials, and embedding clients no longer follow redirects.
+- Source files cannot be created inside Windows Startup or macOS LaunchAgents/LaunchDaemons folders.
+- Executable lookup skips relative and empty `PATH` entries; the background daemon's socket directory is created owner-only.
+- CI checkouts in jobs that never push set `persist-credentials: false`.
+- TextBundle export opens the archive without following a link at the final path component (and rejects non-regular files before truncating), closing the window between destination validation and write.
+- Embedding clients reject redirect responses instead of decoding them, and process-tree termination calls `kill`/`taskkill` by absolute path rather than through `PATH`.
+
+### Improved
+
+- AI draft proposals use a configurable model name (Settings → AI, default `gpt-4o-mini`) instead of always sending `gpt-4o-mini`; names are limited to letters, digits and `- _ . : / @`.
+
+### Fixed
+
+- Starting the background daemon waits for it to answer (up to 10 s) instead of sleeping a fixed 2 s, and a failed `scriptor://` deep-link registration no longer aborts startup.
+
 ### Fixed
 
 - Bound process-broker output draining after a direct child exits; terminate descendants that keep inherited stdout/stderr pipes open and report a distinct output-drain failure instead of waiting for the executable deadline.

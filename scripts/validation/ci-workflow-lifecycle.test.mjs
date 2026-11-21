@@ -23,6 +23,7 @@ test('PR validation cancels obsolete heads but protected-branch pushes run to co
     ['Documentation localization', docs],
     ['Starlight lock', starlight],
     ['Visual review', visual],
+    ['Performance trends', perf],
   ]) {
     assert.match(
       workflow,

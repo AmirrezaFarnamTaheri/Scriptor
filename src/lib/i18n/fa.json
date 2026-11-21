@@ -1157,6 +1157,7 @@
     "off": "خاموش",
     "openaiCompatible": "API سازگار با OpenAI",
     "endpoint": "نشانی",
+    "model": "مدل",
     "apiKey": "کلید API",
     "keyStored": "کلید در خزانه کلید ذخیره شده",
     "pasteKey": "کلید API را وارد کنید",

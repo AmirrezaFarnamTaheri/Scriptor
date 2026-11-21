@@ -426,13 +426,66 @@ pub fn vault_textbundle_export(
 ) -> Result<TextBundleExportOutput, String> {
     let session = active_session(&state)?;
     let relative = RelativeVaultPath::parse(&note_path).map_err(|error| error.to_string())?;
+    let destination = validate_textbundle_destination(&output_path)?;
     export_text_bundle(
         &session.descriptor.id,
         &session.root,
         &relative,
-        std::path::Path::new(&output_path),
+        &destination,
     )
     .map_err(|error| error.to_string())
+}
+
+/// The renderer supplies this path, so it is not vault-confined. Constrain it to
+/// a TextPack archive in a directory that already exists, and never follow or
+/// replace a symbolic link, a directory, or a file of another type.
+fn validate_textbundle_destination(raw: &str) -> Result<std::path::PathBuf, String> {
+    let path = std::path::Path::new(raw);
+    let is_textpack = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("textpack"));
+    if raw.len() > 4096
+        || raw.chars().any(char::is_control)
+        || !path.is_absolute()
+        || !is_textpack
+        || path
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err("TextBundle export requires an absolute .textpack destination".into());
+    }
+    #[cfg(windows)]
+    if path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.contains(':'))
+    {
+        return Err(
+            "TextBundle destination must not contain a Windows alternate data stream".into(),
+        );
+    }
+    let parent = path
+        .parent()
+        .ok_or("TextBundle export requires a destination folder")?;
+    let parent = parent
+        .canonicalize()
+        .map_err(|_| "TextBundle destination folder does not exist".to_string())?;
+    if !parent.is_dir() {
+        return Err("TextBundle destination folder does not exist".into());
+    }
+    let file_name = path
+        .file_name()
+        .ok_or("TextBundle export requires a destination file name")?;
+    let destination = parent.join(file_name);
+    match std::fs::symlink_metadata(&destination) {
+        Ok(metadata) if !metadata.file_type().is_file() => {
+            Err("TextBundle destination must be a regular file".into())
+        }
+        Ok(_) => Ok(destination),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(destination),
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 #[tauri::command]
@@ -669,16 +722,28 @@ pub fn vault_export_audit_log(
         "csv" => {
             let mut out = String::from("id,ts,kind,message,detail\n");
             for entry in &entries {
-                let detail = entry.detail.as_deref().unwrap_or("").replace('"', "\"\"");
-                let message = entry.message.replace('"', "\"\"");
                 out.push_str(&format!(
-                    "{},{},{},\"{}\",\"{}\"\n",
-                    entry.id, entry.ts, entry.kind, message, detail
+                    "{},\"{}\",{},{},{}\n",
+                    csv_field(&entry.id.to_string()),
+                    entry.ts,
+                    csv_field(&entry.kind.to_string()),
+                    csv_field(&entry.message),
+                    csv_field(entry.detail.as_deref().unwrap_or("")),
                 ));
             }
             Ok(out)
         }
         _ => serde_json::to_string_pretty(&entries).map_err(|e| e.to_string()),
+    }
+}
+
+/// Quote every field and neutralize spreadsheet formula triggers (CWE-1236).
+fn csv_field(value: &str) -> String {
+    let escaped = value.replace('"', "\"\"");
+    if escaped.starts_with(['=', '+', '-', '@', '\t', '\r']) {
+        format!("\"'{escaped}\"")
+    } else {
+        format!("\"{escaped}\"")
     }
 }
 
@@ -698,7 +763,7 @@ pub(crate) fn validate_expected_vault(
 
 #[cfg(test)]
 mod tests {
-    use super::validate_expected_vault;
+    use super::{csv_field, validate_expected_vault, validate_textbundle_destination};
 
     #[test]
     fn validate_expected_vault_accepts_matching_and_none() {
@@ -712,5 +777,51 @@ mod tests {
         assert!(err.contains("stale save target"));
         assert!(err.contains("vault-2"));
         assert!(err.contains("vault-1"));
+    }
+
+    #[test]
+    fn textbundle_destination_accepts_only_new_or_regular_textpack_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let ok = dir.path().join("note.textpack");
+        assert!(validate_textbundle_destination(ok.to_str().unwrap()).is_ok());
+        std::fs::write(&ok, "x").unwrap();
+        assert!(validate_textbundle_destination(ok.to_str().unwrap()).is_ok());
+
+        let wrong_ext = dir.path().join("note.zip");
+        let missing_parent = dir.path().join("missing").join("note.textpack");
+        let dotdot = format!("{}/sub/../note.textpack", dir.path().display());
+        let as_dir = dir.path().join("folder.textpack");
+        std::fs::create_dir(&as_dir).unwrap();
+        for bad in [
+            wrong_ext.to_str().unwrap(),
+            missing_parent.to_str().unwrap(),
+            dotdot.as_str(),
+            as_dir.to_str().unwrap(),
+            "relative/note.textpack",
+            "note.textpack",
+        ] {
+            assert!(validate_textbundle_destination(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn textbundle_destination_refuses_symlinks() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("victim.txt");
+        std::fs::write(&target, "keep").unwrap();
+        let link = dir.path().join("link.textpack");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        assert!(validate_textbundle_destination(link.to_str().unwrap()).is_err());
+    }
+
+    #[test]
+    fn csv_field_quotes_and_neutralizes_formula_prefixes() {
+        assert_eq!(csv_field("plain"), "\"plain\"");
+        assert_eq!(csv_field("say \"hi\""), "\"say \"\"hi\"\"\"");
+        for trigger in ["=1+1", "+1", "-1", "@SUM(A1)", "\tx", "\rx"] {
+            let out = csv_field(trigger);
+            assert!(out.starts_with("\"'"), "{trigger:?} -> {out:?}");
+        }
     }
 }

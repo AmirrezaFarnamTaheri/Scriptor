@@ -81,9 +81,11 @@ fn setup_deep_links(app: &mut tauri::App) -> tauri::Result<()> {
     {
         use tauri_plugin_deep_link::DeepLinkExt;
         let handle = app.handle().clone();
-        app.deep_link()
-            .register("scriptor")
-            .map_err(|error| tauri::Error::Io(std::io::Error::other(error.to_string())))?;
+        // Registration can fail (read-only desktop entry, sandboxed install);
+        // links are a convenience, so never abort startup over it.
+        if let Err(error) = app.deep_link().register("scriptor") {
+            tracing::warn!(%error, "scriptor:// deep-link registration failed; continuing");
+        }
         let _ = app.deep_link().on_open_url(move |event| {
             for url in event.urls() {
                 let _ = handle.emit(

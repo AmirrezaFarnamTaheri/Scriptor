@@ -64,12 +64,14 @@ interface SettingsPanelProps {
   onDiagnosticsOptInChange: (enabled: boolean) => void
   aiProvider: AiProviderId
   aiEndpoint: string
+  aiModel: string
   aiHasApiKey: boolean
   aiBusy: boolean
   aiLastError: string | null
   aiHttpWarning?: string | null
   onAiProviderChange: (provider: AiProviderId) => void
   onAiEndpointChange: (endpoint: string) => void
+  onAiModelChange: (model: string) => void
   onAiSaveApiKey: (secret: string) => void
   onAiClearApiKey: () => void
   nativeReady: boolean
@@ -145,12 +147,14 @@ function SettingsPanelImpl({
   onDiagnosticsOptInChange,
   aiProvider,
   aiEndpoint,
+  aiModel,
   aiHasApiKey,
   aiBusy,
   aiLastError,
   aiHttpWarning = null,
   onAiProviderChange,
   onAiEndpointChange,
+  onAiModelChange,
   onAiSaveApiKey,
   onAiClearApiKey,
   nativeReady,
@@ -466,12 +470,14 @@ function SettingsPanelImpl({
         <AiProviderSettings
           provider={aiProvider}
           endpoint={aiEndpoint}
+          model={aiModel}
           hasApiKey={aiHasApiKey}
           busy={aiBusy}
           lastError={aiLastError}
           httpWarning={aiHttpWarning}
           onProviderChange={onAiProviderChange}
           onEndpointChange={onAiEndpointChange}
+          onModelChange={onAiModelChange}
           onSaveApiKey={onAiSaveApiKey}
           onClearApiKey={onAiClearApiKey}
         />

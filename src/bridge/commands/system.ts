@@ -48,11 +48,13 @@ export async function aiProviderProposeDraft(
   endpoint: string,
   prompt: string,
   currentMarkdown: string,
+  model?: string,
 ): Promise<string> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('ai_network_request', endpoint)
   const proposal = await invoke<{ markdown: string }>('ai_provider_propose_draft', {
     endpoint,
+    model: model?.trim() || null,
     prompt,
     currentMarkdown,
     authorizationToken,
@@ -78,11 +80,23 @@ export interface CodeChunkRunOutput {
   language: string
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+/** Must match `code_run_scope` in commands/code_chunk.rs. */
+export async function codeRunScope(language: string, code: string): Promise<string> {
+  // Rust str::trim also removes U+0085, which JavaScript's trim omits.
+  const normalized = language.replace(/^[\s\u0085]+|[\s\u0085]+$/gu, '').toLowerCase()
+  return `code:run:${normalized}:${await sha256Hex(code)}`
+}
+
 export async function codeChunkRun(language: string, code: string): Promise<CodeChunkRunOutput> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation(
     'code_execution',
-    language.trim().toLowerCase(),
+    await codeRunScope(language, code),
   )
   return invoke<CodeChunkRunOutput>('code_chunk_run', { language, code, authorizationToken })
 }

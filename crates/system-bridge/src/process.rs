@@ -490,7 +490,17 @@ fn resolve_executable(program: &OsStr, current_dir: Option<&Path>) -> Result<Pat
     let path = std::env::var_os("PATH").ok_or_else(|| BridgeError::ProcessPolicy {
         message: "PATH is unavailable while resolving external executable".into(),
     })?;
-    for directory in std::env::split_paths(&path) {
+    resolve_in_search_path(program, &path)
+}
+
+/// Search `path` for `program`. Relative and empty entries mean "the current
+/// directory", which a hostile vault can populate, so only absolute directories
+/// are consulted.
+fn resolve_in_search_path(program: &OsStr, path: &OsStr) -> Result<PathBuf, BridgeError> {
+    for directory in std::env::split_paths(path) {
+        if !directory.is_absolute() {
+            continue;
+        }
         for name in executable_names(program) {
             let candidate = directory.join(name);
             if candidate.is_file() {
@@ -573,22 +583,40 @@ pub fn configure_process_group(command: &mut Command) {
 #[cfg(not(any(unix, windows)))]
 pub fn configure_process_group(_command: &mut Command) {}
 
+/// Never resolve `kill` through `PATH`: a vault-influenced directory must not be
+/// able to substitute the helper that ends a process tree.
+#[cfg(unix)]
+fn trusted_kill_program() -> PathBuf {
+    ["/bin/kill", "/usr/bin/kill"]
+        .iter()
+        .map(PathBuf::from)
+        .find(|candidate| candidate.is_file())
+        .unwrap_or_else(|| PathBuf::from("/bin/kill"))
+}
+
+#[cfg(windows)]
+fn trusted_taskkill_program() -> PathBuf {
+    let root = std::env::var_os("SystemRoot").unwrap_or_else(|| OsString::from(r"C:\Windows"));
+    Path::new(&root).join("System32").join("taskkill.exe")
+}
+
 #[cfg(unix)]
 pub fn terminate_process_tree(child: &mut Child) {
     let group = format!("-{}", child.id());
     // A negative PID is a process-group operand, not another signal option.
     // Some external kill implementations continue parsing options after -TERM.
-    let _ = Command::new("kill").args(["-TERM", "--", &group]).status();
+    let kill = trusted_kill_program();
+    let _ = Command::new(&kill).args(["-TERM", "--", &group]).status();
     thread::sleep(TERMINATION_GRACE);
     // Descendants can ignore TERM even when the leader exits. Keep the leader
     // unreaped until group escalation so its identity cannot be reused here.
-    let _ = Command::new("kill").args(["-KILL", "--", &group]).status();
+    let _ = Command::new(&kill).args(["-KILL", "--", &group]).status();
     let _ = child.kill();
 }
 
 #[cfg(windows)]
 pub fn terminate_process_tree(child: &mut Child) {
-    let mut command = Command::new("taskkill");
+    let mut command = Command::new(trusted_taskkill_program());
     configure_process_group(&mut command);
     let _ = command
         .args(["/PID", &child.id().to_string(), "/T", "/F"])
@@ -698,6 +726,41 @@ fn escape_sandbox_profile_string(value: &OsStr) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn process_tree_helper_is_an_absolute_path() {
+        assert!(trusted_kill_program().is_absolute());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn search_path_ignores_relative_entries() {
+        let base = tempfile::Builder::new()
+            .prefix("scriptor-relpath-fixture-")
+            .tempdir_in(std::env::current_dir().expect("test cwd"))
+            .expect("isolated PATH fixture");
+        let absolute_dir = base.path().canonicalize().expect("absolute dir");
+        let relative_dir = PathBuf::from(base.path().file_name().expect("fixture dir name"));
+        let tool = absolute_dir.join("fixture-tool");
+        std::fs::write(&tool, "#!/bin/sh\n").expect("fixture tool");
+
+        let relative_only =
+            std::env::join_paths([relative_dir.as_path(), Path::new("")]).expect("join relative");
+        let relative_result = resolve_in_search_path(OsStr::new("fixture-tool"), &relative_only);
+
+        let absolute = std::env::join_paths([absolute_dir.as_path()]).expect("join absolute");
+        let absolute_result = resolve_in_search_path(OsStr::new("fixture-tool"), &absolute);
+
+        assert!(
+            relative_result.is_err(),
+            "relative PATH entries must be skipped"
+        );
+        assert!(
+            absolute_result.is_ok(),
+            "absolute PATH entries still resolve"
+        );
+    }
 
     #[cfg(unix)]
     #[test]

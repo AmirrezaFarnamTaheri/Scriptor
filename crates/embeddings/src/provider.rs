@@ -140,6 +140,7 @@ impl OpenAiProvider {
     fn build_http_client() -> Result<reqwest::blocking::Client, reqwest::Error> {
         reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(60))
+            .redirect(reqwest::redirect::Policy::none())
             .build()
     }
 
@@ -187,6 +188,7 @@ impl EmbedProvider for OpenAiProvider {
             .map_err(EmbeddingError::Http)?
             .error_for_status()
             .map_err(EmbeddingError::Http)?;
+        crate::require_success(resp.status())?;
 
         let parsed: OpenAiEmbedResponse = resp.json().map_err(EmbeddingError::Http)?;
         let vectors: Vec<Vec<f32>> = parsed.data.into_iter().map(|d| d.embedding).collect();

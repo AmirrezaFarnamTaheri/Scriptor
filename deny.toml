@@ -38,7 +38,9 @@ ignore = [
 
 [bans]
 multiple-versions = "warn"
-wildcards = "allow"
+# Registry wildcard requirements ("*") are denied; workspace path dependencies are exempt.
+wildcards = "deny"
+allow-wildcard-paths = true
 highlight = "all"
 
 [licenses]

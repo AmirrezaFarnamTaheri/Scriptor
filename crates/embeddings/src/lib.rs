@@ -53,6 +53,7 @@ pub fn resolve_provider(
                 .base_url
                 .clone()
                 .unwrap_or_else(|| "http://localhost:11434".to_string());
+            validate_loopback_endpoint(&base_url)?;
             let model = config
                 .model
                 .clone()
@@ -93,6 +94,49 @@ pub fn resolve_provider(
             "unknown semantic provider: {other} (expected ollama, openai, or none)"
         ))),
     }
+}
+
+/// Redirects are disabled, so a 3xx arrives as a response rather than an error
+/// and `error_for_status` lets it through. Reject anything but success.
+pub(crate) fn require_success(status: reqwest::StatusCode) -> Result<(), EmbeddingError> {
+    if status.is_success() {
+        Ok(())
+    } else {
+        Err(EmbeddingError::Provider(format!(
+            "embedding endpoint returned unexpected HTTP status {status}"
+        )))
+    }
+}
+
+/// The endpoint comes from the vault's own config, which may arrive with a
+/// copied or shared folder. Note text is sent to it, so a non-loopback host
+/// would let a hostile vault exfiltrate content or probe internal services.
+fn validate_loopback_endpoint(base_url: &str) -> Result<(), EmbeddingError> {
+    let rejected = |reason: &str| {
+        EmbeddingError::Provider(format!(
+            "semantic.base_url must be a loopback http(s) address without credentials: {reason}"
+        ))
+    };
+    let url = reqwest::Url::parse(base_url).map_err(|_| rejected("not a valid URL"))?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(rejected("unsupported scheme"));
+    }
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(rejected("credentials are not allowed"));
+    }
+    let host = url
+        .host_str()
+        .ok_or_else(|| rejected("missing host"))?
+        .trim_start_matches('[')
+        .trim_end_matches(']');
+    let loopback = host.eq_ignore_ascii_case("localhost")
+        || host
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|address| address.is_loopback());
+    if !loopback {
+        return Err(rejected("host is not loopback"));
+    }
+    Ok(())
 }
 
 // ── Typed record ──────────────────────────────────────────────────────────────
@@ -696,5 +740,42 @@ mod tests {
         let store = EmbeddingStore::open_in_memory(2).unwrap();
         store.delete_embedding("missing").unwrap();
         assert_eq!(store.count().unwrap(), 0);
+    }
+
+    #[test]
+    fn ollama_endpoint_must_be_loopback() {
+        for ok in [
+            "http://localhost:11434",
+            "http://127.0.0.1:11434/",
+            "http://[::1]:11434",
+            "https://LOCALHOST",
+        ] {
+            assert!(super::validate_loopback_endpoint(ok).is_ok(), "{ok}");
+        }
+        for bad in [
+            "http://example.com",
+            "http://10.0.0.5:11434",
+            "http://192.168.1.10",
+            "http://localhost@evil.example",
+            "http://user:pw@localhost:11434",
+            "ftp://localhost",
+            "not a url",
+            "http://localhost.evil.example",
+        ] {
+            assert!(super::validate_loopback_endpoint(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn redirects_and_non_success_statuses_are_rejected() {
+        use reqwest::StatusCode;
+        assert!(super::require_success(StatusCode::OK).is_ok());
+        for status in [
+            StatusCode::TEMPORARY_REDIRECT,
+            StatusCode::FOUND,
+            StatusCode::MULTIPLE_CHOICES,
+        ] {
+            assert!(super::require_success(status).is_err(), "{status}");
+        }
     }
 }

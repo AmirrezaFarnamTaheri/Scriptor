@@ -1,14 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CanvasPoint {
     pub x: f64,
     pub y: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CanvasRect {
     pub x: f64,
     pub y: f64,
@@ -66,7 +66,7 @@ pub enum CanvasShapeKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CanvasStyle {
     pub fill: Option<String>,
     pub stroke: Option<String>,
@@ -76,7 +76,7 @@ pub struct CanvasStyle {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CanvasBlock {
     pub id: String,
     pub kind: CanvasBlockKind,
@@ -98,7 +98,7 @@ pub struct CanvasBlock {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CanvasLayer {
     pub id: String,
     pub name: String,
@@ -108,7 +108,7 @@ pub struct CanvasLayer {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CanvasDocument {
     pub id: String,
     pub vault_id: String,
@@ -171,7 +171,7 @@ pub fn validate_relations(document: &CanvasDocument) -> Result<(), crate::Canvas
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CanvasTemplate {
     pub id: String,
     pub name: String,
