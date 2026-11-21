@@ -374,7 +374,7 @@ mod tests {
         fs::write(dir.path().join("Blocked"), "not a folder").unwrap();
         let session = open_vault(dir.path()).unwrap();
         let from = RelativeVaultPath::parse("Note.md").unwrap();
-        let to = RelativeVaultPath::parse("Blocked/Note.md").unwrap();
+        let to = RelativeVaultPath::parse("Blocked/Renamed.md").unwrap();
 
         let result = rename_apply(&session.descriptor.id, &session.root, &from, &to, true);
 
