@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
 
-use scriptor_daemon::{DaemonEndpoint, read_endpoint, rpc_call};
+use scriptor_daemon::{DaemonEndpoint, read_endpoint, rpc_call, shared_rpc_client};
 use scriptor_ipc::{RpcMethod, RpcPayload, RpcRequest, RpcResult};
 use serde::Serialize;
 use tauri::Manager;
@@ -315,12 +315,20 @@ fn export_cancel_impl(job_id: Option<String>) -> Result<(), String> {
     }
 }
 
-#[tauri::command]
-pub fn daemon_ping() -> Result<DaemonPingOutput, String> {
-    match daemon_rpc(RpcMethod::Ping)? {
-        RpcPayload::Pong { version } => Ok(DaemonPingOutput { version }),
+fn daemon_ping_with_timeout(timeout: Duration) -> Result<DaemonPingOutput, String> {
+    let response = shared_rpc_client()
+        .call_with_timeout(RpcRequest::new(next_rpc_id(), RpcMethod::Ping), timeout)
+        .map_err(|error| error.to_string())?;
+    match response.result {
+        RpcResult::Ok(RpcPayload::Pong { version }) => Ok(DaemonPingOutput { version }),
+        RpcResult::Error(error) => Err(error.to_string()),
         _ => Err("unexpected daemon ping response".into()),
     }
+}
+
+#[tauri::command]
+pub fn daemon_ping() -> Result<DaemonPingOutput, String> {
+    daemon_ping_with_timeout(Duration::from_secs(5))
 }
 #[tauri::command]
 pub fn daemon_endpoint() -> Result<DaemonEndpoint, String> {
@@ -339,7 +347,7 @@ pub fn daemon_start(
         Some("background-daemon"),
         None,
     )?;
-    if daemon_ping().is_ok() {
+    if daemon_ping_with_timeout(Duration::from_secs(1)).is_ok() {
         return read_endpoint().map_err(|error| error.to_string());
     }
     let binary = resolve_daemon_binary(&app);
@@ -349,8 +357,8 @@ pub fn daemon_start(
         .arg("serve")
         .spawn()
         .map_err(|error| format!("failed to start {binary_display}: {error}"))?;
-    wait_for_daemon(Duration::from_secs(10), Duration::from_millis(100), || {
-        daemon_ping().is_ok()
+    wait_for_daemon(Duration::from_secs(10), Duration::from_millis(100), |remaining| {
+        daemon_ping_with_timeout(remaining.min(Duration::from_secs(1))).is_ok()
     })?;
     read_endpoint().map_err(|error| error.to_string())
 }
@@ -360,20 +368,28 @@ pub fn daemon_start(
 fn wait_for_daemon(
     deadline: Duration,
     interval: Duration,
-    mut ready: impl FnMut() -> bool,
+    mut ready: impl FnMut(Duration) -> bool,
 ) -> Result<(), String> {
     let started = std::time::Instant::now();
     loop {
-        if ready() {
-            return Ok(());
-        }
-        if started.elapsed() >= deadline {
+        let remaining = deadline.saturating_sub(started.elapsed());
+        if remaining.is_zero() {
             return Err(format!(
                 "the background daemon did not become ready within {} s",
                 deadline.as_secs()
             ));
         }
-        thread::sleep(interval);
+        if ready(remaining) {
+            return Ok(());
+        }
+        let remaining = deadline.saturating_sub(started.elapsed());
+        if remaining.is_zero() {
+            return Err(format!(
+                "the background daemon did not become ready within {} s",
+                deadline.as_secs()
+            ));
+        }
+        thread::sleep(interval.min(remaining));
     }
 }
 #[tauri::command]
@@ -700,7 +716,7 @@ mod wait_tests {
     #[test]
     fn returns_as_soon_as_ready() {
         let mut calls = 0;
-        let result = wait_for_daemon(Duration::from_secs(5), Duration::from_millis(1), || {
+        let result = wait_for_daemon(Duration::from_secs(5), Duration::from_millis(1), |_| {
             calls += 1;
             calls == 3
         });
@@ -709,8 +725,20 @@ mod wait_tests {
     }
 
     #[test]
+    fn ping_receives_only_remaining_startup_budget() {
+        let mut observed = Vec::new();
+        let result = wait_for_daemon(Duration::from_millis(4), Duration::from_millis(1), |remaining| {
+            observed.push(remaining);
+            false
+        });
+        assert!(result.is_err());
+        assert!(!observed.is_empty());
+        assert!(observed.iter().all(|budget| *budget <= Duration::from_millis(4)));
+    }
+
+    #[test]
     fn fails_after_deadline() {
-        let result = wait_for_daemon(Duration::ZERO, Duration::from_millis(1), || false);
+        let result = wait_for_daemon(Duration::ZERO, Duration::from_millis(1), |_| false);
         assert!(result.unwrap_err().contains("did not become ready"));
     }
 }
