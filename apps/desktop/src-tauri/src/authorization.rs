@@ -428,7 +428,8 @@ pub async fn authorize_sensitive_operation(
     let impact = operation.impact().to_string();
     let display_scope = scope
         .as_deref()
-        .map(sanitize_scope)
+        .map(|value| display_sensitive_scope(operation, value))
+        .transpose()?
         .filter(|value| !value.is_empty());
     let message = match (display_scope, vault_name.as_deref()) {
         (Some(scope), Some(vault)) => {
@@ -467,6 +468,56 @@ pub async fn authorize_sensitive_operation(
     state
         .authorization
         .issue(operation, account_scope, bound_vault_id)
+}
+
+/// Display the actual note and relay destination before issuing a one-time
+/// collaboration grant. Opaque IDs must not push those security-critical fields
+/// beyond the dialog's visible bounds.
+fn display_sensitive_scope(operation: SensitiveOperation, scope: &str) -> Result<String, String> {
+    if operation != SensitiveOperation::LiveCollaborationConnect {
+        return Ok(sanitize_scope(scope));
+    }
+    let rest = scope.strip_prefix("live-remote:")
+        .ok_or("Collaboration authorization scope is invalid")?;
+    let mut pieces = rest.splitn(4, ':');
+    let (Some(room), Some(document), Some(epoch), Some(destination)) = (
+        pieces.next(), pieces.next(), pieces.next(), pieces.next(),
+    ) else {
+        return Err("Collaboration authorization scope is incomplete".into());
+    };
+    let (note, endpoint_suffix) = destination.rsplit_once(":wss://")
+        .ok_or("Collaboration authorization scope requires a secure relay")?;
+    let endpoint = format!("wss://{endpoint_suffix}");
+    let invalid_identity = |value: &str| {
+        value.is_empty() || value.len() > 100 || value.chars().any(|ch| !ch.is_ascii_alphanumeric() && ch != '-' && ch != '_')
+    };
+    if invalid_identity(room) || invalid_identity(document)
+        || epoch.parse::<u64>().ok().is_none_or(|number| number == 0)
+        || note.len() > 260 || note.is_empty() || !note.ends_with(".md")
+        || note.starts_with('/') || note.contains('\\')
+        || note.split('/').any(|part| part.is_empty() || part == "." || part == "..")
+        || note.chars().any(|ch| ch.is_control() || ch == ':')
+    {
+        return Err("Collaboration authorization scope has an invalid document".into());
+    }
+    let parsed = reqwest::Url::parse(&endpoint)
+        .map_err(|_| "Collaboration authorization scope has an invalid relay")?;
+    if parsed.scheme() != "wss" || parsed.host_str().is_none()
+        || !parsed.username().is_empty() || parsed.password().is_some()
+        || parsed.fragment().is_some() || parsed.query().is_some()
+        || parsed.path() != "/v1/live" || endpoint.len() > 260
+    {
+        return Err("Collaboration authorization scope has an unsafe relay".into());
+    }
+    // Do not truncate either reviewed destination: refuse the authorization
+    // when they cannot be represented in a compact native dialog.
+    let display = format!(
+        "Note: {note}\\nRelay endpoint: {endpoint}\\nRoom: {room}\\nDocument: {document}\\nEpoch: {epoch}"
+    ).replace("\\n", "\n");
+    if display.len() > 600 {
+        return Err("Collaboration authorization scope is too long to review".into());
+    }
+    Ok(display)
 }
 
 fn sanitize_scope(value: &str) -> String {
