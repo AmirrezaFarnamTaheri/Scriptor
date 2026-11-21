@@ -213,7 +213,8 @@ export class DurableCollaborationSession {
           cursor = record.clientSeq
           this.nextSequence = cursor
         }
-        if (page.length < MAX_RECOVERY_PAGE) break
+        // The native journal may stop a page early due to its byte budget.
+        // Only an empty page proves recovery reached the end.
       }
       if (!this.isStopped()) this.phase = 'ready'
     } catch (error) {
