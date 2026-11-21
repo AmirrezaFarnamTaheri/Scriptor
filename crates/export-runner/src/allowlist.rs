@@ -88,14 +88,16 @@ fn validate_keyed_value(pair: &str, raw_variable: bool) -> Result<(), ExportErro
         return Err(ExportError::DisallowedArg(pair.to_string()));
     }
     // fontspec loads file paths as fonts. Accept family names only, not paths or options.
-    if matches!(key.as_str(), "mainfont" | "sansfont" | "monofont") && !value.is_empty() {
-        if value.trim().is_empty()
+    if matches!(key.as_str(), "mainfont" | "sansfont" | "monofont")
+        && !value.is_empty()
+        && (value.trim().is_empty()
             || value.starts_with('.')
             || value.contains("..")
-            || value.chars().any(|ch| !ch.is_ascii_alphanumeric() && !matches!(ch, ' ' | '-' | '_' | '+'))
-        {
-            return Err(ExportError::DisallowedArg(pair.to_string()));
-        }
+            || value
+                .chars()
+                .any(|ch| !ch.is_ascii_alphanumeric() && !matches!(ch, ' ' | '-' | '_' | '+')))
+    {
+        return Err(ExportError::DisallowedArg(pair.to_string()));
     }
     Ok(())
 }
