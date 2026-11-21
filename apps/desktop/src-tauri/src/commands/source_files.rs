@@ -52,14 +52,50 @@ fn language(path: &str) -> Result<&'static str, String> {
 /// A vault root is chosen by the renderer, so a vault can sit above a user
 /// profile. Script-typed files must never be created where the operating system
 /// runs them at sign-in (Windows Startup folder, macOS LaunchAgents/Daemons).
-fn is_autostart_location(path: &str) -> bool {
-    let parts: Vec<String> = path.split('/').map(str::to_lowercase).collect();
-    parts
-        .windows(3)
-        .any(|w| w[0] == "start menu" && w[1] == "programs" && w[2] == "startup")
-        || parts
-            .iter()
-            .any(|part| part == "launchagents" || part == "launchdaemons")
+fn is_within_protected_dir(path: &std::path::Path, root: &std::path::Path) -> bool {
+    // Compare complete path components, not substrings (e.g. Startup2) or vault-relative names.
+    // macOS and Windows volumes are often case-insensitive.
+    let path_parts: Vec<String> = path
+        .components()
+        .map(|part| part.as_os_str().to_string_lossy().to_lowercase())
+        .collect();
+    let root_parts: Vec<String> = root
+        .components()
+        .map(|part| part.as_os_str().to_string_lossy().to_lowercase())
+        .collect();
+    path_parts.starts_with(&root_parts)
+}
+
+fn is_autostart_location(absolute: &std::path::Path) -> bool {
+    #[cfg(windows)]
+    {
+        let Some(appdata) = std::env::var_os("APPDATA") else { return false; };
+        let startup = std::path::PathBuf::from(appdata)
+            .join("Microsoft/Windows/Start Menu/Programs/Startup");
+        let startup = startup.canonicalize().unwrap_or(startup);
+        return is_within_protected_dir(absolute, &startup);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let home_agents = std::env::var_os("HOME")
+            .map(|home| std::path::PathBuf::from(home).join("Library/LaunchAgents"));
+        let protected = [
+            std::path::PathBuf::from("/Library/LaunchAgents"),
+            std::path::PathBuf::from("/Library/LaunchDaemons"),
+            std::path::PathBuf::from("/System/Library/LaunchAgents"),
+            std::path::PathBuf::from("/System/Library/LaunchDaemons"),
+        ];
+        return home_agents.as_deref().is_some_and(|dir| {
+            is_within_protected_dir(absolute, &dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf()))
+        }) || protected.iter().any(|dir| {
+            is_within_protected_dir(absolute, &dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf()))
+        });
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        let _ = absolute;
+        false
+    }
 }
 fn resolve(session: &VaultSession, path: &str) -> Result<PathBuf, String> {
     resolve_path(session, path, false)
@@ -79,9 +115,6 @@ fn resolve_path(
     {
         return Err("Invalid source path".into());
     }
-    if is_autostart_location(path) {
-        return Err("Source files cannot be placed in operating-system autostart folders".into());
-    }
     let relative = RelativeVaultPath::parse(path).map_err(|e| e.to_string())?;
     let mut prefix = session.root.root().to_path_buf();
     for part in relative.as_str().split('/') {
@@ -95,10 +128,14 @@ fn resolve_path(
             Err(error) => return Err(error.to_string()),
         }
     }
-    session
+    let destination = session
         .root
         .resolve_relative(&relative)
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if is_autostart_location(&destination) {
+        return Err("Source files cannot be placed in operating-system autostart folders".into());
+    }
+    Ok(destination)
 }
 fn read(session: &VaultSession, path: &str) -> Result<SourceDocument, String> {
     let absolute = resolve(session, path)?;
@@ -438,17 +475,21 @@ mod tests {
         }
     }
     #[test]
-    fn autostart_locations_are_refused() {
-        for path in [
-            "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/run.js",
-            "appdata/roaming/microsoft/windows/start menu/programs/STARTUP/run.py",
-            "Library/LaunchAgents/x.py",
-            "library/launchdaemons/x.js",
+    fn autostart_check_restricts_actual_os_roots_not_unrelated_folder_names() {
+        let win_root = std::path::Path::new("/Users/me/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup");
+        let mac_root = std::path::Path::new("/Users/me/Library/LaunchAgents");
+        for (destination, protected) in [
+            ("/Users/me/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/run.js", win_root),
+            ("/Users/me/Library/LaunchAgents/run.py", mac_root),
         ] {
-            assert!(is_autostart_location(path), "{path}");
+            assert!(is_within_protected_dir(std::path::Path::new(destination), protected));
         }
-        for path in ["scripts/run.js", "Programs/Startup/notes.py", "main.py"] {
-            assert!(!is_autostart_location(path), "{path}");
+        for (destination, protected) in [
+            ("/Users/me/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup2/run.js", win_root),
+            ("/Users/me/docs/LaunchAgents/run.py", mac_root),
+            ("/Users/me/Library/LaunchAgents-copy/run.py", mac_root),
+        ] {
+            assert!(!is_within_protected_dir(std::path::Path::new(destination), protected));
         }
     }
 }
