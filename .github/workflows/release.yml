@@ -48,7 +48,9 @@ on:
         default: unsigned
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: false
+  # Superseded pull-request validation is cancelled; dispatched (publishing)
+  # runs are never cancelled mid-flight.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
