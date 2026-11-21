@@ -133,15 +133,27 @@ fn audit_regular_file_exists(path: &Path) -> Result<bool, VaultError> {
 
 fn open_audit_regular_file(path: &Path, append: bool) -> Result<File, VaultError> {
     let mut options = OpenOptions::new();
-    if append { options.append(true).create(true); } else { options.read(true); }
+    if append {
+        options.append(true).create(true);
+    } else {
+        options.read(true);
+    }
     // O_NOFOLLOW values below are the documented OS constants. Fail closed on
     // Unix targets whose value has not been verified rather than opening links.
     #[cfg(target_os = "linux")]
-    { use std::os::unix::fs::OpenOptionsExt; options.custom_flags(0x20_000); }
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(0x20_000);
+    }
     #[cfg(target_os = "macos")]
-    { use std::os::unix::fs::OpenOptionsExt; options.custom_flags(0x100); }
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(0x100);
+    }
     #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
-    { return Err(VaultError::InvalidRelativePath(path.display().to_string())); }
+    {
+        return Err(VaultError::InvalidRelativePath(path.display().to_string()));
+    }
     #[cfg(windows)]
     {
         use std::os::windows::fs::OpenOptionsExt;
@@ -153,7 +165,10 @@ fn open_audit_regular_file(path: &Path, append: bool) -> Result<File, VaultError
     audit_regular_file_exists(path)?;
     let file = options.open(path).map_err(|source| VaultError::io(path, source))?;
     let metadata = file.metadata().map_err(|source| VaultError::io(path, source))?;
-    if !metadata.is_file() || fs::symlink_metadata(path).map_err(|source| VaultError::io(path, source))?.file_type().is_symlink() {
+    let file_type = fs::symlink_metadata(path)
+        .map_err(|source| VaultError::io(path, source))?
+        .file_type();
+    if !metadata.is_file() || file_type.is_symlink() {
         return Err(VaultError::InvalidRelativePath(path.display().to_string()));
     }
     Ok(file)
