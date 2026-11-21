@@ -9,6 +9,10 @@ use uuid::Uuid;
 
 const GRANT_TTL: Duration = Duration::from_secs(60);
 const MAX_GRANTS: usize = 64;
+/// Google connection grants skip the native dialog (the browser consent page is
+/// the confirmation), so cap how often a renderer can start those flows.
+const GOOGLE_CONSENT_WINDOW_MS: u64 = 60_000;
+const GOOGLE_CONSENT_MAX_PER_WINDOW: usize = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -249,6 +253,7 @@ struct StoredGrant {
 #[derive(Default)]
 pub struct AuthorizationBroker {
     grants: Mutex<HashMap<String, StoredGrant>>,
+    google_consent_starts: Mutex<HashMap<SensitiveOperation, Vec<u64>>>,
 }
 
 impl AuthorizationBroker {
@@ -280,6 +285,20 @@ impl AuthorizationBroker {
     ) -> Result<AuthorizationGrant, String> {
         let now = Self::now_ms();
         let expires_at_ms = now.saturating_add(GRANT_TTL.as_millis() as u64);
+        if operation.uses_google_browser_consent() {
+            let mut starts = self
+                .google_consent_starts
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let recent = starts.entry(operation).or_default();
+            recent.retain(|at| now.saturating_sub(*at) < GOOGLE_CONSENT_WINDOW_MS);
+            if recent.len() >= GOOGLE_CONSENT_MAX_PER_WINDOW {
+                return Err(
+                    "too many Google connection attempts; wait a minute and try again".into(),
+                );
+            }
+            recent.push(now);
+        }
         let token = Uuid::new_v4().to_string();
         let mut grants = self.lock_grants();
         // Evict expired grants before checking capacity. This ensures the count
@@ -466,6 +485,35 @@ fn sanitize_scope(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn google_consent_issuance_is_rate_limited_per_operation() {
+        let broker = AuthorizationBroker::default();
+        for _ in 0..GOOGLE_CONSENT_MAX_PER_WINDOW {
+            broker
+                .issue(SensitiveOperation::GoogleCalendarAuth, None, None)
+                .expect("within the limit");
+        }
+        assert!(
+            broker
+                .issue(SensitiveOperation::GoogleCalendarAuth, None, None)
+                .is_err()
+        );
+        // Other operations keep their own budget.
+        assert!(
+            broker
+                .issue(SensitiveOperation::GoogleGmailAuth, None, None)
+                .is_ok()
+        );
+        // Native-dialog operations are never throttled here.
+        for _ in 0..=GOOGLE_CONSENT_MAX_PER_WINDOW {
+            assert!(
+                broker
+                    .issue(SensitiveOperation::CreateBackup, None, None)
+                    .is_ok()
+            );
+        }
+    }
 
     #[test]
     fn grant_payload_rejects_unknown_fields() {

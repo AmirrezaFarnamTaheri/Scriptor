@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Security
+- Starting Google Calendar/Drive/Gmail connection flows is limited to 3 per minute per service; extra attempts get a "try again" message (F-SEC-06).
 - Authorization grants, canvas documents and annotation selectors now reject unknown fields instead of silently ignoring them (F-ENG-03, first batch).
 - `cargo deny` now rejects wildcard (`*`) registry dependency requirements; application crates are marked `publish = false` so workspace path dependencies stay exempt (F-OPS-03).
 
