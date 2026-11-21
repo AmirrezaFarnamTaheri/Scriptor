@@ -482,6 +482,34 @@ mod tests {
     use super::*;
 
     #[test]
+    fn live_relay_approval_shows_validated_note_and_endpoint_after_long_identifiers() {
+        let room = "r".repeat(100);
+        let document = "d".repeat(100);
+        let scope = format!(
+            "live-remote:{room}:{document}:7:notes/review.md:wss://relay.example.test/v1/live"
+        );
+        let display = display_sensitive_scope(SensitiveOperation::LiveCollaborationConnect, &scope)
+            .expect("valid collaboration scope should be displayable");
+        assert!(display.contains("Note: notes/review.md"), "{display}");
+        assert!(display.contains("Relay endpoint: wss://relay.example.test/v1/live"), "{display}");
+        assert!(display.find("Note:").unwrap() < display.find("Room:").unwrap());
+    }
+
+    #[test]
+    fn live_relay_approval_rejects_hidden_or_unsafe_destinations() {
+        for scope in [
+            "live-remote:room:doc:7:notes/review.md:https://relay.example.test/v1/live",
+            "live-remote:room:doc:7:notes/review.md:wss://relay.example.test/other",
+            "live-remote:room:doc:7:../other.md:wss://relay.example.test/v1/live",
+            "live-remote:room:doc:7:notes/review.md:wss://user@relay.example.test/v1/live",
+        ] {
+            assert!(display_sensitive_scope(SensitiveOperation::LiveCollaborationConnect, scope).is_err(), "{scope}");
+        }
+        let long_path = format!("live-remote:room:doc:7:notes/{}.md:wss://relay.example.test/v1/live", "x".repeat(330));
+        assert!(display_sensitive_scope(SensitiveOperation::LiveCollaborationConnect, &long_path).is_err());
+    }
+
+    #[test]
     fn grants_are_one_time_operation_and_scope_bound() {
         let broker = AuthorizationBroker::default();
         let grant = broker
