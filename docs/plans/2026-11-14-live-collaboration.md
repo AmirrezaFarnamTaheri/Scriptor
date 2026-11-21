@@ -94,7 +94,7 @@
 
 **Files:**
 - Create: `e2e/live-collaboration-workflows.spec.ts` (proposed)
-- Create: `docs/validation/LIVE-COLLABORATION-ACCEPTANCE.md` (proposed)
+- Create: `docs/VERIFICATION.md` (proposed)
 
 **Interfaces:**
 - Consumes: independent desktop clients, isolated relay and vault fixtures.

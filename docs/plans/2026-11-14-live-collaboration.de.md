@@ -13,7 +13,7 @@
 ## Übergreifende Sicherheitsanforderungen
 
 - Raum, Dokument, Epoche, Peer und Vault müssen übereinstimmen. Eine Zustimmung gilt ausschließlich für ein explizit ausgewähltes Dokument.
-- Obergrenzen: 256 KiB pro Update, 2 KiB für Präsenz, 2 MiB für das materialisierte Dokument und 64 MiB für die lokale Warteschlange unbestätigter Updates.
+- Verbindliche Grenzwerte stehen ausschließlich in den [Global Constraints](2026-11-14-live-collaboration.md#global-constraints); diese Übersetzung definiert keine eigenen Normwerte.
 - Entzogenen Teilnehmern werden sämtliche Zugriffe verweigert; Betrachter dürfen nicht schreiben. Antworten alter Sitzungen dürfen keine andere Sitzung verändern.
 - Eine ACK-Bestätigung setzt eine abgeschlossene, dauerhafte Relay-Transaktion voraus. Senden allein genügt nicht. Lokale bestätigte Änderungen müssen einen Neustart überstehen.
 - Google Drive/Docs mit unveränderlichen Revisionen, begrenztes Polling, bestehende Git-Synchronisierung und CAS-/Wiederherstellungsfunktionen bleiben unabhängig funktionsfähig.
@@ -70,7 +70,7 @@
 
 ## Aufgabe 5: Wiederherstellung und Freigabenachweise
 
-**Dateien:** e2e/live-collaboration-workflows.spec.ts und docs/validation/LIVE-COLLABORATION-ACCEPTANCE.md.
+**Dateien:** e2e/live-collaboration-workflows.spec.ts und docs/VERIFICATION.md.
 
 - [ ] 100 deterministische Seeds mit jeweils 1.000 Änderungen von drei Peers; Netztrennungen, doppelte ACKs, Neustarts, Zugriffsverlust, beschädigte Snapshots und konkurrierende Dateischreiber testen.
 - [ ] Fehler dokumentieren und nur belegte Datenverlust-, Sicherheits-, Leistungs- oder Barrierefreiheitsfehler beheben.
