@@ -148,6 +148,35 @@ test('recovery replays all 65 native pending updates in pages with stable order 
   assert.equal(outgoing?.clientSeq, 66)
 })
 
+test('recovery continues after a short byte-limited page before admitting new edits', async () => {
+  const { owner, seed } = initial()
+  const journal = new FakeJournal()
+  for (let sequence = 1; sequence <= 5; sequence += 1) {
+    const update = owner.change(owner.value.length, owner.value.length, String(sequence))
+    journal.stored.push({
+      messageId: 'byte_page_' + sequence,
+      clientSeq: sequence,
+      payload: Buffer.from(update).toString('base64'),
+    })
+  }
+  let pageReads = 0
+  const originalPending = journal.pending.bind(journal)
+  // Model a native 1 MiB page cap returning fewer than the 64 row limit.
+  journal.pending = async (...args) => {
+    pageReads += 1
+    return (await originalPending(...args)).slice(0, 2)
+  }
+  const recovered = new CollaborativeMarkdown(scope())
+  recovered.hydrate(seed)
+  const session = new DurableCollaborationSession(scope(), 'lease_byte_pages', journal, recovered)
+  await session.restore()
+  assert.equal(session.value, owner.value)
+  assert.equal(session.pendingForRelay().length, 5)
+  assert.ok(pageReads >= 4, 'recovery must read through the final empty page')
+  const outgoing = await session.edit(session.value.length, session.value.length, 'next')
+  assert.equal(outgoing?.clientSeq, 6, 'next sequence must not reuse an unrecovered update')
+})
+
 test('bad native recovery payload fails closed and never permits an additional edit', async () => {
   const { owner } = initial()
   const store = new FakeJournal()
