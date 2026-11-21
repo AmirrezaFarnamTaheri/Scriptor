@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { validateRelayUpgrade, validateTlsConfiguration } from '../src/server.mjs'
 
 const request = (headers={}) => ({ method:'GET', url:'/v1/live', headers:{ upgrade:'websocket', connection:'Upgrade', 'sec-websocket-protocol':'scriptor-live-v1', ...headers } })
@@ -22,4 +25,16 @@ test('non-WebSocket upgrades and missing supported protocol fail closed', () => 
 test('TLS requires a real private key and certificate with no implicit insecure fallback', () => {
   assert.throws(()=>validateTlsConfiguration({}),/certificate|key|TLS/i)
   assert.throws(()=>validateTlsConfiguration({ keyPath:'/definitely/missing', certPath:'/definitely/missing' }),/path|TLS|file/i)
+  const dir = mkdtempSync(join(tmpdir(), 'scriptor-relay-tls-policy-'))
+  try {
+    const keyPath = join(dir, 'readable-private-key.pem')
+    writeFileSync(keyPath, 'test-only private key fixture', { mode: 0o600 })
+    assert.throws(
+      () => validateTlsConfiguration({ keyPath }),
+      /certificate|key file required|TLS/i,
+      'valid key file must reach the missing-certificate validation',
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
