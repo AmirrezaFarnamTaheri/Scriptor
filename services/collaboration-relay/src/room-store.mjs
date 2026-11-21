@@ -138,6 +138,15 @@ export class RelayRoomStore {
         );
         CREATE INDEX IF NOT EXISTS updates_room_cursor
           ON updates(room_id, document_id, epoch, cursor);
+        CREATE TABLE IF NOT EXISTS room_byte_totals (
+          room_id TEXT NOT NULL,
+          document_id TEXT NOT NULL,
+          epoch INTEGER NOT NULL,
+          total INTEGER NOT NULL CHECK (total >= 0),
+          PRIMARY KEY(room_id, document_id, epoch),
+          FOREIGN KEY(room_id, document_id, epoch)
+            REFERENCES rooms(room_id, document_id, epoch) ON DELETE CASCADE
+        );
       `)
       const check = this.#db.prepare('PRAGMA quick_check').get()
       if (!check || check.quick_check !== 'ok') throw new Error('Relay database integrity check failed')
@@ -196,14 +205,28 @@ export class RelayRoomStore {
     if (competing) throw new Error('Client sequence is already used for a different update')
     const bytes = payloadBytes(update.payload)
     if (bytes < 1 || bytes > MAX_LIVE_UPDATE_BYTES) throw new Error('Update exceeds payload limit')
-    const total = this.#db.prepare(`SELECT COALESCE(SUM(payload_bytes),0) AS total FROM updates
+    // Every new update is inside BEGIN IMMEDIATE. A persisted counter avoids
+    // rescanning an unbounded edit history on the synchronous write path.
+    // Existing databases lazily backfill the counter once from their history.
+    let quota = this.#db.prepare(`SELECT total FROM room_byte_totals
       WHERE room_id=? AND document_id=? AND epoch=?`)
-      .get(scope.roomId, scope.documentId, scope.epoch).total
-    if (total + bytes > this.#maxDocumentBytes) throw new Error('Relay document quota exceeded')
+      .get(scope.roomId, scope.documentId, scope.epoch)
+    if (!quota) {
+      const total = this.#db.prepare(`SELECT COALESCE(SUM(payload_bytes),0) AS total FROM updates
+        WHERE room_id=? AND document_id=? AND epoch=?`)
+        .get(scope.roomId, scope.documentId, scope.epoch).total
+      this.#db.prepare('INSERT INTO room_byte_totals VALUES (?,?,?,?)')
+        .run(scope.roomId, scope.documentId, scope.epoch, total)
+      quota = { total }
+    }
+    if (quota.total + bytes > this.#maxDocumentBytes) throw new Error('Relay document quota exceeded')
     const inserted = this.#db.prepare(`INSERT INTO updates
       (room_id, document_id, epoch, peer_id, message_id, client_seq, payload, payload_bytes)
       VALUES (?,?,?,?,?,?,?,?)`)
       .run(scope.roomId, scope.documentId, scope.epoch, peerId, update.messageId, update.clientSeq, update.payload, bytes)
+    this.#db.prepare(`UPDATE room_byte_totals SET total=total+?
+      WHERE room_id=? AND document_id=? AND epoch=?`)
+      .run(bytes, scope.roomId, scope.documentId, scope.epoch)
     return { cursor: Number(inserted.lastInsertRowid), durable: true, duplicate: false }
   }
 
