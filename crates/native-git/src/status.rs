@@ -1,5 +1,6 @@
 use std::ffi::OsString;
 use std::path::Path;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use scriptor_system_bridge::{ProcessReceipt, ProcessSpec, run_process};
@@ -140,6 +141,7 @@ fn run_git_receipt_with_index(
     args: &[&str],
     index: Option<&Path>,
 ) -> Result<ProcessReceipt, GitError> {
+    ensure_supported_git_version()?;
     let mut spec = ProcessSpec::new("git")
         .args(UNTRUSTED_REPOSITORY_OVERRIDES)
         .args(args.iter().copied())
@@ -162,12 +164,43 @@ fn run_git_receipt_with_index(
 /// synced folder. `core.fsmonitor` names a program that Git runs for commands as
 /// ordinary as `status`, so it is forced off for every invocation. Command-line
 /// `-c` values take precedence over repository, global and system config.
-const UNTRUSTED_REPOSITORY_OVERRIDES: [&str; 4] = [
+pub(crate) const UNTRUSTED_REPOSITORY_OVERRIDES: [&str; 4] = [
     "-c",
     "core.fsmonitor=false",
     "-c",
     "core.untrackedCache=false",
 ];
+
+/// Older Git versions interpret the boolean core.fsmonitor override as a hook
+/// command. Reject them before reading a potentially incomplete working tree.
+fn is_supported_git_version(stdout: &str) -> bool {
+    let Some(version) = stdout.trim().strip_prefix("git version ") else { return false };
+    let mut parts = version.split_whitespace().next().unwrap_or("").split('.');
+    let major = parts.next().and_then(|part| part.parse::<u32>().ok());
+    let minor = parts.next().and_then(|part| part.parse::<u32>().ok());
+    matches!((major, minor), (Some(major), Some(minor)) if major > 2 || (major == 2 && minor >= 26))
+}
+
+pub(crate) fn ensure_supported_git_version() -> Result<(), GitError> {
+    static VERIFIED: OnceLock<Result<(), String>> = OnceLock::new();
+    let outcome = VERIFIED.get_or_init(|| {
+        let receipt = run_process(
+            ProcessSpec::new("git")
+                .args(["--version"])
+                .timeout(Duration::from_secs(5))
+                .max_output_bytes(4 * 1024),
+        )
+        .map_err(|error| format!("unable to check Git version: {error}"))?;
+        if receipt.exit_code != 0 || receipt.stdout_truncated || !is_supported_git_version(&receipt.stdout) {
+            return Err(format!(
+                "Git 2.26 or later is required before running repository commands; got {}",
+                receipt.stdout.trim()
+            ));
+        }
+        Ok(())
+    });
+    outcome.as_ref().map_err(|message| GitError::Command(message.clone()))
+}
 
 /// The bridge intentionally starts subprocesses with a minimal environment.
 /// Keep only the transport credential hand-off variables Git needs for SSH
@@ -437,6 +470,15 @@ pub fn git_show_merge_base_file(repo_root: &Path, path: &str) -> Result<Option<S
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn rejects_legacy_git_versions_before_fsmonitor_override() {
+        assert!(!super::is_supported_git_version("git version 1.9.5"));
+        assert!(!super::is_supported_git_version("git version 2.25.12"));
+        assert!(super::is_supported_git_version("git version 2.26.0"));
+        assert!(super::is_supported_git_version("git version 2.56.1.windows.2"));
+        assert!(!super::is_supported_git_version("something unexpected"));
+    }
+
     #[test]
     fn status_refresh_detects_unstaged_changes_after_clean_read() {
         let directory = tempfile::tempdir().unwrap();
