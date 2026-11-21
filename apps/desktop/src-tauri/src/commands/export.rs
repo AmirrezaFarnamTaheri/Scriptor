@@ -33,7 +33,7 @@ pub(super) fn validate_export_session(
     if plugin_state.is_enabled("scriptor.export") {
         Ok(())
     } else {
-        Err("Plugin capability 'scriptor.export' is disabled in active vault".into())
+        Err("Plugin capability 'scriptor.export' is turned off. Turn it on in Plugins".into())
     }
 }
 

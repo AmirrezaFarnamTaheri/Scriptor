@@ -219,7 +219,7 @@ impl RpcResult {
     export_to = "../../../packages/core/src/contracts/ipc-generated.ts"
 )]
 pub enum RpcError {
-    #[error("Plugin capability '{capability_id}' is disabled in active vault")]
+    #[error("Plugin capability '{capability_id}' is turned off. Turn it on in Plugins")]
     PluginDisabled { capability_id: String },
     #[error("{message}")]
     CommandFailed {

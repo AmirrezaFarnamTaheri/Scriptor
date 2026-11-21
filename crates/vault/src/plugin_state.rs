@@ -49,6 +49,18 @@ impl PluginState {
         !self.disabled_plugins.contains(capability_id)
     }
 
+    /// Agent access has one switch: the per-user access level. A legacy
+    /// disable from the old plugin card still keeps it off.
+    pub fn agent_access_enabled(&self) -> bool {
+        const AGENT_ACCESS: &str = "scriptor.mcp";
+        let mode = self
+            .settings
+            .get(AGENT_ACCESS)
+            .and_then(|setting| setting.get("mode"))
+            .and_then(Value::as_str);
+        self.is_enabled(AGENT_ACCESS) && mode != Some("off")
+    }
+
     /// Optional integrations are fail-closed: absence from both sets must not
     /// inherit the default-on behavior used by built-in product capabilities.
     pub fn is_explicitly_enabled(&self, capability_id: &str) -> bool {
@@ -319,6 +331,28 @@ mod tests {
         assert_eq!(
             std::fs::read_to_string(path).unwrap(),
             "{\"schemaVersion\":1,\"enabledPlugins\":["
+        );
+    }
+
+    #[test]
+    fn agent_access_follows_the_single_access_level() {
+        let mut state = PluginState::default();
+        assert!(
+            state.agent_access_enabled(),
+            "unset level keeps the read-only default"
+        );
+        state
+            .settings
+            .insert("scriptor.mcp".into(), serde_json::json!({"mode": "off"}));
+        assert!(!state.agent_access_enabled());
+        state
+            .settings
+            .insert("scriptor.mcp".into(), serde_json::json!({"mode": "draft"}));
+        assert!(state.agent_access_enabled());
+        state.disabled_plugins.insert("scriptor.mcp".into());
+        assert!(
+            !state.agent_access_enabled(),
+            "a legacy card disable stays off"
         );
     }
 }

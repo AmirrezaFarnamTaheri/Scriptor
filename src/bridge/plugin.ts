@@ -47,4 +47,6 @@ export async function loadAgentAccessMode(): Promise<AgentAccessMode | null> {
 export async function saveAgentAccessMode(mode: AgentAccessMode): Promise<void> {
   if (!isNativeBridgeAvailable()) return
   await invoke('plugin_state_set_setting', { capabilityId: AGENT_ACCESS_CAPABILITY, key: 'mode', value: mode })
+  // The access level is the one switch. Clear any disable left by the old plugin card.
+  if (mode !== 'off') await invoke('plugin_state_set_enabled', { capabilityId: AGENT_ACCESS_CAPABILITY, enabled: true })
 }

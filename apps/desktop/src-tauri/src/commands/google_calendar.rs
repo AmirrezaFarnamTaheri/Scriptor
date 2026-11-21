@@ -88,7 +88,7 @@ fn require_gmail_capability<'a>(
     if plugin_state.is_explicitly_enabled("scriptor.gmail-manager") {
         Ok(session)
     } else {
-        Err("Plugin capability 'scriptor.gmail-manager' is disabled in active vault".into())
+        Err("Plugin capability 'scriptor.gmail-manager' is turned off. Turn it on in Plugins".into())
     }
 }
 

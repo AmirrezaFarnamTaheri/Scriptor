@@ -7,7 +7,6 @@ import { applyPluginManagerTransition } from '../../lib/pluginManagerTransition'
 import { canvasPluginManifest } from '@scriptor/canvas'
 import { citationsPluginManifest } from '../inspector/citation-plugin-manifest'
 import { exportPluginManifest } from '@scriptor/export'
-import { mcpPluginManifest } from '@scriptor/mcp'
 import { usePluginState } from '../../context/PluginStateContext'
 import {
   type InstallerProfile,
@@ -42,7 +41,7 @@ const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
     capabilities: ['renderer-extension'],
     permissions: [{ permission: 'read', reason: 'Access graph links' }],
   },
-  mcpPluginManifest,
+  // Agent access is not a plugin: its single switch is the access level in AI agents.
   runtimeConsoleManifest,
 ]
 
