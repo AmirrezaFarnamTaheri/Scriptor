@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./pure": "./src/pure.ts",
     "./codemirror": "./src/codemirror-entry.ts",
+    "./collaboration-port": "./src/collaboration-port.ts",
     "./lint/rules": "./src/lint/rules/index.ts"
   },
   "dependencies": {
@@ -23,7 +24,10 @@
     "@lezer/markdown": "^1.8.1",
     "@replit/codemirror-vim": "^6.4.0",
     "@scriptor/core": "workspace:*",
-    "@scriptor/template-engine": "workspace:*"
+    "@scriptor/template-engine": "workspace:*",
+    "y-codemirror.next": "0.3.6",
+    "y-protocols": "1.0.6",
+    "yjs": "13.6.33"
   },
   "peerDependencies": {
     "react": "^19.0.0",

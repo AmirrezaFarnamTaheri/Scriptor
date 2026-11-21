@@ -813,6 +813,157 @@
 /* High-contrast is an accessibility contract, not merely another palette.
  * Preserve the selected palette identity while guaranteeing explicit day/night
  * foreground/background pairs with a minimum-contrast intent. */
+/* Accent and status colours per palette and appearance. Appearance replaces
+ * the surfaces, so a palette's own accents can drop below 4.5:1 on them (teal
+ * #2dd4bf is 1.7:1 on the light surface). Each override keeps the palette's
+ * hue and moves only lightness until text, links and focus outlines reach
+ * 4.5:1 on --bg and --bg-elevated. scripts/validation/palette-contrast.test.mjs
+ * checks every pair and names any that fails after a palette changes. */
+:root[data-theme='light'][data-appearance='light'] {
+  --danger: #d1141b;
+}
+
+:root[data-theme='light'][data-appearance='dark'] {
+  --primary: #359087;
+  --primary-strong: #359087;
+  --danger: #f2403a;
+  --success: #31926f;
+  --amber: #d55f2c;
+}
+
+:root[data-theme='dark'][data-appearance='light'] {
+  --primary: #007a6d;
+  --primary-strong: #007a6d;
+  --danger: #c03d43;
+  --success: #007c56;
+  --amber: #b34e00;
+}
+
+:root[data-theme='catppuccin'][data-appearance='light'] {
+  --primary: #7f5ca6;
+  --primary-strong: #6168a2;
+  --danger: #ad4d6b;
+  --success: #40793d;
+  --amber: #9d5d33;
+}
+
+:root[data-theme='dracula'][data-appearance='light'] {
+  --primary: #b93888;
+  --primary-strong: #8157b8;
+  --danger: #d1232f;
+  --success: #007e30;
+  --amber: #9c5e00;
+}
+
+:root[data-theme='nord'][data-appearance='light'] {
+  --primary: #3c7382;
+  --primary-strong: #516f8d;
+  --danger: #985b61;
+  --success: #5c7446;
+  --amber: #995c49;
+}
+
+:root[data-theme='tokyo-night'][data-appearance='light'] {
+  --primary: #4569b9;
+  --primary-strong: #17739e;
+  --danger: #bb405c;
+  --success: #4d7802;
+  --amber: #906313;
+}
+
+:root[data-theme='solarized-dark'][data-appearance='light'] {
+  --primary: #007770;
+  --primary-strong: #0271ac;
+  --danger: #b74444;
+  --success: #627200;
+  --amber: #ab5129;
+}
+
+:root[data-theme='gruvbox'][data-appearance='light'] {
+  --primary: #ac5200;
+  --primary-strong: #8b6500;
+  --danger: #cb3022;
+  --success: #6e7000;
+  --amber: #ae5200;
+}
+
+:root[data-theme='emerald'][data-appearance='light'] {
+  --primary: #007b54;
+  --primary-strong: #007b55;
+  --danger: #d01f2a;
+  --success: #007a54;
+  --amber: #975f00;
+}
+
+:root[data-theme='cyberpunk'][data-appearance='light'] {
+  --primary: #007981;
+  --primary-strong: #d20045;
+  --danger: #d20045;
+  --success: #007e2e;
+  --amber: #7a6e00;
+}
+
+:root[data-theme='cyberpunk'][data-appearance='dark'] {
+  --primary-strong: #ff335f;
+  --danger: #ff335f;
+}
+
+:root[data-theme='monokai'][data-appearance='light'] {
+  --primary: #c92b5c;
+  --primary-strong: #4b7800;
+  --danger: #c92b5c;
+  --success: #4b7800;
+  --amber: #836800;
+}
+
+:root[data-theme='sepia-paper'][data-appearance='dark'] {
+  --primary: #aa7a50;
+  --primary-strong: #a67955;
+  --danger: #e5504b;
+  --success: #449168;
+  --amber: #ca6738;
+}
+
+:root[data-theme='rose-pine'][data-appearance='light'] {
+  --primary: #8c6361;
+  --primary-strong: #7c609b;
+  --danger: #b94267;
+  --success: #3f7488;
+  --amber: #93630c;
+}
+
+:root[data-theme='synthwave-84'][data-appearance='light'] {
+  --primary: #b53896;
+  --primary-strong: #007978;
+  --danger: #d70c31;
+  --success: #007b53;
+  --amber: #756f00;
+}
+
+:root[data-theme='one-dark-pro'][data-appearance='light'] {
+  --primary: #1d71ad;
+  --primary-strong: #4e762e;
+  --danger: #b54551;
+  --success: #4e762e;
+  --amber: #87661d;
+}
+
+:root[data-theme='vitesse-dark'][data-appearance='light'] {
+  --primary: #2f765a;
+  --primary-strong: #33775c;
+  --danger: #a35254;
+  --success: #2f765a;
+  --amber: #9f5800;
+}
+
+:root[data-theme='oled-black'][data-appearance='light'] {
+  --primary: #007b54;
+  --primary-strong: #007a54;
+  --danger: #d80b22;
+  --success: #007b54;
+  --amber: #975f00;
+}
+
 :root[data-theme='high-contrast'][data-appearance='light'] {
   color-scheme: light;
   --bg: #ffffff;

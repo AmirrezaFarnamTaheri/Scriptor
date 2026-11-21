@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Keep accent, link, status and focus-outline colours at 4.5:1 in every palette under both light and dark appearance. A fresh install on a light OS (default palette, system appearance) showed teal text and focus rings at 1.7:1; each palette now has per-appearance accent values with the same hue. The runtime error banner is no longer near-white text on a near-white box in dark appearance.
 - Bound process-broker output draining after a direct child exits; terminate descendants that keep inherited stdout/stderr pipes open and report a distinct output-drain failure instead of waiting for the executable deadline.
 
 ### Fixed

@@ -28,6 +28,7 @@ scriptor-vault = { path = "../../../crates/vault" }
 scriptor-capture = { path = "../../../crates/capture" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+rusqlite = "0.41"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 arboard = "3"
 tauri = { version = "2", features = ["tray-icon"] }
@@ -41,6 +42,10 @@ tracing = "0.1"
 sha2 = "0.11"
 hex = "0.4"
 base64 = "0.23"
+ring = "0.17.14"
+reqwest-websocket = "0.6.0"
+futures-util = "0.3"
+tokio = { version = "1", features = ["time", "sync", "macros"] }
 
 [package.metadata.tauri]
 # Root package metadata for the desktop app.

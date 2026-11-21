@@ -1,0 +1,56 @@
+name: Collaboration Yjs convergence tests
+
+on:
+  push:
+    branches:
+      - feat/collaboration-yjs-convergence-2026-11-14
+    paths:
+      - 'src/lib/liveCollaborationYjs*'
+      - 'src/lib/liveCollaborationDurableSession*'
+      - 'src/bridge/commands/liveCollaboration.ts'
+      - 'services/collaboration-relay/test/yjs-wss.test.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/collaboration-yjs.yml'
+  pull_request:
+    paths:
+      - 'src/lib/liveCollaborationYjs*'
+      - 'src/lib/liveCollaborationDurableSession*'
+      - 'services/collaboration-relay/test/yjs-wss.test.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/collaboration-yjs.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: yjs-convergence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-first-crdt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact ref
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+      - name: Configure Node.js 22.16.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.16.0'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install frozen dependency graph
+        run: pnpm install --frozen-lockfile
+      - name: Validate Yjs convergence contracts
+        run: node --experimental-strip-types --test src/lib/liveCollaborationYjs.test.ts src/lib/liveCollaborationDurableSession.test.ts
+      - name: Verify actual WSS and SQLite replay with three Yjs authors
+        run: |
+          openssl version
+          pnpm --dir services/collaboration-relay exec node -e "require.resolve('ws')"
+          node --experimental-sqlite --experimental-strip-types --test services/collaboration-relay/test/yjs-wss.test.mjs

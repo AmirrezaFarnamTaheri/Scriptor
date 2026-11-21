@@ -38,6 +38,8 @@ pub enum SensitiveOperation {
     ImportVault,
     KeychainWrite,
     LatexCompilation,
+    LiveCollaborationStart,
+    LiveCollaborationConnect,
     PdfTranslation,
     PlantUmlExecution,
     PublishSite,
@@ -64,6 +66,8 @@ impl SensitiveOperation {
                 | Self::GitPush
                 | Self::ImportVault
                 | Self::LatexCompilation
+                | Self::LiveCollaborationStart
+                | Self::LiveCollaborationConnect
                 | Self::PdfTranslation
                 | Self::PublishSite
                 | Self::RestoreBackup
@@ -113,6 +117,10 @@ impl SensitiveOperation {
             Self::KeychainDelete => "Delete the saved AI provider credential",
             Self::KeychainWrite => "Store an AI provider credential",
             Self::LatexCompilation => "Compile a LaTeX document with Tectonic",
+            Self::LiveCollaborationStart => "Enable local collaborative editing for this note",
+            Self::LiveCollaborationConnect => {
+                "Connect this note to an authenticated collaboration relay"
+            }
             Self::PdfTranslation => "Run the configured PDF translation tool",
             Self::PlantUmlExecution => "Run a local PlantUML renderer",
             Self::PublishSite => "Publish this vault as a site",
@@ -206,6 +214,12 @@ impl SensitiveOperation {
             }
             Self::LatexCompilation => {
                 "The Tectonic engine will read the selected LaTeX source, write PDF output, and may download TeX packages over the network."
+            }
+            Self::LiveCollaborationStart => {
+                "A vault-private durable journal will store updates for this specific note and collaboration room. No network connection starts until you separately enable a trusted relay."
+            }
+            Self::LiveCollaborationConnect => {
+                "The selected note's updates and collaboration metadata will be sent over TLS to the approved WSS relay and its room members. The relay can access document content; this is not end-to-end encryption. Only this note, room and endpoint are approved."
             }
             Self::PdfTranslation => {
                 "An external executable will read the selected PDF and write translated output."
@@ -414,7 +428,8 @@ pub async fn authorize_sensitive_operation(
     let impact = operation.impact().to_string();
     let display_scope = scope
         .as_deref()
-        .map(sanitize_scope)
+        .map(|value| display_sensitive_scope(operation, value))
+        .transpose()?
         .filter(|value| !value.is_empty());
     let message = match (display_scope, vault_name.as_deref()) {
         (Some(scope), Some(vault)) => {
@@ -455,6 +470,56 @@ pub async fn authorize_sensitive_operation(
         .issue(operation, account_scope, bound_vault_id)
 }
 
+/// Display the actual note and relay destination before issuing a one-time
+/// collaboration grant. Opaque IDs must not push those security-critical fields
+/// beyond the dialog's visible bounds.
+fn display_sensitive_scope(operation: SensitiveOperation, scope: &str) -> Result<String, String> {
+    if operation != SensitiveOperation::LiveCollaborationConnect {
+        return Ok(sanitize_scope(scope));
+    }
+    let rest = scope.strip_prefix("live-remote:")
+        .ok_or("Collaboration authorization scope is invalid")?;
+    let mut pieces = rest.splitn(4, ':');
+    let (Some(room), Some(document), Some(epoch), Some(destination)) = (
+        pieces.next(), pieces.next(), pieces.next(), pieces.next(),
+    ) else {
+        return Err("Collaboration authorization scope is incomplete".into());
+    };
+    let (note, endpoint_suffix) = destination.rsplit_once(":wss://")
+        .ok_or("Collaboration authorization scope requires a secure relay")?;
+    let endpoint = format!("wss://{endpoint_suffix}");
+    let invalid_identity = |value: &str| {
+        value.is_empty() || value.len() > 100 || value.chars().any(|ch| !ch.is_ascii_alphanumeric() && ch != '-' && ch != '_')
+    };
+    if invalid_identity(room) || invalid_identity(document)
+        || epoch.parse::<u64>().ok().is_none_or(|number| number == 0)
+        || note.len() > 260 || note.is_empty() || !note.ends_with(".md")
+        || note.starts_with('/') || note.contains('\\')
+        || note.split('/').any(|part| part.is_empty() || part == "." || part == "..")
+        || note.chars().any(|ch| ch.is_control() || ch == ':')
+    {
+        return Err("Collaboration authorization scope has an invalid document".into());
+    }
+    let parsed = reqwest::Url::parse(&endpoint)
+        .map_err(|_| "Collaboration authorization scope has an invalid relay")?;
+    if parsed.scheme() != "wss" || parsed.host_str().is_none()
+        || !parsed.username().is_empty() || parsed.password().is_some()
+        || parsed.fragment().is_some() || parsed.query().is_some()
+        || parsed.path() != "/v1/live" || endpoint.len() > 260
+    {
+        return Err("Collaboration authorization scope has an unsafe relay".into());
+    }
+    // Do not truncate either reviewed destination: refuse the authorization
+    // when they cannot be represented in a compact native dialog.
+    let display = format!(
+        "Note: {note}\nRelay endpoint: {endpoint}\nRoom: {room}\nDocument: {document}\nEpoch: {epoch}"
+    );
+    if display.len() > 600 {
+        return Err("Collaboration authorization scope is too long to review".into());
+    }
+    Ok(display)
+}
+
 fn sanitize_scope(value: &str) -> String {
     value
         .chars()
@@ -466,6 +531,34 @@ fn sanitize_scope(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn live_relay_approval_shows_validated_note_and_endpoint_after_long_identifiers() {
+        let room = "r".repeat(100);
+        let document = "d".repeat(100);
+        let scope = format!(
+            "live-remote:{room}:{document}:7:notes/review.md:wss://relay.example.test/v1/live"
+        );
+        let display = display_sensitive_scope(SensitiveOperation::LiveCollaborationConnect, &scope)
+            .expect("valid collaboration scope should be displayable");
+        assert!(display.contains("Note: notes/review.md"), "{display}");
+        assert!(display.contains("Relay endpoint: wss://relay.example.test/v1/live"), "{display}");
+        assert!(display.find("Note:").unwrap() < display.find("Room:").unwrap());
+    }
+
+    #[test]
+    fn live_relay_approval_rejects_hidden_or_unsafe_destinations() {
+        for scope in [
+            "live-remote:room:doc:7:notes/review.md:https://relay.example.test/v1/live",
+            "live-remote:room:doc:7:notes/review.md:wss://relay.example.test/other",
+            "live-remote:room:doc:7:../other.md:wss://relay.example.test/v1/live",
+            "live-remote:room:doc:7:notes/review.md:wss://user@relay.example.test/v1/live",
+        ] {
+            assert!(display_sensitive_scope(SensitiveOperation::LiveCollaborationConnect, scope).is_err(), "{scope}");
+        }
+        let long_path = format!("live-remote:room:doc:7:notes/{}.md:wss://relay.example.test/v1/live", "x".repeat(330));
+        assert!(display_sensitive_scope(SensitiveOperation::LiveCollaborationConnect, &long_path).is_err());
+    }
 
     #[test]
     fn grants_are_one_time_operation_and_scope_bound() {
