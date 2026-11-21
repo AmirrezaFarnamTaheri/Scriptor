@@ -25,10 +25,30 @@ test('same proof is one-time and a forged signature cannot retry the challenge',
   assert.throws(() => broker.verify({ challengeId: issued.challengeId, signature: signed(issued.challenge) }), /unknown|expired|used/i)
 })
 
-test('proof cannot be used to impersonate another peer or another document', () => {
+test('proof schema rejects an unexpected caller-provided scope', () => {
   const broker = new PeerChallengeBroker({ lookupRegisteredKey })
   const issued = broker.issue(scope)
   assert.throws(() => broker.verify({ challengeId: issued.challengeId, signature: signed(issued.challenge), scope: { ...scope, documentId: 'different' } }), /scope|unexpected|invalid/i)
+})
+
+test('an otherwise valid proof for Alice cannot authenticate Bob’s challenge', () => {
+  const bob = generateKeyPairSync('ed25519')
+  const keys = new Map(registered)
+  keys.set('bob', bob.publicKey.export({ type: 'spki', format: 'pem' }))
+  const broker = new PeerChallengeBroker({
+    lookupRegisteredKey: ({ peerId }) => keys.get(peerId) ?? null,
+  })
+  const aliceIssue = broker.issue(scope)
+  const bobIssue = broker.issue({ ...scope, peerId: 'bob' })
+  assert.throws(
+    () => broker.verify({ challengeId: bobIssue.challengeId, signature: signed(aliceIssue.challenge) }),
+    /signature|denied/i,
+    'Bob cannot be authenticated using a valid proof for Alice',
+  )
+  assert.deepEqual(
+    broker.verify({ challengeId: aliceIssue.challengeId, signature: signed(aliceIssue.challenge) }),
+    { roomId: scope.roomId, documentId: scope.documentId, epoch: 1, authenticatedPeerId: 'alice' },
+  )
 })
 
 test('revocation of a registered key blocks completion of a previously issued challenge', () => {
