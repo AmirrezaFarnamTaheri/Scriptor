@@ -4,6 +4,7 @@ import en from './en.json'
 import de from './de.json'
 import fa from './fa.json'
 import { getEditorToolbarTranslation } from './editorToolbarStrings'
+import { interpolate } from './interpolate'
 
 export type AppLocale = 'en' | 'de' | 'fa'
 
@@ -41,7 +42,11 @@ export function getStoredLocale(): AppLocale {
 }
 
 export function setStoredLocale(locale: AppLocale): void {
-  window.localStorage.setItem(STORAGE_KEY, locale)
+  try {
+    window.localStorage.setItem(STORAGE_KEY, locale)
+  } catch {
+    // Storage blocked or full: the choice still applies for this session.
+  }
 }
 
 export function translate(locale: AppLocale, key: string): string {
@@ -96,15 +101,7 @@ export function useI18nState(): I18nValue {
 
   const t = useCallback(
     (key: string, params?: Record<string, string | number>) => {
-      let result = translate(locale, key)
-      if (params) {
-        for (const [paramKey, paramValue] of Object.entries(params)) {
-          // replaceAll: a translation using the same placeholder twice used to
-          // render the second occurrence literally.
-          result = result.replaceAll(`{{${paramKey}}}`, String(paramValue))
-        }
-      }
-      return result
+      return interpolate(translate(locale, key), params)
     },
     [locale],
   )

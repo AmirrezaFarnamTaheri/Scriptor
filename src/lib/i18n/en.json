@@ -841,7 +841,7 @@
       "openCollaboration": "Open Drive & Docs collaboration",
       "openPlanner": "Open Calendar & Tasks planner",
       "openGmail": "Open Gmail Manager",
-      "saveConnectionFailed": "Google connected, but Scriptor couldn't save your settings: {error}. Select Save vault settings and try again.",
+      "saveConnectionFailed": "Google connected, but Scriptor couldn't save your settings: {{error}}. Select Save vault settings and try again.",
       "experimental": "Experimental integration.",
       "security": "Refresh tokens are stored in the operating-system keychain. Scriptor uses PKCE and a localhost loopback callback; no client secret is required.",
       "enableCalendarTasks": "Enable Google Calendar & Tasks integration",
@@ -852,7 +852,7 @@
       "mirrorTasks": "Enable vault → Google Tasks mirroring (changes are sent only after your approval)",
       "connect": "Connect Google",
       "switchAccount": "Switch Google account",
-      "lastSync": "Last successful Calendar & Tasks refresh: {time}",
+      "lastSync": "Last successful Calendar & Tasks refresh: {{time}}",
       "syncNow": "Sync now",
       "disconnect": "Disconnect",
       "status": {

@@ -2,8 +2,8 @@ import type { EditorView } from '@codemirror/view'
 
 import {
   findTableBlock,
-  formatTableRow,
   isTableSeparator,
+  parseTableRow,
   rebuildTableSegment,
   type TableBlock,
 } from './transform-logic.ts'
@@ -16,196 +16,200 @@ function docLines(view: EditorView): string[] {
   return lines
 }
 
-function activeTableBlock(view: EditorView): { block: TableBlock; from: number; to: number } | null {
-  const lineIndex = view.state.doc.lineAt(view.state.selection.main.head).number - 1
+interface ActiveTable {
+  block: TableBlock
+  lines: string[]
+  from: number
+  to: number
+  /** Index into `block.rows` (header is 0), or null when the caret is on the delimiter row. */
+  rowIndex: number | null
+  /** Column under the caret, clamped to the table width. */
+  colIndex: number
+  columnCount: number
+  /** Delimiter cells, or null for a table without a delimiter row. */
+  delimiter: string[] | null
+}
+
+/** Counts unescaped pipes before the caret to find the cell it is in. */
+function columnAt(lineText: string, offset: number): number {
+  const before = lineText.slice(0, offset).replace(/^\s*\|/, '')
+  return (before.match(/(?<!\\)\|/g) ?? []).length
+}
+
+function activeTable(view: EditorView): ActiveTable | null {
+  const head = view.state.selection.main.head
+  const caretLine = view.state.doc.lineAt(head)
+  const lineIndex = caretLine.number - 1
   const lines = docLines(view)
   const block = findTableBlock(lines, lineIndex)
   if (!block) return null
+  const separatorIndex = lines.slice(block.startLine, block.endLine + 1).findIndex((line) => isTableSeparator(line))
+  let rowIndex: number | null = null
+  if (!isTableSeparator(lines[lineIndex])) {
+    rowIndex = 0
+    for (let index = block.startLine; index < lineIndex; index += 1) {
+      if (!isTableSeparator(lines[index])) rowIndex += 1
+    }
+  }
+  const columnCount = block.rows[0]?.length ?? 0
+  const colIndex = Math.min(Math.max(0, columnCount - 1), columnAt(caretLine.text, head - caretLine.from))
+  const delimiter = separatorIndex < 0
+    ? null
+    : Array.from({ length: columnCount }, (_, index) => parseTableRow(lines[block.startLine + separatorIndex])[index] ?? '---')
   return {
     block,
+    lines,
     from: view.state.doc.line(block.startLine + 1).from,
     to: view.state.doc.line(block.endLine + 1).to,
+    rowIndex,
+    colIndex,
+    columnCount,
+    delimiter,
   }
 }
 
-function applyRows(view: EditorView, block: TableBlock, from: number, to: number, rows: string[][]): void {
-  const lines = docLines(view)
-  const segment = rebuildTableSegment(lines, block, rows)
-  view.dispatch({ changes: { from, to, insert: segment.join('\n') } })
+function applyRows(view: EditorView, active: ActiveTable, rows: string[][], delimiter?: string[]): void {
+  const segment = rebuildTableSegment(active.lines, active.block, rows, delimiter)
+  view.dispatch({ changes: { from: active.from, to: active.to, insert: segment.join('\n') } })
 }
 
-function swapRows(rows: string[][], a: number, b: number): string[][] {
-  const next = rows.map((row) => [...row])
-  ;[next[a], next[b]] = [next[b], next[a]]
+function moveItem<T>(items: T[], from: number, to: number): T[] {
+  const next = [...items]
+  ;[next[from], next[to]] = [next[to], next[from]]
   return next
 }
 
-function swapCols(rows: string[][], a: number, b: number): string[][] {
-  return rows.map((row) => {
-    const next = [...row]
-    ;[next[a], next[b]] = [next[b], next[a]]
-    return next
-  })
+function blankRow(active: ActiveTable): string[] {
+  return Array.from({ length: Math.max(1, active.columnCount) }, () => '')
 }
 
-export function addRowBefore(view: EditorView): boolean {
-  const active = activeTableBlock(view)
-  if (!active) return false
-  const lineIndex = view.state.doc.lineAt(view.state.selection.main.head).number - 1
-  const rowIndex = lineIndex - active.block.startLine
-  const columnCount = active.block.rows[0]?.length ?? 2
-  const blank = Array.from({ length: columnCount }, () => '')
+function insertRow(view: EditorView, offset: 0 | 1): boolean {
+  const active = activeTable(view)
+  if (!active || active.rowIndex === null) return false
   const rows = [...active.block.rows]
-  rows.splice(Math.max(0, rowIndex), 0, blank)
-  applyRows(view, active.block, active.from, active.to, rows)
+  rows.splice(active.rowIndex + offset, 0, blankRow(active))
+  applyRows(view, active, rows)
   return true
 }
 
+export function addRowBefore(view: EditorView): boolean {
+  return insertRow(view, 0)
+}
+
 export function addRowAfter(view: EditorView): boolean {
-  const active = activeTableBlock(view)
-  if (!active) return false
-  const lineIndex = view.state.doc.lineAt(view.state.selection.main.head).number - 1
-  const rowIndex = lineIndex - active.block.startLine
-  const columnCount = active.block.rows[0]?.length ?? 2
-  const blank = Array.from({ length: columnCount }, () => '')
-  const rows = [...active.block.rows]
-  rows.splice(rowIndex + 1, 0, blank)
-  applyRows(view, active.block, active.from, active.to, rows)
+  return insertRow(view, 1)
+}
+
+function moveRow(view: EditorView, step: -1 | 1): boolean {
+  const active = activeTable(view)
+  if (!active || active.rowIndex === null) return false
+  const target = active.rowIndex + step
+  if (target < 0 || target >= active.block.rows.length) return false
+  applyRows(view, active, moveItem(active.block.rows, active.rowIndex, target))
   return true
 }
 
 export function swapPrevRow(view: EditorView): boolean {
-  const active = activeTableBlock(view)
-  if (!active) return false
-  const rowIndex = view.state.doc.lineAt(view.state.selection.main.head).number - 1 - active.block.startLine
-  if (rowIndex <= 0) return false
-  applyRows(view, active.block, active.from, active.to, swapRows(active.block.rows, rowIndex, rowIndex - 1))
-  return true
+  return moveRow(view, -1)
 }
 
 export function swapNextRow(view: EditorView): boolean {
-  const active = activeTableBlock(view)
-  if (!active) return false
-  const rowIndex = view.state.doc.lineAt(view.state.selection.main.head).number - 1 - active.block.startLine
-  if (rowIndex >= active.block.rows.length - 1) return false
-  applyRows(view, active.block, active.from, active.to, swapRows(active.block.rows, rowIndex, rowIndex + 1))
-  return true
+  return moveRow(view, 1)
 }
 
 export function clearRow(view: EditorView): boolean {
-  const active = activeTableBlock(view)
-  if (!active) return false
-  const rowIndex = view.state.doc.lineAt(view.state.selection.main.head).number - 1 - active.block.startLine
-  const rows = active.block.rows.map((row, index) =>
-    index === rowIndex ? row.map(() => '') : row,
-  )
-  applyRows(view, active.block, active.from, active.to, rows)
+  const active = activeTable(view)
+  if (!active || active.rowIndex === null) return false
+  applyRows(view, active, active.block.rows.map((row, index) => (index === active.rowIndex ? row.map(() => '') : row)))
   return true
 }
 
 export function deleteRow(view: EditorView): boolean {
-  const active = activeTableBlock(view)
-  if (!active || active.block.rows.length <= 1) return false
-  const rowIndex = view.state.doc.lineAt(view.state.selection.main.head).number - 1 - active.block.startLine
-  const rows = active.block.rows.filter((_, index) => index !== rowIndex)
-  applyRows(view, active.block, active.from, active.to, rows)
+  const active = activeTable(view)
+  if (!active || active.rowIndex === null || active.block.rows.length <= 1) return false
+  applyRows(view, active, active.block.rows.filter((_, index) => index !== active.rowIndex))
+  return true
+}
+
+function insertColumn(view: EditorView, offset: 0 | 1): boolean {
+  const active = activeTable(view)
+  if (!active) return false
+  const at = active.colIndex + offset
+  const rows = active.block.rows.map((row) => {
+    const next = [...row]
+    next.splice(at, 0, '')
+    return next
+  })
+  const delimiter = active.delimiter ? [...active.delimiter] : undefined
+  delimiter?.splice(at, 0, '---')
+  applyRows(view, active, rows, delimiter)
   return true
 }
 
 export function addColBefore(view: EditorView): boolean {
-  const active = activeTableBlock(view)
-  if (!active) return false
-  const cell = view.state.doc.lineAt(view.state.selection.main.head).text
-  const colIndex = Math.max(0, cell.split('|').length - 2)
-  const rows = active.block.rows.map((row) => {
-    const next = [...row]
-    next.splice(colIndex, 0, '')
-    return next
-  })
-  applyRows(view, active.block, active.from, active.to, rows)
-  return true
+  return insertColumn(view, 0)
 }
 
 export function addColAfter(view: EditorView): boolean {
-  const active = activeTableBlock(view)
+  return insertColumn(view, 1)
+}
+
+function moveColumn(view: EditorView, step: -1 | 1): boolean {
+  const active = activeTable(view)
   if (!active) return false
-  const rows = active.block.rows.map((row) => [...row, ''])
-  applyRows(view, active.block, active.from, active.to, rows)
+  const target = active.colIndex + step
+  if (target < 0 || target >= active.columnCount) return false
+  const rows = active.block.rows.map((row) => moveItem(row, active.colIndex, target))
+  applyRows(view, active, rows, active.delimiter ? moveItem(active.delimiter, active.colIndex, target) : undefined)
   return true
 }
 
 export function swapPrevCol(view: EditorView): boolean {
-  const active = activeTableBlock(view)
-  if (!active) return false
-  const colIndex = 0
-  if (colIndex >= (active.block.rows[0]?.length ?? 0) - 1) return false
-  applyRows(view, active.block, active.from, active.to, swapCols(active.block.rows, colIndex, colIndex + 1))
-  return true
+  return moveColumn(view, -1)
 }
 
 export function swapNextCol(view: EditorView): boolean {
-  const active = activeTableBlock(view)
-  if (!active) return false
-  const colIndex = (active.block.rows[0]?.length ?? 1) - 2
-  if (colIndex < 0) return false
-  applyRows(view, active.block, active.from, active.to, swapCols(active.block.rows, colIndex, colIndex + 1))
-  return true
+  return moveColumn(view, 1)
 }
 
+/** Sets the alignment of the column under the caret only. */
 export function setAlignment(align: 'left' | 'center' | 'right') {
   return (view: EditorView): boolean => {
-    const active = activeTableBlock(view)
-    if (!active) return false
-    const lines = docLines(view)
-    const separatorIndex = active.block.startLine + 1
-    if (separatorIndex > active.block.endLine || !isTableSeparator(lines[separatorIndex])) {
-      return false
-    }
-    const cells = active.block.rows[0]?.map(() => {
-      if (align === 'left') return ':---'
-      if (align === 'right') return '---:'
-      return ':---:'
-    }) ?? []
-    const nextLines = [...lines]
-    nextLines[separatorIndex] = formatTableRow(cells)
-    const segment = nextLines.slice(active.block.startLine, active.block.endLine + 1)
-    view.dispatch({ changes: { from: active.from, to: active.to, insert: segment.join('\n') } })
+    const active = activeTable(view)
+    if (!active || !active.delimiter) return false
+    const delimiter = [...active.delimiter]
+    delimiter[active.colIndex] = align === 'left' ? ':---' : align === 'right' ? '---:' : ':---:'
+    applyRows(view, active, active.block.rows, delimiter)
     return true
   }
 }
 
 export function clearCol(view: EditorView): boolean {
-  const active = activeTableBlock(view)
+  const active = activeTable(view)
   if (!active) return false
-  const colIndex = 0
-  const rows = active.block.rows.map((row) => row.map((cell, index) => (index === colIndex ? '' : cell)))
-  applyRows(view, active.block, active.from, active.to, rows)
+  applyRows(view, active, active.block.rows.map((row) => row.map((cell, index) => (index === active.colIndex ? '' : cell))), active.delimiter ?? undefined)
   return true
 }
 
 export function deleteCol(view: EditorView): boolean {
-  const active = activeTableBlock(view)
-  if (!active || (active.block.rows[0]?.length ?? 0) <= 1) return false
-  const colIndex = 0
-  const rows = active.block.rows.map((row) => row.filter((_, index) => index !== colIndex))
-  applyRows(view, active.block, active.from, active.to, rows)
+  const active = activeTable(view)
+  if (!active || active.columnCount <= 1) return false
+  const keep = (_: unknown, index: number) => index !== active.colIndex
+  applyRows(view, active, active.block.rows.map((row) => row.filter(keep)), active.delimiter?.filter(keep))
   return true
 }
 
 export function clearTable(view: EditorView): boolean {
-  const active = activeTableBlock(view)
+  const active = activeTable(view)
   if (!active) return false
-  const rows = active.block.rows.map((row) => row.map(() => ''))
-  applyRows(view, active.block, active.from, active.to, rows)
+  applyRows(view, active, active.block.rows.map((row) => row.map(() => '')), active.delimiter ?? undefined)
   return true
 }
 
 export function deleteTable(view: EditorView): boolean {
-  const active = activeTableBlock(view)
+  const active = activeTable(view)
   if (!active) return false
-  view.dispatch({
-    changes: { from: active.from, to: active.to, insert: '' },
-  })
+  view.dispatch({ changes: { from: active.from, to: active.to, insert: '' } })
   return true
 }
 

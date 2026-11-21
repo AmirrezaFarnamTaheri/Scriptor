@@ -1461,6 +1461,7 @@ function App() {
           onOpenTab={handleOpenNoteTab}
           onCloseTab={handleCloseNoteTab}
           draftMarkdown={workspace.draftMarkdown}
+          liveNoteSaveLocked={workspace.liveNoteSaveLocked}
           updateDraft={handleUpdateDraft}
           externalChangeConflict={workspace.externalChangeConflict}
           onReloadExternalChange={handleReloadExternalChange}

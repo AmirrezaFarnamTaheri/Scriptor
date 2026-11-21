@@ -53,6 +53,42 @@ pub fn lock_vault_update(target: &Path) -> Result<VaultUpdateLock, VaultError> {
     Ok(VaultUpdateLock { _file: file })
 }
 
+/// Try to acquire an exclusive, cross-process lock on a stable sidecar
+/// without waiting. Used to grant one installed desktop process ownership of
+/// a live Markdown file projection. The guard holds the OS lock until drop.
+pub fn try_lock_vault_update(target: &Path) -> Result<Option<VaultUpdateLock>, VaultError> {
+    let parent = target
+        .parent()
+        .ok_or_else(|| VaultError::InvalidRelativePath(target.display().to_string()))?;
+    fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
+    let name = target
+        .file_name()
+        .ok_or_else(|| VaultError::InvalidRelativePath(target.display().to_string()))?;
+    let lock_path = parent.join(format!(".scriptor-{}.lock", name.to_string_lossy()));
+    match fs::symlink_metadata(&lock_path) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+            return Err(VaultError::InvalidRelativePath(
+                lock_path.display().to_string(),
+            ));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(source) => return Err(VaultError::io(&lock_path, source)),
+    }
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)
+        .map_err(|source| VaultError::io(&lock_path, source))?;
+    match fs4::FileExt::try_lock(&file) {
+        Ok(()) => Ok(Some(VaultUpdateLock { _file: file })),
+        Err(fs4::TryLockError::WouldBlock) => Ok(None),
+        Err(fs4::TryLockError::Error(source)) => Err(VaultError::io(&lock_path, source)),
+    }
+}
+
 /// Serializes high-level vault mutations across desktop, daemon, MCP, and
 /// other processes that share the same vault root.
 ///
@@ -321,6 +357,25 @@ pub fn cleanup_stale_temp_files(root: &Path, max_age: Duration) -> Result<usize,
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn live_note_projection_owner_is_exclusive_and_reusable() {
+        let directory = tempfile::tempdir().expect("vault directory");
+        let target = directory
+            .path()
+            .join("collaboration")
+            .join("live-note-owner");
+        let first = super::try_lock_vault_update(&target).expect("first owner");
+        assert!(first.is_some());
+        let second = super::try_lock_vault_update(&target).expect("second owner check");
+        assert!(
+            second.is_none(),
+            "another process must not obtain ownership"
+        );
+        drop(first);
+        let third = super::try_lock_vault_update(&target).expect("released owner");
+        assert!(third.is_some());
+    }
+
     use super::*;
     use std::io::Write;
     use std::process::Command;

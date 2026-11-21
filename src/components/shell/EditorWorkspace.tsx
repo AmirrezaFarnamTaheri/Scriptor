@@ -20,6 +20,7 @@ import type {
   TocEntry,
   TypographyAction,
 } from '@scriptor/editor'
+import type { CollaborativeEditorBinding } from '@scriptor/editor/collaboration-port'
 import type { MonacoCompletionContext } from '../../lib/monaco-completions'
 
 type EditorTransformAction = import('@scriptor/editor').EditorTransformAction
@@ -68,6 +69,10 @@ interface EditorWorkspaceProps {
   onOpenTab: (path: string) => void
   onCloseTab: (path: string) => void
   draftMarkdown: string
+  /** Opt-in only after native journal recovery and normal save suspension. */
+  collaboration?: CollaborativeEditorBinding
+  /** Source owns an uncommitted handoff; freeze typing until the native journal is ready. */
+  liveNoteSaveLocked?: boolean
   updateDraft: (markdown: string) => void
   externalChangeConflict: ExternalChangeConflict | null
   onReloadExternalChange: () => void
@@ -171,6 +176,8 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
     onOpenTab,
     onCloseTab,
     draftMarkdown,
+    collaboration,
+    liveNoteSaveLocked = false,
     updateDraft,
     externalChangeConflict,
     onReloadExternalChange,
@@ -254,6 +261,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
     onEditorSurfaceModeChange,
   } = props
   const { t } = useI18n()
+  const sourceReadOnly = Boolean(liveNoteSaveLocked)
   const lastActiveSplitSurfaceRef = useRef<'source' | 'preview'>('source')
 
   useEffect(() => {
@@ -427,6 +435,8 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                       ref={editorRef}
                       key={`visual:${activePath}`}
                       value={draftMarkdown}
+                      collaboration={collaboration}
+                      readOnly={sourceReadOnly}
                       onChange={updateDraft}
                       scrollToLine={scrollToEditorLine}
                       scrollSyncEnabled={scrollSyncEnabled}
@@ -481,6 +491,8 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                   key={activePath}
                   notePath={activePath}
                   value={draftMarkdown}
+                  collaboration={collaboration}
+                  readOnly={sourceReadOnly}
                   onChange={updateDraft}
                   insertRequest={editorInsertRequest}
                   transformRequest={editorTransformRequest}
@@ -499,6 +511,8 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                 ref={editorRef}
                 key={activePath}
                 value={draftMarkdown}
+                collaboration={collaboration}
+                readOnly={sourceReadOnly}
                 onChange={updateDraft}
                 scrollToLine={scrollToEditorLine}
                 insertRequest={editorInsertRequest}
@@ -600,6 +614,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                     ref={previewEditorRef}
                     key={`split-visual:${activePath}`}
                     value={draftMarkdown}
+                    readOnly={Boolean(collaboration) || liveNoteSaveLocked}
                     onChange={updateDraft}
                     scrollSyncEnabled={scrollSyncEnabled}
                     onVisibleLineChange={handleVisualPreviewLineChange}

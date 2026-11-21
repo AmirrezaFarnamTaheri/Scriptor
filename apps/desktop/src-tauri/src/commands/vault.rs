@@ -60,6 +60,21 @@ pub fn vault_open(
         *session_guard = Some(session);
         crate::state::reset_git_queue(&state);
         crate::state::reset_daemon_vault(&state);
+        {
+            let mut leases = crate::state::lock_recover(
+                &state.live_collaboration_sessions,
+                "collaboration leases",
+            );
+            for lease in leases.values() {
+                lease
+                    .relay_generation
+                    .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+                lease
+                    .relay_active
+                    .store(false, std::sync::atomic::Ordering::Release);
+            }
+            leases.clear();
+        }
         *lock_recover(&state.vault_watcher, "vault watcher") = Some(watcher);
         state
             .vault_watcher_generation
@@ -98,6 +113,7 @@ pub fn vault_save_note(
 ) -> Result<SaveNoteOutput, String> {
     let session = active_session(&state)?;
     validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
+    super::collaboration_live::reject_if_live_owned(&state, &session.descriptor.id, &path)?;
     if use_headless_engine(&state) {
         let json = bridge_save_note(&state, path, markdown, expected_content_hash, dry_run)?;
         return parse_daemon_json(&json);
