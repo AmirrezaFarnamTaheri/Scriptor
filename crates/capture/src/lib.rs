@@ -2,7 +2,7 @@
 //!
 //! Design (D2, W3-4):
 //! * Pure Rust. No subprocess, no headless browser, no Node.
-//! * Gated at call-site by `SensitiveOperation::WebClip` (F-4).
+//! * Gated at call-site by the desktop authorization broker's `WebClip` operation.
 //! * Runs outside the renderer process (spawned from the Tauri command layer).
 //! * One public entry point: [`capture_url`].
 

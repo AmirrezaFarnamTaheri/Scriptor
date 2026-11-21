@@ -402,7 +402,7 @@ pub(crate) enum Commands {
     ///
     /// Fetches the page, sanitizes it, extracts the article body, converts to
     /// Markdown, and writes through the vault's single write path (I-1).
-    /// Gated by `SensitiveOperation::WebClip` (F-4).
+    /// The CLI is a trusted process; the desktop gates the same capture with `WebClip`.
     ///
     /// Exit code 0 on success; 1 on fetch/extraction/write failure.
     Clip {
