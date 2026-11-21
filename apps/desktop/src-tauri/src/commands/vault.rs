@@ -455,6 +455,14 @@ fn validate_textbundle_destination(raw: &str) -> Result<std::path::PathBuf, Stri
     {
         return Err("TextBundle export requires an absolute .textpack destination".into());
     }
+    #[cfg(windows)]
+    if path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.contains(':'))
+    {
+        return Err("TextBundle destination must not contain a Windows alternate data stream".into());
+    }
     let parent = path
         .parent()
         .ok_or("TextBundle export requires a destination folder")?;
@@ -715,7 +723,7 @@ pub fn vault_export_audit_log(
                 out.push_str(&format!(
                     "{},{},{},{},{}\n",
                     csv_field(&entry.id.to_string()),
-                    csv_field(&entry.ts.to_string()),
+                    format!("\"{}\"", entry.ts),
                     csv_field(&entry.kind.to_string()),
                     csv_field(&entry.message),
                     csv_field(entry.detail.as_deref().unwrap_or("")),
