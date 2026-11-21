@@ -96,6 +96,18 @@ pub fn resolve_provider(
     }
 }
 
+/// Redirects are disabled, so a 3xx arrives as a response rather than an error
+/// and `error_for_status` lets it through. Reject anything but success.
+pub(crate) fn require_success(status: reqwest::StatusCode) -> Result<(), EmbeddingError> {
+    if status.is_success() {
+        Ok(())
+    } else {
+        Err(EmbeddingError::Provider(format!(
+            "embedding endpoint returned unexpected HTTP status {status}"
+        )))
+    }
+}
+
 /// The endpoint comes from the vault's own config, which may arrive with a
 /// copied or shared folder. Note text is sent to it, so a non-loopback host
 /// would let a hostile vault exfiltrate content or probe internal services.
@@ -751,6 +763,19 @@ mod tests {
             "http://localhost.evil.example",
         ] {
             assert!(super::validate_loopback_endpoint(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn redirects_and_non_success_statuses_are_rejected() {
+        use reqwest::StatusCode;
+        assert!(super::require_success(StatusCode::OK).is_ok());
+        for status in [
+            StatusCode::TEMPORARY_REDIRECT,
+            StatusCode::FOUND,
+            StatusCode::MULTIPLE_CHOICES,
+        ] {
+            assert!(super::require_success(status).is_err(), "{status}");
         }
     }
 }

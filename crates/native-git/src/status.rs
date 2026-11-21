@@ -174,7 +174,9 @@ pub(crate) const UNTRUSTED_REPOSITORY_OVERRIDES: [&str; 4] = [
 /// Older Git versions interpret the boolean core.fsmonitor override as a hook
 /// command. Reject them before reading a potentially incomplete working tree.
 fn is_supported_git_version(stdout: &str) -> bool {
-    let Some(version) = stdout.trim().strip_prefix("git version ") else { return false };
+    let Some(version) = stdout.trim().strip_prefix("git version ") else {
+        return false;
+    };
     let mut parts = version.split_whitespace().next().unwrap_or("").split('.');
     let major = parts.next().and_then(|part| part.parse::<u32>().ok());
     let minor = parts.next().and_then(|part| part.parse::<u32>().ok());
@@ -191,7 +193,10 @@ pub(crate) fn ensure_supported_git_version() -> Result<(), GitError> {
                 .max_output_bytes(4 * 1024),
         )
         .map_err(|error| format!("unable to check Git version: {error}"))?;
-        if receipt.exit_code != 0 || receipt.stdout_truncated || !is_supported_git_version(&receipt.stdout) {
+        if receipt.exit_code != 0
+            || receipt.stdout_truncated
+            || !is_supported_git_version(&receipt.stdout)
+        {
             return Err(format!(
                 "Git 2.26 or later is required before running repository commands; got {}",
                 receipt.stdout.trim()
@@ -478,7 +483,9 @@ mod tests {
         assert!(!super::is_supported_git_version("git version 1.9.5"));
         assert!(!super::is_supported_git_version("git version 2.25.12"));
         assert!(super::is_supported_git_version("git version 2.26.0"));
-        assert!(super::is_supported_git_version("git version 2.56.1.windows.2"));
+        assert!(super::is_supported_git_version(
+            "git version 2.56.1.windows.2"
+        ));
         assert!(!super::is_supported_git_version("something unexpected"));
     }
 

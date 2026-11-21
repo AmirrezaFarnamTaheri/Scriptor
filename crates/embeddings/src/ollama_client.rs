@@ -65,6 +65,7 @@ impl OllamaClient {
                 .json(&body)
                 .send()?
                 .error_for_status()?;
+            crate::require_success(resp.status())?;
 
             let embed_resp: EmbedResponse = resp.json()?;
             Ok(embed_resp.embeddings)
@@ -90,6 +91,9 @@ impl OllamaClient {
                 Ok(val) => return Ok(val),
                 Err(e) => {
                     // Do not retry deterministically fatal client errors (e.g. 404 Model Not Found, 400 Bad Request).
+                    if matches!(e, crate::error::EmbeddingError::Provider(_)) {
+                        return Err(e);
+                    }
                     if let crate::error::EmbeddingError::Http(ref err) = e
                         && let Some(status) = err.status()
                         && status.is_client_error()

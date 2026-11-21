@@ -1115,6 +1115,11 @@ fn socket_directory_is_created_owner_only() {
     create_private_dir(&nested).expect("create private dir");
     for dir in [root.path().join("a"), nested] {
         let mode = fs::metadata(&dir).expect("metadata").permissions().mode() & 0o777;
-        assert_eq!(mode & 0o077, 0, "{} must not grant group/other access", dir.display());
+        assert_eq!(
+            mode & 0o077,
+            0,
+            "{} must not grant group/other access",
+            dir.display()
+        );
     }
 }

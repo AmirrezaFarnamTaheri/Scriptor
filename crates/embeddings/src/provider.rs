@@ -188,6 +188,7 @@ impl EmbedProvider for OpenAiProvider {
             .map_err(EmbeddingError::Http)?
             .error_for_status()
             .map_err(EmbeddingError::Http)?;
+        crate::require_success(resp.status())?;
 
         let parsed: OpenAiEmbedResponse = resp.json().map_err(EmbeddingError::Http)?;
         let vectors: Vec<Vec<f32>> = parsed.data.into_iter().map(|d| d.embedding).collect();

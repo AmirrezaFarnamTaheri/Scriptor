@@ -13,6 +13,8 @@
 - Source files cannot be created inside Windows Startup or macOS LaunchAgents/LaunchDaemons folders.
 - Executable lookup skips relative and empty `PATH` entries; the background daemon's socket directory is created owner-only.
 - CI checkouts in jobs that never push set `persist-credentials: false`.
+- TextBundle export opens the archive without following a link at the final path component (and rejects non-regular files before truncating), closing the window between destination validation and write.
+- Embedding clients reject redirect responses instead of decoding them, and process-tree termination calls `kill`/`taskkill` by absolute path rather than through `PATH`.
 
 ### Fixed
 

@@ -47,15 +47,17 @@ pub fn scriptor_data_dir(app_name: &str) -> Result<PathBuf, BridgeError> {
             source,
         })?;
         if !metadata.file_type().is_dir() {
-            return Err(BridgeError::Unsupported("application data directory must be a real directory".into()));
+            return Err(BridgeError::Unsupported(
+                "application data directory must be a real directory".into(),
+            ));
         }
         // Repair an existing, older directory before the daemon creates its socket.
-        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).map_err(|source| {
-            BridgeError::Io {
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).map_err(
+            |source| BridgeError::Io {
                 path: dir.clone(),
                 source,
-            }
-        })?;
+            },
+        )?;
     }
     #[cfg(not(unix))]
     std::fs::create_dir_all(&dir).map_err(|source| BridgeError::Io {

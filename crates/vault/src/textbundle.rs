@@ -30,6 +30,35 @@ pub struct TextBundleExportOutput {
     pub asset_count: u32,
 }
 
+/// Open the archive for writing without following a link at the final path
+/// component, and truncate only after confirming it is a regular file. The
+/// caller validated the destination earlier; a link planted since then must not
+/// redirect the truncation.
+fn open_archive_without_following_links(path: &Path) -> std::io::Result<fs::File> {
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create(true).truncate(false);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    }
+    let file = options.open(path)?;
+    if !file.metadata()?.file_type().is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "TextBundle destination must be a regular file",
+        ));
+    }
+    file.set_len(0)?;
+    Ok(file)
+}
+
 pub fn export_text_bundle(
     vault_id: &str,
     root: &VaultRoot,
@@ -41,8 +70,8 @@ pub fn export_text_bundle(
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
     }
 
-    let file =
-        fs::File::create(output_path).map_err(|source| VaultError::io(output_path, source))?;
+    let file = open_archive_without_following_links(output_path)
+        .map_err(|source| VaultError::io(output_path, source))?;
     let mut zip = ZipWriter::new(file);
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 

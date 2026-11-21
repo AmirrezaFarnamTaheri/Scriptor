@@ -583,22 +583,40 @@ pub fn configure_process_group(command: &mut Command) {
 #[cfg(not(any(unix, windows)))]
 pub fn configure_process_group(_command: &mut Command) {}
 
+/// Never resolve `kill` through `PATH`: a vault-influenced directory must not be
+/// able to substitute the helper that ends a process tree.
+#[cfg(unix)]
+fn trusted_kill_program() -> PathBuf {
+    ["/bin/kill", "/usr/bin/kill"]
+        .iter()
+        .map(PathBuf::from)
+        .find(|candidate| candidate.is_file())
+        .unwrap_or_else(|| PathBuf::from("/bin/kill"))
+}
+
+#[cfg(windows)]
+fn trusted_taskkill_program() -> PathBuf {
+    let root = std::env::var_os("SystemRoot").unwrap_or_else(|| OsString::from(r"C:\Windows"));
+    Path::new(&root).join("System32").join("taskkill.exe")
+}
+
 #[cfg(unix)]
 pub fn terminate_process_tree(child: &mut Child) {
     let group = format!("-{}", child.id());
     // A negative PID is a process-group operand, not another signal option.
     // Some external kill implementations continue parsing options after -TERM.
-    let _ = Command::new("kill").args(["-TERM", "--", &group]).status();
+    let kill = trusted_kill_program();
+    let _ = Command::new(&kill).args(["-TERM", "--", &group]).status();
     thread::sleep(TERMINATION_GRACE);
     // Descendants can ignore TERM even when the leader exits. Keep the leader
     // unreaped until group escalation so its identity cannot be reused here.
-    let _ = Command::new("kill").args(["-KILL", "--", &group]).status();
+    let _ = Command::new(&kill).args(["-KILL", "--", &group]).status();
     let _ = child.kill();
 }
 
 #[cfg(windows)]
 pub fn terminate_process_tree(child: &mut Child) {
-    let mut command = Command::new("taskkill");
+    let mut command = Command::new(trusted_taskkill_program());
     configure_process_group(&mut command);
     let _ = command
         .args(["/PID", &child.id().to_string(), "/T", "/F"])
@@ -708,6 +726,12 @@ fn escape_sandbox_profile_string(value: &OsStr) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn process_tree_helper_is_an_absolute_path() {
+        assert!(trusted_kill_program().is_absolute());
+    }
 
     #[cfg(unix)]
     #[test]

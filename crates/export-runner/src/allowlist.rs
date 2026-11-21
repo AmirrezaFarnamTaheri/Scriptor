@@ -84,7 +84,11 @@ fn validate_keyed_value(pair: &str, raw_variable: bool) -> Result<(), ExportErro
         return Err(ExportError::DisallowedArg(pair.to_string()));
     }
     // Values passed through Pandoc's --variable are not escaped by the template.
-    if raw_variable && value.chars().any(|ch| matches!(ch, '<' | '>' | '{' | '}' | '$' | '%' | '#')) {
+    if raw_variable
+        && value
+            .chars()
+            .any(|ch| matches!(ch, '<' | '>' | '{' | '}' | '$' | '%' | '#'))
+    {
         return Err(ExportError::DisallowedArg(pair.to_string()));
     }
     // fontspec loads file paths as fonts. Accept family names only, not paths or options.
