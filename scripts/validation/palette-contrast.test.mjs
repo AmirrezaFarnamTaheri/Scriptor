@@ -56,7 +56,7 @@ test('the runtime error banner is mixed from the theme surface, not literal whit
   assert.doesNotMatch(rule[1], /,\s*white\)/)
   assert.match(rule[1], /var\(--bg-elevated\)/)
   const background = /background:\s*([^;]+);/.exec(rule[1])
-  const foreground = /color:\s*([^;]+);/.exec(rule[1])
+  const foreground = /(?:^|;)\s*color:\s*([^;]+);/.exec(rule[1])
   assert.ok(background && foreground, 'banner has both surface and foreground colours')
   const rules = parseRootRules(indexCss)
   let checked = 0
