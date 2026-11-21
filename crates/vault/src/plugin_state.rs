@@ -249,6 +249,20 @@ mod tests {
     }
 
     #[test]
+    fn per_user_settings_round_trip_and_stay_out_of_the_vault() {
+        let base = tempfile::tempdir().unwrap();
+        let vault = tempfile::tempdir().unwrap();
+        let mut state = PluginState::default();
+        state
+            .settings
+            .insert("scriptor.mcp".into(), serde_json::json!({"mode": "draft"}));
+        save_in(base.path(), vault.path(), &state).unwrap();
+        let loaded = load_in(base.path(), vault.path()).unwrap();
+        assert_eq!(loaded.settings["scriptor.mcp"]["mode"], "draft");
+        assert!(!vault.path().join(".scriptor").exists());
+    }
+
+    #[test]
     fn a_cloned_vault_cannot_arrive_with_plugins_enabled() {
         let base = tempfile::tempdir().unwrap();
         let vault = tempfile::tempdir().unwrap();

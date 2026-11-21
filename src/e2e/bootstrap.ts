@@ -166,6 +166,7 @@ export function installE2eBridge(): void {
   let committed = false
   let conflictsResolved = false
   let hashMismatchTriggered = false
+  const pluginSettings: Record<string, Record<string, unknown>> = { 'scriptor.mcp': { mode: 'read-only' } }
   const enabledPluginIds = new Set([
     'scriptor.export',
     'scriptor.citations',
@@ -253,7 +254,13 @@ export function installE2eBridge(): void {
       case 'google_calendar_list_task_lists':
         return [{ id: '@default', title: 'My tasks' }]
       case 'plugin_state_get':
-        return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [...disabledPluginIds] }
+        return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [...disabledPluginIds], settings: pluginSettings }
+      case 'plugin_state_set_setting': {
+        const body = payload as { capabilityId?: string; key?: string; value?: unknown }
+        const capabilityId = String(body.capabilityId ?? '')
+        pluginSettings[capabilityId] = { ...(pluginSettings[capabilityId] ?? {}), [String(body.key ?? '')]: body.value }
+        return undefined
+      }
       case 'plugin_state_set_enabled': {
         const body = payload as { capabilityId?: string; enabled?: boolean }
         const capabilityId = String(body.capabilityId ?? '')

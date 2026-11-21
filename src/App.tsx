@@ -411,8 +411,6 @@ function App() {
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
     workspace.vault?.id,
-    workspace.vaultConfig,
-    workspace.setVaultConfig,
     workspace.activePath,
     workspace.activeNote?.metadata.content_hash ?? null,
     plugins.contributions.exportProfiles,

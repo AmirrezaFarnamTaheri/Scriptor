@@ -11,7 +11,7 @@ import {
   dispatchPluginCommandIdAsMcpResult,
   type PluginCommandRuntime,
 } from '../lib/pluginCommandDispatch'
-import { mutateVaultConfig } from '../lib/vaultConfigMutation'
+import { loadAgentAccessMode, saveAgentAccessMode } from '../bridge/plugin'
 
 import {
   indexerBacklinks,
@@ -29,7 +29,6 @@ import {
   vaultRenameApply,
   vaultSaveNote,
 } from '../bridge/commands'
-import type { VaultConfig } from '../types/vault'
 
 function normalizeMcpMode(value: string | undefined, disabled?: boolean): McpMode {
   if (disabled) return 'off'
@@ -42,8 +41,6 @@ function normalizeMcpMode(value: string | undefined, disabled?: boolean): McpMod
 export function useMcpRuntime(
   vaultOpen: boolean,
   vaultId: string | undefined,
-  vaultConfig: VaultConfig,
-  setVaultConfig: (updater: (current: VaultConfig) => VaultConfig) => void,
   activePath: string | null,
   activeContentHash: string | null,
   pluginExportProfiles: ExportProfileContribution[] = [],
@@ -55,21 +52,28 @@ export function useMcpRuntime(
   ) => boolean,
   hibernated: boolean = false,
 ) {
-  const mode = normalizeMcpMode(
-    vaultConfig?.mcp?.mode,
-    vaultConfig?.mcp?.disabled === true || !vaultOpen || hibernated,
-  )
+  // Agent access is a per-user setting. The vault's own `mcp` config is ignored
+  // so a cloned or shared vault cannot grant agents access.
+  const [storedMode, setStoredMode] = useState<McpMode>('read-only')
+  const mode = normalizeMcpMode(storedMode, !vaultOpen || hibernated)
   const [lastResult, setLastResult] = useState<CommandResult | null>(null)
   const [snapshot, setSnapshot] = useState(0)
   const mcpMutationRevisionRef = useRef(0)
-  const optimisticMcpRef = useRef(vaultConfig.mcp)
-
-  useEffect(() => {
-    optimisticMcpRef.current = vaultConfig.mcp
-  }, [vaultConfig.mcp])
+  const storedModeRef = useRef<McpMode>('read-only')
 
   useEffect(() => {
     mcpMutationRevisionRef.current += 1
+    let cancelled = false
+    void loadAgentAccessMode()
+      .then((saved) => {
+        if (cancelled || !saved) return
+        storedModeRef.current = saved
+        setStoredMode(saved)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
   }, [vaultId])
 
   const exportProfiles = useMemo(
@@ -77,38 +81,28 @@ export function useMcpRuntime(
     [pluginExportProfiles],
   )
 
-  const persistMcpConfig = useCallback(
-    (nextMode: McpMode) => {
-      const nextMcp = {
-        mode: nextMode === 'off' ? 'off' as const : nextMode,
-        disabled: nextMode === 'off',
+  const persistMcpConfig = useCallback((nextMode: McpMode) => {
+    const previousMode = storedModeRef.current
+    const revision = ++mcpMutationRevisionRef.current
+    storedModeRef.current = nextMode
+    setStoredMode(nextMode)
+    void saveAgentAccessMode(nextMode).catch((error: unknown) => {
+      if (revision === mcpMutationRevisionRef.current) {
+        storedModeRef.current = previousMode
+        setStoredMode(previousMode)
       }
-      const previousMcp = optimisticMcpRef.current
-      const revision = ++mcpMutationRevisionRef.current
-
-      optimisticMcpRef.current = nextMcp
-      setVaultConfig((current) => ({ ...current, mcp: nextMcp }))
-      if (vaultOpen) {
-        void mutateVaultConfig((current) => ({ ...current, mcp: nextMcp })).catch((error: unknown) => {
-          if (revision === mcpMutationRevisionRef.current) {
-            optimisticMcpRef.current = previousMcp
-            setVaultConfig((current) => ({ ...current, mcp: previousMcp }))
-          }
-          setLastResult({
-            ok: false,
-            requestId: crypto.randomUUID(),
-            error: {
-              code: 'mcp.config_save_failed',
-              message: error instanceof Error ? error.message : 'Could not save MCP permissions',
-              recoverable: true,
-            },
-          })
-          setSnapshot((value) => value + 1)
-        })
-      }
-    },
-    [setVaultConfig, vaultOpen],
-  )
+      setLastResult({
+        ok: false,
+        requestId: crypto.randomUUID(),
+        error: {
+          code: 'mcp.config_save_failed',
+          message: error instanceof Error ? error.message : 'Could not save agent access',
+          recoverable: true,
+        },
+      })
+      setSnapshot((value) => value + 1)
+    })
+  }, [])
 
   const setMode = useCallback(
     (nextMode: McpMode) => {

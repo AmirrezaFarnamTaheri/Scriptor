@@ -71,7 +71,9 @@ use commands::indexer::{
 };
 use commands::latex::{latex_cancel_compile, latex_compile, latex_discover_tectonic};
 use commands::overleaf::{overleaf_push, overleaf_read};
-use commands::plugin_state::{plugin_state_get, plugin_state_set_enabled};
+use commands::plugin_state::{
+    plugin_state_get, plugin_state_set_enabled, plugin_state_set_setting,
+};
 use commands::publish::{vault_publish_apply_starlight, vault_publish_plan_starlight};
 use commands::publishing::{
     publishing_build_site, publishing_cancel_job, publishing_configure_domain,
@@ -360,6 +362,7 @@ pub fn run() {
             reader_save_annotations,
             plugin_state_get,
             plugin_state_set_enabled,
+            plugin_state_set_setting,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Scriptor desktop");

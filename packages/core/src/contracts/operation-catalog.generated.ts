@@ -4523,6 +4523,24 @@ export const OPERATION_CATALOG = {
       ]
     },
     {
+      "name": "plugin_state_set_setting",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/plugin_state.rs",
+      "authorizationClass": "local-mutation",
+      "mutationClass": "local-mutation",
+      "scope": null,
+      "authorizationVariant": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "invalid",
+        "degraded",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
       "name": "plugin_state_set_enabled",
       "surface": "tauri",
       "owner": "apps/desktop/src-tauri/src/commands/plugin_state.rs",
