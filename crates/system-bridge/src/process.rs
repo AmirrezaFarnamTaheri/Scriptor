@@ -712,12 +712,14 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn search_path_ignores_relative_entries() {
-        let name = format!("scriptor-relpath-fixture-{}", std::process::id());
-        let relative_dir = PathBuf::from(&name);
-        std::fs::create_dir_all(&relative_dir).expect("fixture dir");
-        let tool = relative_dir.join("fixture-tool");
+        let base = tempfile::Builder::new()
+            .prefix("scriptor-relpath-fixture-")
+            .tempdir_in(std::env::current_dir().expect("test cwd"))
+            .expect("isolated PATH fixture");
+        let absolute_dir = base.path().canonicalize().expect("absolute dir");
+        let relative_dir = PathBuf::from(base.path().file_name().expect("fixture dir name"));
+        let tool = absolute_dir.join("fixture-tool");
         std::fs::write(&tool, "#!/bin/sh\n").expect("fixture tool");
-        let absolute_dir = std::fs::canonicalize(&relative_dir).expect("absolute dir");
 
         let relative_only =
             std::env::join_paths([relative_dir.as_path(), Path::new("")]).expect("join relative");
@@ -726,7 +728,6 @@ mod tests {
         let absolute = std::env::join_paths([absolute_dir.as_path()]).expect("join absolute");
         let absolute_result = resolve_in_search_path(OsStr::new("fixture-tool"), &absolute);
 
-        std::fs::remove_dir_all(&relative_dir).expect("cleanup");
         assert!(
             relative_result.is_err(),
             "relative PATH entries must be skipped"
