@@ -150,11 +150,7 @@ fn open_audit_regular_file(path: &Path, append: bool) -> Result<File, VaultError
     }
     // A preceding metadata check catches existing links. The OS no-follow
     // flag protects the open itself against replacement between check/open.
-    audit_regular_file_exists(path).or_else(|error| {
-        if append && matches!(fs::symlink_metadata(path), Err(ref missing) if missing.kind() == std::io::ErrorKind::NotFound) {
-            Ok(false)
-        } else { Err(error) }
-    })?;
+    audit_regular_file_exists(path)?;
     let file = options.open(path).map_err(|source| VaultError::io(path, source))?;
     let metadata = file.metadata().map_err(|source| VaultError::io(path, source))?;
     if !metadata.is_file() || fs::symlink_metadata(path).map_err(|source| VaultError::io(path, source))?.file_type().is_symlink() {
