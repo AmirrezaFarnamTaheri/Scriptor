@@ -29,6 +29,35 @@ pub fn scriptor_data_dir(app_name: &str) -> Result<PathBuf, BridgeError> {
     };
 
     let dir = base.join(app_name);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
+        // This contains daemon socket discovery and other private application data.
+        // Do not create it as 0755 and then attempt to tighten permissions.
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(&dir)
+            .map_err(|source| BridgeError::Io {
+                path: dir.clone(),
+                source,
+            })?;
+        let metadata = std::fs::symlink_metadata(&dir).map_err(|source| BridgeError::Io {
+            path: dir.clone(),
+            source,
+        })?;
+        if !metadata.file_type().is_dir() {
+            return Err(BridgeError::Unsupported("application data directory must be a real directory".into()));
+        }
+        // Repair an existing, older directory before the daemon creates its socket.
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).map_err(|source| {
+            BridgeError::Io {
+                path: dir.clone(),
+                source,
+            }
+        })?;
+    }
+    #[cfg(not(unix))]
     std::fs::create_dir_all(&dir).map_err(|source| BridgeError::Io {
         path: dir.clone(),
         source,
