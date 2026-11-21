@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Security
+- Plugin and capability choices are now stored per user (in your app data folder, keyed by vault path) instead of inside the vault, so a cloned vault can no longer arrive with optional integrations switched on. Capabilities a vault had disabled stay disabled; previously enabled optional integrations must be re-enabled once (F-SEC-07).
 - Starting Google Calendar/Drive/Gmail connection flows is limited to 3 per minute per service; extra attempts get a "try again" message (F-SEC-06).
 - Authorization grants, canvas documents and annotation selectors now reject unknown fields instead of silently ignoring them (F-ENG-03, first batch).
 - `cargo deny` now rejects wildcard (`*`) registry dependency requirements; application crates are marked `publish = false` so workspace path dependencies stay exempt (F-OPS-03).

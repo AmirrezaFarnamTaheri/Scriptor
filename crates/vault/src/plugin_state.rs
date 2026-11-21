@@ -1,7 +1,11 @@
-//! Vault-scoped capability authority state.
+//! Per-user, per-vault capability authority state.
 //!
-//! This file deliberately lives under `.scriptor/` instead of browser storage so
-//! native and daemon callers enforce the same decision for an active vault.
+//! The state lives in the user's application data directory (keyed by a hash of
+//! the vault's canonical path), never inside the vault: a cloned or shared vault
+//! must not be able to arrive with optional capabilities already enabled.
+//! Native and daemon callers resolve the same file, so they enforce the same
+//! decision. A legacy `.scriptor/plugins.json` is honoured only for its
+//! `disabledPlugins` (restrictions are safe to inherit; enablement is not).
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -91,16 +95,60 @@ impl PluginState {
     }
 }
 
+/// Base directory for per-user plugin state. `SCRIPTOR_USER_DATA_DIR` overrides
+/// the platform default (portable installs, hermetic tests).
+fn user_state_base() -> Result<PathBuf, VaultError> {
+    let missing = |what: &str| VaultError::InvalidConfig {
+        message: format!("could not resolve the user data directory ({what})"),
+    };
+    if let Some(dir) = std::env::var_os("SCRIPTOR_USER_DATA_DIR").filter(|v| !v.is_empty()) {
+        return Ok(PathBuf::from(dir));
+    }
+    let base = if cfg!(windows) {
+        std::env::var_os("APPDATA")
+            .or_else(|| std::env::var_os("USERPROFILE"))
+            .map(PathBuf::from)
+            .ok_or_else(|| missing("APPDATA"))?
+    } else if cfg!(target_os = "macos") {
+        std::env::var_os("HOME")
+            .map(|home| PathBuf::from(home).join("Library/Application Support"))
+            .ok_or_else(|| missing("HOME"))?
+    } else {
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
+            })
+            .ok_or_else(|| missing("HOME"))?
+    };
+    Ok(base.join("scriptor"))
+}
+
+fn state_file_in(base: &Path, vault_root: &Path) -> PathBuf {
+    use sha2::{Digest, Sha256};
+    let canonical = vault_root
+        .canonicalize()
+        .unwrap_or_else(|_| vault_root.to_path_buf());
+    let digest = Sha256::digest(canonical.to_string_lossy().as_bytes());
+    base.join("plugin-state")
+        .join(format!("{}.json", hex::encode(&digest[..16])))
+}
+
 pub fn plugin_state_path(vault_root: &Path) -> PathBuf {
+    match user_state_base() {
+        Ok(base) => state_file_in(&base, vault_root),
+        // Unresolvable user dir: fall back to a path that can never exist so
+        // loads yield the fail-closed default and saves surface an error.
+        Err(_) => PathBuf::new(),
+    }
+}
+
+fn legacy_state_path(vault_root: &Path) -> PathBuf {
     vault_root.join(".scriptor").join(PLUGIN_STATE_FILE)
 }
 
-pub fn load_plugin_state(vault_root: &Path) -> Result<PluginState, VaultError> {
-    let path = plugin_state_path(vault_root);
-    if !path.exists() {
-        return Ok(PluginState::default());
-    }
-    let raw = fs::read_to_string(&path).map_err(|source| VaultError::io(&path, source))?;
+fn read_state(path: &Path) -> Result<PluginState, VaultError> {
+    let raw = fs::read_to_string(path).map_err(|source| VaultError::io(path, source))?;
     let state: PluginState =
         serde_json::from_str(&raw).map_err(|error| VaultError::InvalidConfig {
             message: format!("invalid plugin state at {}: {error}", path.display()),
@@ -109,15 +157,36 @@ pub fn load_plugin_state(vault_root: &Path) -> Result<PluginState, VaultError> {
     Ok(state)
 }
 
-pub fn save_plugin_state(vault_root: &Path, state: &PluginState) -> Result<(), VaultError> {
+fn load_in(base: &Path, vault_root: &Path) -> Result<PluginState, VaultError> {
+    let path = state_file_in(base, vault_root);
+    if path.exists() {
+        return read_state(&path);
+    }
+    // First run after upgrade: inherit only the restrictions a vault declared.
+    let mut state = PluginState::default();
+    if let Ok(legacy) = read_state(&legacy_state_path(vault_root)) {
+        state.disabled_plugins = legacy.disabled_plugins;
+    }
+    Ok(state)
+}
+
+fn save_in(base: &Path, vault_root: &Path, state: &PluginState) -> Result<(), VaultError> {
     state.validate()?;
-    let path = plugin_state_path(vault_root);
+    let path = state_file_in(base, vault_root);
     let dir = path.parent().ok_or_else(|| VaultError::InvalidConfig {
         message: format!("plugin state path has no parent: {}", path.display()),
     })?;
     fs::create_dir_all(dir).map_err(|source| VaultError::io(dir, source))?;
     let payload = serde_json::to_vec_pretty(state)?;
     atomic_write(&path, &payload)
+}
+
+pub fn load_plugin_state(vault_root: &Path) -> Result<PluginState, VaultError> {
+    load_in(&user_state_base()?, vault_root)
+}
+
+pub fn save_plugin_state(vault_root: &Path, state: &PluginState) -> Result<(), VaultError> {
+    save_in(&user_state_base()?, vault_root, state)
 }
 
 fn validate_capability_id(id: &str) -> Result<(), VaultError> {
@@ -157,23 +226,42 @@ mod tests {
 
     #[test]
     fn state_is_atomic_and_vault_scoped() {
+        let base = tempfile::tempdir().unwrap();
         let first = tempfile::tempdir().unwrap();
         let second = tempfile::tempdir().unwrap();
         let state = PluginState {
             disabled_plugins: ["scriptor.graph".into()].into_iter().collect(),
             ..Default::default()
         };
-        save_plugin_state(first.path(), &state).unwrap();
+        save_in(base.path(), first.path(), &state).unwrap();
         assert!(
-            !load_plugin_state(first.path())
+            !load_in(base.path(), first.path())
                 .unwrap()
                 .is_enabled("scriptor.graph")
         );
         assert!(
-            load_plugin_state(second.path())
+            load_in(base.path(), second.path())
                 .unwrap()
                 .is_enabled("scriptor.graph")
         );
+        // Nothing is written into the vault itself.
+        assert!(!first.path().join(".scriptor").exists());
+    }
+
+    #[test]
+    fn a_cloned_vault_cannot_arrive_with_plugins_enabled() {
+        let base = tempfile::tempdir().unwrap();
+        let vault = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(vault.path().join(".scriptor")).unwrap();
+        std::fs::write(
+            legacy_state_path(vault.path()),
+            br#"{"schemaVersion":1,"enabledPlugins":["scriptor.gmail-manager"],"disabledPlugins":["scriptor.graph"]}"#,
+        )
+        .unwrap();
+        let state = load_in(base.path(), vault.path()).unwrap();
+        assert!(!state.is_explicitly_enabled("scriptor.gmail-manager"));
+        // Restrictions are safe to inherit.
+        assert!(!state.is_enabled("scriptor.graph"));
     }
 
     #[test]
@@ -207,11 +295,12 @@ mod tests {
 
     #[test]
     fn malformed_state_is_rejected_without_resetting_the_file() {
+        let base = tempfile::tempdir().unwrap();
         let vault = tempfile::tempdir().unwrap();
-        let path = plugin_state_path(vault.path());
+        let path = state_file_in(base.path(), vault.path());
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, b"{\"schemaVersion\":1,\"enabledPlugins\":[").unwrap();
-        let error = load_plugin_state(vault.path()).unwrap_err().to_string();
+        let error = load_in(base.path(), vault.path()).unwrap_err().to_string();
         assert!(error.contains("invalid plugin state"));
         assert_eq!(
             std::fs::read_to_string(path).unwrap(),
