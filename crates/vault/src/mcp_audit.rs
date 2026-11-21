@@ -118,14 +118,68 @@ impl McpMutationAuditRecord {
     }
 }
 
+/// Open the final audit-file component without following a hostile symlink.
+/// The containing .scriptor/audit directory is independently guarded.
+fn audit_regular_file_exists(path: &Path) -> Result<bool, VaultError> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => Err(
+            VaultError::InvalidRelativePath(path.display().to_string()),
+        ),
+        Ok(_) => Ok(true),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(source) => Err(VaultError::io(path, source)),
+    }
+}
+
+fn open_audit_regular_file(path: &Path, append: bool) -> Result<File, VaultError> {
+    let mut options = OpenOptions::new();
+    if append {
+        options.append(true).create(true);
+    } else {
+        options.read(true);
+    }
+    // O_NOFOLLOW values below are the documented OS constants. Fail closed on
+    // Unix targets whose value has not been verified rather than opening links.
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(0x20_000);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(0x100);
+    }
+    #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+    {
+        return Err(VaultError::InvalidRelativePath(path.display().to_string()));
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        // FILE_FLAG_OPEN_REPARSE_POINT: open the link itself, not its target.
+        options.custom_flags(0x0020_0000);
+    }
+    // A preceding metadata check catches existing links. The OS no-follow
+    // flag protects the open itself against replacement between check/open.
+    audit_regular_file_exists(path)?;
+    let file = options.open(path).map_err(|source| VaultError::io(path, source))?;
+    let metadata = file.metadata().map_err(|source| VaultError::io(path, source))?;
+    let file_type = fs::symlink_metadata(path)
+        .map_err(|source| VaultError::io(path, source))?
+        .file_type();
+    if !metadata.is_file() || file_type.is_symlink() {
+        return Err(VaultError::InvalidRelativePath(path.display().to_string()));
+    }
+    Ok(file)
+}
+
 pub fn append_mcp_mutation(
     root: &VaultRoot,
     record: McpMutationAuditRecord,
 ) -> Result<(), VaultError> {
     let absolute = root.root().join(DEFAULT_MCP_AUDIT_PATH);
-    if let Some(parent) = absolute.parent() {
-        fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
-    }
+    crate::fs::create_state_parent(&absolute)?;
 
     // Serialize the complete read-hash / rotate / append sequence across
     // processes. Locking only the append would still allow two writers to read
@@ -161,11 +215,7 @@ fn link_and_append(
     record.record_hash = Some(hex::encode(hasher.finalize()));
 
     let line = serde_json::to_string(&record).map_err(VaultError::from)?;
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(target)
-        .map_err(|source| VaultError::io(target, source))?;
+    let mut file = open_audit_regular_file(target, true)?;
     writeln!(file, "{line}").map_err(|source| VaultError::io(target, source))?;
     file.flush()
         .map_err(|source| VaultError::io(target, source))?;
@@ -182,10 +232,10 @@ pub fn read_mcp_audit_tail(
         return Ok(Vec::new());
     }
     let absolute = root.root().join(DEFAULT_MCP_AUDIT_PATH);
-    if !absolute.is_file() {
+    if !audit_regular_file_exists(&absolute)? {
         return Ok(Vec::new());
     }
-    let mut file = File::open(&absolute).map_err(|source| VaultError::io(&absolute, source))?;
+    let mut file = open_audit_regular_file(&absolute, false)?;
     let len = file
         .metadata()
         .map_err(|source| VaultError::io(&absolute, source))?
@@ -237,10 +287,10 @@ pub fn reconcile_pending_mcp_mutations(root: &VaultRoot) -> Result<usize, VaultE
 }
 
 fn read_last_record_hash(path: &Path) -> Result<Option<String>, VaultError> {
-    if !path.is_file() {
+    if !audit_regular_file_exists(path)? {
         return Ok(None);
     }
-    let mut file = File::open(path).map_err(|source| VaultError::io(path, source))?;
+    let mut file = open_audit_regular_file(path, false)?;
     let len = file
         .metadata()
         .map_err(|source| VaultError::io(path, source))?
@@ -300,7 +350,7 @@ pub fn verify_mcp_audit_chain(root: &VaultRoot) -> Result<(), VaultError> {
         })
         .collect();
     files.sort();
-    if active.is_file() {
+    if audit_regular_file_exists(&active)? {
         files.push(active.clone());
     }
 
@@ -310,7 +360,7 @@ pub fn verify_mcp_audit_chain(root: &VaultRoot) -> Result<(), VaultError> {
     let mut previous: Option<String> = None;
     let mut head_is_anchor = true;
     for path in files {
-        let file = File::open(&path).map_err(|source| VaultError::io(&path, source))?;
+        let file = open_audit_regular_file(&path, false)?;
         for line in BufReader::new(file).lines() {
             let line = line.map_err(|source| VaultError::io(&path, source))?;
             if line.trim().is_empty() {
@@ -419,6 +469,30 @@ mod tests {
         read_last_record_hash(&path)?.ok_or_else(|| VaultError::InvalidConfig {
             message: "seeded record missing hash".into(),
         })
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn linked_audit_file_cannot_redirect_reads_or_appends_outside_the_vault()
+        -> Result<(), Box<dyn std::error::Error>>
+    {
+        use std::os::unix::fs::symlink;
+        let vault = tempdir()?;
+        let external = tempdir()?;
+        let target = external.path().join("external-log.txt");
+        fs::write(&target, "external-file-must-not-change\\n")?;
+        let root = VaultRoot::open(vault.path())?;
+        let audit = root.root().join(DEFAULT_MCP_AUDIT_PATH);
+        fs::create_dir_all(audit.parent().unwrap())?;
+        symlink(&target, &audit)?;
+        let intent = McpMutationAuditRecord::intent(
+            "blocked-link".into(), "mcp.createNote", "note.create", None, None,
+        );
+        assert!(append_mcp_mutation(&root, intent).is_err());
+        assert!(read_mcp_audit_tail(&root, 1).is_err());
+        assert!(verify_mcp_audit_chain(&root).is_err());
+        assert_eq!(fs::read_to_string(target)?, "external-file-must-not-change\\n");
+        Ok(())
     }
 
     #[test]

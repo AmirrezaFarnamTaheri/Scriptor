@@ -5,7 +5,6 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs,
     path::{Path, PathBuf},
 };
 
@@ -97,10 +96,9 @@ pub fn plugin_state_path(vault_root: &Path) -> PathBuf {
 
 pub fn load_plugin_state(vault_root: &Path) -> Result<PluginState, VaultError> {
     let path = plugin_state_path(vault_root);
-    if !path.exists() {
+    let Some(raw) = crate::fs::read_state_file(&path, crate::fs::MAX_STATE_FILE_BYTES)? else {
         return Ok(PluginState::default());
-    }
-    let raw = fs::read_to_string(&path).map_err(|source| VaultError::io(&path, source))?;
+    };
     let state: PluginState =
         serde_json::from_str(&raw).map_err(|error| VaultError::InvalidConfig {
             message: format!("invalid plugin state at {}: {error}", path.display()),
@@ -112,10 +110,7 @@ pub fn load_plugin_state(vault_root: &Path) -> Result<PluginState, VaultError> {
 pub fn save_plugin_state(vault_root: &Path, state: &PluginState) -> Result<(), VaultError> {
     state.validate()?;
     let path = plugin_state_path(vault_root);
-    let dir = path.parent().ok_or_else(|| VaultError::InvalidConfig {
-        message: format!("plugin state path has no parent: {}", path.display()),
-    })?;
-    fs::create_dir_all(dir).map_err(|source| VaultError::io(dir, source))?;
+    crate::fs::create_state_parent(&path)?;
     let payload = serde_json::to_vec_pretty(state)?;
     atomic_write(&path, &payload)
 }

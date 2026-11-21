@@ -1,4 +1,3 @@
-use std::fs;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -24,9 +23,7 @@ struct VaultSnippetCatalog {
 
 pub fn save_vault_snippets(vault_root: &Path, snippets: &[VaultSnippet]) -> Result<(), VaultError> {
     let path = vault_root.join(DEFAULT_SNIPPETS_PATH);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
-    }
+    crate::fs::create_state_parent(&path)?;
     let catalog = VaultSnippetCatalog {
         snippets: snippets.to_vec(),
     };
@@ -40,11 +37,9 @@ pub fn save_vault_snippets(vault_root: &Path, snippets: &[VaultSnippet]) -> Resu
 
 pub fn load_vault_snippets(vault_root: &Path) -> Result<Vec<VaultSnippet>, VaultError> {
     let path = vault_root.join(DEFAULT_SNIPPETS_PATH);
-    if !path.exists() {
+    let Some(raw) = crate::fs::read_state_file(&path, crate::fs::MAX_STATE_FILE_BYTES)? else {
         return Ok(Vec::new());
-    }
-
-    let raw = fs::read_to_string(&path).map_err(|source| VaultError::io(&path, source))?;
+    };
     let catalog: VaultSnippetCatalog =
         serde_json::from_str(&raw).map_err(|error| VaultError::InvalidConfig {
             message: format!("invalid snippets catalog at {DEFAULT_SNIPPETS_PATH}: {error}"),
@@ -71,6 +66,8 @@ pub fn load_vault_snippets(vault_root: &Path) -> Result<Vec<VaultSnippet>, Vault
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use super::*;
     use tempfile::tempdir;
 

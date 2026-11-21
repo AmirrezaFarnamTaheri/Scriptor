@@ -191,62 +191,68 @@ pub fn rename_apply_staged_guarded(
         &intended_hashes,
     )?;
 
-    // Record the phase *before* the writes begin. Recording it afterwards left a
-    // crash mid-loop looking like `Staged`, and the `Staged` recovery path only
-    // restored the source note — every already-rewritten note kept links to a
-    // filename that was never created. Announcing the phase up front means a
-    // crash at any point in the loop rolls the whole batch back.
-    if update_links && !pending_writes.is_empty() {
-        staged.record_phase(crate::rename_transaction::RenamePhase::LinkWritesDone)?;
-    }
+    // Every step from the first link write to the recorded move runs inside
+    // one closure: any error aborts the transaction, so a failure here (a
+    // destination folder that cannot be created, a source changed since
+    // planning, a failed rename) restores the rewritten notes and removes the
+    // manifest instead of leaving it to block every later save.
+    let applied = (|| -> Result<(), VaultError> {
+        // Record the phase *before* the writes begin. Recording it afterwards left
+        // a crash mid-loop looking like `Staged`, and the `Staged` recovery path
+        // only restored the source note. Announcing the phase up front means a
+        // crash at any point in the loop rolls the whole batch back.
+        if update_links && !pending_writes.is_empty() {
+            staged.record_phase(crate::rename_transaction::RenamePhase::LinkWritesDone)?;
+        }
 
-    for (path, (markdown, original_hash)) in &pending_writes {
-        if path != from_path.as_str() {
-            let relative = RelativeVaultPath::parse(path)?;
-            if let Err(error) =
-                save_note_locked(vault_id, root, &relative, markdown, Some(original_hash))
-            {
-                let _ = staged.abort();
-                return Err(error);
+        for (path, (markdown, original_hash)) in &pending_writes {
+            if path != from_path.as_str() {
+                let relative = RelativeVaultPath::parse(path)?;
+                save_note_locked(vault_id, root, &relative, markdown, Some(original_hash))?;
             }
         }
-    }
 
-    let from_absolute = root.resolve_relative(from_path)?;
-    let to_absolute = root.resolve_relative(to_path)?;
-    if let Some(parent) = to_absolute.parent() {
-        fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
-    }
-
-    if let Some((updated_source, original_hash)) = pending_writes.get(from_path.as_str()) {
-        // The source must still be the bytes observed during planning before it
-        // can be removed. The destination is create-only, so the write carries the
-        // missing-content sentinel: a note that appeared at the destination after
-        // the dry-run collision check fails the transaction instead of being
-        // overwritten by the rename.
-        save_note_locked(
-            vault_id,
-            root,
-            to_path,
-            updated_source,
-            Some(crate::write::EXPECTED_MISSING_CONTENT_HASH),
-        )?;
-        let current = read_note(vault_id, root, from_path)?;
-        if current.metadata.content_hash != *original_hash {
-            let _ = staged.abort();
-            return Err(VaultError::HashMismatch {
-                path: from_path.to_string(),
-                expected: original_hash.clone(),
-                found: current.metadata.content_hash,
-            });
+        let from_absolute = root.resolve_relative(from_path)?;
+        let to_absolute = root.resolve_relative(to_path)?;
+        if let Some(parent) = to_absolute.parent() {
+            fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
         }
-        fs::remove_file(&from_absolute).map_err(|source| VaultError::io(&from_absolute, source))?;
-    } else {
-        fs::rename(&from_absolute, &to_absolute)
-            .map_err(|source| VaultError::io(&from_absolute, source))?;
+
+        if let Some((updated_source, original_hash)) = pending_writes.get(from_path.as_str()) {
+            // The source must still be the bytes observed during planning before
+            // it can be removed. The destination is create-only, so the write
+            // carries the missing-content sentinel: a note that appeared at the
+            // destination after the dry-run collision check fails the transaction
+            // instead of being overwritten by the rename.
+            save_note_locked(
+                vault_id,
+                root,
+                to_path,
+                updated_source,
+                Some(crate::write::EXPECTED_MISSING_CONTENT_HASH),
+            )?;
+            let current = read_note(vault_id, root, from_path)?;
+            if current.metadata.content_hash != *original_hash {
+                return Err(VaultError::HashMismatch {
+                    path: from_path.to_string(),
+                    expected: original_hash.clone(),
+                    found: current.metadata.content_hash,
+                });
+            }
+            fs::remove_file(&from_absolute)
+                .map_err(|source| VaultError::io(&from_absolute, source))?;
+        } else {
+            fs::rename(&from_absolute, &to_absolute)
+                .map_err(|source| VaultError::io(&from_absolute, source))?;
+        }
+
+        staged.record_phase(crate::rename_transaction::RenamePhase::FileMoveDone)
+    })();
+    if let Err(error) = applied {
+        let _ = staged.abort();
+        return Err(error);
     }
 
-    staged.record_phase(crate::rename_transaction::RenamePhase::FileMoveDone)?;
     if let Err(error) = move_note_history(root, from_path.as_str(), to_path.as_str()) {
         let _ = staged.abort();
         return Err(error);
@@ -355,6 +361,34 @@ mod tests {
     use super::*;
     use crate::open::open_vault;
     use tempfile::tempdir;
+
+    /// A failure after the link writes (here the destination folder cannot be
+    /// created because a file holds its name) used to return with `?`, leaving
+    /// backlinks pointing at a note that was never created and a manifest that
+    /// refuses every later save until the vault is reopened.
+    #[test]
+    fn a_failed_move_after_link_writes_restores_links_and_releases_the_vault() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("Note.md"), "# Note\n").unwrap();
+        fs::write(dir.path().join("Other.md"), "# Other\n\n[[Note]]\n").unwrap();
+        fs::write(dir.path().join("Blocked"), "not a folder").unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let from = RelativeVaultPath::parse("Note.md").unwrap();
+        let to = RelativeVaultPath::parse("Blocked/Renamed.md").unwrap();
+
+        let result = rename_apply(&session.descriptor.id, &session.root, &from, &to, true);
+
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read_to_string(dir.path().join("Other.md")).unwrap(),
+            "# Other\n\n[[Note]]\n"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.path().join("Note.md")).unwrap(),
+            "# Note\n"
+        );
+        assert!(!dir.path().join(".scriptor/rename-txn.json").exists());
+    }
 
     #[test]
     fn rename_updates_wikilinks() {

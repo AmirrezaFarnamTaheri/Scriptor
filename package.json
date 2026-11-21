@@ -156,7 +156,9 @@
     "pdfjs-dist": "^6.5.438",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "zustand": "^5.1.0"
+    "zustand": "^5.1.0",
+    "y-monaco": "0.1.6",
+    "yjs": "13.6.33"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.14.0",

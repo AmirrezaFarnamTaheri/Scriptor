@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Roll an interrupted rename back as a whole: a crash after the note moved but before the move was recorded restored the backlinks while leaving the note at its new name. Any error after link writes now aborts the transaction instead of leaving rewritten links and a manifest that refused every later save, and rollback never overwrites a source note edited after planning.
 - Bound process-broker output draining after a direct child exits; terminate descendants that keep inherited stdout/stderr pipes open and report a distinct output-drain failure instead of waiting for the executable deadline.
 
 ### Fixed
