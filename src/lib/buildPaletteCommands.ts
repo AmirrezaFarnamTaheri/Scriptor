@@ -60,7 +60,6 @@ export interface PaletteCommandContext {
   setTemplatePickerOpen?: (open: boolean) => void
   setObsidianImportOpen?: (open: boolean) => void
   insertSnippet?: (text: string) => void
-  publishStarlight?: () => void
   promptText?: (request: {
     title: string
     label: string
@@ -127,7 +126,6 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     setTemplatePickerOpen,
     setObsidianImportOpen,
     insertSnippet,
-    publishStarlight,
     promptText,
     pluginCommands = [],
     runPluginCommand,
@@ -510,14 +508,6 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
         setStatusDockTab('jobs')
         void workspace.exportWithProfile?.('reveal-slides')
       },
-    })
-  }
-
-  if (publishStarlight) {
-    commands.push({
-      id: 'publish-starlight',
-      label: 'Publish Starlight site',
-      run: publishStarlight,
     })
   }
 

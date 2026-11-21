@@ -82,7 +82,6 @@ import { useAppKeyboardShortcuts } from './hooks/useAppKeyboardShortcuts'
 import { useAppZoom } from './hooks/useAppZoom'
 import { useVaultSidebarActions } from './hooks/useVaultSidebarActions'
 import { useJourneyMetrics } from './hooks/useJourneyMetrics'
-import { useStarlightPublishing } from './hooks/useStarlightPublishing'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
 import { extractPandocCitationKeys } from './lib/citationExtract'
 import { vaultReadNote, vaultSaveNote, codeChunkRun } from './bridge/commands'
@@ -347,18 +346,6 @@ function App() {
   })
 
   const { promptRequest, promptText, submitPrompt, cancelPrompt } = useTextPrompt()
-  const {
-    applyStarlightPlan,
-    publishApplying,
-    publishOutputPath,
-    publishPlan,
-    publishStarlight,
-  } = useStarlightPublishing({
-    vaultId: workspace.vault?.id ?? null,
-    promptText,
-    showToast,
-    openPublishCenter: () => setPublishCenterOpen(true),
-  })
   const recentVaults = useRecentVaults()
   const rememberRecentVault = recentVaults.remember
   useEffect(() => {
@@ -759,13 +746,6 @@ function App() {
   const handleCancelExportFromPublishCenter = useCallback(() => {
     void cancelExport()
   }, [cancelExport])
-  const handlePlanStarlight = useCallback(() => { void publishStarlight() }, [publishStarlight])
-  const handleReplanStarlight = useCallback(() => {
-    void publishStarlight(publishOutputPath ?? undefined)
-  }, [publishStarlight, publishOutputPath])
-  const handleApplyPlanFromPublishCenter = useCallback((selectedPaths: string[], deleteOrphans: string[]) => {
-    void applyStarlightPlan(selectedPaths, deleteOrphans)
-  }, [applyStarlightPlan])
 
   const { handleCloseCommandPalette, handleSearchNotes, handleOpenNoteFromPalette } =
     usePaletteNoteNavigation(Boolean(workspace.vault), openNote, setCommandPaletteOpen)
@@ -854,7 +834,6 @@ function App() {
         setTemplatePickerOpen: nativeReady && workspace.vault ? setTemplatePickerOpen : undefined,
         setObsidianImportOpen: nativeReady && workspace.vault ? setObsidianImportOpen : undefined,
         insertSnippet: (text) => workspace.insertSnippet(text),
-        publishStarlight: nativeReady ? () => void publishStarlight() : undefined,
         promptText,
         pluginCommands: pluginCommandEntries,
         canExecutePluginCommand,
@@ -904,7 +883,6 @@ function App() {
       patchChrome,
       pluginCommandEntries,
       pluginCommandRuntime,
-      publishStarlight,
       promptText,
       recentNotes,
       setBibliographyOpen,
@@ -1870,14 +1848,10 @@ function App() {
         onInsertTagFromWorkbench={handleInsertTagFromWorkbench}
         onRenameTagFromWorkbench={handleRenameTagFromWorkbench}
         publishCenterOpen={publishCenterOpen}
-        publishPlan={publishPlan}
-        publishApplying={publishApplying}
         onClosePublishCenter={handleClosePublishCenter}
         onExportFromPublishCenter={handleExportFromPublishCenter}
         onCancelExportFromPublishCenter={handleCancelExportFromPublishCenter}
-        onPlanStarlight={handlePlanStarlight}
-        onReplanStarlight={handleReplanStarlight}
-        onApplyPlanFromPublishCenter={handleApplyPlanFromPublishCenter}
+        onOpenPublishingStudio={() => composition.commands.find(command => command.id === 'open-publishing-studio')?.run()}
         snippetsOpen={snippetsOpen}
         setSnippetsOpen={setSnippetsOpen}
         cheatsheetOpen={cheatsheetOpen}

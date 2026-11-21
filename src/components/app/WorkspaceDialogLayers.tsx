@@ -1,5 +1,4 @@
 import { memo, Suspense, useCallback } from 'react'
-import type { ComponentProps } from 'react'
 
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
@@ -73,14 +72,10 @@ export interface WorkspaceDialogLayersProps {
 
   // Publish center
   publishCenterOpen: boolean
-  publishPlan: ComponentProps<typeof PublishCenter>['publishPlan']
-  publishApplying: boolean
   onClosePublishCenter: () => void
   onExportFromPublishCenter: (profileId: string, dryRun?: boolean) => void
   onCancelExportFromPublishCenter: () => void
-  onPlanStarlight: () => void
-  onReplanStarlight: () => void
-  onApplyPlanFromPublishCenter: (selectedPaths: string[], deleteOrphans: string[]) => void
+  onOpenPublishingStudio: () => void
 
   // Snippets
   snippetsOpen: boolean
@@ -136,14 +131,10 @@ function WorkspaceDialogLayersImpl({
   onInsertTagFromWorkbench,
   onRenameTagFromWorkbench,
   publishCenterOpen,
-  publishPlan,
-  publishApplying,
   onClosePublishCenter,
   onExportFromPublishCenter,
   onCancelExportFromPublishCenter,
-  onPlanStarlight,
-  onReplanStarlight,
-  onApplyPlanFromPublishCenter,
+  onOpenPublishingStudio,
   snippetsOpen,
   setSnippetsOpen,
   cheatsheetOpen,
@@ -322,12 +313,7 @@ function WorkspaceDialogLayersImpl({
               onClose={onClosePublishCenter}
               onExport={onExportFromPublishCenter}
               onCancelExport={onCancelExportFromPublishCenter}
-              publishPlan={publishPlan}
-              applyingPlan={publishApplying}
-              publishRequireOptIn
-              onPlanStarlight={onPlanStarlight}
-              onReplanStarlight={onReplanStarlight}
-              onApplyPlan={onApplyPlanFromPublishCenter}
+              onOpenPublishingStudio={() => { onClosePublishCenter(); onOpenPublishingStudio() }}
             />
           </Suspense>
         </ErrorBoundary>

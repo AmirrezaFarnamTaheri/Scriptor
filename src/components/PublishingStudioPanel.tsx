@@ -10,11 +10,18 @@ import '../styles/components/research-studio.css'
 import '../styles/components/publishing-studio.css'
 
 export interface PublishingStudioPanelProps { vaultId: string; onClose(): void; onOpenNote(path: string): void; runSourceNoteMutation(sourcePath: string, runMutation: () => Promise<void>): Promise<boolean> }
+const folderKey = (vaultId: string) => `scriptor:publishing-folder:${vaultId}`
+function readRememberedFolder(vaultId: string): string {
+  try { return localStorage.getItem(folderKey(vaultId)) ?? '' } catch { return '' }
+}
+function rememberFolder(vaultId: string, folder: string) {
+  try { localStorage.setItem(folderKey(vaultId), folder) } catch { /* storage unavailable */ }
+}
 export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceNoteMutation }: PublishingStudioPanelProps) {
   const [notes, setNotes] = useState<ViewNoteHit[]>([])
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
-  const [output, setOutput] = useState('')
+  const [output, setOutput] = useState(() => readRememberedFolder(vaultId))
   const [review, setReview] = useState<{ requested: string; site: StarlightPublishPlanOutput } | null>(null)
   const [preview, setPreview] = useState<NoteDocument | null>(null)
   const [busy, setBusy] = useState(false)
@@ -50,6 +57,7 @@ export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceN
     const requested = output.trim()
     if (!requested) throw new Error('Choose a local site folder')
     const next = await vaultPublishPlanStarlight(requested, vaultId)
+    rememberFolder(vaultId, requested)
     if (mounted.current) setReview({ requested, site: next })
   }
   async function read(path: string) {

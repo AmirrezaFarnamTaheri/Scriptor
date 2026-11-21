@@ -24,6 +24,9 @@
 
 ### Improved
 
+- Website publishing now has one home, the Publishing studio. Export & publish handles files and links to the studio, which remembers your site folder per vault. The separate "Publish Starlight site" command is gone; search for "Publishing studio" or "website" instead.
+- AI agent access settings use plain wording and say correctly that the level applies to every vault on this device. The top bar shows "AI agents: <level>".
+
 - AI draft proposals use a configurable model name (Settings → AI, default `gpt-4o-mini`) instead of always sending `gpt-4o-mini`; names are limited to letters, digits and `- _ . : / @`.
 
 ### Fixed

@@ -8,7 +8,7 @@ export type ReviewFeature = ReviewFeatureName | 'plugin'
 const features: Array<{ feature: ReviewFeatureName; id: string; label: string; keywords: string[] }> = [
   { feature: 'database', id: 'open-database-studio', label: 'Database studio', keywords: ['table', 'gallery', 'formula', 'filter', 'frontmatter'] },
   { feature: 'capture', id: 'open-capture-reviewer', label: 'Capture reviewer', keywords: ['article', 'clip', 'web', 'research'] },
-  { feature: 'publishing', id: 'open-publishing-studio', label: 'Publishing studio', keywords: ['publish', 'privacy', 'site', 'deployment', 'domain'] },
+  { feature: 'publishing', id: 'open-publishing-studio', label: 'Publishing studio', keywords: ['publish', 'site', 'starlight', 'website', 'deploy', 'domain'] },
   { feature: 'collaboration', id: 'open-drive-collaboration', label: 'Drive collaboration', keywords: ['share', 'merge', 'collaborate'] },
   { feature: 'diagram', id: 'open-diagram-studio', label: 'Diagram studio', keywords: ['mermaid', 'plantuml', 'diagram'] },
   { feature: 'runtime', id: 'open-runtime-console', label: 'Runtime console', keywords: ['python', 'node', 'code', 'repl'] },

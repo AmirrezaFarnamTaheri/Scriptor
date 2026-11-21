@@ -1,0 +1,16 @@
+{
+  "sessionId": "2026-11-21-2014",
+  "startedAt": "",
+  "endedAt": "2026-11-21T16:44:12Z",
+  "currentFeature": "",
+  "filesChanged": [
+    ".harnesskit/session-start-time.txt"
+  ],
+  "featuresCompleted": [],
+  "featuresFailed": [],
+  "errors": [],
+  "toolCallSequences": [],
+  "rawToolSequence": [],
+  "taskTimeDistribution": {},
+  "pluginUsage": {}
+}

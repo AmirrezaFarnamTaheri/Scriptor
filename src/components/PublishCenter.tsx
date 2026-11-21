@@ -7,11 +7,10 @@ import type { DqlResultRow, CodeChunkRunResult } from '@scriptor/renderer'
 import { ExportPreflightPreview } from './ExportPreflightPreview'
 import { OfflinePdfNotices } from './OfflinePdfNotices'
 import { ExportPrintPreview } from './ExportPrintPreview'
-import { PublishDiffView } from './PublishDiffView'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { supportsPrintPagePreview } from '@scriptor/export'
 import { formatBadgeFor } from '../lib/exportProfileFormat'
-import type { ExportJobOutput, ExportJobRecord, PublishPlan } from '../types/vault'
+import type { ExportJobOutput, ExportJobRecord } from '../types/vault'
 import { useLatexCompiler, type LatexCompilerConfig } from '../hooks/useLatexCompiler'
 
 interface PublishCenterProps {
@@ -30,16 +29,11 @@ interface PublishCenterProps {
   exportResult: ExportJobOutput | null
   isExporting: boolean
   nativeReady: boolean
-  publishPlan?: PublishPlan | null
-  applyingPlan?: boolean
-  publishRequireOptIn?: boolean
   latexConfig?: LatexCompilerConfig | null
   onClose: () => void
   onExport: (profileId: string, dryRun?: boolean) => void
   onCancelExport: () => void
-  onPlanStarlight: () => void
-  onReplanStarlight?: () => void
-  onApplyPlan?: (selectedPaths: string[], deleteOrphans: string[]) => void
+  onOpenPublishingStudio?: () => void
 }
 
 function formatStatus(entry: ExportJobRecord): string {
@@ -51,7 +45,7 @@ function formatStatus(entry: ExportJobRecord): string {
   return entry.status
 }
 
-/** Renders note export, LaTeX compilation, and static-site publishing workflows. */
+/** Renders note export and LaTeX compilation; site publishing lives in the Publishing studio. */
 export const PublishCenter = memo(function PublishCenter({
   activePath,
   draftMarkdown,
@@ -61,16 +55,11 @@ export const PublishCenter = memo(function PublishCenter({
   exportResult,
   isExporting,
   nativeReady,
-  publishPlan = null,
-  applyingPlan = false,
-  publishRequireOptIn = true,
   latexConfig = null,
   onClose,
   onExport,
   onCancelExport,
-  onPlanStarlight,
-  onReplanStarlight,
-  onApplyPlan,
+  onOpenPublishingStudio,
 }: PublishCenterProps) {
   const latex = useLatexCompiler({ config: latexConfig ?? undefined })
   const [selectedProfileId, setSelectedProfileId] = useState('pdf-offline')
@@ -85,11 +74,9 @@ export const PublishCenter = memo(function PublishCenter({
   const isTexDocument = Boolean(activePath && /\.(tex|ltx)$/i.test(activePath))
   const [latexOptionsOpen, setLatexOptionsOpen] = useState(isTexDocument)
   useEffect(() => { setLatexOptionsOpen(isTexDocument) }, [isTexDocument])
-  const handleReplanStarlight = onReplanStarlight ?? onPlanStarlight
-  const handleApplyPlan = onApplyPlan ?? (() => {})
 
   const subtitle = useMemo(() => {
-    if (!activePath) return 'Open a note to export a file or plan a site publish.'
+    if (!activePath) return 'Open a note to export it.'
     if (isExporting) return `Exporting ${activePath}…`
     return `Active note: ${activePath}`
   }, [activePath, isExporting])
@@ -279,35 +266,18 @@ export const PublishCenter = memo(function PublishCenter({
           <ExportPrintPreview markdown={draftMarkdown} activePath={activePath} previewProps={previewProps} />
         ) : null}
 
-        <section className="publish-center-section" aria-labelledby="site-publishing-heading" data-help-topic="publish">
-          <h3 id="site-publishing-heading">
-            <Globe size={16} aria-hidden="true" />
-            Publish a documentation site
-          </h3>
-          {publishPlan != null ? (
-            <PublishDiffView
-              plan={publishPlan}
-              requireFrontmatterOptIn={publishRequireOptIn}
-              onApply={handleApplyPlan}
-              onReplan={handleReplanStarlight}
-              applying={applyingPlan}
-            />
-          ) : (
-            <>
-              <p className="health-subtitle">
-                Build and review a Starlight site plan from opted-in vault notes. This is separate from exporting the active note.
-              </p>
-              <button
-                type="button"
-                className="primary-button"
-                disabled={!nativeReady}
-                onClick={onPlanStarlight}
-              >
-                Plan site publish
-              </button>
-            </>
-          )}
-        </section>
+        {onOpenPublishingStudio ? (
+          <section className="publish-center-section" aria-labelledby="site-publishing-heading" data-help-topic="publish">
+            <h3 id="site-publishing-heading">
+              <Globe size={16} aria-hidden="true" />
+              Publish a website
+            </h3>
+            <p className="health-subtitle">Turn notes marked for publishing into a site you can build and deploy.</p>
+            <button type="button" className="secondary-button" disabled={!nativeReady} onClick={onOpenPublishingStudio}>
+              Open Publishing studio
+            </button>
+          </section>
+        ) : null}
 
         {exportHistory.length > 0 ? (
           <section className="publish-center-section publish-center-history">
