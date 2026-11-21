@@ -199,7 +199,10 @@ pub(crate) fn ensure_supported_git_version() -> Result<(), GitError> {
         }
         Ok(())
     });
-    outcome.as_ref().map_err(|message| GitError::Command(message.clone()))
+    outcome
+        .as_ref()
+        .map(|_| ())
+        .map_err(|message| GitError::Command(message.clone()))
 }
 
 /// The bridge intentionally starts subprocesses with a minimal environment.
