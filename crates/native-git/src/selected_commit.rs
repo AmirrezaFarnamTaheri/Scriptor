@@ -6,7 +6,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use scriptor_system_bridge::{ProcessReceipt, ProcessSpec, run_process};
 
 use crate::error::GitError;
-use crate::status::{GitCommitOutput, GitStatus, git_status, run_git};
+use crate::status::{
+    GitCommitOutput, GitStatus, UNTRUSTED_REPOSITORY_OVERRIDES, ensure_supported_git_version,
+    git_status, run_git,
+};
 
 /// Commit a reviewed set of paths without bypassing Git's normal commit
 /// machinery. Ordinary selected-file commits use a temporary index so
@@ -317,6 +320,7 @@ fn run_git_receipt_with_index(
     args: &[&str],
     index: &Path,
 ) -> Result<ProcessReceipt, GitError> {
+    ensure_supported_git_version()?;
     let mut spec = ProcessSpec::new("git")
         .args(UNTRUSTED_REPOSITORY_OVERRIDES)
         .args(args.iter().copied())
@@ -332,17 +336,6 @@ fn run_git_receipt_with_index(
     let receipt = run_process(spec).map_err(GitError::Process)?;
     reject_truncated_output(&args.join(" "), receipt)
 }
-
-/// A vault is user content, and its `.git/config` travels with a copied or
-/// synced folder. `core.fsmonitor` names a program that Git runs for commands as
-/// ordinary as `status`, so it is forced off for every invocation. Command-line
-/// `-c` values take precedence over repository, global and system config.
-const UNTRUSTED_REPOSITORY_OVERRIDES: [&str; 4] = [
-    "-c",
-    "core.fsmonitor=false",
-    "-c",
-    "core.untrackedCache=false",
-];
 
 const GIT_TRANSPORT_ENVIRONMENT: [&str; 5] = [
     "SSH_AUTH_SOCK",
