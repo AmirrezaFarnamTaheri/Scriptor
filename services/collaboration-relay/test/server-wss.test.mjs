@@ -1,18 +1,17 @@
 import assert from 'node:assert/strict'
 import { generateKeyPairSync, sign } from 'node:crypto'
 import { once } from 'node:events'
-import { chmodSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
 import { RelayRoomStore } from '../src/room-store.mjs'
 import { startRelayServer } from '../src/server.mjs'
+import { writeTestTlsFixture } from './tls-fixture.mjs'
 
 // The root runner installs the exact locked ws dependency in CI. Keep the
 // dependency-free protocol tests runnable in offline/container scratchspaces.
 const wsPackage = await import('ws').catch(() => null)
-const hasOpenssl = spawnSync('openssl', ['version'], { stdio: 'ignore' }).status === 0
 
 function receive(ws) {
   return Promise.race([
@@ -35,7 +34,7 @@ async function connect(url, peerId, pair) {
 }
 
 test('WSS server routes authenticated updates and persists them before ACK',
-  { skip: !wsPackage || !hasOpenssl }, async () => {
+  { skip: !wsPackage }, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'scriptor-real-wss-'))
   const alice = generateKeyPairSync('ed25519')
   const bob = generateKeyPairSync('ed25519')
@@ -45,12 +44,7 @@ test('WSS server routes authenticated updates and persists them before ACK',
     vaultId: 'vault_a', peerId: 'alice', messageId: 'seed', clientSeq: 1, payload: 'c2VlZA==' }
   let store, server, wsA, wsB
   try {
-    const tlsKey = join(dir, 'test-key.pem'), tlsCert = join(dir, 'test-cert.pem')
-    const generated = spawnSync('openssl', ['req','-x509','-newkey','rsa:2048','-nodes',
-      '-keyout',tlsKey,'-out',tlsCert,'-subj','/CN=localhost','-days','1'],
-    { stdio: 'ignore' })
-    assert.equal(generated.status, 0)
-    chmodSync(tlsKey, 0o600)
+    const { keyPath: tlsKey, certPath: tlsCert } = writeTestTlsFixture(dir)
     store = new RelayRoomStore(join(dir, 'room-store'))
     store.createRoom({ ...scope, ownerPeerId: 'alice', ownerPublicKey: pem(alice), initialUpdate: seed })
     store.grant({ ...scope, actorPeerId: 'alice', targetPeerId: 'bob', role: 'editor', publicKey: pem(bob) })
