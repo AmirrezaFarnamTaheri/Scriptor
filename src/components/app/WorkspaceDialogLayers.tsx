@@ -313,7 +313,7 @@ function WorkspaceDialogLayersImpl({
               onClose={onClosePublishCenter}
               onExport={onExportFromPublishCenter}
               onCancelExport={onCancelExportFromPublishCenter}
-              onOpenPublishingStudio={() => { onClosePublishCenter(); onOpenPublishingStudio() }}
+              onOpenPublishingStudio={() => { onClosePublishCenter(); window.setTimeout(onOpenPublishingStudio, 0) }}
             />
           </Suspense>
         </ErrorBoundary>
