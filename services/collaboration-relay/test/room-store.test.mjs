@@ -3,6 +3,7 @@ import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { DatabaseSync } from 'node:sqlite'
 import { RelayRoomStore } from '../src/room-store.mjs'
 
 const identity = { roomId: 'room_01', documentId: 'document_01', epoch: 1 }
@@ -98,6 +99,26 @@ test('quota and malformed frames fail without committing an update', () => withS
   assert.throws(() => append(store, 'bob', update('bob', 2)), /quota|budget|limit/i)
   assert.throws(() => append(store, 'bob', { ...update('bob', 3), payload: '!@' }), /payload|encoding/i)
   assert.equal(read(store, 'alice').updates.length, 2)
+  store.close()
+}))
+
+test('persisted quota totals survive duplicate retries, restart and legacy database migration', () => withStore(dir => {
+  let store = new RelayRoomStore(dir, { maxDocumentBytes: 3 })
+  create(store)
+  store.grant({ ...identity, actorPeerId: 'alice', targetPeerId: 'bob', role: 'editor' })
+  const second = append(store, 'bob')
+  assert.equal(append(store, 'bob').cursor, second.cursor, 'duplicate must not consume quota')
+  store.close()
+
+  // A database created before quota totals existed still has valid updates.
+  // The first post-upgrade append must backfill the existing bytes exactly once.
+  const legacy = new DatabaseSync(join(dir, 'rooms.sqlite'))
+  try { legacy.exec('DROP TABLE room_byte_totals') } finally { legacy.close() }
+
+  store = new RelayRoomStore(dir, { maxDocumentBytes: 3 })
+  append(store, 'alice', update('alice', 2))
+  assert.throws(() => append(store, 'alice', update('alice', 3)), /quota|budget/i)
+  assert.equal(read(store, 'bob').updates.length, 3)
   store.close()
 }))
 
