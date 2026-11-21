@@ -512,8 +512,8 @@ fn display_sensitive_scope(operation: SensitiveOperation, scope: &str) -> Result
     // Do not truncate either reviewed destination: refuse the authorization
     // when they cannot be represented in a compact native dialog.
     let display = format!(
-        "Note: {note}\\nRelay endpoint: {endpoint}\\nRoom: {room}\\nDocument: {document}\\nEpoch: {epoch}"
-    ).replace("\\n", "\n");
+        "Note: {note}\nRelay endpoint: {endpoint}\nRoom: {room}\nDocument: {document}\nEpoch: {epoch}"
+    );
     if display.len() > 600 {
         return Err("Collaboration authorization scope is too long to review".into());
     }
