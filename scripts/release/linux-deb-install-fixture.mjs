@@ -90,8 +90,10 @@ export function inspectInstalledDebFixture({ root, directory, expectedCommit, ar
     const logArg = '--log=' + logFile
     // fakeroot and --root prevent any system package install; --force-depends
     // intentionally bypasses dependencies (not runtime dependency acceptance).
+    // A closed stdin and a non-interactive frontend keep dpkg from waiting on a
+    // prompt; shared CI runners are slow enough that 60s timed out intermittently.
     run('fakeroot', ['--', 'dpkg', rootArg, logArg, '--force-depends', '--install', packageFile],
-      { timeout: 60000 })
+      { timeout: 180000, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, DEBIAN_FRONTEND: 'noninteractive' } })
     const status = run('dpkg', [rootArg, '--status', 'scriptor'])
     assert(/^Status: install ok installed$/m.test(status), 'Package manager did not record installed status')
     assert(status.split('\n').includes('Version: ' + version), 'Package-manager version mismatch')
