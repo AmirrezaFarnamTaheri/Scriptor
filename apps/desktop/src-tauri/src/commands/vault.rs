@@ -723,9 +723,9 @@ pub fn vault_export_audit_log(
             let mut out = String::from("id,ts,kind,message,detail\n");
             for entry in &entries {
                 out.push_str(&format!(
-                    "{},{},{},{},{}\n",
+                    "{},\"{}\",{},{},{}\n",
                     csv_field(&entry.id.to_string()),
-                    format!("\"{}\"", entry.ts),
+                    entry.ts,
                     csv_field(&entry.kind.to_string()),
                     csv_field(&entry.message),
                     csv_field(entry.detail.as_deref().unwrap_or("")),

@@ -52,6 +52,7 @@ fn language(path: &str) -> Result<&'static str, String> {
 /// A vault root is chosen by the renderer, so a vault can sit above a user
 /// profile. Script-typed files must never be created where the operating system
 /// runs them at sign-in (Windows Startup folder, macOS LaunchAgents/Daemons).
+#[cfg(any(windows, target_os = "macos", test))]
 fn is_within_protected_dir(path: &std::path::Path, root: &std::path::Path) -> bool {
     // Compare complete path components, not substrings (e.g. Startup2) or vault-relative names.
     // macOS and Windows volumes are often case-insensitive.

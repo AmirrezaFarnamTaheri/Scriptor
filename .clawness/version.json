@@ -1,0 +1,12 @@
+{
+  "version": "1.19.0",
+  "covered": [
+    "bash",
+    "css",
+    "docker",
+    "react",
+    "rust",
+    "typescript"
+  ],
+  "updated": 1794991782.9321418
+}
