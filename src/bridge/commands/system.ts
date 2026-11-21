@@ -85,7 +85,9 @@ async function sha256Hex(value: string): Promise<string> {
 
 /** Must match `code_run_scope` in commands/code_chunk.rs. */
 export async function codeRunScope(language: string, code: string): Promise<string> {
-  return `code:run:${language.trim().toLowerCase()}:${await sha256Hex(code)}`
+  // Rust str::trim also removes U+0085, which JavaScript's trim omits.
+  const normalized = language.replace(/^[\s\u0085]+|[\s\u0085]+$/gu, '').toLowerCase()
+  return `code:run:${normalized}:${await sha256Hex(code)}`
 }
 
 export async function codeChunkRun(language: string, code: string): Promise<CodeChunkRunOutput> {
