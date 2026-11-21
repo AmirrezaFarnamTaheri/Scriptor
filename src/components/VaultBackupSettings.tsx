@@ -266,7 +266,7 @@ export const VaultBackupSettings = memo(function VaultBackupSettings({ backup, v
       </section> : null}
       <section className="backup-recovery-tools" aria-label="Other recovery options">
         <h4 className="settings-subheading">Other recovery options</h4>
-        <p className="health-subtitle">You can preview earlier revisions of the selected note without replacing the entire vault. Opening history does not modify files; restoring a revision requires separate review and approval.</p>
+        <p className="health-subtitle">Restore a single note from its history instead of the whole vault. Browsing history changes nothing.</p>
         <button type="button" className="toolbar-button"
           disabled={!historyAccess.allowed}
           onClick={onOpenNoteHistory}>

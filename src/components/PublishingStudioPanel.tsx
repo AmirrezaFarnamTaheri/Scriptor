@@ -91,7 +91,7 @@ export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceN
     } finally { currentJob.current = null; if (mounted.current) { setRunningJob(null); if (deploy) setApiToken('') } }
   }
   return <UnifiedPanelShell title="Publishing studio" ariaLabel="Publishing studio" helpTopic="export" onClose={onClose} wide className="publishing-studio">
-    <p>Only notes marked <code>publish: true</code> can be included. Review changes before building or publishing.</p>
+    <p>Notes marked <code>publish: true</code> are included. Pick a folder, review the changes, then build.</p>
     <div className="research-controls">
       <label>Local site folder<input dir="ltr" value={output} disabled={busy} maxLength={4096} placeholder="Absolute folder path" onChange={event => setOutput(event.target.value)} /></label>
       <button disabled={busy || !output.trim()} onClick={() => void action(replan)}>Review publication plan</button>
@@ -112,7 +112,7 @@ export function PublishingStudioPanel({ vaultId, onClose, onOpenNote, runSourceN
       })} />
       <div className="research-controls"><button disabled={busy} onClick={() => void action(() => runJob(false))}>Build local site</button>{busy && runningJob && <button onClick={() => void publishingCancelJob(runningJob, vaultId).catch(reason => setError(String(reason)))}>Cancel build or deployment</button>}</div>
       <details><summary>Cloudflare Pages deployment and custom domain</summary>
-        <p>Use an existing Pages project and installed Wrangler. The token stays in memory for this action. Domain attachment reports provider status; DNS remains a separate configuration step.</p>
+        <p>Needs an existing Cloudflare Pages project and Wrangler installed. The token is used once and not saved.</p>
         <div className="research-controls">
           <label>Account ID<input dir="ltr" value={accountId} maxLength={32} disabled={busy} onChange={event => setAccountId(event.target.value.trim())} /></label>
           <label>Project name<input dir="ltr" value={project} maxLength={63} disabled={busy} onChange={event => setProject(event.target.value.trim())} /></label>
