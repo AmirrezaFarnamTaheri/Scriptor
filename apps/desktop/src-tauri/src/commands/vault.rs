@@ -461,7 +461,9 @@ fn validate_textbundle_destination(raw: &str) -> Result<std::path::PathBuf, Stri
         .and_then(|name| name.to_str())
         .is_some_and(|name| name.contains(':'))
     {
-        return Err("TextBundle destination must not contain a Windows alternate data stream".into());
+        return Err(
+            "TextBundle destination must not contain a Windows alternate data stream".into(),
+        );
     }
     let parent = path
         .parent()

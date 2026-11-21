@@ -1732,13 +1732,13 @@ function App() {
           diagnosticsOptIn={diagnostics.optIn}
           onDiagnosticsOptInChange={diagnostics.setOptIn}
           aiProvider={ai.provider}
-          aiEndpoint={ai.endpoint}
+          aiEndpoint={ai.endpoint} aiModel={ai.model}
           aiHasApiKey={ai.hasApiKey}
           aiBusy={ai.busy}
           aiLastError={ai.lastError}
           aiHttpWarning={ai.httpWarning}
           onAiProviderChange={ai.setProvider}
-          onAiEndpointChange={ai.setEndpoint}
+          onAiEndpointChange={ai.setEndpoint} onAiModelChange={ai.setModel}
           onAiSaveApiKey={handleAiSaveApiKey}
           onAiClearApiKey={handleAiClearApiKey}
           nativeReady={nativeReady}

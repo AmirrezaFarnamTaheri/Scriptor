@@ -69,9 +69,11 @@ fn is_within_protected_dir(path: &std::path::Path, root: &std::path::Path) -> bo
 fn is_autostart_location(absolute: &std::path::Path) -> bool {
     #[cfg(windows)]
     {
-        let Some(appdata) = std::env::var_os("APPDATA") else { return false; };
-        let startup = std::path::PathBuf::from(appdata)
-            .join("Microsoft/Windows/Start Menu/Programs/Startup");
+        let Some(appdata) = std::env::var_os("APPDATA") else {
+            return false;
+        };
+        let startup =
+            std::path::PathBuf::from(appdata).join("Microsoft/Windows/Start Menu/Programs/Startup");
         let startup = startup.canonicalize().unwrap_or(startup);
         return is_within_protected_dir(absolute, &startup);
     }
@@ -86,9 +88,15 @@ fn is_autostart_location(absolute: &std::path::Path) -> bool {
             std::path::PathBuf::from("/System/Library/LaunchDaemons"),
         ];
         return home_agents.as_deref().is_some_and(|dir| {
-            is_within_protected_dir(absolute, &dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf()))
+            is_within_protected_dir(
+                absolute,
+                &dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf()),
+            )
         }) || protected.iter().any(|dir| {
-            is_within_protected_dir(absolute, &dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf()))
+            is_within_protected_dir(
+                absolute,
+                &dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf()),
+            )
         });
     }
     #[cfg(not(any(windows, target_os = "macos")))]
@@ -476,20 +484,34 @@ mod tests {
     }
     #[test]
     fn autostart_check_restricts_actual_os_roots_not_unrelated_folder_names() {
-        let win_root = std::path::Path::new("/Users/me/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup");
+        let win_root = std::path::Path::new(
+            "/Users/me/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup",
+        );
         let mac_root = std::path::Path::new("/Users/me/Library/LaunchAgents");
         for (destination, protected) in [
-            ("/Users/me/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/run.js", win_root),
+            (
+                "/Users/me/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/run.js",
+                win_root,
+            ),
             ("/Users/me/Library/LaunchAgents/run.py", mac_root),
         ] {
-            assert!(is_within_protected_dir(std::path::Path::new(destination), protected));
+            assert!(is_within_protected_dir(
+                std::path::Path::new(destination),
+                protected
+            ));
         }
         for (destination, protected) in [
-            ("/Users/me/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup2/run.js", win_root),
+            (
+                "/Users/me/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup2/run.js",
+                win_root,
+            ),
             ("/Users/me/docs/LaunchAgents/run.py", mac_root),
             ("/Users/me/Library/LaunchAgents-copy/run.py", mac_root),
         ] {
-            assert!(!is_within_protected_dir(std::path::Path::new(destination), protected));
+            assert!(!is_within_protected_dir(
+                std::path::Path::new(destination),
+                protected
+            ));
         }
     }
 }

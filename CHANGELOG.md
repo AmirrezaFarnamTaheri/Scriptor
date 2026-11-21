@@ -16,6 +16,10 @@
 - TextBundle export opens the archive without following a link at the final path component (and rejects non-regular files before truncating), closing the window between destination validation and write.
 - Embedding clients reject redirect responses instead of decoding them, and process-tree termination calls `kill`/`taskkill` by absolute path rather than through `PATH`.
 
+### Improved
+
+- AI draft proposals use a configurable model name (Settings → AI, default `gpt-4o-mini`) instead of always sending `gpt-4o-mini`; names are limited to letters, digits and `- _ . : / @`.
+
 ### Fixed
 
 - Starting the background daemon waits for it to answer (up to 10 s) instead of sleeping a fixed 2 s, and a failed `scriptor://` deep-link registration no longer aborts startup.

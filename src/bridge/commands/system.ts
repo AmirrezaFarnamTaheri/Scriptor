@@ -48,11 +48,13 @@ export async function aiProviderProposeDraft(
   endpoint: string,
   prompt: string,
   currentMarkdown: string,
+  model?: string,
 ): Promise<string> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('ai_network_request', endpoint)
   const proposal = await invoke<{ markdown: string }>('ai_provider_propose_draft', {
     endpoint,
+    model: model?.trim() || null,
     prompt,
     currentMarkdown,
     authorizationToken,

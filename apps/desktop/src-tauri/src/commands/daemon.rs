@@ -357,9 +357,11 @@ pub fn daemon_start(
         .arg("serve")
         .spawn()
         .map_err(|error| format!("failed to start {binary_display}: {error}"))?;
-    wait_for_daemon(Duration::from_secs(10), Duration::from_millis(100), |remaining| {
-        daemon_ping_with_timeout(remaining.min(Duration::from_secs(1))).is_ok()
-    })?;
+    wait_for_daemon(
+        Duration::from_secs(10),
+        Duration::from_millis(100),
+        |remaining| daemon_ping_with_timeout(remaining.min(Duration::from_secs(1))).is_ok(),
+    )?;
     read_endpoint().map_err(|error| error.to_string())
 }
 
@@ -727,13 +729,21 @@ mod wait_tests {
     #[test]
     fn ping_receives_only_remaining_startup_budget() {
         let mut observed = Vec::new();
-        let result = wait_for_daemon(Duration::from_millis(4), Duration::from_millis(1), |remaining| {
-            observed.push(remaining);
-            false
-        });
+        let result = wait_for_daemon(
+            Duration::from_millis(4),
+            Duration::from_millis(1),
+            |remaining| {
+                observed.push(remaining);
+                false
+            },
+        );
         assert!(result.is_err());
         assert!(!observed.is_empty());
-        assert!(observed.iter().all(|budget| *budget <= Duration::from_millis(4)));
+        assert!(
+            observed
+                .iter()
+                .all(|budget| *budget <= Duration::from_millis(4))
+        );
     }
 
     #[test]

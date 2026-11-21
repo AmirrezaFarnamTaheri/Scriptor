@@ -1157,6 +1157,7 @@
     "off": "Off",
     "openaiCompatible": "OpenAI-compatible HTTP API",
     "endpoint": "Endpoint",
+    "model": "Model",
     "apiKey": "API key",
     "keyStored": "Key stored in keychain",
     "pasteKey": "Paste API key",

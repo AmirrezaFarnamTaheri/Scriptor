@@ -1157,6 +1157,7 @@
     "off": "Aus",
     "openaiCompatible": "OpenAI-kompatible HTTP-API",
     "endpoint": "Endpunkt",
+    "model": "Modell",
     "apiKey": "API-Schlüssel",
     "keyStored": "Schlüssel im Schlüsselbund gespeichert",
     "pasteKey": "API-Schlüssel einfügen",

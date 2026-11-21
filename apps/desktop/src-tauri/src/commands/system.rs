@@ -137,12 +137,34 @@ pub fn ai_provider_delete_api_key(
     keychain_delete(AI_PROVIDER_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())
 }
 
+const DEFAULT_AI_MODEL: &str = "gpt-4o-mini";
+
+/// The model name is sent verbatim in the request body, so keep it to the
+/// characters real model identifiers use (e.g. `gpt-4o-mini`, `llama3.1:8b`,
+/// `org/model@2025-01`).
+fn validate_ai_model(model: Option<&str>) -> Result<String, String> {
+    let model = model.map(str::trim).filter(|value| !value.is_empty());
+    let Some(model) = model else {
+        return Ok(DEFAULT_AI_MODEL.to_string());
+    };
+    let valid = model.len() <= 128
+        && model
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/' | '@'));
+    if valid {
+        Ok(model.to_string())
+    } else {
+        Err("AI model name may use letters, digits and - _ . : / @ (up to 128 characters)".into())
+    }
+}
+
 #[tauri::command]
 pub async fn ai_provider_propose_draft(
     state: tauri::State<'_, AppState>,
     endpoint: String,
     prompt: String,
     current_markdown: String,
+    model: Option<String>,
     authorization_token: String,
 ) -> Result<AiDraftProposal, String> {
     require_sensitive_operation(
@@ -153,6 +175,7 @@ pub async fn ai_provider_propose_draft(
         None,
     )?;
     let endpoint = validate_ai_endpoint(&endpoint)?;
+    let model = validate_ai_model(model.as_deref())?;
     if prompt.trim().is_empty() || prompt.len() > 64 * 1024 {
         return Err("AI instruction must contain between 1 and 65536 characters".into());
     }
@@ -174,7 +197,7 @@ pub async fn ai_provider_propose_draft(
         .post(endpoint)
         .bearer_auth(api_key)
         .json(&serde_json::json!({
-            "model": "gpt-4o-mini",
+            "model": model,
             "messages": [
                 {
                     "role": "system",
@@ -339,4 +362,30 @@ pub fn diagnostics_export_support_bundle(state: tauri::State<AppState>) -> Resul
     .map_err(|error| error.to_string())?;
     std::fs::rename(&temp, &output).map_err(|error| error.to_string())?;
     Ok(format!(".scriptor/diagnostics/{file_name}"))
+}
+
+#[cfg(test)]
+mod ai_model_tests {
+    use super::validate_ai_model;
+
+    #[test]
+    fn defaults_when_missing_or_blank() {
+        assert_eq!(validate_ai_model(None).unwrap(), "gpt-4o-mini");
+        assert_eq!(validate_ai_model(Some("  ")).unwrap(), "gpt-4o-mini");
+    }
+
+    #[test]
+    fn accepts_real_model_identifiers() {
+        for name in ["gpt-4o", "llama3.1:8b", "org/model@2025-01", " claude-x "] {
+            assert!(validate_ai_model(Some(name)).is_ok(), "{name}");
+        }
+    }
+
+    #[test]
+    fn rejects_unsafe_or_oversized_names() {
+        let long = "a".repeat(129);
+        for name in ["bad name", "x\"y", "a\nb", "m;rm", long.as_str()] {
+            assert!(validate_ai_model(Some(name)).is_err(), "{name:?}");
+        }
+    }
 }
