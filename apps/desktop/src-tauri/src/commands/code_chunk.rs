@@ -92,6 +92,9 @@ pub fn code_chunk_run(
     authorization_token: String,
 ) -> Result<CodeChunkRunOutput, String> {
     let session = active_session(&state)?;
+    if code.len() > 4 * 1024 * 1024 {
+        return Err("code chunk exceeds the 4 MiB execution limit".into());
+    }
     let lang = language.trim().to_lowercase();
     require_sensitive_operation(
         &state,
@@ -104,9 +107,6 @@ pub fn code_chunk_run(
         return Err(format!(
             "code execution is disabled by default; set {CODE_EXECUTION_OPT_IN}=1 only for a trusted workspace"
         ));
-    }
-    if code.len() > 4 * 1024 * 1024 {
-        return Err("code chunk exceeds the 4 MiB execution limit".into());
     }
 
     let (binary, prefix_args) = allowed_runner(&lang).ok_or_else(|| {
