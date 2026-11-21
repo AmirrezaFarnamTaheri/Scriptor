@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
 import { generateKeyPairSync, sign } from 'node:crypto'
 import { once } from 'node:events'
-import { chmodSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -10,6 +9,7 @@ import { WebSocket } from 'ws'
 import { CollaborativeMarkdown } from '../../../src/lib/liveCollaborationYjs.ts'
 import { RelayRoomStore } from '../src/room-store.mjs'
 import { startRelayServer } from '../src/server.mjs'
+import { writeTestTlsFixture } from './tls-fixture.mjs'
 
 const room = { roomId: 'room_crdt_e2e', documentId: 'doc_crdt_e2e', epoch: 1 }
 const localScope = peerId => ({ ...room, vaultId: 'local_' + peerId, peerId })
@@ -77,14 +77,7 @@ test('three authenticated WSS clients converge through durable Yjs replay and re
   const peers = {}
   let store, server
   try {
-    const keyPath = join(dir, 'tls-key.pem')
-    const certPath = join(dir, 'tls-cert.pem')
-    const generated = spawnSync('openssl', [
-      'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
-      '-keyout', keyPath, '-out', certPath, '-subj', '/CN=localhost', '-days', '1',
-    ], { stdio: 'ignore' })
-    assert.equal(generated.status, 0, 'OpenSSL is required for the real TLS fixture')
-    chmodSync(keyPath, 0o600)
+    const { keyPath, certPath } = writeTestTlsFixture(dir)
     const initial = 'start سلام 👩🏽‍💻'
     const seeds = texts.alice.initializeOwner(initial)
     assert.equal(seeds.length, 1, 'small source should have one immutable room seed')
