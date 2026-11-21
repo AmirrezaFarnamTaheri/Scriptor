@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Security
+- Authorization grants, canvas documents and annotation selectors now reject unknown fields instead of silently ignoring them (F-ENG-03, first batch).
 - `cargo deny` now rejects wildcard (`*`) registry dependency requirements; application crates are marked `publish = false` so workspace path dependencies stay exempt (F-OPS-03).
 
 - Export profiles may set only presentation `--metadata`/`--variable` keys (title, author, lang, fontsize, geometry, theme and similar); keys that name files, URLs or raw markup (`bibliography`, `csl`, `header-includes`, `css`, …) and any backslash value are rejected. Profiles using other keys now fail with a disallowed-argument error.
